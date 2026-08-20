@@ -29,7 +29,17 @@ export type ProphecyInterstitialProps = {
 };
 
 /** Cue times in ms. The last cue is the beat of silence before the button. */
-const CUES = [200, 900, 1750, 3050, 4150, 6250] as const;
+/**
+ * Reveal schedule, in ms from mount.
+ *
+ * Was [200, 900, 1750, 3050, 4150, 6250] — six and a quarter seconds for a beat
+ * that fires on every single run of a two-to-four-minute game. The set piece
+ * has to be LOUD, which is a matter of scale and staging, not duration; a long
+ * reveal just becomes the thing a repeat player learns to click through. The
+ * shape is unchanged, the pacing is roughly halved, and the skip below still
+ * exists for anyone who has seen it.
+ */
+const CUES = [120, 520, 1000, 1620, 2160, 2900] as const;
 const FINAL = CUES.length;
 
 function prefersReducedMotion(): boolean {
