@@ -78,7 +78,7 @@ export const HERO_FAME_COEF = 0.18;
  * a famous wizard through the decline. Notoriety contributes a little (fear
  * deters) but nowhere near enough to pay for the threat it generates.
  */
-export const DEF_FLOOR = 34;
+export const DEF_FLOOR = 42;
 export const DEF_NOTORIETY = 0.3;
 export const DEF_LAIR = 8;
 
@@ -92,7 +92,7 @@ export const DEF_LAIR = 8;
  * gains. The right answer depends on the build the player actually assembled,
  * which is the whole point of wiki/01's "This makes it a live decision".
  */
-export const DEF_LICH = 46;
+export const DEF_LICH = 60;
 
 // ---------------------------------------------------------------------------
 // Faction standing — wiki/04 § Faction Standing
