@@ -1,0 +1,162 @@
+/**
+ * Design tokens — CSS side. Mirrors src/theme/tokens.ts.
+ * Keep the two in sync; tokens.ts is the source of truth for anything JS
+ * needs to compute (tier colors, motion timings used by the engine).
+ */
+
+:root {
+  /* Surfaces */
+  --ew-void: #0b0a09;
+  --ew-panel: #13110e;
+  --ew-raised: #1a1712;
+  --ew-hover: #221e17;
+  --ew-line: #282219;
+  --ew-line-strong: #3c3427;
+
+  /* Ink */
+  --ew-ink-bright: #f2ecdd;
+  --ew-ink: #e4dcc9;
+  --ew-ink-dim: #9a8f7c;
+  --ew-ink-faint: #6a6153;
+  --ew-ink-ghost: #453f35;
+
+  /* Accents — rationed */
+  --ew-danger: #b4453c;
+  --ew-delta-up: #7c9a6b;
+  --ew-delta-down: #b4453c;
+  --ew-delta-none: #6a6153;
+
+  /* The scarce color. Set per-tier at runtime on the app root. */
+  --ew-tier: #7a7365;
+  --ew-tier-glow: rgba(122, 115, 101, 0);
+
+  /* Type */
+  --ew-font-display: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --ew-font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --ew-size-xs: 0.6875rem;
+  --ew-size-sm: 0.8125rem;
+  --ew-size-base: 0.9375rem;
+  --ew-size-md: 1.0625rem;
+  --ew-size-lg: 1.375rem;
+  --ew-size-xl: 1.875rem;
+  --ew-size-xxl: 2.75rem;
+  --ew-size-display: 4rem;
+
+  /* Space */
+  --ew-space-1: 0.25rem;
+  --ew-space-2: 0.5rem;
+  --ew-space-3: 0.75rem;
+  --ew-space-4: 1rem;
+  --ew-space-5: 1.5rem;
+  --ew-space-6: 2rem;
+  --ew-space-7: 3rem;
+  --ew-space-8: 4rem;
+
+  /* Radius */
+  --ew-radius-sm: 3px;
+  --ew-radius-md: 5px;
+  --ew-radius-lg: 8px;
+  --ew-radius-pill: 999px;
+
+  /* Elevation */
+  --ew-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.25);
+  --ew-shadow-raised: 0 2px 4px rgba(0, 0, 0, 0.5), 0 12px 40px rgba(0, 0, 0, 0.4);
+  --ew-shadow-overlay: 0 24px 80px rgba(0, 0, 0, 0.7);
+  --ew-lip: inset 0 1px 0 rgba(255, 246, 224, 0.045);
+
+  /* Motion */
+  --ew-fast: 120ms;
+  --ew-base: 220ms;
+  --ew-slow: 420ms;
+  --ew-setpiece: 900ms;
+  --ew-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ew-ease-in: cubic-bezier(0.4, 0, 1, 1);
+
+  /* Layout */
+  --ew-max-width: 760px;
+  --ew-wide-max-width: 960px;
+}
+
+/* --------------------------------------------------------------------------
+   Reset & base
+   -------------------------------------------------------------------------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--ew-void);
+  color: var(--ew-ink);
+  font-family: var(--ew-font-ui);
+  font-size: var(--ew-size-base);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+}
+
+/* Every number that sits in a column gets tabular figures. A ledger whose
+   digits jitter as it grows is the fastest way to make this look cheap. */
+.ew-num,
+table {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1, 'kern' 1;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+input {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ew-tier);
+  outline-offset: 2px;
+  border-radius: var(--ew-radius-sm);
+}
+
+::selection {
+  background: var(--ew-tier);
+  color: var(--ew-void);
+}
+
+/* Respect the OS setting. Set pieces degrade to instant, not broken. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
