@@ -1,0 +1,281 @@
+/**
+ * THE CONTRACT.
+ *
+ * Every module in this game — engine, UI, content — is written against these
+ * shapes. Field names and union members are frozen; changing one is a
+ * cross-cutting change, not a local one.
+ *
+ * Derived from wiki/02_data_models_and_content-1.md, with two deliberate
+ * hardenings called for by wiki/04_operational_behaviors-1.md:
+ *
+ *   1. `Effect` is STRUCTURED DATA, never prose. The offer renderer walks
+ *      effects and prints them. An effect that is not in this union cannot be
+ *      authored, so an *undisclosed* effect cannot be authored either.
+ *
+ *   2. `OfferOption` is a discriminated union where the `gamble` variant
+ *      REQUIRES `onFailure`. The wiki asks that undisclosed downside be
+ *      "impossible to author, not merely discouraged" — this is that, enforced
+ *      by the type checker rather than by review.
+ */
+
+// ---------------------------------------------------------------------------
+// Identifiers
+// ---------------------------------------------------------------------------
+
+/** The fixed recurring cast. Same six every run — that is the whole point. */
+export type FactionId =
+  | 'ashen_covenant'
+  | 'gilded_hand'
+  | 'pale_academy'
+  | 'verdant_choir'
+  | 'crownlands'
+  | 'worm_below';
+
+export type EndingId =
+  | 'slain_by_chosen_one'
+  | 'sealed_in_gem'
+  | 'betrayed_by_apprentice'
+  | 'lichdom'
+  | 'retired_to_swamp'
+  | 'consumed_by_pact'
+  | 'ascension';
+
+export type Rarity = 'common' | 'rare' | 'legendary';
+
+export type Phase = 'ascent' | 'decline';
+
+/** Which phase(s) an offer may surface in. */
+export type OfferPhase = Phase | 'any';
+
+export type Outcome = 'success' | 'failure' | 'deterministic';
+
+// ---------------------------------------------------------------------------
+// Effects — structured, therefore always renderable
+// ---------------------------------------------------------------------------
+
+/**
+ * A single mechanical consequence.
+ *
+ * `t` is the discriminant; `v` is a signed magnitude where one applies.
+ * Everything the player's numbers can do is in this union. If you find
+ * yourself wanting an effect that is not here, add a member — do not smuggle
+ * it into prose, because prose is not rendered as a consequence.
+ */
+export type Effect =
+  | { t: 'notoriety'; v: number }
+  | { t: 'followers'; v: number }
+  | { t: 'standing'; factionId: FactionId; v: number }
+  /** Grant one specific artifact by id. */
+  | { t: 'artifact'; artifactId: string }
+  /** Grant a random not-yet-held artifact from a faction, optionally rarity-capped. */
+  | { t: 'artifactFrom'; factionId: FactionId; rarity?: Rarity }
+  /** Lose a random held artifact. */
+  | { t: 'loseArtifact' }
+  | { t: 'apprentices'; v: number }
+  | { t: 'loyalty'; v: number }
+  | { t: 'pactDebt'; v: number }
+  | { t: 'heroThreat'; v: number }
+  /** Move up or down the authored lair ladder. */
+  | { t: 'lairTier'; v: number }
+  /** Terminate the run immediately with this ending. */
+  | { t: 'ending'; endingId: EndingId };
+
+// ---------------------------------------------------------------------------
+// Offers
+// ---------------------------------------------------------------------------
+
+/**
+ * One choice card.
+ *
+ * `certain` resolves deterministically. `gamble` rolls against `odds` and MUST
+ * declare both branches — the type system is the guard on the odds-display
+ * rule, which wiki/04_operational_behaviors-1.md calls "the single most
+ * important rule in the codebase."
+ */
+export type OfferOption =
+  | {
+      kind: 'certain';
+      label: string;
+      effects: Effect[];
+      /** Optional one-line flavor shown on resolution. */
+      resultText?: string;
+    }
+  | {
+      kind: 'gamble';
+      label: string;
+      /** 0..1 exclusive. Rendered as a percentage before the player commits. */
+      odds: number;
+      onSuccess: Effect[];
+      onFailure: Effect[];
+      successText?: string;
+      failureText?: string;
+    };
+
+/** Gate conditions for whether an offer may enter the sampling pool. */
+export type Condition =
+  | { c: 'minNotoriety'; v: number }
+  | { c: 'maxNotoriety'; v: number }
+  | { c: 'minStanding'; factionId: FactionId; v: number }
+  | { c: 'maxStanding'; factionId: FactionId; v: number }
+  | { c: 'minApprentices'; v: number }
+  | { c: 'minFollowers'; v: number }
+  | { c: 'minPactDebt'; v: number }
+  | { c: 'minLairTier'; v: number }
+  | { c: 'minEraIndex'; v: number }
+  | { c: 'hasArtifact'; artifactId: string }
+  | { c: 'holdsAnyArtifact' };
+
+export type Offer = {
+  id: string;
+  title: string;
+  /** Flavor. Comedic register. The numbers underneath stay straight-faced. */
+  body: string;
+  phase: OfferPhase;
+  /** Optional faction affiliation — drives standing-weighted surfacing. */
+  factionId?: FactionId;
+  requires?: Condition[];
+  /** 2-4. Enforced by scripts/validate-content.ts. */
+  options: OfferOption[];
+  /** Higher surfaces more often before standing weighting. Default 1. */
+  weight?: number;
+  /** Marks the scripted prophecy set piece and other non-sampled offers. */
+  scripted?: boolean;
+};
+
+// ---------------------------------------------------------------------------
+// Content entities
+// ---------------------------------------------------------------------------
+
+export type Faction = {
+  id: FactionId;
+  name: string;
+  blurb: string;
+  /** What they take, in player-facing terms. */
+  demands: string;
+  hostileTo: FactionId[];
+  /** Short adjective used in ledger deed lines. */
+  adjective: string;
+};
+
+export type Artifact = {
+  id: string;
+  name: string;
+  /** Every artifact belongs to a faction — this is what makes routing legible. */
+  factionId: FactionId;
+  rarity: Rarity;
+  /** Player-facing mechanical summary. */
+  effect: string;
+  flavorText: string;
+  /** Defense contribution toward surviving hero threat. */
+  defense: number;
+};
+
+export type Lair = {
+  id: string;
+  name: string;
+  /** 0-based rung on the ladder. Names carry the progression. */
+  tier: number;
+  blurb: string;
+};
+
+export type Origin = {
+  id: string;
+  name: string;
+  blurb: string;
+  /** Applied once at run start. */
+  effects: Effect[];
+};
+
+export type Ending = {
+  id: EndingId;
+  name: string;
+  /** Long-form narration on the ending card. Still a biography, never a loss. */
+  narration: string;
+  /** One-line summary for the collection list. */
+  summary: string;
+  rarity: Rarity;
+};
+
+// ---------------------------------------------------------------------------
+// Run state
+// ---------------------------------------------------------------------------
+
+export type EraRecord = {
+  eraIndex: number;
+  age: number;
+  lairId: string;
+  notoriety: number;
+  notorietyDelta: number;
+  followers: number;
+  artifactsGained: string[];
+  /** One line, flavor. What shows in the ledger's Deeds column. */
+  deedSummary: string;
+  offerId: string;
+  optionLabel: string;
+  outcome: Outcome;
+  phase: Phase;
+};
+
+export type RunState = {
+  id: string;
+  seed: number;
+  wizardName: string;
+  epithet: string;
+  originId: string;
+  age: number;
+  eraIndex: number;
+  /** Total eras this run — set by the run-length choice at creation. */
+  eraCount: number;
+  phase: Phase;
+  /** Era index at which the prophecy fires. */
+  prophecyEra: number;
+  erasSinceProphecy: number;
+  /** 0-99. The headline stat and the game's only rationed color signal. */
+  notoriety: number;
+  followers: number;
+  lairId: string;
+  heldArtifactIds: string[];
+  factionStanding: Record<FactionId, number>;
+  apprentices: { count: number; loyalty: number };
+  pactDebt: number;
+  heroThreat: number;
+  /** True after the lichdom branch — freezes notoriety decay. */
+  isLich: boolean;
+  /** Append-only. Never removed, never rewritten. */
+  eras: EraRecord[];
+  seenOfferIds: string[];
+  ending?: EndingId;
+};
+
+/** Persisted across runs. The long-term retention mechanism. */
+export type Collection = {
+  /** Bumped when the shape changes; migration is the one loss players resent. */
+  version: number;
+  discoveredArtifactIds: string[];
+  endingsSeen: EndingId[];
+  runsCompleted: number;
+  bestNotoriety: number;
+};
+
+// ---------------------------------------------------------------------------
+// Notoriety tiers — the one scarce color
+// ---------------------------------------------------------------------------
+
+export type TierId = 'unknown' | 'local_menace' | 'named_threat' | 'kingdom' | 'legend';
+
+export type Tier = {
+  id: TierId;
+  name: string;
+  min: number;
+  max: number;
+  /** Player-facing line shown under the badge. */
+  line: string;
+  /** Only `kingdom` and `legend` crossings animate. Everything else is quiet. */
+  celebrate: boolean;
+};
+
+// ---------------------------------------------------------------------------
+// Screen routing
+// ---------------------------------------------------------------------------
+
+export type Screen = 'title' | 'creation' | 'run' | 'prophecy' | 'ending' | 'collection';
