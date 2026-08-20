@@ -32,6 +32,12 @@ export type EffectApplication = {
   artifactsLost: Artifact[];
   /** Set if any effect requested a terminal state. First one wins. */
   endingRequested?: EndingId;
+  /**
+   * Set by `{ t: 'becomeLich' }`. The forfeiture itself lives in `run.ts`,
+   * which owns the run-level transformation; this switch only records that it
+   * was asked for.
+   */
+  lichRequested?: boolean;
 };
 
 /** A mutable working copy. Arrays/objects are cloned so the input is untouched. */
@@ -158,6 +164,14 @@ export function applyEffects(
       case 'lairTier': {
         const applied = moveLair(draft, effect.v, index);
         if (applied !== 0) out.applied.push({ t: 'lairTier', v: applied });
+        break;
+      }
+
+      case 'becomeLich': {
+        out.lichRequested = true;
+        // Pushed so the resolution card lists the rite alongside its price;
+        // `run.ts` appends the concrete forfeiture once it knows what was held.
+        out.applied.push({ t: 'becomeLich' });
         break;
       }
 

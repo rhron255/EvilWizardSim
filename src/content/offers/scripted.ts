@@ -83,16 +83,14 @@ export const scriptedOffers: Offer[] = [
       {
         kind: 'certain',
         label: 'Accept. Become the thing under the hill.',
+        // `becomeLich` IS the price: the engine forfeits every relic and every
+        // follower and freezes decay. This was six stacked `loseArtifact`
+        // entries and a `followers: -999` sentinel — an author hand-rolling a
+        // bulk effect the union could not express. The renderer prints the
+        // forfeiture in full, so the player still sees the whole bill.
         effects: [
-          { t: 'loseArtifact' },
-          { t: 'loseArtifact' },
-          { t: 'loseArtifact' },
-          { t: 'loseArtifact' },
-          { t: 'loseArtifact' },
-          { t: 'loseArtifact' },
-          { t: 'followers', v: -999 },
+          { t: 'becomeLich' },
           { t: 'notoriety', v: 12 },
-          { t: 'ending', endingId: 'lichdom' },
         ],
         resultText: 'The vault empties. The household walks out through the front gate in daylight, and nobody stops them.',
       },

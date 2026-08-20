@@ -248,12 +248,19 @@ export function resolveChoice(
   const application = applyEffects(draft, effects, rng, content);
 
   let endingFromEffect: EndingId | undefined = application.endingRequested;
-  if (endingFromEffect === 'lichdom' && !run.isLich && run.eraIndex + 1 < run.eraCount) {
+
+  // The rite may arrive either as the explicit `becomeLich` effect or, for
+  // older cards, as an `ending: 'lichdom'` the engine reinterprets. Both mean
+  // transform-and-continue, never stop here — see the note on `becomeLich` in
+  // `types.ts` for why that is the only reading that fits the wiki.
+  const riteTaken = application.lichRequested || endingFromEffect === 'lichdom';
+  if (riteTaken && !run.isLich) {
     becomeLich(draft, application, content);
-    endingFromEffect = undefined;
-  } else if (endingFromEffect === 'lichdom' && !run.isLich) {
-    // Taken on the final era: pay the cost anyway, then end as a lich.
-    becomeLich(draft, application, content);
+    // Only a run with eras left can spend them as a lich; taken on the last
+    // era, the cost is still paid and the biography ends as one.
+    if (endingFromEffect === 'lichdom' && run.eraIndex + 1 < run.eraCount) {
+      endingFromEffect = undefined;
+    }
   }
 
   // ---- era-end systems -------------------------------------------------
