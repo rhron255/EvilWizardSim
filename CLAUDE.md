@@ -2,81 +2,119 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## What this is
+
+**Evil Wizard Simulator** — a short-session browser game. One run is a 2–4 minute
+career: you name a wizard, make roughly fifteen choices, and get a shareable
+biography. It is built and playable.
+
+The reward structure is modelled on **ליגיונר** (legionnaire.xyz). `wiki/` holds
+the design rationale; `wiki/06_reference_analysis.md` explains *why* the
+constraints below exist, and is the thing to read before relaxing any of them.
+
+> The wiki still describes itself as pre-implementation in places. It is the
+> design record, not API documentation — where it and the code disagree about
+> what exists, the code is right. Where they disagree about **intent**, stop and
+> reconcile deliberately rather than assuming either one.
+
 ## Repository layout
 
-- `README.md` — currently just the project name. Not yet fleshed out.
-- `wiki/` — the design & planning wiki. **This is the authoritative source for what this game is and how it should work**, until code exists to supersede it. Start at `wiki/index-1.md`.
-- Nothing else exists yet — no `src/`, no build files, no CI, no `.claude/`. When implementation starts, code will most likely live under `src/` per the proposed architecture in `wiki/03_systems_architecture-1.md`.
-
-## Current phase: pre-implementation
-
-Nothing is built. Every wiki page describes *proposed* behavior — **do not treat anything in `wiki/` as documenting existing code**, and don't assume any interface, component, or function named there actually exists in the repo. `wiki/index-1.md`'s status table (Core loop / Data models / Content catalogs / Technical architecture / Balance formulas / Art & audio) is the single source of truth for what's Planned vs. Missing vs. Blocked.
-
-Near-term work on this repo is mostly **wiki/design work**: resolving the P0 blocking decisions in `wiki/00_tasks-1.md`, filling in `Missing` content catalogs (factions, artifacts, offers, endings), and tightening the specs in `01_core_loop.md` / `02_data_models_and_content-1.md` / `04_operational_behaviors-1.md` ahead of the Phase 1 vertical slice in `05_implementation_blueprint-1.md`. Treat wiki edits with the same care as code changes — see "Wiki editing conventions" below.
-
-## What this project is
-
-A 2–4 minute browser game in which the player builds an evil wizard's career across "eras," producing a permanent, shareable end-of-run record. Meant to be replayed dozens of times. The reward structure is deliberately modeled on **ליגיונר** (legionnaire.xyz), an Israeli football-career game that reached ~750,000 careers played in its first 72 hours.
-
-**Read `wiki/06_reference_analysis.md` and `wiki/01_core_loop.md` before changing anything about rewards, pacing, or ending conditions.** The non-obvious constraints in this design — printed odds before every gamble, an append-only ledger, no fail state, comedy quarantined to flavor text (never the numbers), one scarce UI color — are load-bearing and derived from analysis of a game that demonstrably worked at scale. They will look like arbitrary restrictions without that context.
-
-## Proposed stack (working plan)
-
-Not formally signed off — `wiki/03_systems_architecture-1.md` flags this `Blocked`, pending owner sign-off — but treat it as the working assumption until someone overrides it:
-
-- **React + TypeScript**, single-page, client-side only, no backend for v1.
-- **No game engine.** This is a state machine and a table; a canvas framework would be overhead.
-- **Static hosting** (Vercel/Netlify-equivalent).
-- **`localStorage`** for cross-run persistence (the artifact collection).
-- Content (offers, artifacts, factions, lairs, endings) authored as **typed const arrays in `src/content/`**, not a CMS — volume (~120 offers) is too low to justify one.
-
-Other open decisions still block real content work (`wiki/index-1.md` § Open Decisions): target language (comedy doesn't translate cheaply — decide before authoring) and monetization/hosting are unresolved. Flag these rather than guessing if a task depends on them.
+| Path | Owns |
+|---|---|
+| `src/types.ts` | **The frozen contract.** Every module is written against it. |
+| `src/theme/` | Design tokens (`tokens.ts` for JS, `tokens.css` for `--ew-*`). |
+| `src/engine/` | Run state, offer sampling, resolution, endings, persistence. |
+| `src/content/` | Factions, artifacts, lairs, origins, endings, epithets, ~110 offers. |
+| `src/components/run/` | The run loop: ledger, offer panel, notoriety badge. |
+| `src/components/meta/` | Set-piece parts: lair grid, artifact grid, sigil. |
+| `src/screens/` | Screen composition. |
+| `scripts/` | `validate-content.ts`, `simulate.ts` (balance harness). |
+| `qa/` | Playwright probes. Screenshots are gitignored. |
+| `wiki/` | Design intent and rationale. |
 
 ## Commands
 
-None yet — no `package.json`, no build tooling, no CI. This section gets filled in for real once the stack is confirmed and scaffolded. Two pieces of tooling the wiki calls out as needing to exist early:
+```bash
+npm run dev              # → http://localhost:5173
+npm run build            # typecheck + production build
+npm run typecheck        # tsc -b --noEmit
+npm run test             # vitest, single pass
+npm run lint             # eslint, zero warnings tolerated
+npm run validate:content # faction refs, option counts, disclosed effects
+npm run sim              # 2000-run balance report; --fixtures for engine-only
+```
 
-- A **content validation script**, written *before* content authoring starts — checks every artifact references a valid faction, every offer has 2–4 options, every probabilistic option declares both success and failure effects.
-- A **headless simulation harness** that plays N runs and reports ending distribution, Notoriety spread, and Ascension rate — required before any balance tuning; balancing without it is guesswork.
+**The gate is all four of `typecheck`, `test`, `lint`, `validate:content`.**
+Balance changes additionally need `npm run sim`. Visual changes need a real
+browser — see below.
 
-Check `wiki/00_tasks-1.md` (P0–P1) for what's currently blocking the first line of code.
+## The rules that are load-bearing
 
-## Wiki editing conventions
+These come from a game that worked at scale. They look arbitrary in isolation.
 
-- Each page carries YAML frontmatter (`name`, `description`) — keep it accurate when a page's scope changes.
-- Status legend used throughout: `Planned` · `Partial` · `Complete` · `Blocked` · `Missing`. Update a page's status table when you change what it covers.
-- `wiki/index-1.md`'s Page Map and status table is the index for the whole wiki — update it when a page's scope or status changes.
-- Cross-references matter: a change to `02_data_models_and_content-1.md`'s schemas can invalidate examples in `03_systems_architecture-1.md` or task assumptions in `00_tasks-1.md`. Grep the wiki for the old term before calling a wiki edit done — the same discipline as keeping prose in sync with behavior in a real codebase.
+1. **Odds are printed before the commit, and there is no undisclosed downside.**
+   Enforced by types, not convention: `Effect` is structured data (never prose,
+   so the renderer can always print it) and `OfferOption`'s `gamble` variant
+   cannot compile without `onFailure`. `validate:content` catches the ways
+   around it, like an empty failure branch.
+   *The corollary is easy to miss:* disclosure does not stop at the choice. A
+   stat that silently counts toward an ending is an undisclosed consequence too,
+   which is why every header stat names its threshold.
+2. **The ledger appends and never resets.** The accumulating table is what makes
+   abandoning a run expensive. Its Deeds column is the only prose in it — if
+   rows start reading alike, the ledger has stopped saying anything.
+3. **One scarce colour.** Near-monochrome warm dark; the Notoriety tier badge is
+   the only chromatic reward. Adding a second accent breaks the pillar.
+4. **Comedy in the text, never in the numbers.**
+5. **No fail state, and no doom meter.** Every ending is a biography. The decline
+   works because a number quietly goes the wrong way. Note this bans *announcing
+   a losing phase* — it does not ban explaining what a mechanic does.
+6. **Every ending must be reachable.** The collection shows seven slots and the
+   header shows an empty Ascension trophy from era one. `npm run sim` checks
+   this; three endings were once unreachable and the run felt hollow.
 
-## Multi-agent workflow — future, once implementation begins
+## Working on this
 
-This does not apply yet. There's no multi-part codebase to split across agents, and right now this is single-agent wiki work. Once the Phase 1 vertical slice (`wiki/05_implementation_blueprint-1.md`) starts, the following applies:
+### Measure before you tune
 
-### Ship in reviewable slices
+`npm run sim` plays 2000 runs across seven player policies and checks explicit
+targets. Do not adjust a constant because a run felt wrong — get the number,
+change it, get the number again.
 
-Land the vertical slice as its own small, reviewable unit before touching Phase 2. Within a phase, prefer one slice per PR (e.g. "RunState reducer" separate from "Ledger component") over one PR per phase. Never base a PR on `init` — each PR starts from the previous merged state.
+**Trust the harness only as far as you have checked it.** It has been wrong
+twice, both times reporting a healthy game that was not: once because it ran
+`src/engine/__fixtures__/` instead of real content, and once because its `lich`
+policy was a copy of `adaptive` and never took the rite it was named for. When a
+metric looks impossible, suspect the instrument as well as the game.
 
-### The data model is the contract
+Balance constants live in `src/engine/constants.ts` and nowhere else.
 
-`wiki/02_data_models_and_content-1.md`'s schemas (`RunState`, `EraRecord`, `Faction`, `Artifact`, `Offer`, `Collection`) are this project's equivalent of a frozen API contract — the seam between the engine (reducer/systems), the UI (components), and content (typed data files). Change those shapes deliberately, and don't let an engine-focused agent and a content-focused agent invent divergent shapes for the same entity in parallel.
+### Look at the actual screen
 
-### Likely agent boundaries once code exists
+There is no gate for CSS. `qa/playthrough.mjs` plays a full run and fails on
+console errors or a stall; `qa/probe-*.mjs` capture specific states. Run them,
+then **read the PNGs back** — a screenshot nobody looks at is not verification.
 
-There's no frontend/backend split here — no backend. The natural split instead:
+Two traps, both of which produced false diagnoses here:
+- A `fullPage` screenshot stitches `position: fixed` overlays over the content
+  behind them. Text looks clipped and buttons look missing when neither is true.
+  Probe the DOM before believing a visual defect.
+- Set pieces are staged. A shot taken too early catches a half-empty card.
 
-| Agent | Owns |
-|---|---|
-| Engine agent | `RunState` reducer, event flow, persistence (`src/` state/logic) |
-| UI agent | Presentational components (`<Ledger>`, `<OfferPanel>`, `<WizardHeader>`, etc.) |
-| Content agent | Typed data files in `src/content/` (factions, artifacts, offers, endings) — blocked until the language decision lands |
-| Orchestrator | `wiki/`, cross-boundary fixes, the data-model contract |
+### Tests must be able to fail
 
-State the boundary explicitly in each agent's brief, including what it must *not* touch. An agent that wants a change outside its boundary reports it instead of making it.
+`src/engine/engine.test.ts` pins the rules above. Every test there was checked by
+breaking the behaviour and watching it go red. Do the same for new ones — this
+repo's stated failure mode is a test that passes on `0 == 0`.
 
-### Isolated QA review still applies
+### Content and engine are separated on purpose
 
-Same principle as any codebase: a reviewer who's been told the plan will tell you the plan is fine. Once there's a PR, review it from minimal context — the diff only, no rationale, no design discussion — before merging. A low-tier model is enough for that pass, since it just has to run every time without being expensive; escalate an individual finding, not the whole review, if one needs deeper judgement.
+The engine never imports `src/content/`; it takes a `ContentBundle`. Keep it that
+way — it is what lets the balance harness hold content constant, and what makes a
+content pack a different argument rather than a different engine.
 
-## Verification discipline
+### Prose moves with behaviour
 
-There's no build to gate on yet, so today the equivalent of "run the tests" is: re-read the wiki pages a change touches and the pages that reference them, and check the status tables still match reality. Once code exists, follow whatever `## Commands` says at that time — this file should get a real gate (typecheck/build/test) as soon as `package.json` exists.
+Changing what a mechanic does means changing everything describing it in the same
+commit: the KDoc, the wiki page, `README.md`, and any UI caption that states a
+threshold. `rg` the old wording before calling it done.
