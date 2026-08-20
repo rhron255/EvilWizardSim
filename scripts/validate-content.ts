@@ -1,0 +1,235 @@
+/**
+ * Content validation.
+ *
+ * wiki/03 § Content Pipeline asks for this, and asks for it BEFORE catalog
+ * authoring rather than after: "A validation script checks at build time:
+ * every artifact has a valid faction, every offer has 2-4 options, every
+ * probabilistic option has both success and failure effects defined."
+ *
+ * wiki/00 § P3 goes further — "Enforce odds display structurally: make an
+ * undisclosed effect impossible to author, not merely discouraged." Most of
+ * that is already the type system's job (`OfferOption`'s `gamble` variant
+ * cannot compile without `onFailure`, and `Effect` is structured data rather
+ * than prose, so the renderer can always print a consequence). This script
+ * covers the rules types cannot express: ranges, cross-references, uniqueness,
+ * and reachability.
+ *
+ *   npm run validate:content
+ *
+ * Exits non-zero with a readable list. Silence means the catalog is sound.
+ */
+
+import type { Artifact, Condition, Effect, OfferOption, Rarity } from '../src/types';
+import * as content from '../src/content';
+
+const problems: string[] = [];
+const warnings: string[] = [];
+
+const fail = (where: string, msg: string) => problems.push(`${where}: ${msg}`);
+const warn = (where: string, msg: string) => warnings.push(`${where}: ${msg}`);
+
+const { artifacts, factions, lairs, origins, endings, offers, epithets } = content;
+
+const factionIds = new Set(factions.map((f) => f.id));
+const artifactIds = new Set(artifacts.map((a) => a.id));
+
+// ---------------------------------------------------------------------------
+// Uniqueness
+// ---------------------------------------------------------------------------
+
+function assertUniqueIds(label: string, ids: string[]) {
+  const seen = new Set<string>();
+  for (const id of ids) {
+    if (seen.has(id)) fail(label, `duplicate id "${id}"`);
+    seen.add(id);
+  }
+}
+
+assertUniqueIds('artifacts', artifacts.map((a) => a.id));
+assertUniqueIds('factions', factions.map((f) => f.id));
+assertUniqueIds('lairs', lairs.map((l) => l.id));
+assertUniqueIds('origins', origins.map((o) => o.id));
+assertUniqueIds('endings', endings.map((e) => e.id));
+assertUniqueIds('offers', offers.map((o) => o.id));
+assertUniqueIds('epithets', epithets.map((e) => e.id));
+
+// ---------------------------------------------------------------------------
+// The fixed cast
+// ---------------------------------------------------------------------------
+
+for (const artifact of artifacts) {
+  const where = `artifact "${artifact.id}"`;
+  if (!factionIds.has(artifact.factionId)) fail(where, `unknown factionId "${artifact.factionId}"`);
+  if (!artifact.name.trim()) fail(where, 'empty name');
+  if (!artifact.flavorText.trim()) fail(where, 'no flavor text — flavor is the art budget');
+  if (!Number.isFinite(artifact.defense) || artifact.defense < 0) {
+    fail(where, `defense must be a non-negative number, got ${artifact.defense}`);
+  }
+}
+
+for (const faction of factions) {
+  const where = `faction "${faction.id}"`;
+  for (const enemy of faction.hostileTo) {
+    if (!factionIds.has(enemy)) fail(where, `hostileTo unknown faction "${enemy}"`);
+    if (enemy === faction.id) fail(where, 'hostile to itself');
+  }
+}
+
+// wiki/01 § 7 names seven endings and the collection screen shows seven slots.
+const REQUIRED_ENDINGS = [
+  'slain_by_chosen_one',
+  'sealed_in_gem',
+  'betrayed_by_apprentice',
+  'lichdom',
+  'retired_to_swamp',
+  'consumed_by_pact',
+  'ascension',
+];
+for (const id of REQUIRED_ENDINGS) {
+  if (!endings.some((e) => e.id === id)) fail('endings', `missing "${id}"`);
+}
+
+// The ladder must be contiguous from 0, because `promoteLair` walks it one rung
+// at a time and a gap would silently stall progression.
+const tiers = lairs.map((l) => l.tier).sort((a, b) => a - b);
+tiers.forEach((tier, i) => {
+  if (tier !== i) fail('lairs', `tier ladder is not contiguous from 0 (found ${tier} at rung ${i})`);
+});
+
+// An epithet that matches nothing leaves a run nameless.
+if (!epithets.some((e) => e.id)) fail('epithets', 'catalog is empty');
+
+// ---------------------------------------------------------------------------
+// Offers — the odds rules
+// ---------------------------------------------------------------------------
+
+const RARITY_RANK: Record<Rarity, number> = { common: 0, rare: 1, legendary: 2 };
+const artifactsByFaction = new Map<string, Artifact[]>();
+for (const a of artifacts) {
+  const list = artifactsByFaction.get(a.factionId);
+  if (list) list.push(a);
+  else artifactsByFaction.set(a.factionId, [a]);
+}
+
+function checkEffects(where: string, effects: readonly Effect[]) {
+  for (const e of effects) {
+    switch (e.t) {
+      case 'artifact':
+        if (!artifactIds.has(e.artifactId)) fail(where, `grants unknown artifact "${e.artifactId}"`);
+        break;
+      case 'artifactFrom': {
+        if (!factionIds.has(e.factionId)) {
+          fail(where, `artifactFrom unknown faction "${e.factionId}"`);
+          break;
+        }
+        const pool = artifactsByFaction.get(e.factionId) ?? [];
+        if (pool.length === 0) fail(where, `faction "${e.factionId}" has no artifacts to grant`);
+        // `rarity` is an exact request that degrades downward, so the grant is
+        // satisfiable if anything at or below it exists.
+        if (e.rarity) {
+          const cap = RARITY_RANK[e.rarity];
+          if (!pool.some((a) => RARITY_RANK[a.rarity] <= cap)) {
+            fail(where, `no "${e.rarity}"-or-lower artifact exists for "${e.factionId}"`);
+          }
+        }
+        break;
+      }
+      case 'standing':
+        if (!factionIds.has(e.factionId)) fail(where, `standing on unknown faction "${e.factionId}"`);
+        break;
+      case 'ending':
+        if (!REQUIRED_ENDINGS.includes(e.endingId)) fail(where, `unknown ending "${e.endingId}"`);
+        break;
+      case 'followers':
+        // The forfeiture sentinel this replaced: content used -999 to mean
+        // "all of them". The engine owns that now via `becomeLich`.
+        if (Math.abs(e.v) > 200) {
+          fail(where, `followers ${e.v} looks like a sentinel — the engine owns bulk forfeiture`);
+        }
+        break;
+      case 'lairTier':
+        if (Math.abs(e.v) > 3) warn(where, `lairTier ${e.v} moves more than three rungs at once`);
+        break;
+      default:
+        break;
+    }
+  }
+}
+
+function checkOption(where: string, option: OfferOption) {
+  if (!option.label.trim()) fail(where, 'empty label');
+
+  if (option.kind === 'certain') {
+    checkEffects(where, option.effects);
+    return;
+  }
+
+  if (!(option.odds > 0 && option.odds < 1)) {
+    fail(where, `odds must be strictly between 0 and 1, got ${option.odds}`);
+  }
+  // The type system already requires both branches to EXIST. This catches the
+  // way around it: declaring an empty array to fake a consequence-free bet.
+  if (option.onSuccess.length === 0) fail(where, 'gamble has an empty success branch');
+  if (option.onFailure.length === 0) {
+    fail(where, 'gamble has an empty failure branch — a bet with no downside is not a decision');
+  }
+  checkEffects(`${where} (success)`, option.onSuccess);
+  checkEffects(`${where} (failure)`, option.onFailure);
+}
+
+function checkCondition(where: string, c: Condition) {
+  if ('factionId' in c && !factionIds.has(c.factionId)) {
+    fail(where, `condition references unknown faction "${c.factionId}"`);
+  }
+  if (c.c === 'hasArtifact' && !artifactIds.has(c.artifactId)) {
+    fail(where, `condition references unknown artifact "${c.artifactId}"`);
+  }
+}
+
+for (const offer of offers) {
+  const where = `offer "${offer.id}"`;
+  if (!offer.title.trim()) fail(where, 'empty title');
+  if (!offer.body.trim()) fail(where, 'empty body');
+  if (offer.factionId && !factionIds.has(offer.factionId)) {
+    fail(where, `unknown factionId "${offer.factionId}"`);
+  }
+
+  if (offer.options.length < 2 || offer.options.length > 4) {
+    fail(where, `must have 2-4 options, has ${offer.options.length}`);
+  }
+  // wiki/04: "A player should never be forced into a gamble."
+  if (!offer.options.some((o) => o.kind === 'certain')) {
+    fail(where, 'no certain option — a player must never be forced to gamble');
+  }
+
+  offer.options.forEach((option, i) => checkOption(`${where} option ${i + 1}`, option));
+  for (const c of offer.requires ?? []) checkCondition(where, c);
+}
+
+// ---------------------------------------------------------------------------
+// Report
+// ---------------------------------------------------------------------------
+
+const counts = [
+  `${offers.length} offers`,
+  `${artifacts.length} artifacts`,
+  `${factions.length} factions`,
+  `${lairs.length} lairs`,
+  `${endings.length} endings`,
+  `${origins.length} origins`,
+  `${epithets.length} epithets`,
+].join(' · ');
+
+if (warnings.length) {
+  console.log(`\n${warnings.length} warning(s):`);
+  for (const w of warnings) console.log(`  ~ ${w}`);
+}
+
+if (problems.length) {
+  console.error(`\n${problems.length} problem(s) in the content catalog:\n`);
+  for (const p of problems) console.error(`  ✗ ${p}`);
+  console.error('');
+  process.exit(1);
+}
+
+console.log(`content OK — ${counts}`);
