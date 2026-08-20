@@ -145,6 +145,16 @@ export function ResolutionOverlay({
           </div>
         )}
 
+        {resolution.lairMoved && (
+          <p className={styles.lairMove} data-up={resolution.lairMoved.up ? 'true' : undefined}>
+            <span className={styles.lairMoveLabel}>
+              {resolution.lairMoved.up ? 'You have moved up' : 'You have lost ground'}
+            </span>
+            <span className={styles.lairMoveName}>{resolution.lairMoved.to.name}</span>
+            <span className={styles.lairMoveFrom}>from {resolution.lairMoved.from.name}</span>
+          </p>
+        )}
+
         {tierCrossed && (
           <p className={styles.tier} data-celebrate={tierCrossed.celebrate ? 'true' : undefined}>
             <span className={styles.tierName}>{tierCrossed.name}</span>

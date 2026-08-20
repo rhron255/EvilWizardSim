@@ -58,6 +58,7 @@ export function RunScreen({
         <WizardHeader
           run={run}
           lairs={lairs}
+          factions={factions}
           hasAscensionTrophy={run.ending === 'ascension'}
           defense={defense}
         />

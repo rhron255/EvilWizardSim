@@ -10,15 +10,18 @@
  *     point (wiki/04_operational_behaviors-1.md, Near-Miss Tuning).
  */
 
-import type { Lair, RunState } from '../../types';
+import { useId, useState } from 'react';
+import type { Faction, Lair, RunState } from '../../types';
 import { tierColor, tierFor } from '../../theme/tokens';
 import { NotorietyBadge } from './NotorietyBadge';
+import { allegiancesFor, sealWarningFor } from './allegiances';
 import { siegeFor, stakesFor } from './stakes';
 import styles from './WizardHeader.module.css';
 
 export type WizardHeaderProps = {
   run: RunState;
   lairs: Lair[];
+  factions: Faction[];
   hasAscensionTrophy: boolean;
   /**
    * Current defence. Supplied by the screen rather than computed here so this
@@ -27,8 +30,21 @@ export type WizardHeaderProps = {
   defense?: number | null;
 };
 
-export function WizardHeader({ run, lairs, hasAscensionTrophy, defense }: WizardHeaderProps) {
+export function WizardHeader({
+  run,
+  lairs,
+  factions,
+  hasAscensionTrophy,
+  defense,
+}: WizardHeaderProps) {
+  // Captions are tap-to-reveal on a phone (they cost ~200px) and always shown
+  // from 720px up. The VALUE keeps its denominator either way, so a lethal
+  // threshold is never something you had to tap to find out about.
+  const [openStat, setOpenStat] = useState<string | null>(null);
+  const captionId = useId();
   const stakes = stakesFor(run);
+  const allegiances = allegiancesFor(run, factions);
+  const seal = sealWarningFor(run);
   const siege = defense == null ? null : siegeFor(run, defense);
   const lair = lairs.find((l) => l.id === run.lairId);
   const previous = run.eras.length > 1 ? run.eras[run.eras.length - 2].notoriety : undefined;
@@ -95,17 +111,62 @@ export function WizardHeader({ run, lairs, hasAscensionTrophy, defense }: Wizard
       </div>
 
       <dl className={styles.stats}>
-        {stakes.map((stake) => (
-          <div className={styles.stat} key={stake.label} data-tone={stake.tone}>
-            <dt className={styles.statLabel}>{stake.label}</dt>
-            <dd className={`${styles.statValue} ew-num`}>{stake.value}</dd>
-            {/* The caption is the whole point: a number nobody can act on is
-                just decoration, and one that silently counts toward an ending
-                is an undisclosed consequence. */}
-            <dd className={styles.statCaption}>{stake.caption}</dd>
-          </div>
-        ))}
+        {stakes.map((stake) => {
+          const open = openStat === stake.label;
+          return (
+            <div
+              className={styles.stat}
+              key={stake.label}
+              data-tone={stake.tone}
+              data-open={open ? 'true' : undefined}
+            >
+              <button
+                type="button"
+                className={styles.statButton}
+                aria-expanded={open}
+                aria-controls={`${captionId}-${stake.label}`}
+                onClick={() => setOpenStat(open ? null : stake.label)}
+              >
+                <dt className={styles.statLabel}>{stake.label}</dt>
+                <dd className={`${styles.statValue} ew-num`}>{stake.value}</dd>
+              </button>
+              {/* A number nobody can act on is decoration, and one that counts
+                  toward an ending is an undisclosed consequence. */}
+              <dd className={styles.statCaption} id={`${captionId}-${stake.label}`}>
+                {stake.caption}
+              </dd>
+            </div>
+          );
+        })}
       </dl>
+
+      {/* Standing was invisible in the run screen while being the trigger for
+          the second most common ending. It also moves by contagion, so it can
+          be pushed to lethal by cards that never named the faction. */}
+      <ul className={styles.allegiances} aria-label="Faction standing">
+        {allegiances.map((a) => (
+          <li key={a.id} className={styles.allegiance} data-tone={a.tone} title={`${a.name} — ${a.note}`}>
+            <span className={styles.allegianceName}>{a.short}</span>
+            <span className={`${styles.allegianceValue} ew-num`}>
+              {a.standing > 0 ? `+${a.standing}` : a.standing}
+            </span>
+            <span className={styles.allegianceTrack} aria-hidden="true">
+              <span
+                className={styles.allegianceFill}
+                style={{ '--ratio': Math.abs(a.ratio) } as React.CSSProperties}
+                data-sign={a.ratio < 0 ? 'neg' : 'pos'}
+              />
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      {seal && (
+        <p className={styles.seal} data-armed={seal.armed ? 'true' : undefined}>
+          The Pale Academy is {seal.margin <= 0 ? 'done deliberating' : `${seal.margin} from filing you away`}
+          {seal.armed ? ' — and you are notorious enough to be worth the gem.' : '.'}
+        </p>
+      )}
 
       {siege && (
         <p className={styles.siege} data-tone={siege.tone}>

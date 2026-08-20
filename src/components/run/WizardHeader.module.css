@@ -236,12 +236,51 @@
    tier badge stays the only thing in this header with colour.
    -------------------------------------------------------------------------- */
 
+.statButton {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
 .statCaption {
   margin: 2px 0 0;
   font-size: var(--ew-size-xs);
   line-height: 1.35;
   color: var(--ew-ink-faint);
   text-wrap: pretty;
+}
+
+/* Phones: the caption costs ~200px across five stats, so it is revealed on tap.
+   The VALUE keeps its denominator regardless, and the danger tone still colours
+   the number -- a lethal threshold must never be something you had to tap for. */
+@media (max-width: 719px) {
+  .statCaption {
+    display: none;
+  }
+
+  .stat[data-open='true'] .statCaption {
+    display: block;
+  }
+
+  .statButton::after {
+    content: '';
+    position: absolute;
+    inset: -6px -8px;
+  }
+
+  .stat {
+    position: relative;
+  }
+}
+
+@media (min-width: 720px) {
+  .statButton {
+    cursor: default;
+  }
 }
 
 .stat[data-tone='warn'] .statValue {
@@ -290,5 +329,102 @@
 }
 
 .siege[data-tone='danger'] .siegeValue:last-of-type {
+  color: var(--ew-danger);
+}
+
+/* --------------------------------------------------------------------------
+   Allegiances.
+
+   Standing was not shown on the run screen at all, while being the trigger for
+   `sealed_in_gem` -- 18.5% of runs. It also moves by contagion, so a player can
+   be pushed into it by cards that never named the faction.
+   -------------------------------------------------------------------------- */
+
+.allegiances {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--ew-space-2) var(--ew-space-4);
+  margin: var(--ew-space-3) 0 0;
+  padding: 0;
+  padding-top: var(--ew-space-3);
+  border-top: 1px solid var(--ew-line);
+  list-style: none;
+}
+
+.allegiance {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: 'name value' 'track track';
+  align-items: baseline;
+  gap: 2px var(--ew-space-2);
+  min-width: 0;
+}
+
+.allegianceName {
+  grid-area: name;
+  font-size: var(--ew-size-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ew-ink-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.allegianceValue {
+  grid-area: value;
+  font-size: var(--ew-size-sm);
+  color: var(--ew-ink-dim);
+}
+
+.allegianceTrack {
+  grid-area: track;
+  position: relative;
+  height: 2px;
+  background: var(--ew-line);
+  border-radius: var(--ew-radius-pill);
+  overflow: hidden;
+}
+
+.allegianceFill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: calc(var(--ratio) * 100%);
+  background: var(--ew-ink-ghost);
+  transition: width var(--ew-slow) var(--ew-ease);
+}
+
+.allegianceFill[data-sign='pos'] {
+  left: 50%;
+}
+
+.allegianceFill[data-sign='neg'] {
+  right: 50%;
+}
+
+.allegiance[data-tone='devoted'] .allegianceValue { color: var(--ew-tier); }
+.allegiance[data-tone='devoted'] .allegianceFill { background: var(--ew-tier); }
+.allegiance[data-tone='warm'] .allegianceValue { color: var(--ew-ink); }
+.allegiance[data-tone='cold'] .allegianceValue { color: var(--ew-ink-faint); }
+.allegiance[data-tone='locked'] .allegianceValue { color: var(--ew-danger); }
+.allegiance[data-tone='locked'] .allegianceFill { background: var(--ew-danger); }
+.allegiance[data-tone='lethal'] .allegianceName { color: var(--ew-danger); }
+.allegiance[data-tone='lethal'] .allegianceValue { color: var(--ew-danger); }
+.allegiance[data-tone='lethal'] .allegianceFill { background: var(--ew-danger); }
+
+/* The seal is the only standing value that ends a run outright, so it gets a
+   sentence rather than a colour the player has to decode. */
+.seal {
+  grid-column: 1 / -1;
+  margin: var(--ew-space-2) 0 0;
+  font-size: var(--ew-size-sm);
+  line-height: 1.4;
+  color: var(--ew-ink-faint);
+  text-wrap: pretty;
+}
+
+.seal[data-armed='true'] {
   color: var(--ew-danger);
 }

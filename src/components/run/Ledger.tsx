@@ -96,15 +96,17 @@ export function Ledger({ eras, lairs, artifacts }: LedgerProps) {
                   ageRatio={eras.length > 1 ? i / (eras.length - 1) : 1}
                 />
               ))}
-              {eras.length === 0 && (
-                <tr>
-                  <td className={styles.empty} colSpan={6}>
-                    Nothing yet. The first era writes the first line.
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
+
+          {/* Outside the table on purpose. As a `colSpan={6}` row it invented a
+              sixth column on phones, where the Lair column is hidden and only
+              five exist — the header then covered five and the pinned header
+              background stopped short of the frame. It is also half the height
+              here, which matters on a screen where the choices sit below. */}
+          {eras.length === 0 && (
+            <p className={styles.empty}>Nothing yet. The first era writes the first line.</p>
+          )}
         </div>
         <div className={styles.fade} aria-hidden="true" />
       </div>

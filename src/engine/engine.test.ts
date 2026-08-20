@@ -133,6 +133,50 @@ describe('the odds rules', () => {
     }
   });
 
+  it('supplies the roll and the threshold for a gamble', () => {
+    // The overlay draws the roll landing against the printed odds -- wiki/06
+    // principle 4's visual proof that the outcome was authored. The UI type
+    // declared these OPTIONAL, the engine never set them, and the rail silently
+    // never rendered for the entire build. Optional fields hid the drift.
+    const run = start();
+    const offer = {
+      id: 'test_gamble',
+      title: 'T',
+      body: 'b',
+      phase: 'any' as const,
+      options: [
+        {
+          kind: 'gamble' as const,
+          label: 'Risk it',
+          odds: 0.35,
+          onSuccess: [{ t: 'notoriety', v: 5 } as Effect],
+          onFailure: [{ t: 'notoriety', v: -5 } as Effect],
+        },
+      ],
+    };
+    const { resolution } = resolveChoice(run, offer, 0, fixtureContent);
+    expect(resolution.odds).toBe(0.35);
+    expect(resolution.roll).toBeGreaterThanOrEqual(0);
+    expect(resolution.roll).toBeLessThan(1);
+    // The roll must AGREE with the outcome, or the rail would show a lie.
+    const succeeded = resolution.outcome === 'success';
+    expect(resolution.roll! < resolution.odds!).toBe(succeeded);
+  });
+
+  it('omits roll and odds for a certain choice', () => {
+    const run = start();
+    const offer = {
+      id: 'test_certain',
+      title: 'T',
+      body: 'b',
+      phase: 'any' as const,
+      options: [{ kind: 'certain' as const, label: 'Do it', effects: [] as Effect[] }],
+    };
+    const { resolution } = resolveChoice(run, offer, 0, fixtureContent);
+    expect(resolution.roll).toBeUndefined();
+    expect(resolution.odds).toBeUndefined();
+  });
+
   it('reports what actually landed, not what was advertised', () => {
     // A +40 on a run near the ceiling must be reported at its clamped value,
     // or the resolution card lies about the consequence.
@@ -263,6 +307,38 @@ describe('tier crossings — the one rationed celebration', () => {
 });
 
 describe('the lair ladder', () => {
+  it('reports a move so the UI can announce it', () => {
+    // "I don't notice the lair changes, despite them happening." Promotion was
+    // systemic and silent; the resolution now carries it.
+    const run = { ...start({}, real), notoriety: 99, followers: 400 };
+    const offer = {
+      id: 'test_move',
+      title: 'T',
+      body: 'b',
+      phase: 'any' as const,
+      options: [{ kind: 'certain' as const, label: 'Wait', effects: [] as Effect[] }],
+    };
+    const { next, resolution } = resolveChoice(run, offer, 0, real);
+    expect(next.lairId).not.toBe(run.lairId);
+    expect(resolution.lairMoved).toBeDefined();
+    expect(resolution.lairMoved!.up).toBe(true);
+    expect(resolution.lairMoved!.from.id).toBe(run.lairId);
+    expect(resolution.lairMoved!.to.id).toBe(next.lairId);
+  });
+
+  it('reports no move when the wizard stays put', () => {
+    const run = { ...start({}, real), notoriety: 0, followers: 0 };
+    const offer = {
+      id: 'test_stay',
+      title: 'T',
+      body: 'b',
+      phase: 'any' as const,
+      options: [{ kind: 'certain' as const, label: 'Wait', effects: [] as Effect[] }],
+    };
+    const { resolution } = resolveChoice(run, offer, 0, real);
+    expect(resolution.lairMoved).toBeUndefined();
+  });
+
   it('promotes at most one rung per era', () => {
     const run = { ...start({}, real), notoriety: 99, followers: 400 };
     const ladder = indexOf(real).lairLadder;
