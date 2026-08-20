@@ -373,3 +373,13 @@
     justify-content: center;
   }
 }
+
+/* Replaces `.deed`, which echoed the pull quote verbatim. This is a label, not
+   a second copy of the sentence. */
+.deedNote {
+  margin: 0;
+  font-size: var(--ew-size-xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ew-ink-ghost);
+}

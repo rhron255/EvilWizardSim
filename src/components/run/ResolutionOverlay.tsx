@@ -156,8 +156,12 @@ export function ResolutionOverlay({
           <p className={styles.ending}>The run ends · {endingName(resolution.ending)}</p>
         )}
 
+        {/* The deed line the ledger is about to receive was echoed here, which
+            printed the same sentence twice on every resolution — the overlay's
+            pull quote IS the deed line. The ledger row underneath is where it
+            belongs permanently. */}
         <div className={styles.foot}>
-          <p className={styles.deed}>{eraRecord.deedSummary}</p>
+          <p className={styles.deedNote}>Recorded in the ledger</p>
           <button type="button" className={styles.continue} onClick={onContinue} ref={continueRef}>
             Continue
             <span className={styles.key} aria-hidden="true">
