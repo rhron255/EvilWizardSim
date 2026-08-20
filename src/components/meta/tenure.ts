@@ -17,6 +17,14 @@ export type LairTenure = {
   eras: number;
   /** The lair the career ended in. */
   last: boolean;
+  /**
+   * A second (or later) stay in a lair held before.
+   *
+   * Kept as its own chapter rather than merged, but the grid has to SAY so:
+   * two visually identical cards reading "Tier IV - The Unfinished Tower" reads
+   * as a rendering bug, not as a career that lost ground and came back.
+   */
+  returning: boolean;
 };
 
 /**
@@ -37,14 +45,23 @@ export function lairTenures(run: RunState, lairs: Lair[]): LairTenure[] {
       prev.toAge = era.age;
       prev.eras += 1;
     } else {
-      out.push({ lair, fromAge: era.age, toAge: era.age, eras: 1, last: false });
+      out.push({
+        lair,
+        fromAge: era.age,
+        toAge: era.age,
+        eras: 1,
+        last: false,
+        returning: out.some((t) => t.lair.id === lair.id),
+      });
     }
   }
 
   // Cover the case where the run's current lair never made it into the log.
   if (out.length === 0) {
     const lair = byId.get(run.lairId);
-    if (lair) out.push({ lair, fromAge: run.age, toAge: run.age, eras: 1, last: true });
+    if (lair) {
+      out.push({ lair, fromAge: run.age, toAge: run.age, eras: 1, last: true, returning: false });
+    }
   } else {
     out[out.length - 1].last = true;
     out[out.length - 1].toAge = Math.max(out[out.length - 1].toAge, run.age);

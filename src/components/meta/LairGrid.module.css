@@ -109,6 +109,19 @@
   color: var(--ew-ink-faint);
 }
 
+/* `.spanPart` wraps adjacent spans with no whitespace between them, so without
+   a gap the tenure rendered as "AGED20-25 · 2ERAS". */
+.spanPart {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45em;
+}
+
+.spanLabel,
+.unit {
+  color: var(--ew-ink-ghost);
+}
+
 .num {
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum' 1;
@@ -135,4 +148,18 @@
   .grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* A repeat tenure is its own chapter, but it has to be legible as one -- two
+   identical cards otherwise read as a duplicate-render bug. */
+.againTag {
+  margin-left: auto;
+  font-size: var(--ew-size-xs);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ew-ink-ghost);
+}
+
+.againTag + .lastTag {
+  margin-left: var(--ew-space-2);
 }

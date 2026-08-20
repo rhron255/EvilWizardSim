@@ -45,6 +45,7 @@ export function LairGrid({ tenures, showBlurb = false }: LairGridProps) {
               <span className={styles.tier}>
                 Tier <span className={styles.tierNum}>{roman(t.lair.tier + 1)}</span>
               </span>
+              {t.returning ? <span className={styles.againTag}>Again</span> : null}
               {t.last ? <span className={styles.lastTag}>Last</span> : null}
             </div>
 
