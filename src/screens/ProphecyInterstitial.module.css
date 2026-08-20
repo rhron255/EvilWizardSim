@@ -92,7 +92,7 @@
 }
 
 .aureole.in {
-  animation: aureole 2600ms var(--ew-ease) forwards;
+  animation: aureole 1500ms var(--ew-ease) forwards;
 }
 
 @keyframes aureole {
