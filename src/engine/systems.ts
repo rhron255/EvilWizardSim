@@ -132,6 +132,48 @@ export function defenseOf(run: RunState, content: ContentBundle): number {
  * crossing into a `celebrate: true` band — sliding back down 75 during the
  * decline must never fire confetti.
  */
+/**
+ * The lair rung a wizard's standing in the world entitles them to.
+ *
+ * Lairs were previously moved only by authored `lairTier` effects, and those
+ * are rare enough that 59.75% of simulated runs ended holding exactly ONE
+ * lair. The ending card's lair grid is specified as its centerpiece and the
+ * single most-shared element (wiki/01 § 8), so a one-card trophy case is a
+ * direct failure of the payoff — and the most common reason a finished run
+ * reads as unaccomplished.
+ *
+ * Notoriety drives it because the fiction is simple: a wizard nobody fears
+ * cannot hold a mountain, and one the Crownlands have opened a file on does
+ * not stay in a rented cellar. Followers contribute a little — somebody has to
+ * carry the furniture.
+ */
+export function entitledLairRung(run: RunState, ladderLength: number): number {
+  if (ladderLength <= 1) return 0;
+  const fromFame = run.notoriety / 12;
+  const fromRetinue = Math.min(2, run.followers / 45);
+  return clamp(Math.floor(fromFame + fromRetinue), 0, ladderLength - 1);
+}
+
+/**
+ * Promotion only — never demotion.
+ *
+ * Losing a lair should be something an authored card DOES to the player, with
+ * its consequence printed, not something the numbers quietly take back. An
+ * automatic demotion would also make the ledger's Lair column flicker up and
+ * down as notoriety oscillates, which reads as a bug rather than a life.
+ */
+export function promoteLair(run: RunState, content: ContentBundle): string {
+  const index = indexOf(content);
+  const ladder = index.lairLadder;
+  if (ladder.length === 0) return run.lairId;
+  const current = index.lairRung.get(run.lairId) ?? 0;
+  const target = entitledLairRung(run, ladder.length);
+  if (target <= current) return run.lairId;
+  // One rung per era at most: the ladder is the progression, and skipping
+  // rungs would waste authored lair names the player never sees.
+  return ladder[current + 1].id;
+}
+
 export function tierCrossing(before: number, after: number): Tier | undefined {
   const from = tierFor(before);
   const to = tierFor(after);

@@ -1,0 +1,24 @@
+runs 800
+offers seen                 11012
+offers with artifact option 2607  (23.7% of offers)
+grants requested (success branch) 2607
+grants LANDED                     1537
+artifacts LOST                    172
+
+requested by rarity: {"common":1691,"legendary":281,"rare":635}
+locked out by standing: {"pale_academy":32,"crownlands":6}
+
+landed by faction/rarity:
+  gilded_hand/common             556
+  verdant_choir/common           195
+  worm_below/common              149
+  pale_academy/common            124
+  worm_below/rare                111
+  gilded_hand/rare               99
+  ashen_covenant/rare            86
+  ashen_covenant/common          66
+  crownlands/rare                47
+  worm_below/legendary           44
+  crownlands/common              40
+  ashen_covenant/legendary       12
+  crownlands/legendary           8

@@ -210,8 +210,15 @@ function modeFor(policy: Policy, run: RunState, threatRatio: number): Mode {
       return 'notoriety';
     case 'courtier':
       return run.phase === 'ascent' ? 'standing' : 'defense';
-    case 'adaptive':
     case 'lich':
+      // Courts through the ascent — the rite is gated on standing with the
+      // Worm Below, so a lich-seeker who only chases fame never gets offered
+      // it. This policy was a copy of `adaptive` and reported lichdom at 0.00%
+      // while the branch was in fact reachable; that was a broken instrument,
+      // not a broken game.
+      if (run.phase === 'ascent') return 'standing';
+      return threatRatio > 0.55 ? 'defense' : 'notoriety';
+    case 'adaptive':
       if (run.phase === 'ascent') return 'notoriety';
       return threatRatio > 0.55 ? 'defense' : 'notoriety';
     case 'safe':

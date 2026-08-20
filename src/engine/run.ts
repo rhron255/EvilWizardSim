@@ -36,6 +36,7 @@ import {
 import type { EffectApplication } from './effects';
 import { applyEffects, draftOf } from './effects';
 import { projectedEpithet } from './epithets';
+import { deedLineFor } from './deeds';
 import { checkEndings } from './endings';
 import { QUIET_ERA_OFFER } from './offers';
 import { hashString, randomSeed, streamFor } from './rng';
@@ -47,6 +48,7 @@ import {
   emptyStanding,
   erasSinceProphecyFor,
   phaseFor,
+  promoteLair,
   prophecyEraFor,
   threatGainFor,
   tierCrossing,
@@ -130,12 +132,6 @@ export function createRun(opts: CreateRunOptions, content: ContentBundle): RunSt
 // ---------------------------------------------------------------------------
 // Era resolution
 // ---------------------------------------------------------------------------
-
-const DEFAULT_TEXT: Record<Outcome, string> = {
-  deterministic: 'It is done.',
-  success: 'It works. You are as surprised as anyone.',
-  failure: 'It does not work. You maintain your composure.',
-};
 
 function inertResolution(run: RunState): Resolution {
   const last = run.eras[run.eras.length - 1];
@@ -234,14 +230,19 @@ export function resolveChoice(
   if (option.kind === 'certain') {
     outcome = 'deterministic';
     effects = option.effects;
-    text = option.resultText ?? DEFAULT_TEXT.deterministic;
   } else {
     const odds = clamp(option.odds, 0, 1);
     const succeeded = rng() < odds;
     outcome = succeeded ? 'success' : 'failure';
     effects = succeeded ? option.onSuccess : option.onFailure;
-    text = (succeeded ? option.successText : option.failureText) ?? DEFAULT_TEXT[outcome];
   }
+
+  // Authored text wins; otherwise the line is synthesized from the choice the
+  // player actually made. The three constants this replaced produced a ledger
+  // whose rows all read `It is done.` — 61% of consecutive rows were identical
+  // across 2000 runs, in the one column of the one element wiki/01 calls "the
+  // single most important UI element".
+  text = deedLineFor(offer, option, outcome);
 
   // ---- apply -----------------------------------------------------------
   const draft = draftOf(run);
@@ -311,6 +312,11 @@ export function resolveChoice(
   draft.age = ageForEra(nextEraIndex);
   draft.phase = phaseFor(nextEraIndex, run.prophecyEra);
   draft.erasSinceProphecy = erasSinceProphecyFor(nextEraIndex, run.prophecyEra);
+
+  // The world reassigns your address before it decides your fate — a wizard
+  // promoted this era should die in the better lair, and the ledger row above
+  // already recorded the old one.
+  draft.lairId = promoteLair(draft, content);
 
   // ---- ending check, after EVERY era -----------------------------------
   draft.ending = endingFromEffect ?? checkEndings(draft, content);

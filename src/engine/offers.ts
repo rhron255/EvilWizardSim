@@ -103,6 +103,17 @@ function recencyRank(run: RunState, offer: Offer): number {
   return at === -1 ? -1 : at;
 }
 
+/**
+ * Offers the engine positions itself, and therefore withholds from the random
+ * pool. Everything else marked `scripted` is gated by its own `requires` and
+ * competes normally — at a raised weight, since a set piece that loses a coin
+ * flip to a texture card is a set piece nobody sees.
+ */
+export const ENGINE_PLACED_OFFER_IDS: ReadonlySet<string> = new Set(['prophecy']);
+
+/** Set pieces should win the draw when they are eligible at all. */
+const SCRIPTED_WEIGHT_BONUS = 4;
+
 export type OfferPoolDebug = {
   eligible: number;
   unseen: number;
@@ -124,11 +135,17 @@ export function buildOfferPool(
     fallback: false,
   };
 
-  // 1. Phase + requires + structural playability. Scripted offers are set
-  //    pieces the engine places itself; they never enter the sample.
+  // 1. Phase + requires + structural playability.
+  //
+  //    `scripted` does NOT mean "never sampled". It marks a pivotal set piece,
+  //    and all but one of them are placed by their own `requires` gate. Only
+  //    offers the engine positions itself (the prophecy, which is pinned to
+  //    `prophecyEra`) are withheld here — excluding the whole `scripted` class
+  //    stranded five of the catalog's most important cards, including the
+  //    lichdom branch, so `lichdom` was unreachable in 2000 simulated runs.
   const eligible = content.offers.filter(
     (offer) =>
-      !offer.scripted &&
+      !ENGINE_PLACED_OFFER_IDS.has(offer.id) &&
       isStructurallyPlayable(offer) &&
       (offer.phase === 'any' || offer.phase === run.phase) &&
       conditionsMet(run, offer.requires, content),
@@ -175,7 +192,20 @@ export function buildOfferPool(
  * stream is derived from `(seed, era index)` and nothing else.
  */
 export function nextOffer(run: RunState, content: ContentBundle): Offer {
+  // The prophecy is pinned to its era. The full-screen interstitial announces
+  // the birth; this card is where the player answers it.
+  if (run.eraIndex === run.prophecyEra && !run.seenOfferIds.includes('prophecy')) {
+    const prophecy = content.offers.find((o) => o.id === 'prophecy');
+    if (prophecy && isStructurallyPlayable(prophecy)) return prophecy;
+  }
+
   const { pool } = buildOfferPool(run, content);
   const rng = streamFor(run.seed, 'offer', run.eraIndex);
-  return weightedPick(rng, pool, (offer) => standingWeight(run, offer)) ?? QUIET_ERA_OFFER;
+  return (
+    weightedPick(
+      rng,
+      pool,
+      (offer) => standingWeight(run, offer) * (offer.scripted ? SCRIPTED_WEIGHT_BONUS : 1),
+    ) ?? QUIET_ERA_OFFER
+  );
 }
