@@ -13,15 +13,23 @@
 import type { Lair, RunState } from '../../types';
 import { tierColor, tierFor } from '../../theme/tokens';
 import { NotorietyBadge } from './NotorietyBadge';
+import { siegeFor, stakesFor } from './stakes';
 import styles from './WizardHeader.module.css';
 
 export type WizardHeaderProps = {
   run: RunState;
   lairs: Lair[];
   hasAscensionTrophy: boolean;
+  /**
+   * Current defence. Supplied by the screen rather than computed here so this
+   * component stays presentational; `null` hides the siege readout entirely.
+   */
+  defense?: number | null;
 };
 
-export function WizardHeader({ run, lairs, hasAscensionTrophy }: WizardHeaderProps) {
+export function WizardHeader({ run, lairs, hasAscensionTrophy, defense }: WizardHeaderProps) {
+  const stakes = stakesFor(run);
+  const siege = defense == null ? null : siegeFor(run, defense);
   const lair = lairs.find((l) => l.id === run.lairId);
   const previous = run.eras.length > 1 ? run.eras[run.eras.length - 2].notoriety : undefined;
   const tier = tierFor(run.notoriety);
@@ -39,7 +47,9 @@ export function WizardHeader({ run, lairs, hasAscensionTrophy }: WizardHeaderPro
           <span className={styles.dot} aria-hidden="true">
             ·
           </span>
-          <span className={styles.lair}>{lair?.name ?? run.lairId}</span>
+          <span className={styles.lair} title="A better lair wards off the hero">
+            {lair?.name ?? run.lairId}
+          </span>
         </p>
 
         {/* The one dynamic value here: how much name there is. The stylesheet
@@ -85,29 +95,29 @@ export function WizardHeader({ run, lairs, hasAscensionTrophy }: WizardHeaderPro
       </div>
 
       <dl className={styles.stats}>
-        <div className={styles.stat}>
-          <dt className={styles.statLabel}>Followers</dt>
-          <dd className={`${styles.statValue} ew-num`}>{run.followers.toLocaleString('en-US')}</dd>
-        </div>
-        <div className={styles.stat}>
-          <dt className={styles.statLabel}>Relics</dt>
-          <dd className={`${styles.statValue} ew-num`}>{run.heldArtifactIds.length}</dd>
-        </div>
-        <div className={styles.stat}>
-          <dt className={styles.statLabel}>Apprentices</dt>
-          <dd className={`${styles.statValue} ew-num`}>{run.apprentices.count}</dd>
-        </div>
-        <div className={styles.stat}>
-          <dt className={styles.statLabel}>Loyalty</dt>
-          <dd className={`${styles.statValue} ew-num`}>{run.apprentices.loyalty}</dd>
-        </div>
-        <div className={styles.stat}>
-          <dt className={styles.statLabel}>Pact Debt</dt>
-          <dd className={`${styles.statValue} ew-num`} data-weight={run.pactDebt > 0 ? 'on' : undefined}>
-            {run.pactDebt}
-          </dd>
-        </div>
+        {stakes.map((stake) => (
+          <div className={styles.stat} key={stake.label} data-tone={stake.tone}>
+            <dt className={styles.statLabel}>{stake.label}</dt>
+            <dd className={`${styles.statValue} ew-num`}>{stake.value}</dd>
+            {/* The caption is the whole point: a number nobody can act on is
+                just decoration, and one that silently counts toward an ending
+                is an undisclosed consequence. */}
+            <dd className={styles.statCaption}>{stake.caption}</dd>
+          </div>
+        ))}
       </dl>
+
+      {siege && (
+        <p className={styles.siege} data-tone={siege.tone}>
+          <span className={styles.siegeLabel}>Wards</span>
+          <span className={`${styles.siegeValue} ew-num`}>{siege.wards}</span>
+          <span className={styles.siegeVs} aria-hidden="true">
+            against
+          </span>
+          <span className={styles.siegeLabel}>The hero</span>
+          <span className={`${styles.siegeValue} ew-num`}>{siege.threat}</span>
+        </p>
+      )}
     </header>
   );
 }

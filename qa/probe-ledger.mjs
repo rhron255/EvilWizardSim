@@ -21,7 +21,7 @@ const FLOW = 'button:not([data-option-index]):not([disabled])';
 let eras = 0;
 // Advance until the ledger is deep, always leaving the loop with an OFFER
 // showing (no overlay), which is the state worth looking at.
-for (let i = 0; i < 200 && eras < 9; i++) {
+for (let i = 0; i < 200 && eras < 6; i++) {
   const opts = page.locator(OPTIONS);
   const n = await opts.count().catch(() => 0);
   if (n > 0) {
@@ -37,14 +37,14 @@ for (let i = 0; i < 200 && eras < 9; i++) {
   await page.waitForTimeout(200);
 }
 
-// Clear whatever overlay is up so the ledger is unobstructed.
+// Clear whatever overlay is up so the ledger is unobstructed. Only ever click
+// a genuine "continue" — the ending screen's controls would navigate away.
 for (let i = 0; i < 6; i++) {
   const opts = await page.locator(OPTIONS).count().catch(() => 0);
   if (opts > 0) break;
-  const flow = page.locator(FLOW);
-  const f = await flow.count().catch(() => 0);
-  if (!f) break;
-  await flow.nth(f - 1).click();
+  const cont = page.getByRole('button', { name: /continue|onward|proceed|go on/i }).first();
+  if (!(await cont.isVisible().catch(() => false))) break;
+  await cont.click();
   await page.waitForTimeout(250);
 }
 
