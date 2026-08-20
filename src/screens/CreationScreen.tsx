@@ -1,0 +1,259 @@
+/**
+ * Identity capture, before a single mechanic is explained.
+ *
+ * Reference principle 1: everything that happens afterwards happens to
+ * something the player named. So the name comes first, it is physically the
+ * largest thing on the screen, and it is set on the sigil that will follow the
+ * wizard through the prophecy, the ending card and the share image.
+ *
+ * This is the only text input in the entire game. Everything else is a choice
+ * between three or four things. No stat allocation, no sliders.
+ */
+
+import { useId, useState } from 'react';
+import type { Artifact, Faction, Origin } from '../types';
+import { formatEffect, isNegative, Sigil, tierVars } from '../components/meta';
+import styles from './CreationScreen.module.css';
+
+export type CreationScreenProps = {
+  origins: Origin[];
+  epithetChoices: string[];
+  /** Catalog, so an origin that grants a relic can name it. */
+  artifacts: Artifact[];
+  factions: Faction[];
+  onCreate(name: string, epithet: string, originId: string, eraCount: number): void;
+  onBack(): void;
+};
+
+/**
+ * Matches `MAX_NAME_LENGTH` in src/engine/run.ts exactly.
+ *
+ * It used to be 26, which silently ate the last character of anything longer —
+ * "Vashter of the Long Arrears" was committed as "Vashter of the Long Arrear".
+ * The name is the identity anchor the whole run hangs off (reference principle
+ * 1), so the input must never quietly edit it. Anything the engine will accept,
+ * this field accepts, and the display scales to fit instead of clipping.
+ */
+const MAX_NAME = 40;
+
+/** Sizes the placeholder when the field is empty, so it does not jump on type. */
+const PLACEHOLDER_LEN = 8;
+
+const LENGTHS = [
+  { eras: 12, name: 'Brief', note: 'A short, loud life.' },
+  { eras: 16, name: 'Standard', note: 'The intended shape.' },
+  { eras: 20, name: 'Long', note: 'More decisions, more to lose.' },
+] as const;
+
+export function CreationScreen({
+  origins,
+  epithetChoices,
+  artifacts,
+  factions,
+  onCreate,
+  onBack,
+}: CreationScreenProps) {
+  const [name, setName] = useState('');
+  const [epithet, setEpithet] = useState(epithetChoices[0] ?? '');
+  const [originId, setOriginId] = useState(origins[0]?.id ?? '');
+  const [eraCount, setEraCount] = useState<number>(16);
+
+  const nameId = useId();
+  const groupId = useId();
+
+  const trimmed = name.trim();
+  const ready = trimmed.length > 0 && Boolean(originId);
+  const sigilSeed = trimmed || 'nameless';
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!ready) return;
+    onCreate(trimmed, epithet, originId, eraCount);
+  }
+
+  return (
+    <main className={styles.screen} style={tierVars(0)}>
+      <form className={styles.form} onSubmit={submit} noValidate>
+        <header className={styles.top}>
+          <button type="button" className={styles.back} onClick={onBack}>
+            ← Back
+          </button>
+          <p className={styles.chapter}>Chapter One</p>
+          <span className={styles.topSpacer} aria-hidden />
+        </header>
+
+        {/* ---------------------------------------------------------------- */}
+        {/* I. The name                                                       */}
+        {/* ---------------------------------------------------------------- */}
+        <section className={styles.nameSection} aria-labelledby={`${nameId}-label`}>
+          <div className={styles.sigilStage}>
+            <Sigil name={sigilSeed} size={300} className={styles.sigil} />
+            <div className={styles.nameField}>
+              <label className={styles.sectionLabel} htmlFor={nameId} id={`${nameId}-label`}>
+                <span className={styles.numeral}>I</span> Your name
+              </label>
+              <input
+                id={nameId}
+                className={styles.nameInput}
+                // Genuinely dynamic: the type size is a function of how much
+                // name there is. CSS does the arithmetic against the field's
+                // own width (see .nameInput), this only reports the count.
+                style={
+                  {
+                    '--name-len': Math.max(name.length, PLACEHOLDER_LEN),
+                  } as React.CSSProperties
+                }
+                value={name}
+                onChange={(e) => setName(e.target.value.slice(0, MAX_NAME))}
+                placeholder="Nameless"
+                maxLength={MAX_NAME}
+                autoComplete="off"
+                autoCapitalize="words"
+                spellCheck={false}
+                enterKeyHint="done"
+                aria-describedby={`${nameId}-help`}
+                autoFocus
+              />
+              <span className={styles.nameRule} aria-hidden />
+            </div>
+          </div>
+
+          <p className={styles.help} id={`${nameId}-help`}>
+            The seal is drawn from the name. This is the only thing you will type all game.
+          </p>
+        </section>
+
+        {/* ---------------------------------------------------------------- */}
+        {/* II. The epithet                                                   */}
+        {/* ---------------------------------------------------------------- */}
+        <fieldset className={styles.section}>
+          <legend className={styles.sectionLabel}>
+            <span className={styles.numeral}>II</span> How they will say it
+          </legend>
+
+          <div className={styles.chips} role="presentation">
+            {epithetChoices.map((choice) => (
+              <label
+                key={choice}
+                className={choice === epithet ? `${styles.chip} ${styles.chipOn}` : styles.chip}
+              >
+                <input
+                  type="radio"
+                  name={`${groupId}-epithet`}
+                  className={styles.radio}
+                  value={choice}
+                  checked={choice === epithet}
+                  onChange={() => setEpithet(choice)}
+                />
+                <span className={styles.chipText}>{choice}</span>
+              </label>
+            ))}
+          </div>
+
+          <p className={styles.preview} aria-live="polite">
+            <span className={styles.previewName}>{trimmed || 'Nameless'}</span>
+            <span className={styles.previewEpithet}>{epithet ? `, ${epithet}` : ''}</span>
+          </p>
+        </fieldset>
+
+        {/* ---------------------------------------------------------------- */}
+        {/* III. The origin                                                   */}
+        {/* ---------------------------------------------------------------- */}
+        <fieldset className={styles.section}>
+          <legend className={styles.sectionLabel}>
+            <span className={styles.numeral}>III</span> Where you come from
+          </legend>
+
+          <div className={styles.origins}>
+            {origins.map((origin) => (
+              <label
+                key={origin.id}
+                className={
+                  origin.id === originId ? `${styles.origin} ${styles.originOn}` : styles.origin
+                }
+              >
+                <input
+                  type="radio"
+                  name={`${groupId}-origin`}
+                  className={styles.radio}
+                  value={origin.id}
+                  checked={origin.id === originId}
+                  onChange={() => setOriginId(origin.id)}
+                />
+                <span className={styles.originInner}>
+                  <span className={styles.originName}>{origin.name}</span>
+                  <span className={styles.originBlurb}>{origin.blurb}</span>
+                  <span className={styles.originRule} aria-hidden />
+                  <span className={styles.effects}>
+                    <span className={styles.effectsLabel}>You begin with</span>
+                    {origin.effects.map((effect, i) => (
+                      <span
+                        key={i}
+                        className={
+                          isNegative(effect) ? `${styles.effect} ${styles.effectDown}` : styles.effect
+                        }
+                      >
+                        {formatEffect(effect, { artifacts, factions })}
+                      </span>
+                    ))}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        {/* ---------------------------------------------------------------- */}
+        {/* IV. The length                                                    */}
+        {/* ---------------------------------------------------------------- */}
+        <fieldset className={styles.section}>
+          <legend className={styles.sectionLabel}>
+            <span className={styles.numeral}>IV</span> How long a life
+          </legend>
+
+          <div className={styles.lengths}>
+            {LENGTHS.map((option) => (
+              <label
+                key={option.eras}
+                className={
+                  option.eras === eraCount ? `${styles.length} ${styles.lengthOn}` : styles.length
+                }
+              >
+                <input
+                  type="radio"
+                  name={`${groupId}-length`}
+                  className={styles.radio}
+                  value={option.eras}
+                  checked={option.eras === eraCount}
+                  onChange={() => setEraCount(option.eras)}
+                />
+                <span className={styles.lengthInner}>
+                  <span className={styles.lengthName}>{option.name}</span>
+                  <span className={styles.lengthEras}>
+                    <span className={styles.lengthNum}>{option.eras}</span> eras
+                  </span>
+                  <span className={styles.lengthYears}>{option.eras * 5} years</span>
+                  <span className={styles.lengthNote}>{option.note}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+
+          <p className={styles.help}>
+            Length sets how many decisions you make, not how hard they are. A brief career is not an
+            easier one.
+          </p>
+        </fieldset>
+
+        <footer className={styles.bottom}>
+          <button type="submit" className={styles.commit} disabled={!ready}>
+            Begin the career
+          </button>
+          <p className={styles.commitNote}>
+            {ready ? 'No second chances. Plenty of second runs.' : 'Give yourself a name first.'}
+          </p>
+        </footer>
+      </form>
+    </main>
+  );
+}

@@ -1,0 +1,138 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+  gap: var(--ew-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: lair;
+}
+
+.card {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--ew-space-3);
+  padding: var(--ew-space-4);
+  background: linear-gradient(180deg, var(--ew-raised), var(--ew-panel));
+  border: 1px solid var(--ew-line);
+  border-radius: var(--ew-radius-md);
+  box-shadow: var(--ew-lip), var(--ew-shadow-card);
+  transition: border-color var(--ew-base) var(--ew-ease);
+}
+
+.card:hover {
+  border-color: var(--ew-line-strong);
+}
+
+/* The final lair carries the one scarce colour: it is where the life ended. */
+.last {
+  border-color: color-mix(in srgb, var(--ew-tier) 42%, var(--ew-line));
+  box-shadow:
+    var(--ew-lip),
+    var(--ew-shadow-card),
+    0 0 30px -14px var(--ew-tier-glow);
+}
+
+.well {
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  border: 1px solid var(--ew-line);
+  border-radius: var(--ew-radius-sm);
+  background:
+    radial-gradient(80% 80% at 50% 20%, rgba(255, 246, 224, 0.04), transparent 70%),
+    var(--ew-void);
+}
+
+.glyph {
+  color: var(--ew-ink-dim);
+}
+
+.last .well {
+  border-color: color-mix(in srgb, var(--ew-tier) 35%, var(--ew-line));
+}
+
+.last .glyph {
+  color: var(--ew-tier);
+}
+
+.body {
+  min-width: 0;
+}
+
+.tierRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ew-space-2);
+}
+
+.tier {
+  font-size: var(--ew-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ew-ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.lastTag {
+  font-size: var(--ew-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ew-tier);
+  opacity: 0.9;
+}
+
+.name {
+  margin: var(--ew-space-2) 0 0;
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-size-lg);
+  font-weight: 600;
+  line-height: 1.12;
+  color: var(--ew-ink-bright);
+  letter-spacing: 0.004em;
+  text-wrap: balance;
+}
+
+.span {
+  display: flex;
+  align-items: center;
+  gap: var(--ew-space-2);
+  margin: var(--ew-space-2) 0 0;
+  font-size: var(--ew-size-xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ew-ink-faint);
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  color: var(--ew-ink-dim);
+}
+
+.dot {
+  color: var(--ew-ink-ghost);
+}
+
+.blurb {
+  margin: var(--ew-space-3) 0 0;
+  padding-top: var(--ew-space-3);
+  border-top: 1px solid var(--ew-line);
+  font-family: var(--ew-font-display);
+  font-style: italic;
+  font-size: var(--ew-size-base);
+  line-height: 1.42;
+  color: var(--ew-ink-faint);
+  text-wrap: pretty;
+}
+
+@media (max-width: 520px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

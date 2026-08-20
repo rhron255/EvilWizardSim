@@ -20,7 +20,9 @@
     "noUncheckedSideEffectImports": true,
     "exactOptionalPropertyTypes": false,
 
-    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"]
+    // "node" is here for scripts/ and qa/, which run under tsx rather than in
+    // the browser. Keep browser code off node globals regardless.
+    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom", "node"]
   },
   "include": ["src", "scripts", "vite.config.ts", "eslint.config.js"]
 }

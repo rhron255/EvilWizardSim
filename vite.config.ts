@@ -10,4 +10,7 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     css: true,
   },
+  server: {
+    allowedHosts: ['fragile-eats-dimness.ngrok-free.dev']
+  }
 });

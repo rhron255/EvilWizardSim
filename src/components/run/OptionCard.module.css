@@ -1,0 +1,177 @@
+/* One choice. Physical on hover, planted on press, legible at rest. */
+
+.card {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ew-space-3);
+  width: 100%;
+  padding: var(--ew-space-4) var(--ew-space-4) var(--ew-space-4) var(--ew-space-3);
+  text-align: left;
+  background: linear-gradient(180deg, var(--ew-raised) 0%, var(--ew-panel) 100%);
+  border: 1px solid var(--ew-line);
+  border-radius: var(--ew-radius-md);
+  box-shadow: var(--ew-lip);
+  transition:
+    background-color var(--ew-fast) var(--ew-ease),
+    border-color var(--ew-fast) var(--ew-ease),
+    box-shadow var(--ew-fast) var(--ew-ease),
+    transform var(--ew-fast) var(--ew-ease);
+}
+
+/* Hairline on the leading edge — brightens on hover so the row reads as live
+   without introducing a second color. */
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 6px auto 6px 0;
+  width: 1px;
+  background: var(--ew-line);
+  transition: background-color var(--ew-fast) var(--ew-ease);
+}
+
+.card:hover:not(:disabled) {
+  background: var(--ew-hover);
+  border-color: var(--ew-line-strong);
+  box-shadow: var(--ew-lip), var(--ew-shadow-card);
+  transform: translateY(-1px);
+}
+
+.card:hover:not(:disabled)::before {
+  width: 2px;
+  background: var(--ew-ink-faint);
+}
+
+.card:active:not(:disabled) {
+  transform: translateY(0);
+  background: var(--ew-panel);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+  transition-duration: 60ms;
+}
+
+.card:disabled {
+  opacity: 0.42;
+  cursor: default;
+}
+
+/* Keyboard affordance, always visible — the panel is number-key driven. */
+.keycap {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  margin-top: 0.1rem;
+  font-size: var(--ew-size-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ew-ink-faint);
+  background: var(--ew-void);
+  border: 1px solid var(--ew-line);
+  border-radius: var(--ew-radius-sm);
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.4);
+  transition:
+    color var(--ew-fast) var(--ew-ease),
+    border-color var(--ew-fast) var(--ew-ease);
+}
+
+.card:hover:not(:disabled) .keycap {
+  color: var(--ew-ink);
+  border-color: var(--ew-line-strong);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-2);
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.label {
+  font-size: var(--ew-size-base);
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--ew-ink-bright);
+  letter-spacing: -0.005em;
+}
+
+.certain {
+  padding-left: 0.05rem;
+}
+
+/* --- Gamble ------------------------------------------------------------- */
+
+.branches {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-2);
+}
+
+/* The split, as a quantity. Deliberately uncolored: the odds are information,
+   not a verdict, and the one scarce color belongs to Notoriety. */
+.rail {
+  position: relative;
+  display: block;
+  height: 3px;
+  margin-top: var(--ew-space-1);
+  border-radius: var(--ew-radius-pill);
+  background: var(--ew-line);
+  overflow: hidden;
+}
+
+.railFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: block;
+  background: var(--ew-ink-faint);
+  border-radius: var(--ew-radius-pill);
+  transition: width var(--ew-base) var(--ew-ease);
+}
+
+.card:hover:not(:disabled) .railFill {
+  background: var(--ew-ink-dim);
+}
+
+.branch {
+  display: flex;
+  align-items: baseline;
+  gap: var(--ew-space-2);
+}
+
+.pct {
+  flex: 0 0 3.2rem;
+  font-size: var(--ew-size-md);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  color: var(--ew-ink-bright);
+}
+
+.branch[data-branch='failure'] .pct {
+  color: var(--ew-ink-dim);
+  font-weight: 500;
+}
+
+.arrow {
+  flex: 0 0 auto;
+  color: var(--ew-ink-ghost);
+  font-size: var(--ew-size-sm);
+}
+
+.branchEffects {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+@media (max-width: 480px) {
+  .card {
+    padding: var(--ew-space-3);
+    gap: var(--ew-space-2);
+  }
+
+  .pct {
+    flex-basis: 2.9rem;
+    font-size: var(--ew-size-base);
+  }
+}

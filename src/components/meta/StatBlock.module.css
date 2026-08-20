@@ -1,0 +1,86 @@
+.block {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  /* The gap is the rule. */
+  background: var(--ew-line);
+  border: 1px solid var(--ew-line);
+  border-radius: var(--ew-radius-md);
+  overflow: hidden;
+  box-shadow: var(--ew-lip);
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-2);
+  padding: var(--ew-space-4) var(--ew-space-4) calc(var(--ew-space-4) - 2px);
+  background: var(--ew-panel);
+  min-width: 0;
+}
+
+.label {
+  font-size: var(--ew-size-xs);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ew-ink-faint);
+  margin-right: -0.2em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.value {
+  margin: 0;
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-size-xl);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.005em;
+  color: var(--ew-ink-bright);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+}
+
+.emphasis .value {
+  font-size: var(--ew-size-xxl);
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--ew-size-xs);
+  line-height: 1.35;
+  color: var(--ew-ink-faint);
+  letter-spacing: 0.02em;
+}
+
+.accent .value {
+  color: var(--ew-tier);
+  text-shadow: 0 0 22px var(--ew-tier-glow);
+}
+
+.accent .hint {
+  color: color-mix(in srgb, var(--ew-tier) 62%, var(--ew-ink-faint));
+}
+
+@media (max-width: 860px) {
+  .block {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .cell {
+    padding: var(--ew-space-3);
+  }
+
+  .value {
+    font-size: var(--ew-size-lg);
+  }
+
+  .emphasis .value {
+    font-size: var(--ew-size-xl);
+  }
+}

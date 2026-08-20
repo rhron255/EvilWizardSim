@@ -1,0 +1,80 @@
+/* The decision. Sits under the ledger; never competes with it for weight. */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-4);
+  transition: opacity var(--ew-base) var(--ew-ease);
+}
+
+.panel[data-disabled='true'] {
+  opacity: 0.55;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-2);
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: var(--ew-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--ew-ink-faint);
+}
+
+.title {
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-size-xl);
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: 0.005em;
+  color: var(--ew-ink-bright);
+}
+
+.body {
+  margin: 0;
+  max-width: 58ch;
+  font-size: var(--ew-size-base);
+  line-height: 1.62;
+  color: var(--ew-ink-dim);
+  text-wrap: pretty;
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-3);
+}
+
+.hint {
+  margin: 0;
+  padding-top: var(--ew-space-1);
+  font-size: var(--ew-size-xs);
+  letter-spacing: 0.04em;
+  color: var(--ew-ink-ghost);
+  text-align: right;
+}
+
+.hintKeys {
+  display: inline-block;
+  min-width: 1.1em;
+  padding: 0 0.28em;
+  text-align: center;
+  color: var(--ew-ink-faint);
+  border: 1px solid var(--ew-line);
+  border-radius: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 480px) {
+  .title {
+    font-size: var(--ew-size-lg);
+  }
+
+  .hint {
+    display: none;
+  }
+}

@@ -1,0 +1,344 @@
+.screen {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: var(--ew-space-7) var(--ew-space-5);
+  background: #060505;
+  color: var(--ew-ink);
+  overflow: hidden;
+  cursor: default;
+}
+
+/* --------------------------------------------------------------------------
+   The reveal primitive. Everything on this screen is one of these two states.
+   -------------------------------------------------------------------------- */
+
+.out {
+  opacity: 0;
+  transform: translateY(14px);
+  filter: blur(6px);
+  transition:
+    opacity var(--ew-setpiece) var(--ew-ease),
+    transform var(--ew-setpiece) var(--ew-ease),
+    filter var(--ew-setpiece) var(--ew-ease);
+}
+
+.in {
+  opacity: 1;
+  transform: none;
+  filter: none;
+  transition:
+    opacity var(--ew-setpiece) var(--ew-ease),
+    transform var(--ew-setpiece) var(--ew-ease),
+    filter var(--ew-setpiece) var(--ew-ease);
+}
+
+.gone {
+  opacity: 0;
+  transition: opacity var(--ew-base) var(--ew-ease);
+}
+
+/* --------------------------------------------------------------------------
+   Ground
+   -------------------------------------------------------------------------- */
+
+.field {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+/* A shaft of cold light down the centre of the frame. */
+.shaft {
+  position: absolute;
+  top: -10%;
+  left: 50%;
+  width: min(760px, 96vw);
+  height: 120%;
+  transform: translateX(-50%);
+  background: radial-gradient(
+    46% 40% at 50% 34%,
+    rgba(242, 236, 221, 0.09),
+    rgba(242, 236, 221, 0.02) 45%,
+    transparent 72%
+  );
+}
+
+.halo {
+  position: absolute;
+  opacity: 0;
+  max-width: 130vw;
+}
+
+.halo.in {
+  opacity: 0.09;
+  filter: none;
+}
+
+/* The expanding ring behind the headline. */
+.aureole {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  border: 1px solid rgba(242, 236, 221, 0.5);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 0;
+}
+
+.aureole.in {
+  animation: aureole 2600ms var(--ew-ease) forwards;
+}
+
+@keyframes aureole {
+  0% {
+    opacity: 0.7;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(88);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Stage
+   -------------------------------------------------------------------------- */
+
+.stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 680px;
+  text-align: center;
+}
+
+/* The line of light that opens the sequence. */
+.seam {
+  width: 100%;
+  height: 1px;
+  margin-bottom: var(--ew-space-6);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(242, 236, 221, 0.55) 35%,
+    rgba(242, 236, 221, 0.9) 50%,
+    rgba(242, 236, 221, 0.55) 65%,
+    transparent
+  );
+  transform: scaleX(0.04);
+  transform-origin: 50% 50%;
+  opacity: 0;
+  filter: none;
+}
+
+.seam.in {
+  transform: scaleX(1);
+  opacity: 1;
+  transition:
+    transform 1400ms var(--ew-ease),
+    opacity 600ms var(--ew-ease);
+}
+
+.when {
+  composes: label from '../components/meta/craft.module.css';
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ew-space-2);
+  margin: 0 0 var(--ew-space-6);
+  color: var(--ew-ink-faint);
+  text-indent: 0.22em;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  color: var(--ew-ink-dim);
+}
+
+.sep {
+  color: var(--ew-ink-ghost);
+}
+
+/* --- the headline --------------------------------------------------------- */
+
+.headline {
+  display: flex;
+  flex-direction: column;
+  gap: 0.02em;
+  margin: 0 0 var(--ew-space-6);
+  font-family: var(--ew-font-display);
+  font-weight: 500;
+  font-size: clamp(3.4rem, 14vw, 6.6rem);
+  line-height: 0.92;
+  letter-spacing: 0.005em;
+  color: var(--ew-ink-bright);
+  text-shadow: 0 0 60px rgba(242, 236, 221, 0.16);
+  text-wrap: balance;
+}
+
+.headlineLine {
+  display: block;
+}
+
+.headlineLine:last-child {
+  font-style: italic;
+  color: var(--ew-ink);
+}
+
+.headline.out {
+  transform: translateY(24px) scale(0.985);
+  filter: blur(14px);
+}
+
+/* --- the hero ------------------------------------------------------------- */
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ew-space-3);
+  margin-bottom: var(--ew-space-6);
+}
+
+/* The one place the danger accent is licensed: the threat has a name now. */
+.heroRule {
+  display: block;
+  width: 128px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--ew-danger), transparent);
+  opacity: 0.6;
+}
+
+.heroName {
+  margin: 0;
+  font-family: var(--ew-font-display);
+  font-size: clamp(1.5rem, 5vw, 2.1rem);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  color: var(--ew-ink-bright);
+}
+
+.heroOrigin {
+  composes: labelCentered from '../components/meta/craft.module.css';
+  margin: 0;
+  color: color-mix(in srgb, var(--ew-danger) 55%, var(--ew-ink-faint));
+}
+
+/* --- the prophecy --------------------------------------------------------- */
+
+.text {
+  max-width: 34rem;
+  margin: 0;
+  font-family: var(--ew-font-display);
+  font-style: italic;
+  font-size: clamp(1.0625rem, 2.4vw, 1.375rem);
+  line-height: 1.62;
+  color: var(--ew-ink-dim);
+  text-wrap: pretty;
+}
+
+/* --- after the beat ------------------------------------------------------- */
+
+.after {
+  margin-top: var(--ew-space-8);
+}
+
+.continue {
+  composes: btn from '../components/meta/craft.module.css';
+  min-height: 52px;
+  padding: 0 var(--ew-space-6);
+  color: var(--ew-ink-dim);
+  border-color: var(--ew-line-strong);
+  background: rgba(19, 17, 14, 0.7);
+}
+
+.continue:hover {
+  color: var(--ew-ink-bright);
+  border-color: var(--ew-ink-faint);
+  background: var(--ew-hover);
+}
+
+/* A keyboard user should not have to wait out the reveal to find the exit. */
+.after.out {
+  pointer-events: none;
+}
+
+.after.out .continue:focus-visible {
+  opacity: 1;
+}
+
+.after.out:focus-within {
+  opacity: 1;
+  transform: none;
+  filter: none;
+  pointer-events: auto;
+}
+
+.skipHint {
+  position: absolute;
+  bottom: var(--ew-space-6);
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-indent: 0.28em;
+  text-transform: uppercase;
+  color: var(--ew-ink-ghost);
+  animation: breathe 3600ms ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .out,
+  .in,
+  .seam,
+  .seam.in {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+
+  .out {
+    opacity: 0;
+  }
+
+  .aureole.in {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+@media (max-width: 520px) {
+  .screen {
+    padding: var(--ew-space-6) var(--ew-space-4);
+  }
+
+  .headline {
+    margin-bottom: var(--ew-space-5);
+  }
+
+  .after {
+    margin-top: var(--ew-space-7);
+  }
+}

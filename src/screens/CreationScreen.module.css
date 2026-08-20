@@ -1,0 +1,499 @@
+.screen {
+  composes: screen from '../components/meta/craft.module.css';
+  padding: var(--ew-space-5) var(--ew-space-5) var(--ew-space-8);
+  min-height: 100dvh;
+}
+
+.form {
+  position: relative;
+  width: 100%;
+  max-width: var(--ew-max-width);
+  margin: 0 auto;
+}
+
+/* --- top bar -------------------------------------------------------------- */
+
+.top {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--ew-space-4);
+  padding-bottom: var(--ew-space-5);
+}
+
+.back {
+  composes: btnQuiet from '../components/meta/craft.module.css';
+  justify-self: start;
+  min-height: 36px;
+  padding: 0 var(--ew-space-3);
+  font-size: var(--ew-size-xs);
+  letter-spacing: 0.12em;
+  text-indent: 0.12em;
+}
+
+.chapter {
+  composes: labelCentered from '../components/meta/craft.module.css';
+  margin: 0;
+}
+
+.topSpacer {
+  display: block;
+}
+
+/* --- section shell -------------------------------------------------------- */
+
+.section {
+  margin: 0;
+  padding: var(--ew-space-6) 0 0;
+  border: 0;
+  border-top: 1px solid var(--ew-line);
+}
+
+.sectionLabel {
+  composes: label from '../components/meta/craft.module.css';
+  display: flex;
+  align-items: baseline;
+  gap: var(--ew-space-3);
+  padding: 0;
+  margin-bottom: var(--ew-space-4);
+  color: var(--ew-ink-dim);
+}
+
+.numeral {
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-size-base);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--ew-ink-faint);
+}
+
+.help {
+  margin: var(--ew-space-4) 0 0;
+  font-size: var(--ew-size-sm);
+  line-height: 1.5;
+  color: var(--ew-ink-faint);
+  text-wrap: pretty;
+}
+
+/* --- I. the name ---------------------------------------------------------- */
+
+.nameSection {
+  padding-bottom: var(--ew-space-6);
+  text-align: center;
+}
+
+.sigilStage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 300px;
+}
+
+.sigil {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0.5;
+  pointer-events: none;
+  transition: opacity var(--ew-slow) var(--ew-ease);
+}
+
+.nameField {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ew-space-3);
+  width: min(100%, 420px);
+  /* Makes `cqw` below resolve against this field, so the name is fitted to the
+     space it actually has rather than to a guess about the viewport. */
+  container-type: inline-size;
+}
+
+.nameField .sectionLabel {
+  justify-content: center;
+  margin-bottom: 0;
+  text-indent: 0.22em;
+}
+
+.nameInput {
+  width: 100%;
+  padding: var(--ew-space-2) var(--ew-space-3);
+  font-family: var(--ew-font-display);
+  /* Fit-to-field, not clip-to-field. `--name-len` comes from the component.
+     0.54 is a safe average advance per glyph for Cormorant at this weight; the
+     floor keeps a 40-character name legible rather than letting it vanish. A
+     one-character name simply pins to the maximum. */
+  font-size: clamp(
+    1.25rem,
+    calc(86cqw / (var(--name-len, 8) * 0.54)),
+    2.75rem
+  );
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  letter-spacing: -0.008em;
+  color: var(--ew-ink-bright);
+  background: transparent;
+  border: 0;
+  outline: none;
+  caret-color: var(--ew-tier);
+}
+
+.nameInput::placeholder {
+  color: var(--ew-ink-ghost);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.nameRule {
+  display: block;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--ew-line-strong) 20%, var(--ew-line-strong) 80%, transparent);
+  transition: background var(--ew-base) var(--ew-ease);
+}
+
+.nameInput:focus-visible + .nameRule,
+.nameInput:not(:placeholder-shown) + .nameRule {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--ew-tier) 70%, transparent) 20%,
+    color-mix(in srgb, var(--ew-tier) 70%, transparent) 80%,
+    transparent
+  );
+}
+
+/* --- shared radio plumbing ------------------------------------------------ */
+
+.radio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- II. epithet ---------------------------------------------------------- */
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ew-space-2);
+}
+
+.chip {
+  position: relative;
+  cursor: pointer;
+}
+
+.chipText {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 0 var(--ew-space-4);
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-size-md);
+  color: var(--ew-ink-dim);
+  background: var(--ew-panel);
+  border: 1px solid var(--ew-line);
+  border-radius: var(--ew-radius-pill);
+  box-shadow: var(--ew-lip);
+  transition:
+    color var(--ew-fast) var(--ew-ease),
+    border-color var(--ew-fast) var(--ew-ease),
+    background-color var(--ew-fast) var(--ew-ease);
+}
+
+.chip:hover .chipText {
+  color: var(--ew-ink);
+  border-color: var(--ew-line-strong);
+  background: var(--ew-hover);
+}
+
+.chipOn .chipText {
+  color: var(--ew-ink-bright);
+  border-color: color-mix(in srgb, var(--ew-tier) 55%, transparent);
+  background: color-mix(in srgb, var(--ew-tier) 8%, var(--ew-raised));
+}
+
+.radio:focus-visible + .chipText {
+  outline: 2px solid var(--ew-tier);
+  outline-offset: 2px;
+}
+
+.preview {
+  margin: var(--ew-space-5) 0 0;
+  padding-top: var(--ew-space-4);
+  border-top: 1px dashed var(--ew-line);
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-size-lg);
+  line-height: 1.25;
+  color: var(--ew-ink);
+  text-wrap: balance;
+}
+
+.previewName {
+  font-weight: 600;
+  color: var(--ew-ink-bright);
+}
+
+.previewEpithet {
+  font-style: italic;
+  color: var(--ew-ink-dim);
+}
+
+/* --- III. origin ---------------------------------------------------------- */
+
+.origins {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--ew-space-3);
+}
+
+.origin {
+  position: relative;
+  display: block;
+  cursor: pointer;
+}
+
+.originInner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: var(--ew-space-4);
+  background: var(--ew-panel);
+  border: 1px solid var(--ew-line);
+  border-radius: var(--ew-radius-md);
+  box-shadow: var(--ew-lip);
+  transition:
+    border-color var(--ew-fast) var(--ew-ease),
+    background-color var(--ew-fast) var(--ew-ease),
+    box-shadow var(--ew-base) var(--ew-ease);
+}
+
+.origin:hover .originInner {
+  border-color: var(--ew-line-strong);
+  background: var(--ew-raised);
+}
+
+.originOn .originInner {
+  border-color: color-mix(in srgb, var(--ew-tier) 50%, transparent);
+  background: color-mix(in srgb, var(--ew-tier) 5%, var(--ew-raised));
+  box-shadow: var(--ew-lip), 0 0 34px -18px var(--ew-tier-glow);
+}
+
+.radio:focus-visible + .originInner,
+.radio:focus-visible + .lengthInner {
+  outline: 2px solid var(--ew-tier);
+  outline-offset: 2px;
+}
+
+.originName {
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-size-md);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--ew-ink-bright);
+  text-wrap: balance;
+}
+
+.originBlurb {
+  margin-top: var(--ew-space-2);
+  font-size: var(--ew-size-sm);
+  line-height: 1.5;
+  color: var(--ew-ink-dim);
+  text-wrap: pretty;
+}
+
+.originRule {
+  display: block;
+  height: 1px;
+  margin: var(--ew-space-4) 0 var(--ew-space-3);
+  background: var(--ew-line);
+}
+
+.effects {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-2);
+  margin-top: auto;
+}
+
+.effectsLabel {
+  composes: label from '../components/meta/craft.module.css';
+  font-size: 0.625rem;
+  letter-spacing: 0.18em;
+  color: var(--ew-ink-ghost);
+}
+
+.effect {
+  font-size: var(--ew-size-sm);
+  line-height: 1.35;
+  color: var(--ew-ink);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+.effectDown {
+  color: var(--ew-ink-dim);
+}
+
+/* --- IV. length ----------------------------------------------------------- */
+
+.lengths {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--ew-space-3);
+}
+
+.length {
+  position: relative;
+  display: block;
+  cursor: pointer;
+}
+
+.lengthInner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ew-space-2);
+  padding: var(--ew-space-4) var(--ew-space-3);
+  text-align: center;
+  background: var(--ew-panel);
+  border: 1px solid var(--ew-line);
+  border-radius: var(--ew-radius-md);
+  box-shadow: var(--ew-lip);
+  transition:
+    border-color var(--ew-fast) var(--ew-ease),
+    background-color var(--ew-fast) var(--ew-ease);
+}
+
+.length:hover .lengthInner {
+  border-color: var(--ew-line-strong);
+  background: var(--ew-raised);
+}
+
+.lengthOn .lengthInner {
+  border-color: color-mix(in srgb, var(--ew-tier) 50%, transparent);
+  background: color-mix(in srgb, var(--ew-tier) 5%, var(--ew-raised));
+}
+
+.lengthName {
+  composes: label from '../components/meta/craft.module.css';
+  color: var(--ew-ink-dim);
+  margin-right: 0;
+  text-indent: 0.22em;
+}
+
+.lengthOn .lengthName {
+  color: var(--ew-tier);
+}
+
+.lengthEras {
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-size-base);
+  color: var(--ew-ink-dim);
+}
+
+.lengthNum {
+  font-size: var(--ew-size-xl);
+  font-weight: 600;
+  color: var(--ew-ink-bright);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+  margin-right: 0.15em;
+}
+
+.lengthYears {
+  font-size: var(--ew-size-xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ew-ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.lengthNote {
+  margin-top: var(--ew-space-1);
+  font-family: var(--ew-font-display);
+  font-style: italic;
+  font-size: var(--ew-size-sm);
+  line-height: 1.35;
+  color: var(--ew-ink-faint);
+  text-wrap: balance;
+}
+
+/* --- footer --------------------------------------------------------------- */
+
+.bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ew-space-3);
+  margin-top: var(--ew-space-7);
+  padding-top: var(--ew-space-6);
+  border-top: 1px solid var(--ew-line);
+}
+
+.commit {
+  composes: btnPrimary from '../components/meta/craft.module.css';
+  width: min(100%, 340px);
+  min-height: 58px;
+  font-size: var(--ew-size-base);
+  letter-spacing: 0.2em;
+  text-indent: 0.2em;
+}
+
+.commitNote {
+  margin: 0;
+  font-family: var(--ew-font-display);
+  font-style: italic;
+  font-size: var(--ew-size-base);
+  color: var(--ew-ink-faint);
+}
+
+/* --- narrow --------------------------------------------------------------- */
+
+@media (max-width: 720px) {
+  .origins {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .screen {
+    padding: var(--ew-space-4) var(--ew-space-4) var(--ew-space-7);
+  }
+
+  .sigilStage {
+    min-height: 240px;
+  }
+
+  .sigil {
+    width: 240px;
+    height: 240px;
+  }
+
+  .lengths {
+    grid-template-columns: 1fr;
+  }
+
+  .lengthInner {
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: flex-start;
+    gap: var(--ew-space-3);
+    text-align: left;
+  }
+
+  .lengthNote {
+    margin-left: auto;
+    margin-top: 0;
+  }
+}

@@ -1,0 +1,94 @@
+/* Consequence lines. Tabular, signed, quiet. */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--ew-space-3);
+}
+
+.inline {
+  display: inline;
+  color: var(--ew-ink-dim);
+}
+
+.inlineItem {
+  white-space: normal;
+}
+
+.sep {
+  color: var(--ew-ink-ghost);
+}
+
+/* Right-aligned so the signs stack into a single optical edge. */
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  font-weight: 600;
+  font-size: var(--ew-size-sm);
+  letter-spacing: 0.01em;
+  color: var(--ew-delta-none);
+}
+
+.list .num {
+  flex: 0 0 auto;
+  text-align: right;
+  min-width: 4ch;
+}
+
+.inline .num {
+  margin-right: 0.28em;
+}
+
+.label {
+  font-size: var(--ew-size-sm);
+  color: var(--ew-ink-dim);
+  line-height: 1.45;
+}
+
+.nothing {
+  font-size: var(--ew-size-sm);
+  color: var(--ew-ink-faint);
+  font-style: italic;
+}
+
+/* Tone is semantic, not arithmetic: +1 Pact Debt is a positive number and a
+   bad outcome, so it colors down. */
+.row[data-tone='up'] .num,
+.inlineItem[data-tone='up'] .num {
+  color: var(--ew-delta-up);
+}
+
+.row[data-tone='down'] .num,
+.inlineItem[data-tone='down'] .num {
+  color: var(--ew-delta-down);
+}
+
+.row[data-tone='up'] .label,
+.inlineItem[data-tone='up'] .label {
+  color: var(--ew-ink);
+}
+
+.row[data-tone='down'] .label,
+.inlineItem[data-tone='down'] .label {
+  color: var(--ew-ink-dim);
+}
+
+/* A run-ending effect. No color — weight and letterspacing carry it, so it
+   never competes with the tier badge. */
+.row[data-tone='grave'] .label,
+.inlineItem[data-tone='grave'] .label {
+  color: var(--ew-ink-bright);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-size: var(--ew-size-xs);
+  font-weight: 600;
+}

@@ -1,0 +1,257 @@
+.screen {
+  composes: screen from '../components/meta/craft.module.css';
+  padding: var(--ew-space-5) var(--ew-space-5) var(--ew-space-8);
+  min-height: 100dvh;
+}
+
+.inner {
+  width: 100%;
+  max-width: var(--ew-wide-max-width);
+  margin: 0 auto;
+}
+
+/* --- top ------------------------------------------------------------------ */
+
+.top {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--ew-space-4);
+  padding-bottom: var(--ew-space-6);
+}
+
+.back {
+  composes: btnQuiet from '../components/meta/craft.module.css';
+  justify-self: start;
+  min-height: 36px;
+  padding: 0 var(--ew-space-3);
+  font-size: var(--ew-size-xs);
+  letter-spacing: 0.12em;
+  text-indent: 0.12em;
+}
+
+.titleBlock {
+  text-align: center;
+}
+
+.kicker {
+  composes: labelCentered from '../components/meta/craft.module.css';
+  margin: 0 0 var(--ew-space-2);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--ew-font-display);
+  font-weight: 600;
+  font-size: clamp(1.875rem, 5vw, 2.75rem);
+  line-height: 1.05;
+  letter-spacing: -0.008em;
+  color: var(--ew-ink-bright);
+}
+
+.topSpacer {
+  display: block;
+}
+
+.stats {
+  margin-bottom: var(--ew-space-6);
+}
+
+/* --- filters -------------------------------------------------------------- */
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ew-space-2);
+  padding-bottom: var(--ew-space-6);
+  border-bottom: 1px solid var(--ew-line);
+}
+
+.filter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ew-space-2);
+  min-height: 38px;
+  padding: 0 var(--ew-space-3);
+  font-size: var(--ew-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ew-ink-faint);
+  background: var(--ew-panel);
+  border: 1px solid var(--ew-line);
+  border-radius: var(--ew-radius-pill);
+  cursor: pointer;
+  transition:
+    color var(--ew-fast) var(--ew-ease),
+    border-color var(--ew-fast) var(--ew-ease),
+    background-color var(--ew-fast) var(--ew-ease);
+}
+
+.filter:hover {
+  color: var(--ew-ink);
+  border-color: var(--ew-line-strong);
+  background: var(--ew-hover);
+}
+
+.filterOn {
+  color: var(--ew-ink-bright);
+  border-color: color-mix(in srgb, var(--ew-tier) 52%, transparent);
+  background: color-mix(in srgb, var(--ew-tier) 8%, var(--ew-raised));
+}
+
+.filterGlyph {
+  color: var(--ew-ink-ghost);
+}
+
+.filterOn .filterGlyph {
+  color: var(--ew-tier);
+}
+
+.filterName {
+  white-space: nowrap;
+}
+
+.filterCount {
+  padding-left: var(--ew-space-2);
+  border-left: 1px solid var(--ew-line);
+  color: var(--ew-ink-ghost);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+}
+
+.filterOn .filterCount {
+  color: var(--ew-ink-dim);
+  border-left-color: var(--ew-line-strong);
+}
+
+/* --- groups --------------------------------------------------------------- */
+
+.group {
+  margin-top: var(--ew-space-7);
+}
+
+.groupHead {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ew-space-4);
+  margin-bottom: var(--ew-space-4);
+}
+
+.groupGlyph {
+  flex: none;
+  margin-top: 2px;
+  color: var(--ew-ink-faint);
+}
+
+.groupText {
+  flex: 1;
+  min-width: 0;
+}
+
+.groupName {
+  margin: 0;
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-size-lg);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--ew-ink-bright);
+}
+
+.groupDemands {
+  margin: var(--ew-space-1) 0 0;
+  font-size: var(--ew-size-sm);
+  line-height: 1.45;
+  color: var(--ew-ink-faint);
+  text-wrap: pretty;
+}
+
+.groupProgress {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--ew-space-2);
+  padding-top: 2px;
+}
+
+.groupCount {
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-size-md);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--ew-ink-faint);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+}
+
+.groupFound {
+  color: var(--ew-ink-bright);
+}
+
+.groupSlash {
+  margin: 0 0.15em;
+  color: var(--ew-ink-ghost);
+}
+
+.meter {
+  display: block;
+  position: relative;
+  width: 96px;
+  height: 3px;
+  background: var(--ew-line);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.meterFill {
+  display: block;
+  height: 100%;
+  background: var(--ew-ink-faint);
+  transition: width var(--ew-slow) var(--ew-ease);
+}
+
+/* --- endings --------------------------------------------------------------- */
+
+.endings {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: var(--ew-space-3);
+}
+
+/* --- bottom ---------------------------------------------------------------- */
+
+.bottom {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--ew-space-8);
+  padding-top: var(--ew-space-6);
+  border-top: 1px solid var(--ew-line);
+}
+
+.bottomBack {
+  composes: btn from '../components/meta/craft.module.css';
+  min-width: 240px;
+}
+
+@media (max-width: 640px) {
+  .screen {
+    padding: var(--ew-space-4) var(--ew-space-4) var(--ew-space-7);
+  }
+
+  .groupHead {
+    flex-wrap: wrap;
+  }
+
+  .groupProgress {
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+    justify-content: flex-start;
+    gap: var(--ew-space-3);
+  }
+
+  .endings {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,222 @@
+/* The record. A well-set table, not a data grid. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-2);
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--ew-space-3);
+}
+
+.heading {
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-size-md);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ew-ink-dim);
+}
+
+.count {
+  font-size: var(--ew-size-xs);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ew-ink-ghost);
+  font-variant-numeric: tabular-nums;
+}
+
+.frame {
+  position: relative;
+  background: var(--ew-panel);
+  border: 1px solid var(--ew-line);
+  border-radius: var(--ew-radius-md);
+  box-shadow: var(--ew-lip), var(--ew-shadow-card);
+  overflow: hidden;
+}
+
+.scroll {
+  max-height: min(46vh, 26rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ew-line-strong) transparent;
+}
+
+.scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scroll::-webkit-scrollbar-thumb {
+  background: var(--ew-line-strong);
+  border-radius: var(--ew-radius-pill);
+  border: 2px solid var(--ew-panel);
+}
+
+.scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Fixed columns so a digit landing in the hundreds never shifts the row. */
+.thAge {
+  width: 3.4rem;
+}
+
+/* Lair names carry the progression, so they get the room they need to stay
+   whole; Deeds is the column that truncates, with the full line on hover. */
+.thLair {
+  width: 21%;
+}
+
+.thNot {
+  width: 6.2rem;
+}
+
+.thFol {
+  width: 5.4rem;
+}
+
+.thArt {
+  width: 5.2rem;
+}
+
+.thCentre {
+  text-align: center;
+}
+
+/* Column headers abbreviate rather than collide once the column is narrow. */
+.tight {
+  display: none;
+}
+
+.thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.th {
+  position: sticky;
+  top: 0;
+  padding: var(--ew-space-2) var(--ew-space-3) var(--ew-space-2) 0;
+  text-align: left;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ew-ink-faint);
+  background: var(--ew-raised);
+  border-bottom: 1px solid var(--ew-line-strong);
+  box-shadow: var(--ew-lip);
+  white-space: nowrap;
+}
+
+.th:first-child {
+  padding-left: var(--ew-space-3);
+}
+
+.th:last-child {
+  padding-right: var(--ew-space-3);
+}
+
+.thNum {
+  text-align: right;
+}
+
+.empty {
+  padding: var(--ew-space-6) var(--ew-space-3);
+  text-align: center;
+  font-size: var(--ew-size-sm);
+  font-style: italic;
+  color: var(--ew-ink-ghost);
+}
+
+/* Append. The animation binds to :last-child, so it fires on the row that just
+   arrived and never replays on the ones already written. */
+.rows tr:last-child {
+  animation: append var(--ew-slow) var(--ew-ease) 1 both;
+}
+
+@keyframes append {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Bottom fade — tells the eye there is more record below without a scrollbar. */
+.fade {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: var(--ew-space-6);
+  pointer-events: none;
+  background: linear-gradient(to top, var(--ew-panel) 8%, transparent);
+  opacity: 0.9;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 700px) {
+  .thLair {
+    display: none;
+  }
+
+  .thAge {
+    width: 2.4rem;
+  }
+
+  .thNot {
+    width: 4.6rem;
+  }
+
+  .thFol {
+    width: 3.4rem;
+  }
+
+  .thArt {
+    width: 2.6rem;
+  }
+
+  .wide {
+    display: none;
+  }
+
+  .tight {
+    display: inline;
+  }
+
+  .th {
+    padding-right: var(--ew-space-2);
+    font-size: 0.5625rem;
+    letter-spacing: 0.1em;
+  }
+
+  .scroll {
+    max-height: min(38vh, 20rem);
+  }
+}
