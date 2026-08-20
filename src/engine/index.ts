@@ -33,5 +33,23 @@ export {
 
 export { RUN_LENGTHS, DEFAULT_ERA_COUNT, YEARS_PER_ERA, START_AGE } from './constants';
 
+/**
+ * Thresholds the UI must be able to name.
+ *
+ * wiki/04's odds rule says a player may never be surprised by an unlisted
+ * consequence. A stat that silently counts toward a terminal state is exactly
+ * that surprise, so the numbers the endings turn on are public.
+ */
+export {
+  PACT_LIMIT,
+  BETRAYAL_MAX_LOYALTY,
+  BETRAYAL_MIN_APPRENTICES,
+  SEAL_MAX_STANDING,
+  SEAL_FACTION,
+  DEVOTION_STANDING,
+  ASCENSION_LEGENDARIES,
+  ASCENSION_MIN_NOTORIETY,
+} from './constants';
+
 export type { Game } from './useGame';
 export { useGame } from './useGame';

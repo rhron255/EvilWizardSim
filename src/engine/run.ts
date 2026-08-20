@@ -225,7 +225,6 @@ export function resolveChoice(
   // ---- roll (if any) --------------------------------------------------
   let outcome: Outcome;
   let effects: readonly Effect[];
-  let text: string;
 
   if (option.kind === 'certain') {
     outcome = 'deterministic';
@@ -242,7 +241,7 @@ export function resolveChoice(
   // whose rows all read `It is done.` — 61% of consecutive rows were identical
   // across 2000 runs, in the one column of the one element wiki/01 calls "the
   // single most important UI element".
-  text = deedLineFor(offer, option, outcome);
+  const text = deedLineFor(offer, option, outcome);
 
   // ---- apply -----------------------------------------------------------
   const draft = draftOf(run);

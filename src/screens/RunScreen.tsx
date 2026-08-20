@@ -22,6 +22,11 @@ export type RunScreenProps = {
   factions: Faction[];
   onChoose(i: number): void;
   onContinue(): void;
+  /**
+   * Current defence, from the engine. Passed down rather than computed here so
+   * the screen stays presentational. Feeds the decline-phase wards readout.
+   */
+  defense?: number | null;
 };
 
 export function RunScreen({
@@ -33,6 +38,7 @@ export function RunScreen({
   factions,
   onChoose,
   onContinue,
+  defense,
 }: RunScreenProps) {
   const tier = tierFor(run.notoriety);
 
@@ -53,6 +59,7 @@ export function RunScreen({
           run={run}
           lairs={lairs}
           hasAscensionTrophy={run.ending === 'ascension'}
+          defense={defense}
         />
 
         <Ledger eras={run.eras} lairs={lairs} artifacts={artifacts} />

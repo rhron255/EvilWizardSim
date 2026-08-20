@@ -9,7 +9,7 @@
 
 import { useMemo } from 'react';
 import type { ContentBundle } from './engine';
-import { useGame } from './engine';
+import { defenseOf, useGame } from './engine';
 import {
   artifacts,
   endings,
@@ -50,6 +50,10 @@ export default function App() {
   // The chosen one is drawn from the run seed, so a seed is a rematch.
   const heroName = useMemo(() => (run ? heroNameFor(run.seed) : ''), [run]);
 
+  // The denominator for the decline-phase wards readout. Offers already print
+  // `+9 Hero Threat`; without this the player has no scale to read it against.
+  const defense = useMemo(() => (run ? defenseOf(run, CONTENT) : null), [run]);
+
   switch (screen) {
     case 'creation':
       return (
@@ -75,6 +79,7 @@ export default function App() {
           factions={factions}
           onChoose={game.choose}
           onContinue={game.continueAfterResolution}
+          defense={defense}
         />
       );
 
