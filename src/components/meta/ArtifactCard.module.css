@@ -1,0 +1,286 @@
+.card {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--ew-space-4);
+  align-items: start;
+  padding: var(--ew-space-4);
+  background: var(--ew-panel);
+  border: 1px solid var(--ew-line);
+  border-radius: var(--ew-radius-md);
+  box-shadow: var(--ew-lip);
+  transition:
+    border-color var(--ew-base) var(--ew-ease),
+    background-color var(--ew-base) var(--ew-ease),
+    transform var(--ew-base) var(--ew-ease);
+}
+
+.card:hover {
+  border-color: var(--ew-line-strong);
+  background: var(--ew-raised);
+}
+
+.compact {
+  gap: var(--ew-space-3);
+  padding: var(--ew-space-3);
+}
+
+/* --- the glyph well ------------------------------------------------------ */
+
+.well {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  flex: none;
+  border: 1px solid var(--ew-line);
+  border-radius: var(--ew-radius-sm);
+  background:
+    radial-gradient(70% 70% at 50% 30%, rgba(255, 246, 224, 0.035), transparent 70%),
+    var(--ew-void);
+  box-shadow: var(--ew-lip);
+}
+
+.compact .well {
+  width: 46px;
+  height: 46px;
+}
+
+.glyph {
+  color: var(--ew-ink-dim);
+  transition: color var(--ew-base) var(--ew-ease);
+}
+
+.card:hover .glyph {
+  color: var(--ew-ink);
+}
+
+/* --- text ---------------------------------------------------------------- */
+
+.body {
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--ew-space-3);
+}
+
+.name {
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-size-md);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--ew-ink-bright);
+  letter-spacing: 0.005em;
+}
+
+.compact .name {
+  font-size: var(--ew-size-base);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--ew-space-2);
+  margin: var(--ew-space-2) 0 0;
+  font-size: 0.625rem;
+  line-height: 1.7;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ew-ink-faint);
+}
+
+.factionMark {
+  flex: none;
+  color: var(--ew-ink-ghost);
+  transform: translateY(1px);
+}
+
+.factionName {
+  white-space: nowrap;
+}
+
+.dot {
+  color: var(--ew-ink-ghost);
+}
+
+.rarity {
+  flex: none;
+}
+
+.lostTag {
+  flex: none;
+  color: var(--ew-ink-ghost);
+  font-style: italic;
+  text-transform: lowercase;
+  letter-spacing: 0.06em;
+}
+
+.effect {
+  margin: var(--ew-space-3) 0 0;
+  font-size: var(--ew-size-sm);
+  line-height: 1.5;
+  color: var(--ew-ink-dim);
+}
+
+/* --- rarity: weight, frame, ground. No new hues. ------------------------- */
+
+.pips {
+  display: inline-flex;
+  gap: 3px;
+  flex: none;
+  transform: translateY(-1px);
+}
+
+.pip {
+  width: 4px;
+  height: 4px;
+  transform: rotate(45deg);
+  border: 1px solid var(--ew-ink-ghost);
+}
+
+.common .name {
+  font-weight: 500;
+  color: var(--ew-ink);
+}
+
+.rare {
+  border-color: var(--ew-line-strong);
+  box-shadow: var(--ew-lip), inset 0 0 0 3px var(--ew-void), inset 0 0 0 4px rgba(60, 52, 39, 0.55);
+  padding: calc(var(--ew-space-4) + 2px);
+}
+
+.rare.compact {
+  padding: calc(var(--ew-space-3) + 2px);
+}
+
+.rare .pip {
+  border-color: var(--ew-ink-faint);
+}
+
+.legendary {
+  border-color: var(--ew-line-strong);
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      rgba(242, 236, 221, 0.028) 0 1px,
+      transparent 1px 6px
+    ),
+    var(--ew-raised);
+  box-shadow: var(--ew-lip), inset 0 0 0 3px var(--ew-void), inset 0 0 0 4px var(--ew-line-strong);
+  padding: calc(var(--ew-space-4) + 2px);
+}
+
+.legendary.compact {
+  padding: calc(var(--ew-space-3) + 2px);
+}
+
+.legendary .name {
+  color: var(--ew-ink-bright);
+  font-weight: 700;
+}
+
+.legendary .pip {
+  border-color: var(--ew-ink-dim);
+  background: var(--ew-ink-dim);
+}
+
+.legendary .well {
+  border-color: var(--ew-line-strong);
+}
+
+.legendary .glyph {
+  color: var(--ew-ink);
+}
+
+/* --- locked: the visible gap --------------------------------------------- */
+
+.locked {
+  background: rgba(19, 17, 14, 0.35);
+  border-color: var(--ew-line);
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.locked:hover {
+  background: rgba(19, 17, 14, 0.55);
+  border-color: var(--ew-line-strong);
+}
+
+.locked .well {
+  background: rgba(11, 10, 9, 0.6);
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.locked .glyph,
+.locked:hover .glyph {
+  color: var(--ew-ink-ghost);
+  opacity: 0.75;
+}
+
+.locked .meta {
+  color: var(--ew-ink-ghost);
+}
+
+.locked .pip {
+  border-color: var(--ew-ink-ghost);
+  background: none;
+}
+
+/* A withheld name reads as a redaction, not as an empty box. */
+.redaction {
+  display: block;
+  width: 62%;
+  min-width: 90px;
+  height: 0.95em;
+  border-radius: 1px;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--ew-ink-ghost) 0 1px,
+    transparent 1px 5px
+  );
+  opacity: 0.65;
+}
+
+.redactionLine {
+  display: block;
+  width: 100%;
+  height: 0.62em;
+  border-radius: 1px;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--ew-ink-ghost) 0 1px,
+    transparent 1px 5px
+  );
+  opacity: 0.4;
+}
+
+/* --- lost this run -------------------------------------------------------- */
+
+.lost {
+  opacity: 0.55;
+}
+
+.lost .name {
+  color: var(--ew-ink-dim);
+  text-decoration: line-through;
+  text-decoration-color: var(--ew-ink-ghost);
+  text-decoration-thickness: 1px;
+}
+
+@media (max-width: 520px) {
+  .card {
+    gap: var(--ew-space-3);
+    padding: var(--ew-space-3);
+  }
+
+  .well {
+    width: 46px;
+    height: 46px;
+  }
+}

@@ -1,0 +1,173 @@
+/* One era. The aging gradient lives here. */
+
+.row {
+  /* --fade: 0 = oldest row, 1 = newest. Older eras recede toward the page.
+     The floor is deliberately high. The accumulating ledger is the thing that
+     makes abandoning a run expensive (wiki/06_reference_analysis.md #5), which
+     only works if era one is still READABLE at era twenty — the wiki asks for
+     rows that "dim slightly with age", and on a near-black page anything under
+     ~0.7 stops being slight and starts being erasure. The current row is
+     separated by background, border and ink weight below, not by being the
+     only legible line in the table. */
+  opacity: calc(0.76 + 0.24 * var(--fade, 1));
+  transition: opacity var(--ew-base) var(--ew-ease);
+}
+
+.row:hover {
+  opacity: 1;
+}
+
+.row:hover .cell {
+  background: rgba(255, 246, 224, 0.018);
+}
+
+.cell {
+  padding: 0.42rem var(--ew-space-3) 0.42rem 0;
+  border-bottom: 1px solid var(--ew-line);
+  font-size: var(--ew-size-sm);
+  color: var(--ew-ink-dim);
+  vertical-align: baseline;
+  transition: background-color var(--ew-fast) var(--ew-ease);
+}
+
+.cell:first-child {
+  padding-left: var(--ew-space-3);
+}
+
+.cell:last-child {
+  padding-right: var(--ew-space-3);
+}
+
+.clip {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.age {
+  color: var(--ew-ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.lair {
+  color: var(--ew-ink-dim);
+}
+
+.notoriety {
+  white-space: nowrap;
+}
+
+.notValue {
+  display: inline-block;
+  min-width: 2ch;
+  text-align: right;
+  color: var(--ew-ink);
+  font-weight: 500;
+}
+
+.notDelta {
+  display: inline-block;
+  min-width: 3ch;
+  margin-left: 0.4em;
+  text-align: right;
+  font-size: var(--ew-size-xs);
+  color: var(--ew-delta-none);
+}
+
+.notDelta[data-dir='up'] {
+  color: var(--ew-delta-up);
+}
+
+.notDelta[data-dir='down'] {
+  color: var(--ew-delta-down);
+}
+
+.followers {
+  text-align: right;
+  color: var(--ew-ink-dim);
+}
+
+.artifacts {
+  white-space: nowrap;
+  text-align: center;
+}
+
+.relic {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28em;
+  cursor: default;
+}
+
+.relicMark {
+  font-size: 0.5rem;
+  line-height: 1;
+  color: var(--ew-ink-faint);
+}
+
+.none {
+  color: var(--ew-ink-ghost);
+}
+
+.deeds {
+  color: var(--ew-ink-dim);
+}
+
+/* Shown only when the Lair column is dropped on narrow screens. */
+.deedLair {
+  display: none;
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ew-ink-ghost);
+}
+
+/* The live row -------------------------------------------------------------
+   The only row that borrows the tier color, and only as a 2px edge — it is the
+   same color the badge is showing, so the eye reads them as one thing. */
+
+.row[data-current='true'] {
+  opacity: 1;
+}
+
+/* Flat, not a gradient: a gradient restarts per cell and bands across the row. */
+.row[data-current='true'] .cell {
+  background: rgba(255, 246, 224, 0.035);
+  border-bottom-color: var(--ew-line-strong);
+  color: var(--ew-ink);
+}
+
+.row[data-current='true'] .cell:first-child {
+  box-shadow: inset 2px 0 0 var(--ew-tier);
+}
+
+.row[data-current='true'] .notValue {
+  color: var(--ew-ink-bright);
+  font-weight: 600;
+}
+
+.row[data-current='true'] .deeds {
+  color: var(--ew-ink);
+}
+
+/* A failed era is not a lesser era — no red rows. The record is neutral. */
+.row[data-outcome='failure'] .age::after {
+  content: '';
+}
+
+@media (max-width: 700px) {
+  .lair {
+    display: none;
+  }
+
+  .deedLair {
+    display: block;
+    margin-top: 0.1rem;
+  }
+
+  .cell {
+    padding-right: var(--ew-space-2);
+    font-size: var(--ew-size-xs);
+  }
+}

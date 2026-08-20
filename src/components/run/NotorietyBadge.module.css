@@ -1,0 +1,129 @@
+/* The one place color is allowed. Spend it carefully. */
+
+.badge {
+  position: relative;
+  display: grid;
+  justify-items: end;
+  gap: 0.05rem;
+  padding: var(--ew-space-2) var(--ew-space-1) var(--ew-space-2) var(--ew-space-4);
+  isolation: isolate;
+}
+
+.label {
+  font-size: var(--ew-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--ew-ink-faint);
+  line-height: 1;
+}
+
+.value {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  color: var(--tier);
+  line-height: 0.95;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  transition: color var(--ew-slow) var(--ew-ease);
+  /* A whisper of the tier color behind the digits, not a neon sign. */
+  text-shadow: 0 0 22px var(--tier-glow);
+}
+
+.tier {
+  font-size: var(--ew-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.13em;
+  color: var(--ew-ink-dim);
+  line-height: 1.2;
+  cursor: default;
+}
+
+/* Sizes ------------------------------------------------------------------ */
+
+.badge[data-size='lg'] .value {
+  font-size: var(--ew-size-xxl);
+  margin: 0.08rem 0 0.12rem;
+}
+
+.badge[data-size='sm'] {
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  gap: 0 var(--ew-space-2);
+  padding: 0;
+}
+
+.badge[data-size='sm'] .label {
+  display: none;
+}
+
+.badge[data-size='sm'] .value {
+  font-size: var(--ew-size-md);
+}
+
+.badge[data-size='sm'] .tier {
+  font-size: 0.625rem;
+}
+
+/* The crossing ----------------------------------------------------------- */
+
+.glow {
+  position: absolute;
+  inset: -40% -22%;
+  z-index: -1;
+  border-radius: var(--ew-radius-pill);
+  background: radial-gradient(closest-side at 72% 52%, var(--tier-glow), transparent 78%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.badge[data-celebrate='true'] .glow {
+  animation: bloom var(--ew-setpiece) var(--ew-ease) 1 both;
+}
+
+.badge[data-celebrate='true'] .value {
+  animation: lift var(--ew-setpiece) var(--ew-ease) 1 both;
+}
+
+.badge[data-celebrate='true'] .tier {
+  color: var(--tier);
+  animation: settle var(--ew-setpiece) var(--ew-ease) 1 both;
+}
+
+@keyframes bloom {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  38% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+}
+
+@keyframes lift {
+  0% {
+    transform: translateY(2px) scale(0.985);
+  }
+  40% {
+    transform: translateY(-1px) scale(1.035);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes settle {
+  0%,
+  20% {
+    opacity: 0.35;
+    letter-spacing: 0.24em;
+  }
+  100% {
+    opacity: 1;
+    letter-spacing: 0.13em;
+  }
+}

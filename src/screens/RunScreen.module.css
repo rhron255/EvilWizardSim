@@ -1,0 +1,62 @@
+/* One centered column, 1440 down to 380. */
+
+.screen {
+  position: relative;
+  min-height: 100%;
+  /* One warm light from above and nothing else. No ambient tier wash — the
+     scarce color is spent on the badge, not on the wallpaper. */
+  background:
+    radial-gradient(90% 55% at 50% -10%, rgba(255, 246, 224, 0.045), transparent 68%),
+    var(--ew-void);
+  isolation: isolate;
+}
+
+/* Paper tooth. Barely there — it stops the flats from reading as flat. */
+.grain {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.column {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-5);
+  width: 100%;
+  max-width: var(--ew-max-width);
+  margin: 0 auto;
+  padding: var(--ew-space-7) var(--ew-space-5) var(--ew-space-8);
+}
+
+.offer {
+  padding-top: var(--ew-space-1);
+}
+
+.quiet {
+  margin: 0;
+  padding: var(--ew-space-6) 0;
+  text-align: center;
+  font-family: var(--ew-font-display);
+  font-style: italic;
+  font-size: var(--ew-size-md);
+  color: var(--ew-ink-faint);
+}
+
+@media (max-width: 700px) {
+  .column {
+    gap: var(--ew-space-4);
+    padding: var(--ew-space-5) var(--ew-space-4) var(--ew-space-7);
+  }
+}
+
+@media (max-width: 420px) {
+  .column {
+    padding: var(--ew-space-4) var(--ew-space-3) var(--ew-space-6);
+  }
+}

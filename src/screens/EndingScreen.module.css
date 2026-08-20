@@ -1,0 +1,433 @@
+.screen {
+  composes: screen from '../components/meta/craft.module.css';
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ew-space-5);
+  padding: var(--ew-space-7) var(--ew-space-5) var(--ew-space-8);
+  min-height: 100dvh;
+}
+
+/* --------------------------------------------------------------------------
+   Reveal
+   -------------------------------------------------------------------------- */
+
+/* Staged, but over inside ~1.2s: cue offsets live in EndingScreen.tsx, this is
+   the per-band travel. A shorter throw suits the shorter duration — 18px at
+   420ms reads as a lurch, 10px does not. */
+
+.out {
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity var(--ew-slow) var(--ew-ease),
+    transform var(--ew-slow) var(--ew-ease);
+}
+
+.in {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--ew-slow) var(--ew-ease),
+    transform var(--ew-slow) var(--ew-ease);
+}
+
+/* Belt and braces. The component already skips straight to the final stage
+   when reduced motion is set, but if the preference flips mid-reveal — or the
+   media query is evaluated differently from `matchMedia` — nothing on this
+   card may be left invisible. There is no fallback for content that never
+   arrives. */
+@media (prefers-reduced-motion: reduce) {
+  .out,
+  .in {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   The card — the thing that gets screenshotted
+   -------------------------------------------------------------------------- */
+
+.card {
+  composes: plateDouble from '../components/meta/craft.module.css';
+  composes: grain from '../components/meta/craft.module.css';
+  position: relative;
+  width: 100%;
+  max-width: 760px;
+  padding: var(--ew-space-8) var(--ew-space-7) var(--ew-space-6);
+  background:
+    radial-gradient(120% 55% at 50% 0%, color-mix(in srgb, var(--ew-tier) 8%, transparent), transparent 62%),
+    linear-gradient(180deg, var(--ew-raised) 0%, var(--ew-panel) 38%, var(--ew-panel) 100%);
+  overflow: hidden;
+}
+
+.corner {
+  color: color-mix(in srgb, var(--ew-tier) 60%, transparent);
+  z-index: 1;
+}
+
+/* --- identity -------------------------------------------------------------- */
+
+.crown {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  /* The name below is fitted to the card's inner width. */
+  container-type: inline-size;
+}
+
+.wordmark {
+  composes: labelCentered from '../components/meta/craft.module.css';
+  margin: 0 0 var(--ew-space-6);
+  font-size: 0.625rem;
+  letter-spacing: 0.34em;
+  text-indent: 0.34em;
+  color: var(--ew-ink-ghost);
+}
+
+.sigil {
+  margin-bottom: var(--ew-space-5);
+}
+
+.lifeOf {
+  composes: labelCentered from '../components/meta/craft.module.css';
+  margin: 0 0 var(--ew-space-3);
+  color: var(--ew-ink-faint);
+}
+
+.name {
+  margin: 0;
+  font-family: var(--ew-font-display);
+  font-weight: 600;
+  /* Same fit-don't-clip rule as the run header. This is the line the
+     screenshot is *of*, so a long name gets smaller type, never fewer
+     letters. */
+  font-size: clamp(
+    2rem,
+    min(8vw, calc(100cqw / (var(--name-len, 14) * 0.48))),
+    3.75rem
+  );
+  line-height: 1.02;
+  letter-spacing: -0.012em;
+  color: var(--ew-ink-bright);
+  overflow-wrap: break-word;
+  text-wrap: balance;
+}
+
+.epithet {
+  margin: var(--ew-space-2) 0 0;
+  font-family: var(--ew-font-display);
+  font-style: italic;
+  font-size: var(--ew-size-lg);
+  line-height: 1.2;
+  color: var(--ew-ink-dim);
+}
+
+.flourish {
+  margin: var(--ew-space-4) 0;
+  width: 200px;
+  color: var(--ew-tier);
+  opacity: 0.9;
+}
+
+.span {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ew-space-2);
+  margin: 0;
+  font-size: var(--ew-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ew-ink-faint);
+}
+
+.num {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+  color: var(--ew-ink);
+}
+
+.sep {
+  color: var(--ew-ink-ghost);
+}
+
+.tierName {
+  color: var(--ew-tier);
+}
+
+/* --- the ending ------------------------------------------------------------ */
+
+.ending {
+  margin-top: var(--ew-space-7);
+  padding-top: var(--ew-space-6);
+  border-top: 1px solid var(--ew-line);
+  text-align: center;
+}
+
+.sectionLabel {
+  composes: label from '../components/meta/craft.module.css';
+  display: block;
+  margin: 0;
+}
+
+.ending .sectionLabel {
+  text-align: center;
+  text-indent: 0.22em;
+  margin-right: 0;
+  margin-bottom: var(--ew-space-3);
+}
+
+.endingName {
+  margin: 0;
+  font-family: var(--ew-font-display);
+  font-weight: 600;
+  font-size: clamp(1.875rem, 5.4vw, 2.75rem);
+  line-height: 1.08;
+  letter-spacing: -0.006em;
+  color: var(--ew-ink-bright);
+  text-wrap: balance;
+}
+
+.narration {
+  max-width: 46ch;
+  margin: var(--ew-space-4) auto 0;
+  font-family: var(--ew-font-display);
+  font-style: italic;
+  font-size: var(--ew-size-md);
+  line-height: 1.66;
+  color: var(--ew-ink-dim);
+  text-align: left;
+  text-wrap: pretty;
+  hanging-punctuation: first;
+}
+
+/* --- totals ---------------------------------------------------------------- */
+
+.totals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-2);
+  margin-top: var(--ew-space-7);
+}
+
+.totalsMinor {
+  opacity: 0.94;
+}
+
+/* --- sections -------------------------------------------------------------- */
+
+.section {
+  margin-top: var(--ew-space-7);
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  gap: var(--ew-space-4);
+  margin: 0 0 var(--ew-space-4);
+}
+
+.headRule {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--ew-line-strong), transparent);
+}
+
+.count {
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-size-md);
+  font-weight: 600;
+  color: var(--ew-ink-faint);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+}
+
+/* --- allegiances ----------------------------------------------------------- */
+
+.standings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ew-space-2) var(--ew-space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.standing {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 76px 40px;
+  align-items: center;
+  gap: var(--ew-space-3);
+  padding: var(--ew-space-2) 0;
+  border-bottom: 1px solid var(--ew-line);
+}
+
+.standingGlyph {
+  color: var(--ew-ink-ghost);
+}
+
+.standingName {
+  font-size: var(--ew-size-sm);
+  color: var(--ew-ink-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track {
+  position: relative;
+  height: 8px;
+}
+
+.axis {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--ew-line-strong);
+}
+
+.fill {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  background: var(--ew-ink-faint);
+  border-radius: 1px;
+}
+
+.fillDown {
+  background: repeating-linear-gradient(-45deg, var(--ew-ink-ghost) 0 1px, transparent 1px 4px);
+  border: 1px solid var(--ew-ink-ghost);
+  border-right: 0;
+}
+
+.standingValue {
+  font-size: var(--ew-size-xs);
+  text-align: right;
+  color: var(--ew-ink-faint);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+}
+
+/* --- card footer ----------------------------------------------------------- */
+
+.foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--ew-space-4);
+  margin-top: var(--ew-space-7);
+  padding-top: var(--ew-space-4);
+  border-top: 1px solid var(--ew-line);
+}
+
+.footRule {
+  display: none;
+}
+
+.footLine {
+  margin: 0;
+  font-family: var(--ew-font-display);
+  font-style: italic;
+  font-size: var(--ew-size-base);
+  color: var(--ew-ink-faint);
+}
+
+.footMark {
+  margin: 0;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ew-ink-ghost);
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------------
+   Controls — outside the card, so the screenshot is clean
+   -------------------------------------------------------------------------- */
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: center;
+  gap: var(--ew-space-3);
+  width: 100%;
+  max-width: 760px;
+  margin-top: var(--ew-space-3);
+}
+
+.primary {
+  composes: btnPrimary from '../components/meta/craft.module.css';
+  flex: 1 1 220px;
+}
+
+.secondary {
+  composes: btn from '../components/meta/craft.module.css';
+  flex: 1 1 180px;
+  min-height: 52px;
+}
+
+.controlNote {
+  max-width: 46ch;
+  margin: 0;
+  font-family: var(--ew-font-display);
+  font-style: italic;
+  font-size: var(--ew-size-base);
+  line-height: 1.5;
+  color: var(--ew-ink-faint);
+  text-align: center;
+  text-wrap: pretty;
+}
+
+/* --------------------------------------------------------------------------
+   Narrow
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 720px) {
+  .standings {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .screen {
+    padding: var(--ew-space-5) var(--ew-space-3) var(--ew-space-7);
+    gap: var(--ew-space-4);
+  }
+
+  .card {
+    padding: var(--ew-space-6) var(--ew-space-4) var(--ew-space-5);
+    box-shadow:
+      inset 0 0 0 4px var(--ew-void),
+      inset 0 0 0 5px var(--ew-line),
+      var(--ew-lip),
+      var(--ew-shadow-raised);
+  }
+
+  .narration {
+    font-size: var(--ew-size-base);
+  }
+
+  .foot {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--ew-space-2);
+  }
+
+  .controls {
+    flex-direction: column;
+  }
+
+  .standing {
+    grid-template-columns: auto minmax(0, 1fr) 64px 38px;
+  }
+}

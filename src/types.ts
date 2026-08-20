@@ -77,6 +77,21 @@ export type Effect =
   | { t: 'heroThreat'; v: number }
   /** Move up or down the authored lair ladder. */
   | { t: 'lairTier'; v: number }
+  /**
+   * Take the lichdom branch.
+   *
+   * wiki/01_core_loop.md is ambiguous on its face — lichdom is listed as an
+   * ending, yet it is also "the branch that cheats the decline phase" whose
+   * "Notoriety does not decay." Those only reconcile if lichdom TRANSFORMS the
+   * run rather than terminating it: every artifact is forfeited, every follower
+   * deserts, decay stops, and the run continues to whatever end it reaches.
+   * Terminating on the spot would make it a quit button, which is neither a
+   * cheat of the decline phase nor the "live decision" the wiki asks for.
+   *
+   * The engine owns the forfeiture, so content must NOT hand-roll it with a
+   * pile of `loseArtifact` entries and a negative-followers sentinel.
+   */
+  | { t: 'becomeLich' }
   /** Terminate the run immediately with this ending. */
   | { t: 'ending'; endingId: EndingId };
 

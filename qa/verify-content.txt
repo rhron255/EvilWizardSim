@@ -1,0 +1,23 @@
+offers: 106
+
+rarity coverage per faction:
+ashen_covenant   common:3  rare:1  legendary:1
+gilded_hand      common:3  rare:2  legendary:0
+pale_academy     common:3  rare:1  legendary:1
+verdant_choir    common:3  rare:2  legendary:0
+crownlands       common:2  rare:2  legendary:1
+worm_below       common:2  rare:2  legendary:1
+
+artifactFrom asks: ashen_covenant/common, ashen_covenant/legendary, ashen_covenant/rare, crownlands/common, crownlands/legendary, crownlands/rare, gilded_hand/common, gilded_hand/legendary, gilded_hand/rare, pale_academy/common, pale_academy/rare, verdant_choir/common, verdant_choir/legendary, verdant_choir/rare, worm_below/common, worm_below/legendary, worm_below/rare
+UNSATISFIABLE asks: none
+
+offers with no certain option: none
+offers with bad option count : none
+gambles with odds outside 0..1: none
+gambles with an empty branch : none
+duplicate offer ids          : none
+
+sentinel / magic values:
+  scripted_the_long_arrangement: followers -999
+  scripted_the_long_arrangement: 6x loseArtifact
+  scripted_the_chosen_one: lairTier -2

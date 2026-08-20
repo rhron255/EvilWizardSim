@@ -1,0 +1,375 @@
+/* One second of drama, staged. Skippable at any frame. */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: var(--ew-space-4);
+  background: radial-gradient(120% 90% at 50% 40%, rgba(11, 10, 9, 0.82), rgba(11, 10, 9, 0.94));
+  backdrop-filter: blur(3px);
+  animation: scrimIn var(--ew-base) var(--ew-ease) both;
+  cursor: pointer;
+}
+
+.card {
+  width: min(30rem, 100%);
+  max-height: calc(100vh - var(--ew-space-6));
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-4);
+  padding: var(--ew-space-5);
+  background: linear-gradient(180deg, var(--ew-raised), var(--ew-panel) 55%);
+  border: 1px solid var(--ew-line-strong);
+  border-radius: var(--ew-radius-lg);
+  box-shadow: var(--ew-lip), var(--ew-shadow-overlay);
+  cursor: default;
+  animation: cardIn var(--ew-slow) var(--ew-ease) both;
+}
+
+/* Staged reveal. Each block arrives a beat after the last; the whole sequence
+   is under a second so it never becomes a wait. */
+.card > * {
+  animation: riseIn 260ms var(--ew-ease) both;
+}
+
+.card > *:nth-child(1) {
+  animation-delay: 60ms;
+}
+.card > *:nth-child(2) {
+  animation-delay: 150ms;
+}
+.card > *:nth-child(3) {
+  animation-delay: 260ms;
+}
+.card > *:nth-child(4) {
+  animation-delay: 360ms;
+}
+.card > *:nth-child(5) {
+  animation-delay: 450ms;
+}
+.card > *:nth-child(6) {
+  animation-delay: 520ms;
+}
+.card > *:nth-child(7) {
+  animation-delay: 580ms;
+}
+
+.top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ew-space-4);
+}
+
+.verdict {
+  min-width: 0;
+}
+
+.outcome {
+  margin: 0;
+  font-size: var(--ew-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--ew-ink-dim);
+}
+
+.card[data-outcome='success'] .outcome {
+  color: var(--ew-ink-bright);
+}
+
+.era {
+  display: flex;
+  gap: var(--ew-space-2);
+  margin: var(--ew-space-2) 0 0;
+  font-size: var(--ew-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ew-ink-faint);
+}
+
+.dot {
+  color: var(--ew-ink-ghost);
+}
+
+/* The roll ---------------------------------------------------------------- */
+
+.rollBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-2);
+}
+
+.rail {
+  position: relative;
+  height: 6px;
+  border-radius: var(--ew-radius-pill);
+  background: var(--ew-line);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.railSuccess {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: var(--ew-radius-pill);
+  background: var(--ew-ink-faint);
+}
+
+.railTick {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 1px;
+  background: var(--ew-ink-dim);
+}
+
+/* Lands on the roll. The eye follows it to the answer. */
+.needle {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--ew-ink-bright);
+  box-shadow: 0 0 8px rgba(242, 236, 221, 0.35);
+  animation: land 520ms var(--ew-ease) 200ms both;
+}
+
+@keyframes land {
+  from {
+    left: 0;
+    opacity: 0;
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    left: calc(var(--roll) * 100%);
+    opacity: 1;
+  }
+}
+
+.rollText {
+  margin: 0;
+  font-size: var(--ew-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.13em;
+  color: var(--ew-ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.rollText strong {
+  color: var(--ew-ink);
+  font-weight: 600;
+}
+
+/* Flavor, then the record ------------------------------------------------- */
+
+.text {
+  margin: 0;
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-size-lg);
+  font-style: italic;
+  line-height: 1.35;
+  color: var(--ew-ink);
+  text-wrap: pretty;
+}
+
+.effects {
+  padding: var(--ew-space-3) 0;
+  border-top: 1px solid var(--ew-line);
+  border-bottom: 1px solid var(--ew-line);
+}
+
+.relics {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-2);
+}
+
+.relic {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ew-space-3);
+  padding: var(--ew-space-3);
+  background: var(--ew-void);
+  border: 1px solid var(--ew-line);
+  border-radius: var(--ew-radius-sm);
+}
+
+.relicMark {
+  font-size: var(--ew-size-xs);
+  color: var(--ew-ink-faint);
+  line-height: 1.6;
+}
+
+.relicBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.relicName {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--ew-space-2);
+  font-size: var(--ew-size-sm);
+  font-weight: 500;
+  color: var(--ew-ink-bright);
+}
+
+.relicRarity {
+  font-size: 0.5625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ew-ink-faint);
+}
+
+.relicFlavor {
+  font-size: var(--ew-size-xs);
+  font-style: italic;
+  color: var(--ew-ink-faint);
+  line-height: 1.5;
+}
+
+/* The crossing — the only colored thing on the card. */
+
+.tier {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0;
+  padding: var(--ew-space-3) var(--ew-space-4);
+  border-radius: var(--ew-radius-sm);
+  background: linear-gradient(90deg, var(--ew-tier-glow), transparent 62%), var(--ew-void);
+  border: 1px solid var(--ew-line);
+  border-left: 2px solid var(--ew-tier);
+}
+
+.tierName {
+  font-size: var(--ew-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--ew-tier);
+}
+
+.tierLine {
+  font-family: var(--ew-font-display);
+  font-style: italic;
+  font-size: var(--ew-size-base);
+  color: var(--ew-ink-dim);
+}
+
+.ending {
+  margin: 0;
+  font-size: var(--ew-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--ew-ink-bright);
+}
+
+/* Foot -------------------------------------------------------------------- */
+
+.foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--ew-space-4);
+  padding-top: var(--ew-space-1);
+}
+
+.deed {
+  margin: 0;
+  min-width: 0;
+  font-size: var(--ew-size-xs);
+  color: var(--ew-ink-ghost);
+  line-height: 1.45;
+}
+
+.continue {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ew-space-2);
+  padding: var(--ew-space-2) var(--ew-space-4);
+  font-size: var(--ew-size-sm);
+  font-weight: 500;
+  color: var(--ew-ink-bright);
+  background: var(--ew-raised);
+  border: 1px solid var(--ew-line-strong);
+  border-radius: var(--ew-radius-sm);
+  box-shadow: var(--ew-lip);
+  transition:
+    background-color var(--ew-fast) var(--ew-ease),
+    transform var(--ew-fast) var(--ew-ease);
+}
+
+.continue:hover {
+  background: var(--ew-hover);
+}
+
+.continue:active {
+  transform: translateY(1px);
+}
+
+.key {
+  font-size: var(--ew-size-xs);
+  color: var(--ew-ink-faint);
+}
+
+@keyframes scrimIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 480px) {
+  .card {
+    padding: var(--ew-space-4);
+    gap: var(--ew-space-3);
+  }
+
+  .text {
+    font-size: var(--ew-size-md);
+  }
+
+  .foot {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--ew-space-3);
+  }
+
+  .continue {
+    justify-content: center;
+  }
+}

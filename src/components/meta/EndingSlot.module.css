@@ -1,0 +1,130 @@
+.slot {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--ew-space-4);
+  padding: var(--ew-space-4);
+  background: var(--ew-panel);
+  border: 1px solid var(--ew-line);
+  border-radius: var(--ew-radius-md);
+  box-shadow: var(--ew-lip);
+  transition: border-color var(--ew-base) var(--ew-ease);
+}
+
+.slot:hover {
+  border-color: var(--ew-line-strong);
+}
+
+.well {
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  border: 1px solid var(--ew-line);
+  border-radius: var(--ew-radius-pill);
+  background:
+    radial-gradient(70% 70% at 50% 25%, rgba(255, 246, 224, 0.04), transparent 70%),
+    var(--ew-void);
+}
+
+.glyph {
+  color: var(--ew-ink-dim);
+}
+
+.body {
+  min-width: 0;
+}
+
+.name {
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-size-md);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--ew-ink-bright);
+}
+
+.summary {
+  margin: var(--ew-space-2) 0 0;
+  font-size: var(--ew-size-sm);
+  line-height: 1.4;
+  color: var(--ew-ink-dim);
+}
+
+.rarity {
+  font-size: var(--ew-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ew-ink-faint);
+  white-space: nowrap;
+}
+
+/* --- unseen --------------------------------------------------------------- */
+
+.unseen {
+  background: rgba(19, 17, 14, 0.35);
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.unseen .well {
+  border-style: dashed;
+  background: rgba(11, 10, 9, 0.6);
+}
+
+.unseen .glyph {
+  color: var(--ew-ink-ghost);
+  opacity: 0.7;
+}
+
+.unseen .rarity {
+  color: var(--ew-ink-ghost);
+}
+
+.redaction {
+  display: block;
+  width: 55%;
+  min-width: 120px;
+  height: 0.95em;
+  border-radius: 1px;
+  opacity: 0.6;
+  background: repeating-linear-gradient(-45deg, var(--ew-ink-ghost) 0 1px, transparent 1px 5px);
+}
+
+.redactionLine {
+  display: block;
+  width: 78%;
+  height: 0.62em;
+  border-radius: 1px;
+  opacity: 0.38;
+  background: repeating-linear-gradient(-45deg, var(--ew-ink-ghost) 0 1px, transparent 1px 5px);
+}
+
+/* --- the one just reached -------------------------------------------------- */
+
+.current {
+  border-color: color-mix(in srgb, var(--ew-tier) 45%, var(--ew-line));
+  background: color-mix(in srgb, var(--ew-tier) 4%, var(--ew-panel));
+}
+
+.current .well {
+  border-color: color-mix(in srgb, var(--ew-tier) 40%, var(--ew-line));
+}
+
+.current .glyph {
+  color: var(--ew-tier);
+}
+
+@media (max-width: 520px) {
+  .slot {
+    grid-template-columns: auto 1fr;
+    gap: var(--ew-space-3);
+    padding: var(--ew-space-3);
+  }
+
+  .rarity {
+    grid-column: 2;
+    font-size: 0.625rem;
+  }
+}
