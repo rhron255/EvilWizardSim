@@ -214,6 +214,7 @@ export function resolveChoice(
 
   const eraIndex = run.eraIndex;
   const startNotoriety = run.notoriety;
+  const startLairId = run.lairId;
   const rng = streamFor(run.seed, 'era', eraIndex);
 
   const options: OfferOption[] = offer.options.length > 0 ? offer.options : QUIET_ERA_OFFER.options;
@@ -225,13 +226,21 @@ export function resolveChoice(
   // ---- roll (if any) --------------------------------------------------
   let outcome: Outcome;
   let effects: readonly Effect[];
+  // Kept so the overlay can show the roll landing against the odds the player
+  // was shown BEFORE committing. wiki/06 principle 4 calls printed odds the
+  // load-bearing agency mechanism, and the proof is the visible roll — the UI
+  // has always rendered it, but the engine never supplied these two numbers, so
+  // the rail silently never appeared.
+  let roll: number | undefined;
+  let odds: number | undefined;
 
   if (option.kind === 'certain') {
     outcome = 'deterministic';
     effects = option.effects;
   } else {
-    const odds = clamp(option.odds, 0, 1);
-    const succeeded = rng() < odds;
+    odds = clamp(option.odds, 0, 1);
+    roll = rng();
+    const succeeded = roll < odds;
     outcome = succeeded ? 'success' : 'failure';
     effects = succeeded ? option.onSuccess : option.onFailure;
   }
@@ -340,10 +349,25 @@ export function resolveChoice(
     artifactsGained: application.artifactsGained,
     notorietyDelta: draft.notoriety - startNotoriety,
     eraRecord,
+    ...(roll !== undefined && odds !== undefined ? { roll, odds } : {}),
   };
 
   const crossed = tierCrossing(startNotoriety, draft.notoriety);
   if (crossed) resolution.tierCrossed = crossed;
+
+  // A move this era — from an authored `lairTier` effect or from the systemic
+  // promotion above. Either way it is the most visible thing a player builds,
+  // and it happened silently until now.
+  if (draft.lairId !== startLairId) {
+    const index = indexOf(content);
+    const fromRung = index.lairRung.get(startLairId);
+    const toRung = index.lairRung.get(draft.lairId);
+    const fromLair = fromRung === undefined ? undefined : index.lairLadder[fromRung];
+    const toLair = toRung === undefined ? undefined : index.lairLadder[toRung];
+    if (fromLair && toLair) {
+      resolution.lairMoved = { from: fromLair, to: toLair, up: (toRung ?? 0) > (fromRung ?? 0) };
+    }
+  }
   if (draft.ending) resolution.ending = draft.ending;
 
   return { next: draft, resolution };

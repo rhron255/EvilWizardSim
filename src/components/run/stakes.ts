@@ -26,6 +26,8 @@
 import {
   BETRAYAL_MAX_LOYALTY,
   BETRAYAL_MIN_APPRENTICES,
+  PACT_INTEREST,
+  PACT_INTEREST_MIN_DEBT,
   PACT_LIMIT,
 } from '../../engine';
 import type { RunState } from '../../types';
@@ -91,13 +93,51 @@ function loyaltyStake(run: RunState): Stake {
   };
 }
 
+/**
+ * Pact debt, with its interest disclosed.
+ *
+ * Reported from play: "I've been consumed by the pact while at 6 out of 7."
+ * That is not a miscount. Debt at or above `PACT_INTEREST_MIN_DEBT` accrues
+ * `PACT_INTEREST` every decline era on its own (see run.ts), so a wizard
+ * sitting at 6/7 had ZERO eras of headroom while the caption implied one.
+ *
+ * The old caption — "collected in full at 7" — was true and still misled,
+ * which is precisely the surprise wiki/04's odds rule exists to prevent. The
+ * ceiling was never the whole rule; the clock was.
+ *
+ * This is not the doom meter wiki/04 forbids. That prohibition is about
+ * announcing the decline's notoriety erosion, which is gradual and survivable.
+ * This counter is lethal, countable, and player-controllable — the only reason
+ * not to state it plainly would be to keep a death untelegraphed.
+ */
 function pactStake(run: RunState): Stake {
   const left = PACT_LIMIT - run.pactDebt;
+  const accruing = run.phase === 'decline' && run.pactDebt >= PACT_INTEREST_MIN_DEBT;
+
+  if (run.pactDebt === 0) {
+    return { label: 'Pact Debt', value: `0 / ${PACT_LIMIT}`, caption: 'owed to the Covenant' };
+  }
+
+  // Eras until collection, counting the interest that lands each era.
+  const erasLeft = accruing ? Math.max(0, Math.ceil(left / PACT_INTEREST)) : Infinity;
+
+  let caption: string;
+  if (!accruing) {
+    caption =
+      run.pactDebt >= PACT_INTEREST_MIN_DEBT
+        ? `starts growing +${PACT_INTEREST} an era after the prophecy`
+        : `collected in full at ${PACT_LIMIT}`;
+  } else if (erasLeft <= 1) {
+    caption = 'the Covenant collects this era unless you pay';
+  } else {
+    caption = `+${PACT_INTEREST} an era on its own · ${erasLeft} eras left`;
+  }
+
   return {
     label: 'Pact Debt',
     value: `${run.pactDebt} / ${PACT_LIMIT}`,
-    caption: run.pactDebt === 0 ? 'owed to the Covenant' : `collected in full at ${PACT_LIMIT}`,
-    tone: left <= 1 ? 'danger' : left <= 3 ? 'warn' : undefined,
+    caption,
+    tone: erasLeft <= 1 ? 'danger' : erasLeft <= 3 || left <= 2 ? 'warn' : undefined,
   };
 }
 

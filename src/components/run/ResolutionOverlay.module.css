@@ -383,3 +383,48 @@
   text-transform: uppercase;
   color: var(--ew-ink-ghost);
 }
+
+/* --------------------------------------------------------------------------
+   The lair move.
+
+   Playtest: "I don't notice the lair changes, despite them happening and being
+   displayed at the end." Promotion is the most visible thing a player builds
+   and it used to happen in complete silence -- the only trace was the Lair
+   column quietly reading something else next era.
+   -------------------------------------------------------------------------- */
+
+.lairMove {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  margin: var(--ew-space-4) 0 0;
+  padding: var(--ew-space-3) var(--ew-space-4);
+  border: 1px solid var(--ew-line);
+  border-left: 2px solid var(--ew-ink-ghost);
+  border-radius: var(--ew-radius-md);
+  background: var(--ew-raised);
+}
+
+.lairMove[data-up='true'] {
+  border-left-color: var(--ew-tier);
+}
+
+.lairMoveLabel {
+  font-size: var(--ew-size-xs);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ew-ink-faint);
+}
+
+.lairMoveName {
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-size-lg);
+  line-height: 1.2;
+  color: var(--ew-ink-bright);
+}
+
+.lairMoveFrom {
+  font-size: var(--ew-size-xs);
+  color: var(--ew-ink-ghost);
+}

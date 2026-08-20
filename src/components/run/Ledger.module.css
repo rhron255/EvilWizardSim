@@ -135,7 +135,8 @@
 }
 
 .empty {
-  padding: var(--ew-space-6) var(--ew-space-3);
+  margin: 0;
+  padding: var(--ew-space-4) var(--ew-space-3);
   text-align: center;
   font-size: var(--ew-size-sm);
   font-style: italic;

@@ -49,9 +49,11 @@ page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`));
 
 async function shot(name) {
   const file = path.join(OUT, `${LABEL}-${String(shots.length).padStart(2, '0')}-${name}.png`);
-  // Let fonts settle so serif headings aren't captured mid-swap.
+  // Let fonts AND staged reveals settle. The resolution card reveals its blocks
+  // on delays out to ~580ms + 260ms of animation; shooting at 260ms captured a
+  // half-empty card and made a correct UI look broken more than once.
   await page.evaluate(() => document.fonts?.ready);
-  await page.waitForTimeout(260);
+  await page.waitForTimeout(1100);
   await page.screenshot({ path: file, fullPage: true });
   shots.push(file);
   console.log(`  shot  ${file}`);
