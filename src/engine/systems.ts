@@ -149,7 +149,7 @@ export function defenseOf(run: RunState, content: ContentBundle): number {
  */
 export function entitledLairRung(run: RunState, ladderLength: number): number {
   if (ladderLength <= 1) return 0;
-  const fromFame = run.notoriety / 12;
+  const fromFame = run.notoriety / 13;
   const fromRetinue = Math.min(2, run.followers / 45);
   return clamp(Math.floor(fromFame + fromRetinue), 0, ladderLength - 1);
 }
