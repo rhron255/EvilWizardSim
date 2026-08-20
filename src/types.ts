@@ -67,7 +67,15 @@ export type Effect =
   | { t: 'standing'; factionId: FactionId; v: number }
   /** Grant one specific artifact by id. */
   | { t: 'artifact'; artifactId: string }
-  /** Grant a random not-yet-held artifact from a faction, optionally rarity-capped. */
+  /**
+   * Grant a random not-yet-held artifact from a faction.
+   *
+   * `rarity` selects that rarity EXACTLY — `{ rarity: 'legendary' }` grants a
+   * legendary. It was briefly a cap, which read the same to an author but meant
+   * the draw fell back through a weighted table that returns a common ~97% of
+   * the time; legendaries effectively never dropped and Ascension was
+   * unreachable in 2000 simulated runs. Omit `rarity` for a weighted draw.
+   */
   | { t: 'artifactFrom'; factionId: FactionId; rarity?: Rarity }
   /** Lose a random held artifact. */
   | { t: 'loseArtifact' }

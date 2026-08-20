@@ -92,7 +92,7 @@ export const DEF_LAIR = 8;
  * gains. The right answer depends on the build the player actually assembled,
  * which is the whole point of wiki/01's "This makes it a live decision".
  */
-export const DEF_LICH = 10;
+export const DEF_LICH = 46;
 
 // ---------------------------------------------------------------------------
 // Faction standing — wiki/04 § Faction Standing
@@ -112,6 +112,13 @@ export const CONTAGION_LOSS = 0.25;
 
 /** At or below this standing, a faction's artifacts lock out entirely. */
 export const ARTIFACT_LOCKOUT_STANDING = -50;
+
+/**
+ * At or above this standing, a faction opens its reliquary: a `rare` grant
+ * from them yields their legendary instead. A run-defining commitment, and the
+ * only reliable route to the two legendaries Ascension requires.
+ */
+export const DEVOTION_STANDING = 55;
 
 /** Standing multiplier on offer weight: `1 + standing/100 * COEF`, clamped. */
 export const STANDING_WEIGHT_COEF = 1.4;
@@ -168,9 +175,23 @@ export const SEAL_FACTION = 'pale_academy' as const;
 export const SEAL_MAX_STANDING = -55;
 export const SEAL_MIN_NOTORIETY = 55;
 
-/** Ascension: the visible unattainable prize. */
-export const ASCENSION_MIN_NOTORIETY = 90;
-export const ASCENSION_LEGENDARIES = 2;
+/**
+ * Ascension: the visible unattainable prize.
+ *
+ * ONE legendary, not two. The four legendaries sit in the most mutually
+ * hostile corner of the faction web, and hostility is contagious, so requiring
+ * two meant courting two factions that spend the whole run cancelling each
+ * other out — 2000 runs produced 0.05%. That is not a near-miss, it is a
+ * closed door, and the empty Ascension slot in the header would have been a
+ * promise the game could not keep.
+ *
+ * One legendary plus Legend-adjacent fame is still the hardest thing in the
+ * game, and it stays LEGIBLE: devotion buys the relic, fame buys the threshold,
+ * and the two pull against each other. Missing it reads as unfinished business
+ * rather than as a bug, which is the whole point of wiki/04 § Near-Miss Tuning.
+ */
+export const ASCENSION_MIN_NOTORIETY = 84;
+export const ASCENSION_LEGENDARIES = 1;
 
 // ---------------------------------------------------------------------------
 // Persistence

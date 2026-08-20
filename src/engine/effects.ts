@@ -14,6 +14,7 @@ import type { ContentBundle, ContentIndex } from './content-port';
 import { indexOf } from './content-port';
 import {
   ARTIFACT_LOCKOUT_STANDING,
+  DEVOTION_STANDING,
   CONTAGION_GAIN,
   CONTAGION_LOSS,
   RARITY_DRAW_WEIGHT,
@@ -233,21 +234,45 @@ export function applyStanding(
 function drawArtifact(
   draft: RunState,
   factionId: FactionId,
-  rarityCap: Rarity | undefined,
+  rarity: Rarity | undefined,
   rng: Rng,
   index: ContentIndex,
 ): Artifact | undefined {
   const standing = draft.factionStanding[factionId] ?? 0;
   if (standing <= ARTIFACT_LOCKOUT_STANDING) return undefined;
 
-  const cap = rarityCap ? RARITY_RANK[rarityCap] : RARITY_RANK.legendary;
   const held = new Set(draft.heldArtifactIds);
-  const pool = (index.artifactsByFaction.get(factionId) ?? []).filter(
-    (a) => !held.has(a.id) && RARITY_RANK[a.rarity] <= cap,
-  );
-  if (pool.length === 0) return undefined;
+  const unheld = (index.artifactsByFaction.get(factionId) ?? []).filter((a) => !held.has(a.id));
+  if (unheld.length === 0) return undefined;
 
-  return weightedPick(rng, pool, (a) => RARITY_DRAW_WEIGHT[a.rarity]);
+  // An explicit rarity is an EXACT request: content asking for a legendary is
+  // authoring a set-piece grant, not expressing an upper bound.
+  if (rarity) {
+    // Devotion is the route to a faction's best relic. Only three of the six
+    // factions have an authored legendary grant at all, so without this the
+    // Pale Academy's legendary is unreachable and Ascension — which needs two
+    // — sat at 0.00% across 2000 runs. Standing this high is a run-defining
+    // commitment, which is exactly the "committed path" wiki/04 asks routing
+    // to reward, and it gives the near-miss a legible cause.
+    const devoted = (draft.factionStanding[factionId] ?? 0) >= DEVOTION_STANDING;
+    const wanted: Rarity =
+      devoted && rarity !== 'legendary' ? (rarity === 'common' ? 'rare' : 'legendary') : rarity;
+    if (wanted !== rarity) {
+      const better = unheld.filter((a) => a.rarity === wanted);
+      if (better.length > 0) return weightedPick(rng, better, () => 1);
+    }
+
+    const exact = unheld.filter((a) => a.rarity === rarity);
+    if (exact.length > 0) return weightedPick(rng, exact, () => 1);
+    // That rarity is exhausted for this faction — fall back to the next tier
+    // down rather than silently granting nothing.
+    const rank = RARITY_RANK[rarity];
+    const below = unheld.filter((a) => RARITY_RANK[a.rarity] < rank);
+    if (below.length === 0) return undefined;
+    return weightedPick(rng, below, (a) => RARITY_DRAW_WEIGHT[a.rarity]);
+  }
+
+  return weightedPick(rng, unheld, (a) => RARITY_DRAW_WEIGHT[a.rarity]);
 }
 
 // ---------------------------------------------------------------------------

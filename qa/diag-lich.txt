@@ -1,0 +1,14 @@
+lich-seeking policy, 600 runs
+runs where worm_below peaked >= 20   472 (78.7%)
+median worm peak                     38
+runs where the card was ELIGIBLE     410 (68.3%)
+times the card was actually OFFERED  81
+runs that became a lich              81 (13.5%)
+
+endings for the lich-seeking policy:
+  slain_by_chosen_one        308 (51.3%)
+  sealed_in_gem              152 (25.3%)
+  consumed_by_pact           115 (19.2%)
+  lichdom                    19 (3.2%)
+  betrayed_by_apprentice     5 (0.8%)
+  retired_to_swamp           1 (0.2%)
