@@ -8,3 +8,4 @@ coverage
 qa/screenshots
 *.tsbuildinfo
 .tmp/
+.tmp-*
