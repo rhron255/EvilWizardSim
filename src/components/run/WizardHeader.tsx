@@ -14,7 +14,7 @@ import { useId, useState } from 'react';
 import type { Faction, Lair, RunState } from '../../types';
 import { tierColor, tierFor } from '../../theme/tokens';
 import { NotorietyBadge } from './NotorietyBadge';
-import { allegiancesFor, sealWarningFor } from './allegiances';
+import { allegiancesFor, sealSentence, sealWarningFor } from './allegiances';
 import { siegeFor, stakesFor } from './stakes';
 import styles from './WizardHeader.module.css';
 
@@ -163,8 +163,7 @@ export function WizardHeader({
 
       {seal && (
         <p className={styles.seal} data-armed={seal.armed ? 'true' : undefined}>
-          The Pale Academy is {seal.margin <= 0 ? 'done deliberating' : `${seal.margin} from filing you away`}
-          {seal.armed ? ' — and you are notorious enough to be worth the gem.' : '.'}
+          {sealSentence(seal)}
         </p>
       )}
 

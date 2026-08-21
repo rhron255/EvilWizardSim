@@ -70,6 +70,30 @@ like erosion, not a cliff. Lich branch sets decay to 0.
 **Do not add a doom meter.** The decline works because it is a number
 quietly going the wrong way, not because it is announced.
 
+### Doom meter vs. disclosure — reconciled in implementation
+
+The rule above and the odds policy's "no undisclosed downside" corollary
+were read as contradicting each other three times during the build, so the
+line between them is drawn here:
+
+- **The erosion stays quiet.** Notoriety decay and hero-threat escalation
+  are gradual and survivable. Neither is announced as it happens, and no
+  UI element counts down to them.
+- **A counter that ENDS a run is disclosed** — its threshold, the distance
+  to it, and its rate of change. Pact interest (`+1` per decline era) and
+  apprentice loyalty drift (`-(2 + count)` per decline era) are lethal,
+  countable and player-controllable; a player who cannot see them is not
+  playing a tenser game, only a more surprising one.
+- **Disclosure does not stop at the choice card.** Both of those ticks fire
+  in the era-end systems, so they are printed on the resolution that
+  reports the era — in a section of their own, never mixed into the
+  option's own consequences. A death arriving on a card that lists nothing
+  capable of causing it is the undisclosed downside this document forbids,
+  reached by a different route.
+
+The same distinction covers the seal: `sealed_in_gem` takes Pale Academy
+standing **and** notoriety, so the run screen names both numbers.
+
 ## Hero Escalation
 
 `heroThreat` rises each decline-phase era. Compared against a defense

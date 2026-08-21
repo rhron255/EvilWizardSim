@@ -15,7 +15,7 @@ import type { Artifact, Faction } from '../../types';
 import { tierColor, tierFor, tierGlow } from '../../theme/tokens';
 import type { Resolution } from './resolution';
 import { EffectList } from './EffectList';
-import { endingName, formatOdds } from './effectText';
+import { describeSystemic, endingName, formatOdds, systemicKey } from './effectText';
 import { NotorietyBadge } from './NotorietyBadge';
 import styles from './ResolutionOverlay.module.css';
 
@@ -125,6 +125,35 @@ export function ResolutionOverlay({
             factions={factions}
           />
         </div>
+
+        {/* Separated from the option's own consequences on purpose. Reported
+            from play: "I died being consumed by the pact, even though the last
+            action I took had nothing to do with pacts." The tick that killed
+            the run was real, systemic, and printed nowhere — but folding it in
+            above would have blamed it on the card the player just picked. */}
+        {resolution.systemic.length > 0 && (
+          <div className={styles.systemic}>
+            <p className={styles.systemicLabel}>While you were elsewhere</p>
+            <ul className={styles.systemicList}>
+              {resolution.systemic.map((change, i) => {
+                const line = describeSystemic(change);
+                return (
+                  <li
+                    key={systemicKey(change, i)}
+                    className={styles.systemicRow}
+                    data-tone={line.tone}
+                  >
+                    <span className={`${styles.systemicNum} ew-num`}>{line.num}</span>
+                    <span className={styles.systemicBody}>
+                      <span className={styles.systemicName}>{line.text}</span>
+                      <span className={styles.systemicNote}>{line.note}</span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
 
         {resolution.artifactsGained.length > 0 && (
           <div className={styles.relics}>

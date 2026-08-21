@@ -22,7 +22,7 @@ import type {
 } from '../types';
 import type { ContentBundle } from './content-port';
 import { indexOf } from './content-port';
-import type { Resolution } from './resolution';
+import type { Resolution, SystemicChange } from './resolution';
 import {
   DEFAULT_ERA_COUNT,
   LOYALTY_DRIFT_BASE,
@@ -141,6 +141,7 @@ function inertResolution(run: RunState): Resolution {
     text: '',
     artifactsGained: [],
     notorietyDelta: 0,
+    systemic: [],
     ending: run.ending,
     eraRecord:
       last ??
@@ -275,6 +276,11 @@ export function resolveChoice(
   // ---- era-end systems -------------------------------------------------
   // Skipped when the option itself terminated the run: the biography stops at
   // the deed, not after another five years of quiet erosion.
+  //
+  // Two of these ticks can END the run on an era whose card never mentioned
+  // them, so they are collected and handed to the UI. See `SystemicChange` for
+  // why decay and hero threat are not among them.
+  const systemic: SystemicChange[] = [];
   if (!endingFromEffect) {
     const decay = decayFor(draft);
     if (decay !== 0) draft.notoriety = clampNotoriety(draft.notoriety - decay);
@@ -287,15 +293,21 @@ export function resolveChoice(
     if (draft.phase === 'decline') {
       // Unpaid debt compounds. wiki/01: "Consumed by the Pact | Demon-pact
       // debt unpaid | High-variance play punished."
-      if (draft.pactDebt >= PACT_INTEREST_MIN_DEBT) draft.pactDebt += PACT_INTEREST;
+      if (draft.pactDebt >= PACT_INTEREST_MIN_DEBT) {
+        draft.pactDebt += PACT_INTEREST;
+        systemic.push({ t: 'pactInterest', v: PACT_INTEREST, debt: draft.pactDebt });
+      }
 
       // Ambition grows as the master visibly weakens, and faster in a crowd.
       if (draft.apprentices.count >= LOYALTY_DRIFT_MIN_APPRENTICES) {
         const drift = -(LOYALTY_DRIFT_BASE + draft.apprentices.count);
-        draft.apprentices = {
-          ...draft.apprentices,
-          loyalty: clamp(draft.apprentices.loyalty + drift, 0, 100),
-        };
+        const before = draft.apprentices.loyalty;
+        const after = clamp(before + drift, 0, 100);
+        draft.apprentices = { ...draft.apprentices, loyalty: after };
+        // Already at zero, nothing moved and there is nothing to report.
+        if (after !== before) {
+          systemic.push({ t: 'loyaltyDrift', v: after - before, loyalty: after });
+        }
       }
     }
   }
@@ -345,6 +357,11 @@ export function resolveChoice(
     // it is a number quietly going the wrong way, not because it is
     // announced." `notorietyDelta` below carries the net truth.
     appliedEffects: application.applied,
+    // What the world did while the wizard was busy. Kept separate from
+    // `appliedEffects` on purpose: attributing the Covenant's interest to the
+    // option the player just picked would be a different lie from the one this
+    // fixes.
+    systemic,
     text,
     artifactsGained: application.artifactsGained,
     notorietyDelta: draft.notoriety - startNotoriety,
