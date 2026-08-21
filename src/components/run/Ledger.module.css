@@ -30,6 +30,47 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The count doubles as the height toggle. It stays a count first — same size,
+   same colour, same corner — because it is read far more often than it is
+   pressed. The chevron is the only thing added. */
+.countButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ew-space-2);
+  /* Padding buys the 24px-ish tap target without moving the text: the negative
+     margin gives the box back to the layout. */
+  padding: var(--ew-space-2) var(--ew-space-1);
+  margin: calc(var(--ew-space-2) * -1) calc(var(--ew-space-1) * -1);
+  transition: color var(--ew-fast) var(--ew-ease);
+}
+
+.countButton:hover,
+.countButton:focus-visible {
+  color: var(--ew-ink-dim);
+}
+
+/* The only mark that says the frame opens, so it is a step brighter than the
+   count it sits next to — at ink-ghost on a near-black panel it read as a
+   speck of dust rather than a control. */
+.chevron {
+  display: inline-block;
+  font-size: 0.9em;
+  line-height: 1;
+  color: var(--ew-ink-faint);
+  transition:
+    transform var(--ew-base) var(--ew-ease),
+    color var(--ew-fast) var(--ew-ease);
+}
+
+.countButton:hover .chevron,
+.countButton:focus-visible .chevron {
+  color: var(--ew-ink-dim);
+}
+
+.countButton[aria-expanded='true'] .chevron {
+  transform: rotate(180deg);
+}
+
 .frame {
   position: relative;
   background: var(--ew-panel);
@@ -40,8 +81,9 @@
 }
 
 .scroll {
-  max-height: min(46vh, 26rem);
+  max-height: var(--ledger-max, min(46vh, 26rem));
   overflow-y: auto;
+  transition: max-height var(--ew-base) var(--ew-ease);
   overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: var(--ew-line-strong) transparent;
@@ -182,6 +224,14 @@
   border: 0;
 }
 
+@media (min-width: 701px) {
+  /* Desk: the frame is already comfortable, so the toggle only ever buys more
+     room. It is never a way to see LESS than the default. */
+  .wrap[data-expanded='true'] .scroll {
+    --ledger-max: min(70vh, 44rem);
+  }
+}
+
 @media (max-width: 700px) {
   .thLair {
     display: none;
@@ -212,12 +262,46 @@
   }
 
   .th {
-    padding-right: var(--ew-space-2);
+    padding: var(--ew-space-1) var(--ew-space-2) var(--ew-space-1) 0;
     font-size: 0.5625rem;
     letter-spacing: 0.1em;
   }
 
+  /* Header gutters must track the body gutters exactly, or the pinned header
+     shears off the column it is naming (the same class of defect as the
+     colSpan-6-against-five-columns bug). LedgerRow drops to space-2 here. */
+  .th:first-child {
+    padding-left: var(--ew-space-2);
+  }
+
+  .th:last-child {
+    padding-right: var(--ew-space-2);
+  }
+
+  .empty {
+    padding: var(--ew-space-3) var(--ew-space-2);
+  }
+
+  /* Three rows and the pinned header. A phone viewport is 852px and the choice
+     cards sit BELOW this table by design, so the ledger is the one element here
+     that can be asked to spend less; 20rem of it was pushing the first option
+     past 1000px. A mobile row is ~2.4rem, so 9rem is the pinned header, three
+     whole rows and a sliver of a fourth — the sliver is the affordance, since
+     the scroll is pinned to the NEWEST era and everything the cap hides is
+     therefore above. The count in the corner opens it the rest of the way. */
   .scroll {
-    max-height: min(38vh, 20rem);
+    --ledger-max: 9rem;
+  }
+
+  .wrap[data-expanded='true'] .scroll {
+    --ledger-max: min(52vh, 26rem);
+  }
+
+  /* The scroll is pinned to the newest era, so on a phone there is almost never
+     anything below the fold to hint at — a 2rem fade just greys out the live
+     row. Keep the vignette, stop it reaching the current line. */
+  .fade {
+    height: var(--ew-space-4);
+    opacity: 0.7;
   }
 }

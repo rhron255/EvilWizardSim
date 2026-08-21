@@ -194,6 +194,43 @@
   text-wrap: balance;
 }
 
+/* Who ended it. Sits between the ending name and the narration because that is
+   where the eye already is — it is the second line of the screenshot, not a
+   footnote. Rendered only when an agent exists; the three self-determined
+   endings emit no node at all, so there is no empty slot to collapse. */
+
+.attribution {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ew-space-2);
+  /* Bottom margin lives here rather than on .narration so that the no-agent
+     endings keep the original ending-name → narration rhythm untouched. The
+     two margins collapse to the larger of the pair. */
+  margin: var(--ew-space-4) 0 var(--ew-space-5);
+}
+
+.attributionLabel {
+  composes: labelCentered from '../components/meta/craft.module.css';
+  color: var(--ew-ink-faint);
+}
+
+.attributionName {
+  font-family: var(--ew-font-display);
+  font-weight: 600;
+  /* A rung below .endingName — clearly the answer to it, never competing with
+     it. Long bloodline names ("Halloran Greyleigh") get smaller type rather
+     than a clipped line, same rule as the wizard's name. The 1.25rem floor is
+     measured, not guessed: at 4.4vw the phone rendered it 17px against a 30px
+     ending name and a 22px epithet, which read as a caption rather than as the
+     answer to the headline. */
+  font-size: clamp(1.25rem, 5vw, 1.5rem);
+  line-height: 1.2;
+  color: var(--ew-ink-bright);
+  overflow-wrap: break-word;
+  text-wrap: balance;
+}
+
 .narration {
   max-width: 46ch;
   margin: var(--ew-space-4) auto 0;
@@ -354,26 +391,59 @@
    Controls — outside the card, so the screenshot is clean
    -------------------------------------------------------------------------- */
 
+/* These were `flex: 1 1 220px` in a container that flips to
+   `flex-direction: column` under 520px — and flex-basis is the MAIN axis, so
+   in a column it is a HEIGHT. At 393px the three buttons measured 220, 180 and
+   180 tall: a 604px slab of controls under an 852px viewport, which is the
+   "the buttons are huge" report. A grid has no such trapdoor; the track sizes
+   the width and nothing sizes the height but the content and min-height. */
+
 .controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--ew-space-3);
   width: 100%;
-  max-width: 760px;
-  margin-top: var(--ew-space-3);
+  /* Narrower than the 760px card on purpose. Controls that run the full width
+     of the artefact compete with it; these sit under it. */
+  max-width: 460px;
+  margin-top: var(--ew-space-4);
 }
 
 .primary {
   composes: btnPrimary from '../components/meta/craft.module.css';
-  flex: 1 1 220px;
 }
 
 .secondary {
   composes: btn from '../components/meta/craft.module.css';
-  flex: 1 1 180px;
-  min-height: 52px;
+}
+
+/* Descendant selectors, not bare classes.
+   `composes` puts craft.module.css AFTER this file in the injected order, so a
+   bare `.secondary { min-height: 52px }` loses the cascade to `.btn`'s 44px at
+   equal specificity — which is exactly what the old rule here was doing, quietly
+   and for the whole build. Measured, not assumed: the probe reported 44px.
+   Two classes beat one, so these land. */
+
+/* Play again spans the row above the other two. Hierarchy by placement and by
+   the tier colour it already carries — not by being enormous. */
+.controls .primary {
+  grid-column: 1 / -1;
+  min-height: 48px;
+}
+
+.controls .secondary {
+  /* 44px is the floor for a touch target, and the floor is enough here. */
+  min-height: 44px;
+  padding: var(--ew-space-2) var(--ew-space-3);
+  font-size: var(--ew-size-xs);
+  letter-spacing: 0.13em;
+  text-indent: 0.13em;
+  /* "Screenshot this card" is the longest label these ever carry, and it only
+     shows on browsers that refuse the file handoff. Let it wrap onto a second
+     line inside the button rather than push past its track. */
+  white-space: normal;
+  line-height: 1.25;
+  text-wrap: balance;
 }
 
 .controlNote {
@@ -423,9 +493,9 @@
     gap: var(--ew-space-2);
   }
 
-  .controls {
-    flex-direction: column;
-  }
+  /* No column flip here any more. Three full-bleed stacked bars was the defect;
+     the grid already reads as a hierarchy at 393px and the two secondaries fit
+     side by side without wrapping their labels. */
 
   .standing {
     grid-template-columns: auto minmax(0, 1fr) 64px 38px;

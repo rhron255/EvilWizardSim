@@ -466,22 +466,99 @@
   }
 }
 
+/* --------------------------------------------------------------------------
+   Phone density.
+
+   Playtest: "the initialization screen's starting options should be shorter."
+   At 393x852 this screen was 2.8 viewports of setup before a single choice,
+   and the four origin cards were most of it. Everything below trims spacing or
+   flavour. NOTHING below touches a modifier: every `.effects` line stays at
+   full size and full contrast, because an origin that quietly moves standing
+   is precisely the undisclosed consequence this repo keeps shipping.
+   -------------------------------------------------------------------------- */
+
 @media (max-width: 520px) {
   .screen {
-    padding: var(--ew-space-4) var(--ew-space-4) var(--ew-space-7);
+    padding: var(--ew-space-4) var(--ew-space-4) var(--ew-space-6);
+  }
+
+  .top {
+    padding-bottom: var(--ew-space-3);
+  }
+
+  .section {
+    padding-top: var(--ew-space-5);
+  }
+
+  .sectionLabel {
+    margin-bottom: var(--ew-space-3);
+  }
+
+  .help {
+    margin-top: var(--ew-space-3);
+  }
+
+  /* The name stays the ceremonial focal point — it keeps the sigil, the scale
+     and the centre of the screen. What it gives back is the empty ring around
+     the seal, not its presence. */
+  .nameSection {
+    padding-bottom: var(--ew-space-4);
   }
 
   .sigilStage {
-    min-height: 240px;
+    min-height: 208px;
   }
 
   .sigil {
-    width: 240px;
-    height: 240px;
+    width: 208px;
+    height: 208px;
+  }
+
+  .chipText {
+    min-height: 38px;
+    padding: 0 var(--ew-space-3);
+    font-size: var(--ew-size-base);
+  }
+
+  .preview {
+    margin-top: var(--ew-space-3);
+    padding-top: var(--ew-space-3);
+    font-size: var(--ew-size-md);
+  }
+
+  .origins {
+    gap: var(--ew-space-2);
+  }
+
+  .originInner {
+    padding: var(--ew-space-3);
+  }
+
+  /* Flavour, clamped — the full sentence is still in the DOM and still read
+     aloud, it just stops setting the height of a card whose job is to show a
+     name and a modifier. The blurbs themselves live in src/content/origins.ts,
+     which is where they would actually be shortened. */
+  .originBlurb {
+    margin-top: var(--ew-space-1);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+  }
+
+  .originRule {
+    margin: var(--ew-space-3) 0 var(--ew-space-2);
+  }
+
+  .effects {
+    gap: var(--ew-space-1);
   }
 
   .lengths {
     grid-template-columns: 1fr;
+    gap: var(--ew-space-2);
   }
 
   .lengthInner {
@@ -489,11 +566,38 @@
     align-items: baseline;
     justify-content: flex-start;
     gap: var(--ew-space-3);
+    padding: var(--ew-space-2) var(--ew-space-3);
     text-align: left;
+  }
+
+  .lengthNum {
+    font-size: var(--ew-size-lg);
+  }
+
+  /* Both of these wrapped on a 393px row, which turned a 48px option into a
+     90px one — three times over. */
+  .lengthYears,
+  .lengthNote {
+    white-space: nowrap;
   }
 
   .lengthNote {
     margin-left: auto;
     margin-top: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .bottom {
+    margin-top: var(--ew-space-5);
+    padding-top: var(--ew-space-5);
+  }
+
+  .commit {
+    min-height: 52px;
+  }
+
+  .commitNote {
+    font-size: var(--ew-size-sm);
   }
 }

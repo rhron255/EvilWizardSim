@@ -6,9 +6,16 @@
  * principle 5. Everything here serves legibility at twenty rows: fixed column
  * widths, tabular figures, a pinned header, and an aging gradient that pushes
  * the early eras back without ever hiding them.
+ *
+ * On a phone the frame is capped at three rows, because the order
+ * header -> ledger -> offer is fixed (wiki/01 §3) and every pixel this table
+ * spends is a pixel the choice cards spend below the fold. The cap is a
+ * SCROLLPORT height, never a slice of the data: all the rows are rendered, the
+ * internal scroll is pinned to the newest one, and the era count in the corner
+ * is the toggle that opens the frame to full height.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { Artifact, EraRecord, Lair } from '../../types';
 import { LedgerRow } from './LedgerRow';
 import styles from './Ledger.module.css';
@@ -22,6 +29,13 @@ export type LedgerProps = {
 export function Ledger({ eras, lairs, artifacts }: LedgerProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastCount = useRef(-1);
+  // Collapsed by default, and only ON A PHONE does collapsed mean anything —
+  // the stylesheet caps the frame at three rows below 700px and leaves the
+  // desktop height alone. The rows are never removed from the DOM, so the
+  // record is still whole to a screen reader and to Ctrl-F; what is capped is
+  // how much of the screen it may spend before the choice cards.
+  const [expanded, setExpanded] = useState(false);
+  const scrollId = useId();
 
   // The live row is the bottom row, so the ledger opens at the bottom — a long
   // run must never load with its current era off-screen. First paint jumps;
@@ -38,21 +52,53 @@ export function Ledger({ eras, lairs, artifacts }: LedgerProps) {
     el.scrollTo({ top: el.scrollHeight, behavior: first || reduce ? 'auto' : 'smooth' });
   }, [eras.length]);
 
+  // Changing the cap changes the scrollport height. The browser clamps
+  // scrollTop on its own, but only downwards — collapsing from a tall frame can
+  // still leave the newest era above the fold of the frame, so re-pin it. The
+  // current row staying visible is the whole reason the ledger sits up here.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: 'auto' });
+  }, [expanded]);
+
   const lastIndex = eras.length - 1;
+  const count = `${eras.length} ${eras.length === 1 ? 'era' : 'eras'}`;
 
   return (
-    <section className={styles.wrap} aria-labelledby="ledger-heading">
+    <section className={styles.wrap} aria-labelledby="ledger-heading" data-expanded={expanded ? 'true' : undefined}>
       <header className={styles.head}>
         <h2 id="ledger-heading" className={styles.heading}>
           The Ledger
         </h2>
-        <span className={`${styles.count} ew-num`}>
-          {eras.length} {eras.length === 1 ? 'era' : 'eras'}
-        </span>
+        {eras.length === 0 ? (
+          <span className={`${styles.count} ew-num`}>{count}</span>
+        ) : (
+          <button
+            type="button"
+            className={`${styles.count} ${styles.countButton} ew-num`}
+            onClick={() => setExpanded((v) => !v)}
+            aria-expanded={expanded}
+            aria-controls={scrollId}
+            title={expanded ? 'Show fewer eras' : 'Show every era'}
+          >
+            {count}
+            <span className={styles.chevron} aria-hidden="true">
+              ▾
+            </span>
+          </button>
+        )}
       </header>
 
       <div className={styles.frame}>
-        <div className={styles.scroll} ref={scrollRef} tabIndex={0} role="region" aria-label="Era history, scrollable">
+        <div
+          className={styles.scroll}
+          id={scrollId}
+          ref={scrollRef}
+          tabIndex={0}
+          role="region"
+          aria-label="Era history, scrollable"
+        >
           <table className={styles.table}>
             <caption className={styles.srOnly}>
               One row per era: age, lair, notoriety, followers, artifacts gained and the deed.
