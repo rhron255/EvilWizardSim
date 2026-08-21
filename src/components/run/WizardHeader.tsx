@@ -145,7 +145,7 @@ export function WizardHeader({
           be pushed to lethal by cards that never named the faction. */}
       <ul className={styles.allegiances} aria-label="Faction standing">
         {allegiances.map((a) => (
-          <li key={a.id} className={styles.allegiance} data-tone={a.tone} title={`${a.name} — ${a.note}`}>
+          <li key={a.id} className={styles.allegiance} data-tone={a.tone} title={`${a.name} · ${a.note}`}>
             <span className={styles.allegianceName}>{a.short}</span>
             <span className={`${styles.allegianceValue} ew-num`}>
               {a.standing > 0 ? `+${a.standing}` : a.standing}

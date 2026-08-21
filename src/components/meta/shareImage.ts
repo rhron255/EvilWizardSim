@@ -357,7 +357,7 @@ function paintCard(ctx: CanvasRenderingContext2D, input: ShareEndingInput) {
 
   drawText(
     ctx,
-    `AGED ${20} TO ${run.age}  ·  ${run.eras.length} ERAS  ·  ${tier.name.toUpperCase()}`,
+    `AGED ${run.eras[0]?.age ?? run.age} TO ${run.age}  ·  ${run.eras.length} ERAS  ·  ${tier.name.toUpperCase()}`,
     cx,
     y,
     { font: `600 14px ${UI}`, color: ink.faint, align: 'center', tracking: 4.5 },

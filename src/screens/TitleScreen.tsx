@@ -90,14 +90,14 @@ export function TitleScreen({
           </div>
           <span className={styles.ledgerRule} aria-hidden />
           <div className={styles.ledgerItem}>
-            <span className={styles.ledgerLabel}>Best notoriety</span>
+            <span className={styles.ledgerLabel}>Best Notoriety</span>
             <span className={`${styles.ledgerValue} ${veteran ? styles.ledgerAccent : ''}`}>
               {collection.bestNotoriety}
             </span>
           </div>
           <span className={styles.ledgerRule} aria-hidden />
           <div className={styles.ledgerItem}>
-            <span className={styles.ledgerLabel}>Standing</span>
+            <span className={styles.ledgerLabel}>Best rank</span>
             <span className={styles.ledgerValue}>{veteran ? tier.name : '—'}</span>
           </div>
         </footer>

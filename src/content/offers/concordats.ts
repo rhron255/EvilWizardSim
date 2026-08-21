@@ -3,9 +3,11 @@ import type { FactionId, Offer } from '../../types';
 /**
  * THE CONCORDATS — the reliquary beat, one per faction that owns a legendary.
  *
- * These exist because Ascension was unreachable. It requires two legendaries,
- * and the catalog's only legendary grants sat behind three low-odds gambles,
- * so 2000 simulated runs produced exactly zero. The empty Ascension slot in
+ * These exist because Ascension was unreachable. The catalog's only legendary
+ * grants sat behind three low-odds gambles, so 2000 simulated runs produced
+ * exactly zero — and the requirement was two legendaries at the time, in the
+ * most mutually hostile corner of the faction web. It is ONE now
+ * (`ASCENSION_LEGENDARIES`), which is what made the door openable at all. The empty Ascension slot in
  * the header is supposed to be a near-miss, not a lie.
  *
  * The gate is devotion — standing at or above the level where a faction opens

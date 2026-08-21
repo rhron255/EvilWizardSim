@@ -36,7 +36,7 @@ const CARDS: Card[] = [
   {
     eyebrow: 'The loop',
     title: 'One era at a time',
-    body: 'Every era you pick one card. A gamble prints its odds and both outcomes before you commit, and nothing on a card is hidden from you — the worst that can happen is written on it.',
+    body: 'Every era you pick one card. A gamble prints its odds and both outcomes before you commit — the worst it can do is written on it. Some things also move between eras on their own, and the card that follows says which.',
   },
   {
     eyebrow: 'The cast',
@@ -46,7 +46,7 @@ const CARDS: Card[] = [
   {
     eyebrow: 'The numbers',
     title: 'Each one says what it does',
-    body: 'Followers, relics, apprentices, loyalty, pact debt. The ones that can end a career show the threshold and how far you are from it. Tap any of them for the rest.',
+    body: 'Followers, relics, apprentices, loyalty, pact debt. The ones that can end a career show the threshold and how far you are from it. Tap one for what it does.',
   },
 ];
 

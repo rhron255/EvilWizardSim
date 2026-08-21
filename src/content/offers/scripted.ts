@@ -160,7 +160,7 @@ export const scriptedOffers: Offer[] = [
           { t: 'standing', factionId: 'ashen_covenant', v: 10 },
         ],
         onFailure: [{ t: 'ending', endingId: 'consumed_by_pact' }],
-        successText: 'Two of the entries were double-counted. The thing corrects the ledger and leaves without a word.',
+        successText: 'Four of the entries were double-counted. The thing corrects the ledger and leaves without a word.',
       },
     ],
   },

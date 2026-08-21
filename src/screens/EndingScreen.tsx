@@ -227,7 +227,7 @@ export function EndingScreen({
             emphasis
             columns={4}
             stats={[
-              { label: 'Peak notoriety', value: peak, hint: tier.name, accent: true },
+              { label: 'Peak Notoriety', value: peak, hint: tier.name, accent: true },
               { label: 'Followers', value: run.followers.toLocaleString('en-US') },
               { label: 'Lairs held', value: tenures.length },
               { label: 'Relics kept', value: run.heldArtifactIds.length },
@@ -240,7 +240,7 @@ export function EndingScreen({
               { label: 'Eras lived', value: run.eras.length },
               { label: 'Apprentices', value: run.apprentices.count },
               { label: 'Loyalty', value: `${run.apprentices.loyalty}%` },
-              { label: 'Pact debt', value: run.pactDebt },
+              { label: 'Pact Debt', value: run.pactDebt },
             ]}
           />
         </section>

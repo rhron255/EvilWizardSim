@@ -87,7 +87,7 @@ export function CollectionScreen({
           stats={[
             { label: 'Careers', value: collection.runsCompleted },
             {
-              label: 'Best notoriety',
+              label: 'Best Notoriety',
               value: collection.bestNotoriety,
               hint: collection.runsCompleted > 0 ? tier.name : 'Not yet',
               accent: collection.runsCompleted > 0,

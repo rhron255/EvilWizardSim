@@ -10,8 +10,10 @@ import type { Artifact } from '../types';
  *
  * The four legendaries sit in the most hostile corner of the faction web
  * (Covenant, Academy, Crown, Worm — a knot in which almost everyone is hostile
- * to almost everyone). Ascension therefore requires brokering a peace nobody
- * else in the province has managed. That is why it is rare.
+ * to almost everyone), so reaching any one of them means committing to a
+ * faction hard enough to open its reliquary. Ascension asks for ONE of them
+ * plus Kingdom-level fame, and those two pull against each other — see
+ * `ASCENSION_LEGENDARIES` in src/engine/constants.ts for why it is not two.
  *
  * `effect` is straight-faced by rule. All the comedy is in `flavorText`.
  */
@@ -64,7 +66,7 @@ export const artifacts: Artifact[] = [
     name: 'The Cinder Testament',
     factionId: 'ashen_covenant',
     rarity: 'legendary',
-    effect: 'Defense +8. One of the four artifacts required for Ascension.',
+    effect: 'Defense +8. Legendary — the rank Ascension turns on.',
     flavorText:
       'Every pact the Covenant has ever signed, bound in one volume, in the order they were made. Your name is in it. It was in it before you signed.',
     defense: 8,
@@ -172,7 +174,7 @@ export const artifacts: Artifact[] = [
     name: 'The Pale Orrery',
     factionId: 'pale_academy',
     rarity: 'legendary',
-    effect: 'Defense +7. One of the four artifacts required for Ascension.',
+    effect: 'Defense +7. Legendary — the rank Ascension turns on.',
     flavorText:
       'Models the heavens accurately, including the parts that have not happened yet. It is kept in a room with no door, on the reasoning that a locked door implies somebody, somewhere, has a key.',
     defense: 7,
@@ -280,7 +282,7 @@ export const artifacts: Artifact[] = [
     name: 'The Unbroken Line',
     factionId: 'crownlands',
     rarity: 'legendary',
-    effect: 'Defense +9. One of the four artifacts required for Ascension.',
+    effect: 'Defense +9. Legendary — the rank Ascension turns on.',
     flavorText:
       'The complete genealogy of the hero-bloodline, sealed in one roll. Whoever holds it holds the name of the Chosen One’s grandmother, and every party to the matter understands what that means.',
     defense: 9,
@@ -334,7 +336,7 @@ export const artifacts: Artifact[] = [
     name: 'The Long Appetite',
     factionId: 'worm_below',
     rarity: 'legendary',
-    effect: 'Defense +8. One of the four artifacts required for Ascension.',
+    effect: 'Defense +8. Legendary — the rank Ascension turns on.',
     flavorText:
       'The Worm’s hunger, decanted and worn at the hip. It is not a weapon. It is a share, and shares can be called in.',
     defense: 8,
