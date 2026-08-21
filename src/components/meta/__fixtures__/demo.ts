@@ -641,6 +641,7 @@ export const demoCollection: Collection = {
   ],
   endingsSeen: ['slain_by_chosen_one', 'retired_to_swamp', 'betrayed_by_apprentice'],
   runsCompleted: 23,
+  tutorialSeen: true,
   bestNotoriety: 88,
 };
 
@@ -650,6 +651,7 @@ export const demoEmptyCollection: Collection = {
   discoveredArtifactIds: [],
   endingsSeen: [],
   runsCompleted: 0,
+  tutorialSeen: false,
   bestNotoriety: 0,
 };
 

@@ -278,6 +278,13 @@ export type Collection = {
   endingsSeen: EndingId[];
   runsCompleted: number;
   bestNotoriety: number;
+  /**
+   * The three-card guide shown before the very first era has been dismissed.
+   *
+   * Lives here rather than in `RunState` because it is a property of the
+   * PLAYER, not of a career — a second run must not re-explain the ledger.
+   */
+  tutorialSeen: boolean;
 };
 
 // ---------------------------------------------------------------------------

@@ -3,6 +3,7 @@
  * aging gradient can be judged on its own rather than through a backdrop scrim.
  */
 import { chromium } from 'playwright';
+import { dismissFirstRunGuide } from './first-run.mjs';
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, deviceScaleFactor: 2 });
@@ -14,6 +15,10 @@ await page.waitForTimeout(400);
 await page.getByRole('textbox').first().fill('Vashter of the Long Arrears');
 await page.getByRole('button', { name: /begin the career/i }).click();
 await page.waitForTimeout(600);
+
+// A fresh profile is a first-time player: the guide is modal over the choice
+// cards until it is walked.
+await dismissFirstRunGuide(page);
 
 const OPTIONS = 'button[data-option-index]:not([disabled])';
 const FLOW = 'button:not([data-option-index]):not([disabled])';

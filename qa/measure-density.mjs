@@ -16,6 +16,7 @@
  *   node qa/measure-density.mjs [--width 393] [--height 852] [--eras 6]
  */
 import { chromium } from 'playwright';
+import { dismissFirstRunGuide } from './first-run.mjs';
 
 const arg = (flag, fallback) => {
   const i = process.argv.indexOf(flag);
@@ -77,6 +78,10 @@ if (process.argv.includes('--long')) {
 
 await page.getByRole('button', { name: /begin the career/i }).click();
 await page.waitForTimeout(700);
+
+// A fresh profile is a first-time player: the guide is modal over the choice
+// cards until it is walked.
+await dismissFirstRunGuide(page);
 
 // ---- play forward to mid-run --------------------------------------------
 let eras = 0;

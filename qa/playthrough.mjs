@@ -15,6 +15,7 @@
 import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { dismissFirstRunGuide } from './first-run.mjs';
 
 const arg = (flag, fallback) => {
   const i = process.argv.indexOf(flag);
@@ -90,6 +91,17 @@ if (await nameField.isVisible().catch(() => false)) {
   await shot('creation-missing-input');
 }
 await clickByName(/begin the career/i);
+
+// ---- The first-run guide -------------------------------------------------
+// A fresh browser profile is a first-time player, so this is what the very
+// first era looks like. It is modal over the choice cards by design; walking
+// it IS the playthrough.
+await page.waitForTimeout(600);
+if (await page.getByRole('dialog').filter({ hasText: 'One era at a time' }).isVisible().catch(() => false)) {
+  await shot('first-run-guide');
+}
+const guideCards = await dismissFirstRunGuide(page);
+if (guideCards === 0) problems.push('first-run guide never appeared for a fresh profile');
 
 // ---- The run -------------------------------------------------------------
 await page.waitForTimeout(600);

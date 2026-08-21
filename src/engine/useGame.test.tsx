@@ -1,0 +1,130 @@
+/**
+ * When the first-run guide is owed, and when it is emphatically not.
+ *
+ * The gate is a derivation inside `useGame`'s memo, which is exactly the shape
+ * of this repo's most repeated failure — a correct mapping nobody calls
+ * (CLAUDE.md § 2). So these drive the real hook rather than asserting on the
+ * reducer alone, and they cover the persistence half too: shown twice is worse
+ * than never shown, because the second time it is an obstacle.
+ */
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { act, renderHook } from '@testing-library/react';
+import type { ContentBundle } from './index';
+import { COLLECTION_KEY } from './constants';
+import { emptyCollection, migrateCollection, recordRun } from './persistence';
+import { useGame } from './useGame';
+import { fixtureContent } from './__fixtures__/content';
+
+const content: ContentBundle = fixtureContent;
+
+/** Straight to era one of a fresh career. */
+function beginRun() {
+  const hook = renderHook(() => useGame(content));
+  act(() => hook.result.current.begin());
+  act(() => hook.result.current.create('Malachar', 'the Unpaid', content.origins[0].id, 16));
+  return hook;
+}
+
+beforeEach(() => localStorage.clear());
+afterEach(() => localStorage.clear());
+
+describe('the first-run guide gate', () => {
+  it('is owed on a first career, before the first choice', () => {
+    const { result } = beginRun();
+    expect(result.current.showFirstRunGuide).toBe(true);
+  });
+
+  it('is not owed on the title or creation screens', () => {
+    const hook = renderHook(() => useGame(content));
+    expect(hook.result.current.showFirstRunGuide).toBe(false);
+    act(() => hook.result.current.begin());
+    expect(hook.result.current.showFirstRunGuide).toBe(false);
+  });
+
+  it('closes for good once dismissed', () => {
+    const { result } = beginRun();
+    act(() => result.current.dismissFirstRunGuide());
+    expect(result.current.showFirstRunGuide).toBe(false);
+    expect(result.current.collection.tutorialSeen).toBe(true);
+  });
+
+  it('does not come back on the next career', () => {
+    const { result } = beginRun();
+    act(() => result.current.dismissFirstRunGuide());
+    act(() => result.current.playAgain());
+    act(() => result.current.create('Second', 'the Wiser', content.origins[0].id, 16));
+    expect(result.current.showFirstRunGuide).toBe(false);
+  });
+
+  it('does not reopen mid-career after a refresh', () => {
+    // Undismissed but already playing: the guide points at an empty ledger and
+    // a career's first decision, neither of which is still true at era four.
+    const { result } = beginRun();
+    act(() => result.current.choose(0));
+    act(() => result.current.continueAfterResolution());
+    expect(result.current.run?.eras.length).toBeGreaterThan(0);
+    expect(result.current.showFirstRunGuide).toBe(false);
+  });
+
+  it('survives the reload it was dismissed on', () => {
+    const first = beginRun();
+    act(() => first.result.current.dismissFirstRunGuide());
+    first.unmount();
+
+    const second = beginRun();
+    expect(second.result.current.collection.tutorialSeen).toBe(true);
+    expect(second.result.current.showFirstRunGuide).toBe(false);
+  });
+
+  it('is owed again after a storage wipe, which is a new player by definition', () => {
+    const first = beginRun();
+    act(() => first.result.current.dismissFirstRunGuide());
+    first.unmount();
+    localStorage.clear();
+
+    const second = beginRun();
+    expect(second.result.current.showFirstRunGuide).toBe(true);
+  });
+});
+
+describe('collection v1 -> v2', () => {
+  it('spares a returning player the guide for a game they have finished', () => {
+    const v1 = {
+      version: 1,
+      discoveredArtifactIds: ['a'],
+      endingsSeen: ['lichdom'],
+      runsCompleted: 3,
+      bestNotoriety: 71,
+    };
+    const migrated = migrateCollection(v1);
+    expect(migrated.tutorialSeen).toBe(true);
+    // And nothing else was lost on the way through.
+    expect(migrated.runsCompleted).toBe(3);
+    expect(migrated.bestNotoriety).toBe(71);
+    expect(migrated.endingsSeen).toEqual(['lichdom']);
+  });
+
+  it('still owes it to a v1 save that never finished a career', () => {
+    expect(migrateCollection({ version: 1, runsCompleted: 0 }).tutorialSeen).toBe(false);
+  });
+
+  it('keeps an explicit false rather than inferring from runs', () => {
+    // A player who skipped the guide and then finished a run must not be
+    // reasoned back into having seen it, or the flag means nothing.
+    expect(migrateCollection({ version: 2, runsCompleted: 5, tutorialSeen: false }).tutorialSeen).toBe(
+      false,
+    );
+  });
+
+  it('carries the flag through a recorded run', () => {
+    const c = { ...emptyCollection(), tutorialSeen: true };
+    const run = { heldArtifactIds: [], eras: [], ending: 'retired_to_swamp', notoriety: 10 };
+    expect(recordRun(c, run as never, content).tutorialSeen).toBe(true);
+  });
+
+  it('reads a v2 save back exactly as written', () => {
+    const written = { ...emptyCollection(), tutorialSeen: true, runsCompleted: 2 };
+    localStorage.setItem(COLLECTION_KEY, JSON.stringify(written));
+    expect(migrateCollection(JSON.parse(localStorage.getItem(COLLECTION_KEY)!))).toEqual(written);
+  });
+});

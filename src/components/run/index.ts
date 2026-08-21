@@ -21,6 +21,9 @@ export type { LedgerRowProps } from './LedgerRow';
 export { WizardHeader } from './WizardHeader';
 export type { WizardHeaderProps } from './WizardHeader';
 
+export { FirstRunGuide } from './FirstRunGuide';
+export type { FirstRunGuideProps } from './FirstRunGuide';
+
 export { ResolutionOverlay } from './ResolutionOverlay';
 export type { ResolutionOverlayProps } from './ResolutionOverlay';
 
