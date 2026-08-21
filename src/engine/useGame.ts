@@ -126,6 +126,9 @@ export function gameReducer(state: GameState, action: Action): GameState {
         ...state,
         screen: 'run',
         run,
+        // Remembered at the moment of naming rather than at the end of the
+        // career, so an abandoned run still spares the player the retyping.
+        collection: { ...state.collection, lastWizardName: run.wizardName },
         offer: nextOffer(run, action.content),
         resolution: null,
         prophecyPending: false,

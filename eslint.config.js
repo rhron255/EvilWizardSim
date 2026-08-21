@@ -5,7 +5,10 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules', 'qa'] },
+  // `.tmp` is the gitignored scratch area. Linting it means a throwaway script
+  // — or a working copy of the repo left in it — can fail the gate for code
+  // that is not part of the build.
+  { ignores: ['dist', 'node_modules', 'qa', '.tmp'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],

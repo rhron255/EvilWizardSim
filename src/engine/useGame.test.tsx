@@ -87,6 +87,42 @@ describe('the first-run guide gate', () => {
   });
 });
 
+describe('the remembered name', () => {
+  it('is empty for a player who has never named a wizard', () => {
+    const { result } = renderHook(() => useGame(content));
+    expect(result.current.collection.lastWizardName).toBe('');
+  });
+
+  it('is kept the moment a career is named, not when it ends', () => {
+    // An abandoned run should still spare the retyping — the name is the only
+    // typing in the game.
+    const { result } = beginRun();
+    expect(result.current.collection.lastWizardName).toBe('Malachar');
+  });
+
+  it('survives a reload', () => {
+    const first = beginRun();
+    first.unmount();
+    const second = renderHook(() => useGame(content));
+    expect(second.result.current.collection.lastWizardName).toBe('Malachar');
+  });
+
+  it('takes the sanitised name the engine actually used', () => {
+    // `createRun` trims and collapses whitespace; remembering the raw input
+    // would prefill something the last run was never called.
+    const hook = renderHook(() => useGame(content));
+    act(() => hook.result.current.begin());
+    act(() => hook.result.current.create('  Vashter   the  Long  ', '', content.origins[0].id, 16));
+    expect(hook.result.current.collection.lastWizardName).toBe('Vashter the Long');
+  });
+
+  it('is re-confirmed by a finished career', () => {
+    const c = { ...emptyCollection(), lastWizardName: 'Old Name' };
+    const run = { wizardName: 'Newer Name', heldArtifactIds: [], eras: [], ending: 'lichdom', notoriety: 4 };
+    expect(recordRun(c, run as never, content).lastWizardName).toBe('Newer Name');
+  });
+});
+
 describe('collection v1 -> v2', () => {
   it('spares a returning player the guide for a game they have finished', () => {
     const v1 = {
@@ -114,6 +150,10 @@ describe('collection v1 -> v2', () => {
     expect(migrateCollection({ version: 2, runsCompleted: 5, tutorialSeen: false }).tutorialSeen).toBe(
       false,
     );
+  });
+
+  it('defaults the remembered name to empty for an older save', () => {
+    expect(migrateCollection({ version: 1, runsCompleted: 2 }).lastWizardName).toBe('');
   });
 
   it('carries the flag through a recorded run', () => {

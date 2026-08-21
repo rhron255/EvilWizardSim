@@ -63,6 +63,7 @@ export default function App() {
           epithetChoices={CREATION_EPITHETS}
           artifacts={artifacts}
           factions={factions}
+          defaultName={game.collection.lastWizardName}
           onCreate={game.create}
           onBack={game.backToTitle}
         />
