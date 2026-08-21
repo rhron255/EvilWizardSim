@@ -75,7 +75,7 @@ function noteFor(run: RunState, id: FactionId, standing: number, tone: Allegianc
     if (tone === 'lethal') {
       return armed
         ? `seals you in a gem at ${SEAL_MAX_STANDING}`
-        : `seals you at ${SEAL_MAX_STANDING}, once you are notorious`;
+        : `seals you at ${SEAL_MAX_STANDING}, once you pass ${SEAL_MIN_NOTORIETY} Notoriety`;
     }
   }
   if (tone === 'locked') return 'their relics are locked to you';
@@ -114,4 +114,30 @@ export function sealWarningFor(run: RunState): SealWarning | null {
   // Only warn once it is genuinely close; a full-health Academy is not news.
   if (margin > 25) return null;
   return { standing, margin, armed: run.notoriety >= SEAL_MIN_NOTORIETY };
+}
+
+/**
+ * The seal, written out with BOTH of its conditions.
+ *
+ * It takes two numbers to end a run this way — standing at or under
+ * `SEAL_MAX_STANDING` *and* notoriety at or over `SEAL_MIN_NOTORIETY` — and the
+ * header used to name only the first. A wizard already past the standing
+ * threshold read "The Pale Academy is done deliberating." and then died to a
+ * card that granted Notoriety and never mentioned the Academy: the fame half of
+ * the trigger was never disclosed, so the choice that armed it looked safe.
+ *
+ * Same rule as the pact caption. A threshold without the thing that trips it
+ * is half a disclosure.
+ *
+ * Every variant is held to ONE LINE at 393px — measured, not estimated
+ * (`qa/probe-seal-fit.mjs`). The header sits above the choice cards, so a
+ * second line here pushes the first card 19px further down the reference
+ * device; the sentence this replaced wrapped whenever the seal was armed,
+ * which is exactly when the player most needs the card they are about to tap.
+ */
+export function sealSentence(warning: SealWarning): string {
+  const distance =
+    warning.margin <= 0 ? 'is done deliberating' : `is ${warning.margin} from the gem`;
+  const trigger = warning.armed ? 'your fame qualifies' : `it acts at ${SEAL_MIN_NOTORIETY} Notoriety`;
+  return `The Academy ${distance} · ${trigger}.`;
 }

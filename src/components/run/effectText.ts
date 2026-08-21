@@ -24,7 +24,9 @@
  * which makes the second one look like a different class of thing.
  */
 
+import { BETRAYAL_MAX_LOYALTY, PACT_LIMIT } from '../../engine';
 import type { Artifact, Effect, EndingId, Faction, FactionId, Rarity } from '../../types';
+import type { SystemicChange } from './resolution';
 
 /**
  * How a line should be *colored*, which is not the same as its sign.
@@ -209,6 +211,59 @@ export function effectKey(effect: Effect, index: number): string {
     default:
       return `${index}-${effect.t}`;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Era-end systemic changes
+// ---------------------------------------------------------------------------
+
+/**
+ * A systemic line: the same signed magnitude an effect gets, plus the sentence
+ * that says WHO did it and how close it puts the wizard to the threshold.
+ *
+ * The note is the whole point. A bare `+1 Pact Debt` under the option's own
+ * consequences is what produced "the last action I took had nothing to do with
+ * pacts" — the number was never the missing piece, the attribution was.
+ */
+export type SystemicLine = EffectLine & { note: string };
+
+export function describeSystemic(change: SystemicChange): SystemicLine {
+  switch (change.t) {
+    case 'pactInterest':
+      return {
+        num: signed(change.v),
+        text: 'Pact Debt',
+        note:
+          change.debt >= PACT_LIMIT
+            ? `the Covenant’s interest · ${change.debt} / ${PACT_LIMIT} · the debt is called in`
+            : `the Covenant’s interest · ${change.debt} / ${PACT_LIMIT}`,
+        tone: 'down',
+      };
+
+    case 'loyaltyDrift':
+      return {
+        num: signed(change.v),
+        text: 'Loyalty',
+        note:
+          change.loyalty <= BETRAYAL_MAX_LOYALTY
+            ? `the school has been watching you weaken · at or under ${BETRAYAL_MAX_LOYALTY}% they move`
+            : `the school has been watching you weaken · they turn at ${BETRAYAL_MAX_LOYALTY}%`,
+        tone: 'down',
+      };
+
+    default: {
+      // Same guard as `describeEffect`: a new systemic tick that can end a run
+      // must be printed, not quietly dropped into the gap this type exists to
+      // close.
+      const exhaustive: never = change;
+      return { num: '', text: String(exhaustive), note: '', tone: 'neutral' };
+    }
+  }
+}
+
+/** Stable React key for a systemic change at a given position. */
+export function systemicKey(change: SystemicChange, index: number): string {
+  return `${index}-${change.t}`;
 }
 
 /** Percentage as the player sees it. Never rounded to 0% or 100%. */

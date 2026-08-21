@@ -87,13 +87,14 @@ recurred, and because the check is cheaper than the bug.
 
 ### 1. Disclosure decays after the choice
 
-The odds rule is satisfied on the card and then quietly abandoned. Three times:
+The odds rule is satisfied on the card and then quietly abandoned. Four times:
 
 | What shipped | How it presented |
 |---|---|
 | Pact debt showed its ceiling but not that it accrues `+1` per decline era | Player died at 6/7 having been shown one era of headroom that did not exist |
 | Faction standing was not on the run screen at all | `sealed_in_gem` is **18.5% of runs** and arrived with no warning, twice |
 | Stats were bare numbers | "the implications of followers, pact debt, loyalty… are not clear" |
+| The pact interest tick fired in the era-end systems, which the resolution card omits by design | "I died being consumed by the pact, even though the last action I took had nothing to do with pacts" |
 
 Standing made it worse: it moves by **contagion** along `hostileTo`, so courting
 the Covenant drives the Academy toward the seal through cards that never name the
@@ -102,6 +103,13 @@ Academy — an undisclosed downside reached by an invisible route.
 **Check:** for every field on `RunState`, ask *can this end or change a run, and
 does the screen say so?* If it counts toward a threshold, show the threshold, the
 distance, **and the rate of change**. A ceiling without its clock is a lie.
+
+And ask it again of the *resolution*: if an era-end system can end the run, the
+card reporting that era must say the tick fired, in a section of its own
+(`SystemicChange`, rendered as *While you were elsewhere*). Folding it into
+`appliedEffects` swaps one lie for another — it blames the option the player
+just picked. The line against wiki/04's doom-meter ban is drawn in that file
+now: the erosion stays quiet, the lethal counters do not.
 
 ### 2. Written but never wired
 

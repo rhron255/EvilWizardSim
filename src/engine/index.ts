@@ -10,7 +10,7 @@
 export type { ContentBundle, ContentIndex, Epithet } from './content-port';
 export { indexOf, FALLBACK_EPITHETS } from './content-port';
 
-export type { Resolution } from './resolution';
+export type { Resolution, SystemicChange } from './resolution';
 export type { CreateRunOptions } from './run';
 
 export { createRun, resolveChoice } from './run';

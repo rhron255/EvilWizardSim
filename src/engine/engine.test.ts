@@ -385,6 +385,93 @@ describe('endings', () => {
   });
 });
 
+/**
+ * The era-end ticks that can end a run on a card that never mentioned them.
+ *
+ * Reported from play: "I died being consumed by the pact, even though the last
+ * action I took had nothing to do with pacts." The interest that crossed
+ * `PACT_LIMIT` was applied in the systems block, and `appliedEffects` carries
+ * the OPTION's consequences only, so the card announcing the death listed
+ * nothing capable of causing it.
+ */
+describe('systemic disclosure', () => {
+  const quiet = {
+    id: 'test_quiet',
+    title: 'T',
+    body: 'b',
+    phase: 'any' as const,
+    options: [{ kind: 'certain' as const, label: 'Do nothing of the kind', effects: [] as Effect[] }],
+  };
+
+  /** A decline-phase run, one era in, holding whatever the caller sets. */
+  const declining = (over: Partial<RunState>): RunState => ({
+    ...start(),
+    eraIndex: 10,
+    phase: 'decline',
+    erasSinceProphecy: 1,
+    ...over,
+  });
+
+  it('reports the pact interest that ends the run', () => {
+    const run = declining({ pactDebt: 6 });
+    const { next, resolution } = resolveChoice(run, quiet, 0, fixtureContent);
+
+    expect(next.ending).toBe('consumed_by_pact');
+    expect(resolution.systemic).toContainEqual({ t: 'pactInterest', v: 1, debt: 7 });
+  });
+
+  it('does not attribute the interest to the option the player picked', () => {
+    // The other half of the fix: folding the tick into `appliedEffects` would
+    // print it under the card's own consequences, which is a different lie.
+    const { resolution } = resolveChoice(declining({ pactDebt: 6 }), quiet, 0, fixtureContent);
+    expect(resolution.appliedEffects).toEqual([]);
+  });
+
+  it('reports the loyalty drift that ends the run', () => {
+    const run = declining({ apprentices: { count: 3, loyalty: 18 } });
+    const { next, resolution } = resolveChoice(run, quiet, 0, fixtureContent);
+
+    expect(next.ending).toBe('betrayed_by_apprentice');
+    expect(resolution.systemic).toContainEqual({ t: 'loyaltyDrift', v: -5, loyalty: 13 });
+  });
+
+  it('stays silent during the ascent, when neither tick fires', () => {
+    const run = { ...start(), pactDebt: 6, apprentices: { count: 3, loyalty: 40 } };
+    expect(run.phase).toBe('ascent');
+    const { resolution } = resolveChoice(run, quiet, 0, fixtureContent);
+    expect(resolution.systemic).toEqual([]);
+  });
+
+  it('leaves decay and hero threat out of it', () => {
+    // wiki/04 § Notoriety Decay: "Do not add a doom meter." The erosion is
+    // gradual and survivable; these two ticks are lethal and countable, which
+    // is the whole distinction the section rests on.
+    const run = declining({ notoriety: 60, pactDebt: 6 });
+    const { next, resolution } = resolveChoice(run, quiet, 0, fixtureContent);
+    expect(next.heroThreat).toBeGreaterThan(0);
+    expect(resolution.systemic.map((c) => c.t)).toEqual(['pactInterest']);
+  });
+
+  it('reports nothing when the option itself ended the run', () => {
+    // The systems block is skipped entirely in that case, so claiming a tick
+    // fired would be inventing one.
+    const ends = {
+      ...quiet,
+      options: [
+        {
+          kind: 'certain' as const,
+          label: 'Walk into the swamp',
+          effects: [{ t: 'ending', endingId: 'retired_to_swamp' } as Effect],
+        },
+      ],
+    };
+    const { next, resolution } = resolveChoice(declining({ pactDebt: 6 }), ends, 0, fixtureContent);
+    expect(next.ending).toBe('retired_to_swamp');
+    expect(next.pactDebt).toBe(6);
+    expect(resolution.systemic).toEqual([]);
+  });
+});
+
 describe('the ledger', () => {
   it('appends and never rewrites', () => {
     const states = playOut(11, 1, real);

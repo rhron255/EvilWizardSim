@@ -539,6 +539,7 @@ export const demoResolutionSuccess: Resolution = {
   text: 'The molar seal opens for you. Something on the other side signs its half.',
   artifactsGained: [demoArtifacts[0]],
   notorietyDelta: 12,
+  systemic: [],
   eraRecord: {
     eraIndex: 11,
     age: 75,
@@ -566,6 +567,12 @@ export const demoResolutionFailure: Resolution = {
   text: 'Your least favourite apprentice is now the Covenant’s least favourite apprentice.',
   artifactsGained: [],
   notorietyDelta: 0,
+  // The era-end ticks that arrive whatever the card said. A decline era with
+  // real debt and a school always has these; the demo shows the shape.
+  systemic: [
+    { t: 'pactInterest', v: 1, debt: 6 },
+    { t: 'loyaltyDrift', v: -5, loyalty: 22 },
+  ],
   eraRecord: {
     ...demoResolutionSuccess.eraRecord,
     notoriety: 81,
@@ -598,6 +605,7 @@ export const demoResolutionDeterministic: Resolution = {
   ],
   text: 'The envelope burns green, which the courier says is normal.',
   artifactsGained: [],
+  systemic: [],
   notorietyDelta: 0,
   eraRecord: {
     ...demoResolutionFailure.eraRecord,

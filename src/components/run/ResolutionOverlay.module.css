@@ -56,6 +56,12 @@
 .card > *:nth-child(7) {
   animation-delay: 580ms;
 }
+.card > *:nth-child(8) {
+  animation-delay: 630ms;
+}
+.card > *:nth-child(9) {
+  animation-delay: 670ms;
+}
 
 .top {
   display: flex;
@@ -427,4 +433,87 @@
 .lairMoveFrom {
   font-size: var(--ew-size-xs);
   color: var(--ew-ink-ghost);
+}
+
+/* --------------------------------------------------------------------------
+   While you were elsewhere.
+
+   The era-end ticks that can end a run without appearing on the card that
+   reports the death. Deliberately NOT styled like the effects list above it:
+   the block is inset and labelled so it reads as the world acting, not as a
+   consequence of the option just taken. No color -- it is disclosure, not a
+   doom meter.
+   -------------------------------------------------------------------------- */
+
+.systemic {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-2);
+  padding: var(--ew-space-3) var(--ew-space-4);
+  background: var(--ew-void);
+  border: 1px solid var(--ew-line);
+  border-left: 2px solid var(--ew-ink-ghost);
+  border-radius: var(--ew-radius-sm);
+}
+
+.systemicLabel {
+  margin: 0;
+  font-size: var(--ew-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ew-ink-faint);
+}
+
+.systemicList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.systemicRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--ew-space-3);
+}
+
+.systemicNum {
+  flex: 0 0 auto;
+  min-width: 4ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  font-weight: 600;
+  font-size: var(--ew-size-sm);
+  color: var(--ew-delta-none);
+}
+
+.systemicRow[data-tone='down'] .systemicNum {
+  color: var(--ew-delta-down);
+}
+
+.systemicRow[data-tone='up'] .systemicNum {
+  color: var(--ew-delta-up);
+}
+
+.systemicBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.systemicName {
+  font-size: var(--ew-size-sm);
+  color: var(--ew-ink);
+  line-height: 1.35;
+}
+
+.systemicNote {
+  font-size: var(--ew-size-xs);
+  color: var(--ew-ink-faint);
+  line-height: 1.45;
+  text-wrap: pretty;
 }

@@ -9,6 +9,31 @@
 
 import type { Artifact, EndingId, EraRecord, Effect, Lair, Outcome, Tier } from '../types';
 
+/**
+ * A change the era-end systems made on their own, after the option resolved.
+ *
+ * These are NOT the option's consequences and must never be rendered as if
+ * they were — the whole reason this type exists is a report from play: "I died
+ * being consumed by the pact, even though the last action I took had nothing
+ * to do with pacts." Pact interest had crossed `PACT_LIMIT` in the systems
+ * block, and `appliedEffects` is the *option's* ledger, so the card that
+ * announced the death showed nothing that could have caused it.
+ *
+ * Only counters that are LETHAL, COUNTABLE and PLAYER-CONTROLLABLE belong
+ * here. Notoriety decay and hero-threat escalation deliberately do not:
+ * wiki/04 § Notoriety Decay forbids the doom meter, and "the decline works
+ * because it is a number quietly going the wrong way, not because it is
+ * announced". Announcing the tick that ENDS a run is the opposite case — it is
+ * the same disclosure the header's pact caption already makes, arriving at the
+ * moment it becomes the cause of death.
+ *
+ * `v` is the applied delta; the second field is the value it landed on, so the
+ * renderer can print the distance to the threshold without recomputing it.
+ */
+export type SystemicChange =
+  | { t: 'pactInterest'; v: number; debt: number }
+  | { t: 'loyaltyDrift'; v: number; loyalty: number };
+
 export type Resolution = {
   outcome: Outcome;
   /** Exactly what landed, for the UI to render. */
@@ -29,6 +54,13 @@ export type Resolution = {
    * reward, so the resolution now carries the move and the UI announces it.
    */
   lairMoved?: { from: Lair; to: Lair; up: boolean };
+  /**
+   * What the era-end systems did on their own. ALWAYS PRESENT, empty when
+   * nothing fired — an optional field here is exactly the shape that let the
+   * roll rail go unrendered for a whole build (see the note in
+   * `src/components/run/resolution.ts`).
+   */
+  systemic: SystemicChange[];
   ending?: EndingId;
   eraRecord: EraRecord;
 

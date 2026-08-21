@@ -11,4 +11,4 @@
  * Re-exporting is what stops that happening twice.
  */
 
-export type { Resolution } from '../../engine';
+export type { Resolution, SystemicChange } from '../../engine';
