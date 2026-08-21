@@ -53,6 +53,13 @@ export type Game = {
   backToTitle(): void;
   hasResumableRun: boolean;
   resume(): void;
+  /**
+   * The three-card guide is owed: a first-ever career, still on its first
+   * choice. Gated on `eras.length` rather than on the screen alone so a
+   * refresh mid-career does not re-open it half way through a life.
+   */
+  showFirstRunGuide: boolean;
+  dismissFirstRunGuide(): void;
 };
 
 type GameState = {
@@ -84,7 +91,8 @@ type Action =
   | { type: 'playAgain' }
   | { type: 'viewCollection' }
   | { type: 'backToTitle' }
-  | { type: 'resume'; content: ContentBundle };
+  | { type: 'resume'; content: ContentBundle }
+  | { type: 'dismissGuide' };
 
 function initialState(): GameState {
   return {
@@ -204,6 +212,13 @@ export function gameReducer(state: GameState, action: Action): GameState {
       };
     }
 
+    case 'dismissGuide': {
+      if (state.collection.tutorialSeen) return state;
+      // Written through the same effect that persists every other collection
+      // change, so a player is never shown it twice.
+      return { ...state, collection: { ...state.collection, tutorialSeen: true } };
+    }
+
     case 'resume': {
       const run = state.resumable;
       if (!run) return state;
@@ -272,6 +287,7 @@ export function useGame(content: ContentBundle): Game {
   const viewCollection = useCallback(() => dispatch({ type: 'viewCollection' }), []);
   const backToTitle = useCallback(() => dispatch({ type: 'backToTitle' }), []);
   const resume = useCallback(() => dispatch({ type: 'resume', content }), [content]);
+  const dismissFirstRunGuide = useCallback(() => dispatch({ type: 'dismissGuide' }), []);
 
   return useMemo(
     () => ({
@@ -291,6 +307,12 @@ export function useGame(content: ContentBundle): Game {
       backToTitle,
       hasResumableRun: state.resumable !== null,
       resume,
+      showFirstRunGuide:
+        !state.collection.tutorialSeen &&
+        state.screen === 'run' &&
+        state.run !== null &&
+        state.run.eras.length === 0,
+      dismissFirstRunGuide,
     }),
     [
       state.screen,
@@ -309,6 +331,7 @@ export function useGame(content: ContentBundle): Game {
       viewCollection,
       backToTitle,
       resume,
+      dismissFirstRunGuide,
     ],
   );
 }

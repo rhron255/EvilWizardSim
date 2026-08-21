@@ -82,6 +82,7 @@ export function emptyCollection(): Collection {
     endingsSeen: [],
     runsCompleted: 0,
     bestNotoriety: 0,
+    tutorialSeen: false,
   };
 }
 
@@ -102,8 +103,12 @@ function finiteNumber(value: unknown, fallback: number): number {
  * Coerce whatever is on disk into a valid `Collection`.
  *
  * Returns a fresh collection for anything unreadable or from the future.
- * Older versions are salvaged: nothing in v1 was removed, so a v0 blob (a
+ * Older versions are salvaged: nothing has ever been removed, so a v0 blob (a
  * pre-versioning save) just gets its fields lifted out and stamped.
+ *
+ * v1 -> v2 added `tutorialSeen`. A returning player who has already finished a
+ * career is not a first-time player, so their save migrates to `true` — the
+ * guide explains the ledger they have already filled in once.
  */
 export function migrateCollection(raw: unknown): Collection {
   if (!raw || typeof raw !== 'object') return emptyCollection();
@@ -114,13 +119,16 @@ export function migrateCollection(raw: unknown): Collection {
   if (version > COLLECTION_VERSION) return emptyCollection();
 
   const endings = stringArray(data.endingsSeen) as EndingId[];
+  const runsCompleted = Math.max(0, Math.round(finiteNumber(data.runsCompleted, 0)));
 
   return {
     version: COLLECTION_VERSION,
     discoveredArtifactIds: stringArray(data.discoveredArtifactIds),
     endingsSeen: endings,
-    runsCompleted: Math.max(0, Math.round(finiteNumber(data.runsCompleted, 0))),
+    runsCompleted,
     bestNotoriety: Math.max(0, Math.min(99, Math.round(finiteNumber(data.bestNotoriety, 0)))),
+    tutorialSeen:
+      typeof data.tutorialSeen === 'boolean' ? data.tutorialSeen : runsCompleted > 0,
   };
 }
 
@@ -161,6 +169,7 @@ export function recordRun(c: Collection, run: RunState, content: ContentBundle):
     // Only a finished biography counts as a completed run.
     runsCompleted: c.runsCompleted + (run.ending ? 1 : 0),
     bestNotoriety: Math.max(c.bestNotoriety, peakNotoriety(run)),
+    tutorialSeen: c.tutorialSeen,
   };
 }
 

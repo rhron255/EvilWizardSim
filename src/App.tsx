@@ -24,6 +24,7 @@ import { heroNameFor, prophecyTextFor } from './content/heroes';
 import { TitleScreen } from './screens/TitleScreen';
 import { CreationScreen } from './screens/CreationScreen';
 import { RunScreen } from './screens/RunScreen';
+import { FirstRunGuide } from './components/run';
 import { ProphecyInterstitial } from './screens/ProphecyInterstitial';
 import { EndingScreen } from './screens/EndingScreen';
 import { CollectionScreen } from './screens/CollectionScreen';
@@ -70,17 +71,23 @@ export default function App() {
     case 'run':
       if (!run) break;
       return (
-        <RunScreen
-          run={run}
-          offer={game.offer}
-          resolution={game.resolution}
-          lairs={lairs}
-          artifacts={artifacts}
-          factions={factions}
-          onChoose={game.choose}
-          onContinue={game.continueAfterResolution}
-          defense={defense}
-        />
+        <>
+          <RunScreen
+            run={run}
+            offer={game.offer}
+            resolution={game.resolution}
+            lairs={lairs}
+            artifacts={artifacts}
+            factions={factions}
+            onChoose={game.choose}
+            onContinue={game.continueAfterResolution}
+            defense={defense}
+          />
+          {/* A sibling, not a screen: the guide points at the header, the
+              ledger and the allegiance strip, so all three have to be behind
+              it while it is read. */}
+          {game.showFirstRunGuide && <FirstRunGuide onDismiss={game.dismissFirstRunGuide} />}
+        </>
       );
 
     case 'prophecy':
