@@ -61,9 +61,9 @@ export const endings: Ending[] = [
   {
     id: 'ascension',
     name: 'Ascension',
-    summary: 'You put the four back together, and the room did not survive it.',
+    summary: 'You held one of the four, and the room did not survive what you did with it.',
     narration:
-      'The four were never four things; they were one thing, broken on purpose, by people who understood precisely what it would do if it were ever not. You reassembled it in a room built for that and for nothing else, and the room did not survive the moment, and in any useful sense neither did you. The Crownlands struck your name from the tax rolls, which is as near as that office comes to conceding the supernatural. You are not dead. On certain nights the sky above the old province is the wrong color, and the people living under it stopped remarking on this a long time ago.',
+      'The four were never four things; they were one thing, broken on purpose, by people who understood precisely what it would do if it were ever not — and any shard of it will do, provided the hand holding it is famous enough to matter. Yours was. You did it in a room built for that and for nothing else, and the room did not survive the moment, and in any useful sense neither did you. The Crownlands struck your name from the tax rolls, which is as near as that office comes to conceding the supernatural. You are not dead. On certain nights the sky above the old province is the wrong color, and the people living under it stopped remarking on this a long time ago.',
     rarity: 'legendary',
   },
 ];

@@ -207,6 +207,74 @@ for (const offer of offers) {
 }
 
 // ---------------------------------------------------------------------------
+// Prose must not restate a rule the constants own
+// ---------------------------------------------------------------------------
+
+/**
+ * Ascension's price lives in `ASCENSION_LEGENDARIES` and
+ * `ASCENSION_MIN_NOTORIETY`. It has already changed once — from two
+ * legendaries to one, because two was a closed door, not a near-miss — and
+ * four user-facing strings went on telling players it took FOUR artifacts
+ * reassembled, in every build since. A game stating a rule it does not run is
+ * the same class of defect as an undisclosed downside.
+ *
+ * So content may name Ascension and must not put a COUNT in the same sentence.
+ * A number in prose is a copy of a constant, and copies drift.
+ *
+ * Deliberately not a regex. The first version of this check was one, it
+ * matched in a scratch script, silently matched nothing here, and reported the
+ * catalog clean while the bad string sat in it — which is CLAUDE.md § 5, the
+ * instrument lying, inside the very check meant to stop § 4.
+ */
+const COUNT_WORDS = new Set([
+  'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+  '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
+]);
+
+function statesAscensionPrice(text: string): string | null {
+  for (const sentence of text.split(/(?<=[.!?])\s+/)) {
+    const words = sentence.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+    if (!words.includes('ascension')) continue;
+    const count = words.find((w) => COUNT_WORDS.has(w));
+    if (count) return sentence.trim();
+  }
+  return null;
+}
+
+function checkAscensionPrice(where: string, text: string | undefined) {
+  if (!text) return;
+  const offending = statesAscensionPrice(text);
+  if (offending) {
+    fail(
+      where,
+      `puts a count in the same sentence as Ascension ("${offending}") — its price ` +
+        'lives in ASCENSION_LEGENDARIES / ASCENSION_MIN_NOTORIETY and prose will drift from it',
+    );
+  }
+}
+
+for (const a of artifacts) {
+  checkAscensionPrice(`artifact "${a.id}"`, a.effect);
+  checkAscensionPrice(`artifact "${a.id}"`, a.flavorText);
+}
+for (const e of endings) {
+  checkAscensionPrice(`ending "${e.id}"`, e.summary);
+  checkAscensionPrice(`ending "${e.id}"`, e.narration);
+}
+for (const o of offers) {
+  checkAscensionPrice(`offer "${o.id}"`, o.title);
+  checkAscensionPrice(`offer "${o.id}"`, o.body);
+  for (const opt of o.options) {
+    checkAscensionPrice(`offer "${o.id}"`, opt.label);
+    if (opt.kind === 'certain') checkAscensionPrice(`offer "${o.id}"`, opt.resultText);
+    else {
+      checkAscensionPrice(`offer "${o.id}"`, opt.successText);
+      checkAscensionPrice(`offer "${o.id}"`, opt.failureText);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Report
 // ---------------------------------------------------------------------------
 

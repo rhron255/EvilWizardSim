@@ -738,7 +738,7 @@ export const declineOffers: Offer[] = [
   {
     id: 'decline_the_squire',
     title: 'The Squire',
-    body: 'The chosen one has a squire. The squire is homesick, underpaid, and drinking in a town you own.',
+    body: 'The Chosen One has a squire. The squire is homesick, underpaid, and drinking in a town you own.',
     phase: 'decline',
     factionId: 'crownlands',
     weight: 2,
@@ -1357,7 +1357,7 @@ export const declineOffers: Offer[] = [
           { t: 'loyalty', v: -25 },
           { t: 'followers', v: -15 },
         ],
-        failureText: 'She leaves anyway, and takes the two who were undecided.',
+        failureText: 'She leaves anyway, and takes the one who was still undecided.',
       },
     ],
   },

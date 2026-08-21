@@ -54,7 +54,7 @@ function followersStake(run: RunState): Stake {
   return {
     label: 'Followers',
     value: run.followers.toLocaleString('en-US'),
-    caption: 'spent as coin — they do not fight for you',
+    caption: 'spent as coin · they do not fight for you',
   };
 }
 

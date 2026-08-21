@@ -48,7 +48,8 @@ const MINUS = '−'; // U+2212 MINUS SIGN — optically matches the plus, unlike
  * The lichdom price, written once and shared with the meta renderer so the two
  * screens can never disagree about what the player is giving up.
  */
-export const LICH_LINE = 'Become a lich · forfeit every relic and all Followers; Notoriety decay ends';
+export const LICH_LINE =
+  'Become a lich · forfeit every relic and all Followers · Notoriety decay ends';
 
 /** Signed, with a real minus sign. Zero is rare but must not render as "+0". */
 export function signed(v: number): string {
