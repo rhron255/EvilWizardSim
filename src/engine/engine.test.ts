@@ -394,6 +394,88 @@ describe('endings', () => {
  * the OPTION's consequences only, so the card announcing the death listed
  * nothing capable of causing it.
  */
+/**
+ * Novelty bias: which relic a random draw hands you, and what it must not touch.
+ *
+ * 80.9% of runs added nothing at all to the 30-slot collection, because draws
+ * are faction-bound — courting the Covenant means re-drawing Covenant commons
+ * you already own. The fix prefers a relic the player has never held, WITHIN a
+ * rarity. Across rarities it would let a veteran's exhausted commons push the
+ * draw up into legendaries, which gate Ascension: a balance target moved by a
+ * quality-of-life change, which is how this repo has broken balance before.
+ */
+describe('novelty bias', () => {
+  const covenant = real.artifacts.filter((a) => a.factionId === 'ashen_covenant');
+
+  /** Draw `n` times from one faction, with the given collection behind us. */
+  function draws(n: number, known: string[], rarity?: 'common' | 'rare' | 'legendary') {
+    const out: string[] = [];
+    for (let i = 0; i < n; i++) {
+      const run: RunState = {
+        ...start({ seed: 1000 + i }, real),
+        knownArtifactIds: known,
+        // Neutral standing: no lockout, no devotion upgrade.
+        factionStanding: { ...start({}, real).factionStanding },
+      };
+      const effect: Effect = rarity
+        ? { t: 'artifactFrom', factionId: 'ashen_covenant', rarity }
+        : { t: 'artifactFrom', factionId: 'ashen_covenant' };
+      const offer = {
+        id: `test_draw_${i}`,
+        title: 'T',
+        body: 'b',
+        phase: 'any' as const,
+        options: [{ kind: 'certain' as const, label: 'Take it', effects: [effect] }],
+      };
+      const { resolution } = resolveChoice(run, offer, 0, real);
+      const gained = resolution.artifactsGained[0];
+      if (gained) out.push(gained.id);
+    }
+    return out;
+  }
+
+  it('prefers a relic the player has never held', () => {
+    const commons = covenant.filter((a) => a.rarity === 'common').map((a) => a.id);
+    expect(commons.length).toBeGreaterThan(1);
+    // Everything but one common is already in the collection.
+    const known = commons.slice(1);
+    const got = draws(120, known).filter((id) => commons.includes(id));
+    const novel = got.filter((id) => id === commons[0]).length;
+    expect(got.length).toBeGreaterThan(20);
+    // Uniform would be 1/commons.length; the bias must beat that clearly.
+    expect(novel / got.length).toBeGreaterThan(1.6 / commons.length);
+  });
+
+  it('does not change how often a legendary drops', () => {
+    // The invariant the two-stage draw exists to protect. Same seeds, same
+    // draws, only the collection differs.
+    const blank = draws(300, []);
+    const veteran = draws(300, covenant.filter((a) => a.rarity === 'common').map((a) => a.id));
+    const rarityOf = (id: string) => real.artifacts.find((a) => a.id === id)!.rarity;
+    const share = (ids: string[], r: string) =>
+      ids.filter((id) => rarityOf(id) === r).length / Math.max(1, ids.length);
+
+    expect(blank.length).toBeGreaterThan(200);
+    expect(Math.abs(share(veteran, 'legendary') - share(blank, 'legendary'))).toBeLessThan(0.05);
+    expect(Math.abs(share(veteran, 'rare') - share(blank, 'rare'))).toBeLessThan(0.1);
+  });
+
+  it('leaves an authored rarity request exactly as authored', () => {
+    // `{ rarity: 'rare' }` is a set-piece grant. Novelty picks WHICH rare, and
+    // must never promote or demote the rank the card promised.
+    const rares = new Set(covenant.filter((a) => a.rarity === 'rare').map((a) => a.id));
+    const got = draws(40, [], 'rare');
+    expect(got.length).toBeGreaterThan(20);
+    expect(got.every((id) => rares.has(id))).toBe(true);
+  });
+
+  it('still hands over a relic when the player already owns every candidate', () => {
+    // The degenerate case: nothing novel left. The draw must not go empty.
+    const all = covenant.map((a) => a.id);
+    expect(draws(20, all).length).toBeGreaterThan(10);
+  });
+});
+
 describe('systemic disclosure', () => {
   const quiet = {
     id: 'test_quiet',

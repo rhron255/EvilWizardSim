@@ -119,6 +119,10 @@ export function gameReducer(state: GameState, action: Action): GameState {
           originId: action.originId,
           eraCount: action.eraCount,
           seed: action.seed,
+          // What this player has already found, so a random draw can prefer a
+          // relic they have never held. The engine reads no storage; the list
+          // is an argument like everything else.
+          knownArtifactIds: state.collection.discoveredArtifactIds,
         },
         action.content,
       );

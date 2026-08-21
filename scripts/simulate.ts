@@ -335,11 +335,22 @@ const LEGENDARY_IDS = new Set(
 
 const LAIR_TIER = new Map(content.lairs.map((l) => [l.id, l.tier]));
 
-function playRun(seed: number, eraCount: number, policy: Policy): RunResult {
+function playRun(
+  seed: number,
+  eraCount: number,
+  policy: Policy,
+  /**
+   * The collection this simulated player brought with them. Empty for the
+   * headline population, which measures a single career in isolation; the
+   * collection curve passes the real grid so novelty bias is measured doing
+   * the job it exists for.
+   */
+  knownArtifactIds: readonly string[] = [],
+): RunResult {
   const rng = mulberry32(seed ^ 0x5f3759df);
   const originId = content.origins[Math.floor(rng() * content.origins.length)].id;
 
-  let run = createRun({ wizardName: 'Sim', originId, eraCount, seed }, content);
+  let run = createRun({ wizardName: 'Sim', originId, eraCount, seed, knownArtifactIds }, content);
   let notorietyAtProphecy = run.notoriety;
   let peakLegendaries = 0;
   let hitLegendTierInDecline = false;
@@ -468,7 +479,12 @@ function collectionCurve(baseSeed: number, players: number, cap: number): Collec
     for (let n = 1; n <= cap; n++) {
       const eraRoll = rng();
       const eraCount = eraRoll < 0.25 ? 12 : eraRoll < 0.75 ? 16 : 20;
-      const result = playRun(baseSeed + p * 104729 + n * 7919, eraCount, pickPolicy(rng()));
+      const result = playRun(
+        baseSeed + p * 104729 + n * 7919,
+        eraCount,
+        pickPolicy(rng()),
+        Array.from(owned),
+      );
       runsPlayed++;
 
       const before = owned.size;

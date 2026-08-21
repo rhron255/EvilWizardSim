@@ -17,6 +17,7 @@ import {
   DEVOTION_STANDING,
   CONTAGION_GAIN,
   CONTAGION_LOSS,
+  NOVELTY_BIAS,
   RARITY_DRAW_WEIGHT,
   STANDING_MAX,
   STANDING_MIN,
@@ -273,20 +274,68 @@ function drawArtifact(
       devoted && rarity !== 'legendary' ? (rarity === 'common' ? 'rare' : 'legendary') : rarity;
     if (wanted !== rarity) {
       const better = unheld.filter((a) => a.rarity === wanted);
-      if (better.length > 0) return weightedPick(rng, better, () => 1);
+      if (better.length > 0) return pickNovel(draft, better, rng);
     }
 
     const exact = unheld.filter((a) => a.rarity === rarity);
-    if (exact.length > 0) return weightedPick(rng, exact, () => 1);
+    if (exact.length > 0) return pickNovel(draft, exact, rng);
     // That rarity is exhausted for this faction — fall back to the next tier
     // down rather than silently granting nothing.
     const rank = RARITY_RANK[rarity];
     const below = unheld.filter((a) => RARITY_RANK[a.rarity] < rank);
     if (below.length === 0) return undefined;
-    return weightedPick(rng, below, (a) => RARITY_DRAW_WEIGHT[a.rarity]);
+    return drawByRarityThenNovelty(draft, below, rng);
   }
 
-  return weightedPick(rng, unheld, (a) => RARITY_DRAW_WEIGHT[a.rarity]);
+  return drawByRarityThenNovelty(draft, unheld, rng);
+}
+
+/**
+ * One of a fixed rarity, preferring a relic the player has never held.
+ *
+ * An authored `{ rarity: 'legendary' }` is a set-piece grant and stays exactly
+ * that — this only decides WHICH legendary, and a player who already owns one
+ * of them should meet a different one.
+ */
+function pickNovel(draft: RunState, candidates: Artifact[], rng: Rng): Artifact | undefined {
+  const known = new Set(draft.knownArtifactIds);
+  return weightedPick(rng, candidates, (a) => (known.has(a.id) ? 1 : NOVELTY_BIAS));
+}
+
+/**
+ * The uncapped draw, in two stages.
+ *
+ * STAGE ONE picks the rarity on `RARITY_DRAW_WEIGHT`, weighting each rarity by
+ * the sum of its members' weights. That is arithmetically the same
+ * distribution the old single-stage `weightedPick` produced, so how often a
+ * legendary drops — the thing that gates Ascension — is untouched.
+ *
+ * STAGE TWO spends the remaining choice on novelty: a relic the player has
+ * never held in any career outweighs one already in their collection by
+ * `NOVELTY_BIAS`.
+ *
+ * Splitting it this way is the whole point. Novelty across rarities would let
+ * a veteran player's exhausted commons push the draw up into legendaries and
+ * quietly move a balance target; novelty inside a rarity cannot.
+ */
+function drawByRarityThenNovelty(draft: RunState, pool: Artifact[], rng: Rng): Artifact | undefined {
+  if (pool.length === 0) return undefined;
+
+  const byRarity = new Map<Rarity, Artifact[]>();
+  for (const a of pool) {
+    const bucket = byRarity.get(a.rarity);
+    if (bucket) bucket.push(a);
+    else byRarity.set(a.rarity, [a]);
+  }
+
+  const rarity = weightedPick(
+    rng,
+    Array.from(byRarity.keys()),
+    (r) => RARITY_DRAW_WEIGHT[r] * (byRarity.get(r)?.length ?? 0),
+  );
+  if (!rarity) return undefined;
+
+  return pickNovel(draft, byRarity.get(rarity) ?? [], rng);
 }
 
 // ---------------------------------------------------------------------------

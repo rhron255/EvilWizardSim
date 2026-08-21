@@ -32,6 +32,18 @@ const OUTCOME_WORD: Record<Resolution['outcome'], string> = {
   deterministic: 'Resolved',
 };
 
+/**
+ * At or below this probability, a win is worth naming.
+ *
+ * Reported from play: there are not enough moments that feel like getting away
+ * with something. The game already produces them — a 1-in-5 gamble comes off
+ * several times a career — and then reports them in the same small grey word
+ * it uses for buying a hat. This is not comedy in the numbers (rule 4): the
+ * number was printed before the commit, the roll is on the rail above, and
+ * this only says out loud which side of it the player landed on.
+ */
+const LONG_ODDS = 0.4;
+
 export function ResolutionOverlay({
   resolution,
   artifacts,
@@ -58,6 +70,8 @@ export function ResolutionOverlay({
 
   const { outcome, roll, odds, eraRecord, notorietyDelta, tierCrossed } = resolution;
   const showRoll = outcome !== 'deterministic' && roll !== undefined && odds !== undefined;
+  const againstTheOdds = outcome === 'success' && odds !== undefined && odds <= LONG_ODDS;
+  const newRelicIds = new Set(resolution.newToCollection.map((a) => a.id));
   const notoriety = eraRecord.notoriety;
   const cardTier = tierCrossed ?? tierFor(notoriety);
 
@@ -87,6 +101,11 @@ export function ResolutionOverlay({
             <p className={styles.outcome} id={headingId}>
               {OUTCOME_WORD[outcome]}
             </p>
+            {againstTheOdds && (
+              <p className={styles.againstOdds}>
+                Against the odds · <span className="ew-num">{formatOdds(odds)}</span>
+              </p>
+            )}
             <p className={styles.era}>
               <span className="ew-num">Era {eraRecord.eraIndex + 1}</span>
               <span className={styles.dot} aria-hidden="true">
@@ -158,7 +177,7 @@ export function ResolutionOverlay({
         {resolution.artifactsGained.length > 0 && (
           <div className={styles.relics}>
             {resolution.artifactsGained.map((a) => (
-              <div key={a.id} className={styles.relic}>
+              <div key={a.id} className={styles.relic} data-new={newRelicIds.has(a.id) || undefined}>
                 <span className={styles.relicMark} aria-hidden="true">
                   ◆
                 </span>
@@ -167,6 +186,13 @@ export function ResolutionOverlay({
                     {a.name}
                     <span className={styles.relicRarity}>{a.rarity}</span>
                   </span>
+                  {/* The collection is 30 silhouettes a player fills across
+                      many careers, and until now the run that finally filled
+                      one looked exactly like picking up a relic they already
+                      owned. */}
+                  {newRelicIds.has(a.id) && (
+                    <span className={styles.relicNew}>Never seen before</span>
+                  )}
                   <span className={styles.relicFlavor}>{a.flavorText}</span>
                 </span>
               </div>

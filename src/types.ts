@@ -258,6 +258,15 @@ export type RunState = {
   followers: number;
   lairId: string;
   heldArtifactIds: string[];
+  /**
+   * Relics this PLAYER has discovered in earlier careers, from the persisted
+   * collection. Read-only within a run: it never changes, and it exists so a
+   * random draw can prefer something new (see `NOVELTY_BIAS`).
+   *
+   * The engine still knows nothing about storage — the list is handed to
+   * `createRun` like everything else.
+   */
+  knownArtifactIds: string[];
   factionStanding: Record<FactionId, number>;
   apprentices: { count: number; loyalty: number };
   pactDebt: number;

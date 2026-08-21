@@ -155,6 +155,38 @@ the behavior that produces hundred-run players.
 - Rarity mix proposal: 16 common, 10 rare, 4 legendary.
 - Legendary artifacts gate the Ascension ending.
 
+### How fast the grid actually fills — measured
+
+`npm run sim` plays sequential careers for one player and folds each into a
+persistent grid, exactly as `recordRun` does. The first measurement, before
+anything was tuned for it:
+
+| | |
+|---|---|
+| relics discovered per career | 1.16 |
+| careers that discover nothing at all | 29.7% |
+| slots filled after 40 careers | 11.8 / 30 |
+| careers that add nothing new (steady state) | 80.9% |
+
+Two things follow, and they pull in opposite directions:
+
+1. **The gap is safe.** Nobody is completing this grid by accident; "the
+   visible gap is the point" holds without any further rationing, and a change
+   that fills it faster is not obviously wrong.
+2. **The gap is nearly static.** A player forty careers in is still looking at
+   eighteen silhouettes and adding one every six runs. Past some point a gap
+   that never closes stops reading as a near-miss and starts reading as
+   wallpaper.
+
+Draws are faction-bound, which is what causes it: courting the Covenant means
+re-drawing Covenant commons already in the collection. `NOVELTY_BIAS` makes a
+draw prefer a relic the player has never held, WITHIN a rarity — never across
+one, because rarity is what gates Ascension. It is worth what it costs
+(+0.6 slots at forty careers) and it is not the lever anyone should reach for
+next: **the binding constraint is how often a career draws at all** — 33
+relic-granting options across 110 offers. More granting offers is the change
+that would move this number.
+
 ## Offers & Events
 
 - Target **80–120** authored offers for launch; below ~60 repetition

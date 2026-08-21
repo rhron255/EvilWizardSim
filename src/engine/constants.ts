@@ -139,6 +139,30 @@ export const FACTION_OFFER_GAP = 3;
  */
 export const RARITY_DRAW_WEIGHT = { common: 12, rare: 3, legendary: 0.5 } as const;
 
+/**
+ * How much a relic the player has NEVER SEEN outweighs one already in their
+ * collection, when both are the same rarity and both are on the table.
+ *
+ * Measured, not guessed. Before this existed, 80.9% of runs added nothing at
+ * all to the 30-slot grid and a player held 11.8 slots after FORTY careers —
+ * because draws are faction-bound, so courting the Covenant means re-drawing
+ * Covenant commons you already own, forever. wiki/02 says "the visible gap is
+ * the point", but a gap that never closes stops being a near-miss and becomes
+ * wallpaper.
+ *
+ * It is applied WITHIN a rarity, never across one: the rarity is drawn first,
+ * on the weights above, and only then does novelty choose between that
+ * rarity's candidates. So this cannot change how often a legendary drops,
+ * which is what gates Ascension. `engine.test.ts` asserts that invariant
+ * rather than trusting this comment.
+ *
+ * Worth knowing before reaching for a bigger number: raising this is NOT how
+ * the collection fills. It bought 0.6 slots at forty runs, because the real
+ * constraint is how often a run draws at all (33 granting options across 110
+ * offers, ~1.16 relics a run), not which relic it gets.
+ */
+export const NOVELTY_BIAS = 6;
+
 // ---------------------------------------------------------------------------
 // Ending thresholds — wiki/01 § 7
 // ---------------------------------------------------------------------------
