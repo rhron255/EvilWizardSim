@@ -163,11 +163,31 @@
 
   .deedLair {
     display: block;
-    margin-top: 0.1rem;
+    margin-top: 0;
+    /* The lair line is a second line inside the Deeds cell and therefore sets
+       the row height on a phone. Leading, not size, is what it can give back —
+       shrinking it further would cost legibility at era twenty, which is the
+       one thing the aging gradient exists to protect.
+       It must also never wrap: "Citadel of Nine Winters" is wider than this
+       column, and a two-line lair name makes one row taller than the others,
+       which breaks the row-count the collapsed ledger height is cut to. */
+    line-height: 1.25;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 
   .cell {
-    padding-right: var(--ew-space-2);
+    padding: 0.3rem var(--ew-space-2) 0.3rem 0;
     font-size: var(--ew-size-xs);
+    line-height: 1.35;
+  }
+
+  .cell:first-child {
+    padding-left: var(--ew-space-2);
+  }
+
+  .cell:last-child {
+    padding-right: var(--ew-space-2);
   }
 }

@@ -15,12 +15,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Artifact, Ending, Faction, Lair, RunState } from '../types';
 import {
   ArtifactGrid,
+  ATTRIBUTION_LABEL,
   CornerMarks,
   FactionGlyph,
   Flourish,
   LairGrid,
   Sigil,
   StatBlock,
+  attributionFor,
   canRenderShareImage,
   lairTenures,
   peakNotoriety,
@@ -30,6 +32,7 @@ import {
   tierVars,
 } from '../components/meta';
 import type { ArtifactGridEntry } from '../components/meta';
+import { heroNameFor } from '../content/heroes';
 import styles from './EndingScreen.module.css';
 
 export type EndingScreenProps = {
@@ -94,6 +97,20 @@ export function EndingScreen({
   const tier = tierOf(peak);
   const startAge = run.eras[0]?.age ?? run.age;
   const tenures = useMemo(() => lairTenures(run, lairs), [run, lairs]);
+
+  /**
+   * Who ended it. `null` for the three self-determined endings, which render
+   * no attribution at all — see components/meta/attribution.ts for why that is
+   * a design decision rather than a missing case.
+   *
+   * The hero is resolved here rather than passed in because the seed is the
+   * only input: the same seed always faces the same chosen one, which is what
+   * makes a replayed seed a rematch and what lets recognition accrue.
+   */
+  const attribution = useMemo(
+    () => attributionFor(ending.id, { heroName: heroNameFor(run.seed), factions }),
+    [ending.id, run.seed, factions],
+  );
 
   const relics: ArtifactGridEntry[] = useMemo(() => {
     const recovered = new Set<string>([
@@ -191,6 +208,16 @@ export function EndingScreen({
         <section className={`${styles.ending} ${at(2)}`}>
           <p className={styles.sectionLabel}>Its conclusion</p>
           <h2 className={styles.endingName}>{ending.name}</h2>
+          {/* The agent, directly under the ending it caused — this is the line
+              a player screenshots, and the reason the cast is fixed. Absent
+              entirely for the self-determined endings; there is no "—" or
+              "nobody" placeholder, because a blank is the honest answer. */}
+          {attribution ? (
+            <p className={styles.attribution} data-attribution>
+              <span className={styles.attributionLabel}>{ATTRIBUTION_LABEL}</span>
+              <span className={styles.attributionName}>{attribution}</span>
+            </p>
+          ) : null}
           <p className={styles.narration}>{ending.narration}</p>
         </section>
 
@@ -287,16 +314,25 @@ export function EndingScreen({
         </footer>
       </article>
 
-      {/* --- controls, deliberately outside the card ------------------------ */}
+      {/* --- controls, deliberately outside the card ------------------------
+          Play again leads: this is a replay game, and the run that just ended
+          is the argument for the next one. Share and collection are real but
+          secondary, so they share one row beneath it. DOM order is visual
+          order — no `order:` shuffling, so tab order matches what is read. */}
       <nav className={`${styles.controls} ${at(6)}`} aria-label="After the run">
-        <button type="button" className={styles.primary} onClick={handleShare} disabled={share === 'working'}>
+        <button type="button" className={styles.primary} onClick={onPlayAgain}>
+          Play again
+        </button>
+        <button
+          type="button"
+          className={styles.secondary}
+          onClick={handleShare}
+          disabled={share === 'working'}
+        >
           {shareLabel}
         </button>
         <button type="button" className={styles.secondary} onClick={onViewCollection}>
           View collection
-        </button>
-        <button type="button" className={styles.secondary} onClick={onPlayAgain}>
-          Play again
         </button>
       </nav>
 

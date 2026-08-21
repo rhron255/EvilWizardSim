@@ -31,6 +31,9 @@ export type { LairTenure } from './tenure';
 export { formatEffect, formatEffects, isNegative, signed } from './effectText';
 export type { EffectContext } from './effectText';
 
+export { attributionFor, ATTRIBUTION_LABEL } from './attribution';
+export type { AttributionContext } from './attribution';
+
 export { tierVars, tierOf, peakNotoriety } from './tierVars';
 export type { TierVars } from './tierVars';
 

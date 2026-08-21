@@ -39,10 +39,16 @@ const MAX_NAME = 40;
 /** Sizes the placeholder when the field is empty, so it does not jump on type. */
 const PLACEHOLDER_LEN = 8;
 
+/**
+ * Notes are kept to three words or so on purpose. This screen is the longest
+ * scroll in the game on a phone and none of it is play — every line here is a
+ * line between the player and the first choice. The MECHANICAL part (era count
+ * and the years it buys) is never abbreviated; only the flavour is.
+ */
 const LENGTHS = [
-  { eras: 12, name: 'Brief', note: 'A short, loud life.' },
+  { eras: 12, name: 'Brief', note: 'Short and loud.' },
   { eras: 16, name: 'Standard', note: 'The intended shape.' },
-  { eras: 20, name: 'Long', note: 'More decisions, more to lose.' },
+  { eras: 20, name: 'Long', note: 'More to lose.' },
 ] as const;
 
 export function CreationScreen({
@@ -119,7 +125,7 @@ export function CreationScreen({
           </div>
 
           <p className={styles.help} id={`${nameId}-help`}>
-            The seal is drawn from the name. This is the only thing you will type all game.
+            The seal is drawn from the name. The only thing you will type all game.
           </p>
         </section>
 
@@ -240,8 +246,7 @@ export function CreationScreen({
           </div>
 
           <p className={styles.help}>
-            Length sets how many decisions you make, not how hard they are. A brief career is not an
-            easier one.
+            Length sets how many decisions you make, not how hard they are.
           </p>
         </fieldset>
 
