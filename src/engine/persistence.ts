@@ -83,6 +83,7 @@ export function emptyCollection(): Collection {
     runsCompleted: 0,
     bestNotoriety: 0,
     tutorialSeen: false,
+    lastWizardName: '',
   };
 }
 
@@ -129,6 +130,9 @@ export function migrateCollection(raw: unknown): Collection {
     bestNotoriety: Math.max(0, Math.min(99, Math.round(finiteNumber(data.bestNotoriety, 0)))),
     tutorialSeen:
       typeof data.tutorialSeen === 'boolean' ? data.tutorialSeen : runsCompleted > 0,
+    // Added alongside `tutorialSeen` in the same unreleased v2, so no save in
+    // the wild has ever been without it; absence just means "never named one".
+    lastWizardName: typeof data.lastWizardName === 'string' ? data.lastWizardName.slice(0, 40) : '',
   };
 }
 
@@ -170,6 +174,9 @@ export function recordRun(c: Collection, run: RunState, content: ContentBundle):
     runsCompleted: c.runsCompleted + (run.ending ? 1 : 0),
     bestNotoriety: Math.max(c.bestNotoriety, peakNotoriety(run)),
     tutorialSeen: c.tutorialSeen,
+    // A finished career re-confirms the name, so the next creation screen
+    // opens on the wizard the player actually played.
+    lastWizardName: run.wizardName || c.lastWizardName,
   };
 }
 

@@ -311,6 +311,14 @@ type RunResult = {
   peakLegendaries: number;
   hitLegendTierInDecline: boolean;
   declineDeltas: number[];
+  /**
+   * What this run would add to the persistent collection.
+   *
+   * NOT the same as `artifacts` (held at the end): `recordRun` counts an
+   * artifact as discovered even if the run later lost it or a lich forfeited
+   * it, so this is held-at-end UNION everything gained along the way.
+   */
+  discoveredIds: string[];
   /** Distinct lairs occupied across the run — the ending card's trophy grid. */
   lairsHeld: number;
   peakLairTier: number;
@@ -361,6 +369,11 @@ function playRun(seed: number, eraCount: number, policy: Policy): RunResult {
   let peak = run.notoriety;
   for (const era of run.eras) peak = Math.max(peak, era.notoriety);
 
+  // Mirrors `recordRun` in src/engine/persistence.ts. If that ever stops
+  // agreeing with this, the harness is measuring a collection nobody owns.
+  const discovered = new Set(run.heldArtifactIds);
+  for (const era of run.eras) for (const id of era.artifactsGained) discovered.add(id);
+
   const lairIds = new Set(run.eras.map((e) => e.lairId));
   lairIds.add(run.lairId);
   let peakLairTier = 0;
@@ -387,12 +400,103 @@ function playRun(seed: number, eraCount: number, policy: Policy): RunResult {
     peakLegendaries,
     hitLegendTierInDecline,
     declineDeltas,
+    discoveredIds: Array.from(discovered),
     lairsHeld: lairIds.size,
     peakLairTier,
     becameLich,
     repeatedDeedLines,
     distinctDeedLines: new Set(deedLines).size,
     deedLines,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// The collection, across a career of careers
+// ---------------------------------------------------------------------------
+
+/**
+ * How fast the 30-slot grid fills for ONE player playing run after run.
+ *
+ * A per-run average cannot answer this. Discovery is coupon-collecting with
+ * correlated draws — artifacts are faction-bound, and a player who courts the
+ * Covenant keeps re-drawing Covenant relics they already own — so the only
+ * honest measurement is to play a sequence and fold each run into a persistent
+ * set, exactly as `recordRun` does.
+ *
+ * wiki/02: "The collection grid shows all 30 slots from run one; undiscovered
+ * ones render as silhouettes with the name hidden. The visible gap is the
+ * point." That is the intent this measures against.
+ */
+type CollectionCurve = {
+  players: number;
+  cap: number;
+  slots: number;
+  /** Mean slots filled after n runs. */
+  after: Map<number, number>;
+  /** Median runs to reach half the grid, and all of it. `cap + 1` means "not within cap". */
+  medianRunsToHalf: number;
+  medianRunsToFull: number;
+  /** Share of runs that add nothing the player did not already have. */
+  barrenRunRate: number;
+};
+
+function pickPolicy(roll: number): Policy {
+  let acc = 0;
+  for (const [name, share] of POPULATION) {
+    acc += share;
+    if (roll < acc) return name;
+  }
+  return 'adaptive';
+}
+
+function collectionCurve(baseSeed: number, players: number, cap: number): CollectionCurve {
+  const slots = content.artifacts.length;
+  const half = Math.ceil(slots / 2);
+  const marks = [1, 3, 5, 10, 20, 40];
+  const totals = new Map<number, number>(marks.map((m) => [m, 0]));
+  const toHalf: number[] = [];
+  const toFull: number[] = [];
+  let runsPlayed = 0;
+  let barren = 0;
+
+  for (let p = 0; p < players; p++) {
+    const rng = mulberry32((baseSeed + p * 104729) ^ 0xbeef);
+    const owned = new Set<string>();
+    let halfAt = cap + 1;
+    let fullAt = cap + 1;
+
+    for (let n = 1; n <= cap; n++) {
+      const eraRoll = rng();
+      const eraCount = eraRoll < 0.25 ? 12 : eraRoll < 0.75 ? 16 : 20;
+      const result = playRun(baseSeed + p * 104729 + n * 7919, eraCount, pickPolicy(rng()));
+      runsPlayed++;
+
+      const before = owned.size;
+      for (const id of result.discoveredIds) owned.add(id);
+      if (owned.size === before) barren++;
+
+      if (halfAt > cap && owned.size >= half) halfAt = n;
+      if (fullAt > cap && owned.size >= slots) fullAt = n;
+      if (totals.has(n)) totals.set(n, (totals.get(n) ?? 0) + owned.size);
+      // Nothing left to discover; the remaining runs would only cost time.
+      if (owned.size >= slots) {
+        for (const m of marks) if (m > n) totals.set(m, (totals.get(m) ?? 0) + owned.size);
+        break;
+      }
+    }
+
+    toHalf.push(halfAt);
+    toFull.push(fullAt);
+  }
+
+  return {
+    players,
+    cap,
+    slots,
+    after: new Map(marks.map((m) => [m, (totals.get(m) ?? 0) / players])),
+    medianRunsToHalf: median(toHalf),
+    medianRunsToFull: median(toFull),
+    barrenRunRate: barren / Math.max(1, runsPlayed),
   };
 }
 
@@ -429,6 +533,18 @@ function padLeft(s: string, n: number): string {
 
 function mean(xs: number[]): number {
   return xs.length === 0 ? 0 : xs.reduce((a, b) => a + b, 0) / xs.length;
+}
+
+/**
+ * Median, not mean, for "runs until X": the distribution has a tail of players
+ * who never get there inside the cap, and a mean over a censored tail is a
+ * number about the cap rather than about the game.
+ */
+function median(xs: number[]): number {
+  if (xs.length === 0) return 0;
+  const sorted = xs.slice().sort((a, b) => a - b);
+  const mid = sorted.length >> 1;
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
 function rule(width = 66): string {
@@ -486,6 +602,9 @@ function main(): void {
   }
 
   const total = results.length;
+  // Sequential careers, folded into one persistent grid. Smaller populations
+  // than the run sample because each "player" is up to `cap` whole runs.
+  const curve = collectionCurve(baseSeed ^ 0x51ede5, 120, 60);
   const byEnding = new Map<EndingId, number>();
   for (const r of results) byEnding.set(r.ending, (byEnding.get(r.ending) ?? 0) + 1);
 
@@ -603,6 +722,12 @@ function main(): void {
   row('  ...Named Threat (60+)', tierReach(60));
   row('  ...Kingdom-Level (75+, violet)', tierReach(75));
   row('  ...Legend (90+, gold)', tierReach(90));
+  console.log(rule());
+  row('mean relics discovered per run', mean(results.map((r) => r.discoveredIds.length)).toFixed(2));
+  row(
+    'runs discovering nothing at all',
+    pct(results.filter((r) => r.discoveredIds.length === 0).length, total),
+  );
   console.log(rule());
   row('mean lairs held per run', mean(results.map((r) => r.lairsHeld)).toFixed(2));
   row('mean peak lair tier', mean(results.map((r) => r.peakLairTier)).toFixed(2));
@@ -728,6 +853,22 @@ function main(): void {
       `${(repeatRate * 100).toFixed(2)}%`,
     ],
   ];
+
+  // --- the collection, across a career of careers -------------------------
+  console.log('');
+  console.log(`THE COLLECTION  (${curve.players} players, ${curve.slots} slots, cap ${curve.cap} runs)`);
+  console.log(rule());
+  for (const [n, filled] of curve.after) {
+    row(
+      `mean slots filled after ${n} run${n === 1 ? '' : 's'}`,
+      `${filled.toFixed(1)} / ${curve.slots}`,
+    );
+  }
+  console.log(rule());
+  const capped = (v: number) => (v > curve.cap ? `>${curve.cap}` : String(v));
+  row('median runs to half the grid', capped(curve.medianRunsToHalf));
+  row('median runs to the full grid', capped(curve.medianRunsToFull));
+  row('runs that add nothing new', `${(curve.barrenRunRate * 100).toFixed(1)}%`);
 
   console.log('');
   console.log('TARGET CHECKS');

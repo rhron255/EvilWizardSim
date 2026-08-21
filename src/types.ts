@@ -285,6 +285,15 @@ export type Collection = {
    * PLAYER, not of a career — a second run must not re-explain the ledger.
    */
   tutorialSeen: boolean;
+  /**
+   * The last name the player typed, carried into the next creation screen.
+   *
+   * The name is the only typing in the game and the anchor the whole run hangs
+   * off (reference principle 1). Asking for it again from scratch every run
+   * taxes the one input-heavy moment, and most players are continuing the same
+   * wizard's story anyway. Empty string until a first career is named.
+   */
+  lastWizardName: string;
 };
 
 // ---------------------------------------------------------------------------

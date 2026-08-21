@@ -642,6 +642,7 @@ export const demoCollection: Collection = {
   endingsSeen: ['slain_by_chosen_one', 'retired_to_swamp', 'betrayed_by_apprentice'],
   runsCompleted: 23,
   tutorialSeen: true,
+  lastWizardName: 'Malvorn Ashgrave',
   bestNotoriety: 88,
 };
 
@@ -652,6 +653,7 @@ export const demoEmptyCollection: Collection = {
   endingsSeen: [],
   runsCompleted: 0,
   tutorialSeen: false,
+  lastWizardName: '',
   bestNotoriety: 0,
 };
 

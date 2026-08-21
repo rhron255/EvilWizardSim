@@ -10,7 +10,7 @@
  * between three or four things. No stat allocation, no sliders.
  */
 
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { Artifact, Faction, Origin } from '../types';
 import { formatEffect, isNegative, Sigil, tierVars } from '../components/meta';
 import styles from './CreationScreen.module.css';
@@ -18,6 +18,11 @@ import styles from './CreationScreen.module.css';
 export type CreationScreenProps = {
   origins: Origin[];
   epithetChoices: string[];
+  /**
+   * The last name this player used, or ''. Prefilled and selected, so a second
+   * career is one tap away and a different one is still just typing.
+   */
+  defaultName?: string;
   /** Catalog, so an origin that grants a relic can name it. */
   artifacts: Artifact[];
   factions: Faction[];
@@ -56,16 +61,27 @@ export function CreationScreen({
   epithetChoices,
   artifacts,
   factions,
+  defaultName = '',
   onCreate,
   onBack,
 }: CreationScreenProps) {
-  const [name, setName] = useState('');
+  const [name, setName] = useState(defaultName);
   const [epithet, setEpithet] = useState(epithetChoices[0] ?? '');
   const [originId, setOriginId] = useState(origins[0]?.id ?? '');
   const [eraCount, setEraCount] = useState<number>(16);
 
   const nameId = useId();
   const groupId = useId();
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  // Prefilled AND selected: the remembered name is a default, not a decision.
+  // Typing replaces it whole, which is what a player wanting a new wizard
+  // does; tapping once puts the caret where they touched, which is what a
+  // player fixing a typo does. Selecting only on mount keeps both.
+  useEffect(() => {
+    if (defaultName) nameRef.current?.select();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const trimmed = name.trim();
   const ready = trimmed.length > 0 && Boolean(originId);
@@ -100,6 +116,7 @@ export function CreationScreen({
               </label>
               <input
                 id={nameId}
+                ref={nameRef}
                 className={styles.nameInput}
                 // Genuinely dynamic: the type size is a function of how much
                 // name there is. CSS does the arithmetic against the field's
