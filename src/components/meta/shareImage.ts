@@ -121,6 +121,45 @@ function wrap(ctx: CanvasRenderingContext2D, str: string, maxWidth: number, font
   return lines;
 }
 
+/**
+ * As many WHOLE SENTENCES of a narration as `maxLines` will hold.
+ *
+ * The card used to wrap and `.slice(0, 5)` with no ellipsis, and every one of
+ * the seven endings overran — measured, `qa/probe-share-narration.mjs`. So the
+ * most-shared object in the game (wiki/01 § 8) always stopped mid-clause, and
+ * `consumed_by_pact` stopped one word before its punchline: "the only
+ * commendation it is permitted to give:".
+ *
+ * The card is a fixed 1080x1350 with variable content underneath, so buying
+ * three more lines is not free. Ending on a complete thought is.
+ */
+function fitSentences(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  font: string,
+  maxLines: number,
+): string[] {
+  const sentences = text.match(/[^.!?]+[.!?]+["’]?\s*/g) ?? [text];
+
+  let kept = '';
+  for (const sentence of sentences) {
+    const candidate = `${kept}${sentence}`.trim();
+    if (wrap(ctx, candidate, maxWidth, font).length > maxLines) break;
+    kept = `${candidate} `;
+  }
+
+  const whole = kept.trim();
+  if (whole) return wrap(ctx, whole, maxWidth, font);
+
+  // Not even the first sentence fits. Cut on a line and admit it — an ellipsis
+  // reads as an edit, a bare fragment reads as a bug.
+  const lines = wrap(ctx, text, maxWidth, font).slice(0, maxLines);
+  const last = lines.length - 1;
+  if (last >= 0) lines[last] = `${lines[last].replace(/[,;:\s]+$/, '')}…`;
+  return lines;
+}
+
 function hairline(ctx: CanvasRenderingContext2D, x1: number, y: number, x2: number, color: string, alpha = 1) {
   ctx.save();
   ctx.globalAlpha = alpha;
@@ -370,7 +409,7 @@ function paintCard(ctx: CanvasRenderingContext2D, input: ShareEndingInput) {
   y += 40;
 
   const narrationFont = `italic 400 25px ${DISPLAY}`;
-  const narrationLines = wrap(ctx, ending.narration, inner - 120, narrationFont).slice(0, 5);
+  const narrationLines = fitSentences(ctx, ending.narration, inner - 120, narrationFont, 5);
   for (const line of narrationLines) {
     drawText(ctx, line, cx, y, { font: narrationFont, color: ink.dim, align: 'center' });
     y += 34;
