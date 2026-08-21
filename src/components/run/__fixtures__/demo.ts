@@ -359,6 +359,9 @@ export const demoRun: RunState = {
   notoriety: 81,
   followers: 1284,
   lairId: 'cathedral_of_ash',
+  // Two of the five held relics are already in this player's collection, so
+  // the fixtures can show both states of the "never seen before" mark.
+  knownArtifactIds: ['coin_of_seven_faces', 'ashen_censer'],
   heldArtifactIds: [
     'coin_of_seven_faces',
     'ashen_censer',
@@ -538,6 +541,7 @@ export const demoResolutionSuccess: Resolution = {
   ],
   text: 'The molar seal opens for you. Something on the other side signs its half.',
   artifactsGained: [demoArtifacts[0]],
+  newToCollection: [demoArtifacts[0]],
   notorietyDelta: 12,
   systemic: [],
   eraRecord: {
@@ -566,6 +570,7 @@ export const demoResolutionFailure: Resolution = {
   ],
   text: 'Your least favourite apprentice is now the Covenant’s least favourite apprentice.',
   artifactsGained: [],
+  newToCollection: [],
   notorietyDelta: 0,
   // The era-end ticks that arrive whatever the card said. A decline era with
   // real debt and a school always has these; the demo shows the shape.
@@ -605,6 +610,7 @@ export const demoResolutionDeterministic: Resolution = {
   ],
   text: 'The envelope burns green, which the courier says is normal.',
   artifactsGained: [],
+  newToCollection: [],
   systemic: [],
   notorietyDelta: 0,
   eraRecord: {

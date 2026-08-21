@@ -12,7 +12,7 @@
  * whole build because nothing rendered the component with real engine output.
  */
 import { describe, expect, it } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { artifacts } from '../../content/artifacts';
 import { factions } from '../../content/factions';
 import { BETRAYAL_MAX_LOYALTY, PACT_LIMIT } from '../../engine';
@@ -31,6 +31,63 @@ const show = (systemic: SystemicChange[], over: Partial<Resolution> = {}) =>
   );
 
 const section = () => screen.getByText('While you were elsewhere').closest('div')!;
+
+describe('ResolutionOverlay · the verdict', () => {
+  it('names a win and a loss with different words', () => {
+    // "the failure / success indication is not clear enough" — the two cases
+    // used to differ by one shade of grey on a six-point word.
+    show([], { outcome: 'success' });
+    expect(screen.getByText('Success')).toBeInTheDocument();
+    cleanup();
+    show([], { outcome: 'failure' });
+    expect(screen.getByText('Failure')).toBeInTheDocument();
+  });
+
+  it('carries the verdict on the card itself, not only in the word', () => {
+    show([], { outcome: 'failure' });
+    expect(document.querySelector('[data-outcome="failure"]')).toBeInTheDocument();
+  });
+
+  it('says so when a long shot comes off', () => {
+    show([], { outcome: 'success', odds: 0.18, roll: 0.05 });
+    expect(screen.getByText(/Against the odds/)).toBeInTheDocument();
+    expect(screen.getByText('18%')).toBeInTheDocument();
+  });
+
+  it('keeps quiet about a win that was always likely', () => {
+    show([], { outcome: 'success', odds: 0.85, roll: 0.1 });
+    expect(screen.queryByText(/Against the odds/)).toBeNull();
+  });
+
+  it('never congratulates a loss at long odds', () => {
+    show([], { outcome: 'failure', odds: 0.18, roll: 0.9 });
+    expect(screen.queryByText(/Against the odds/)).toBeNull();
+  });
+
+  it('says nothing about odds on a certain choice', () => {
+    show([], { outcome: 'deterministic', odds: undefined, roll: undefined });
+    expect(screen.queryByText(/Against the odds/)).toBeNull();
+  });
+});
+
+describe('ResolutionOverlay · a relic the collection has never held', () => {
+  it('marks a first-ever find', () => {
+    show([], { artifactsGained: [artifacts[0]], newToCollection: [artifacts[0]] });
+    expect(screen.getByText('Never seen before')).toBeInTheDocument();
+  });
+
+  it('says nothing for a relic the player has found before', () => {
+    // Same relic, same card — only the collection differs.
+    show([], { artifactsGained: [artifacts[0]], newToCollection: [] });
+    expect(screen.getByText(artifacts[0].name)).toBeInTheDocument();
+    expect(screen.queryByText('Never seen before')).toBeNull();
+  });
+
+  it('marks only the new one when a card grants two', () => {
+    show([], { artifactsGained: [artifacts[0], artifacts[1]], newToCollection: [artifacts[1]] });
+    expect(screen.getAllByText('Never seen before')).toHaveLength(1);
+  });
+});
 
 describe('ResolutionOverlay · while you were elsewhere', () => {
   it('prints the pact interest, its ceiling and the distance left', () => {

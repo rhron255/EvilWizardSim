@@ -554,6 +554,7 @@ export const demoRun: RunState = {
   followers: 655,
   lairId: 'cloudward',
   // The Bone Crown and the Censer went into the hole. Everything else was kept.
+  knownArtifactIds: [],
   heldArtifactIds: ['gilded_ledger', 'worm_tooth', 'seed_of_the_slow_war', 'oath_iron', 'heartwood_stake'],
   factionStanding: {
     ashen_covenant: 62,

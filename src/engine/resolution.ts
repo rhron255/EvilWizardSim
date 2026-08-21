@@ -41,6 +41,15 @@ export type Resolution = {
   /** Result flavor line. */
   text: string;
   artifactsGained: Artifact[];
+  /**
+   * The subset of `artifactsGained` this player has never held in any career.
+   *
+   * ALWAYS PRESENT, empty when nothing was new. The collection is a 30-slot
+   * grid of silhouettes that a player fills across many runs, and until this
+   * existed the moment a slot was finally filled looked identical to picking
+   * up the fourth copy of a relic they already owned.
+   */
+  newToCollection: Artifact[];
   notorietyDelta: number;
   /** ONLY set on an upward crossing into a `celebrate: true` tier. */
   tierCrossed?: Tier;

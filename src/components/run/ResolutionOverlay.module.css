@@ -74,16 +74,77 @@
   min-width: 0;
 }
 
+/* --------------------------------------------------------------------------
+   The verdict.
+
+   Reported from play: "the failure / success indication is not clear enough."
+   It was six-point grey uppercase, one shade apart for the two cases, in the
+   corner of a card whose largest element is a number that moved for unrelated
+   reasons. The distinction now carries at arm's length: type size, weight, and
+   the SAME up/down pair the effect lines already use — no new colour enters
+   the palette, so the tier badge is still the only chromatic reward.
+   -------------------------------------------------------------------------- */
+
 .outcome {
   margin: 0;
-  font-size: var(--ew-size-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-size-lg);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  text-transform: none;
   color: var(--ew-ink-dim);
 }
 
 .card[data-outcome='success'] .outcome {
-  color: var(--ew-ink-bright);
+  color: var(--ew-delta-up);
+}
+
+.card[data-outcome='failure'] .outcome {
+  color: var(--ew-delta-down);
+}
+
+/* A deterministic era has no verdict to give — it is the quiet case, and it
+   must not compete with the two that are. */
+.card[data-outcome='deterministic'] .outcome {
+  font-family: var(--ew-font-ui, inherit);
+  font-size: var(--ew-size-xs);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--ew-ink-faint);
+}
+
+/* The card edge repeats it, so the verdict is legible before a single word is
+   read. */
+.card[data-outcome='success'] {
+  border-top-color: color-mix(in srgb, var(--ew-delta-up) 45%, var(--ew-line-strong));
+}
+
+.card[data-outcome='failure'] {
+  border-top-color: color-mix(in srgb, var(--ew-delta-down) 45%, var(--ew-line-strong));
+}
+
+/* Getting away with it. Only ever shown on a win at long odds — the number is
+   the one printed before the commit. */
+.againstOdds {
+  margin: var(--ew-space-1) 0 0;
+  font-size: var(--ew-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--ew-delta-up);
+  animation: oddsIn 420ms var(--ew-ease) 320ms both;
+}
+
+@keyframes oddsIn {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .era {
@@ -234,6 +295,30 @@
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: var(--ew-ink-faint);
+}
+
+/* First time in this player's collection, across every career they have run.
+   The grid is mostly silhouettes; this is the moment one of them resolves. */
+.relic[data-new] {
+  /* The pill carries the news; the panel only leans toward it. A full wash put
+     three gold objects on one card — badge, relic, focus ring — and the tier
+     badge is meant to be the loudest thing in the game. */
+  border-color: color-mix(in srgb, var(--ew-tier) 26%, var(--ew-line));
+  border-left-width: 2px;
+  border-left-color: var(--ew-tier);
+  background: var(--ew-void);
+}
+
+.relicNew {
+  align-self: flex-start;
+  margin: 0.15rem 0 0.1rem;
+  padding: 0.1rem var(--ew-space-2);
+  font-size: 0.5625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--ew-tier);
+  border: 1px solid color-mix(in srgb, var(--ew-tier) 40%, transparent);
+  border-radius: var(--ew-radius-pill);
 }
 
 .relicFlavor {

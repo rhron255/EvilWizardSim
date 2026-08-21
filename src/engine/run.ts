@@ -65,6 +65,12 @@ export type CreateRunOptions = {
    * and a matching authored epithet supersedes it once the run earns one.
    */
   epithet?: string;
+  /**
+   * Relics this player already has in their collection. Random draws prefer
+   * anything not on this list (see `NOVELTY_BIAS`). Omit for a first career or
+   * for a measurement that wants a blank-slate player.
+   */
+  knownArtifactIds?: readonly string[];
 };
 
 const MAX_NAME_LENGTH = 40;
@@ -106,6 +112,7 @@ export function createRun(opts: CreateRunOptions, content: ContentBundle): RunSt
     followers: START_FOLLOWERS,
     lairId: index.lairLadder[0]?.id ?? '',
     heldArtifactIds: [],
+    knownArtifactIds: Array.from(new Set(opts.knownArtifactIds ?? [])),
     factionStanding: emptyStanding(),
     apprentices: { count: 0, loyalty: START_LOYALTY },
     pactDebt: 0,
@@ -140,6 +147,7 @@ function inertResolution(run: RunState): Resolution {
     appliedEffects: [],
     text: '',
     artifactsGained: [],
+    newToCollection: [],
     notorietyDelta: 0,
     systemic: [],
     ending: run.ending,
@@ -350,6 +358,14 @@ export function resolveChoice(
 
   draft.epithet = projectedEpithet(draft, content);
 
+  // Relics this player has never held in ANY career. The collection is the
+  // long game and the grid is mostly silhouettes, so the run that finally
+  // fills a slot should say so out loud rather than leaving the player to
+  // notice it two screens later.
+  const newToCollection = application.artifactsGained.filter(
+    (a) => !run.knownArtifactIds.includes(a.id),
+  );
+
   const resolution: Resolution = {
     outcome,
     // The option's consequences only. Decay and hero escalation are systemic
@@ -364,6 +380,7 @@ export function resolveChoice(
     systemic,
     text,
     artifactsGained: application.artifactsGained,
+    newToCollection,
     notorietyDelta: draft.notoriety - startNotoriety,
     eraRecord,
     ...(roll !== undefined && odds !== undefined ? { roll, odds } : {}),
