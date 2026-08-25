@@ -11,10 +11,10 @@ touching anything; every one of those patterns cost a real bug.
 ```bash
 npm run typecheck && npm run test && npm run lint && npm run validate:content
 npm run dev        # → localhost:5173
-npm run sim        # 2000-run balance report, 11/11 targets pass
+npm run sim        # 2000-run balance report, 13/13 targets pass
 ```
 
-153 tests across 11 files. Every one was mutation-checked — broken deliberately
+219 tests across 17 files. Every one was mutation-checked — broken deliberately
 to confirm it goes red — because this repo has shipped a test that passed on
 `0 == 0`, and a *validator rule* that silently checked nothing (see below).
 
@@ -26,9 +26,17 @@ device, not a breakpoint to degrade toward.
 - Full run: title → creation → ~15 eras → prophecy → ending → collection. Clean
   playthrough at 393×852 and 1440×1000, no console errors.
 - 110 offers, 30 artifacts (all 30 reachable), 6 factions, 10 lairs, 7 endings.
-- All seven endings reachable. Ascension 2.20%, no single ending above 45%.
+- All seven endings reachable. Ascension 1.50%, no single ending above 45%.
+  Lichdom went 0.25% -> 0.80% by raising the rite offer's weight: a dedicated
+  seeker met its standing gate in 61% of careers but was shown the card in only
+  19.9% of those, so the branch was a lottery rather than the "live decision"
+  wiki/01 § 7 asks for.
 - Creation screen: 1424px at 393×852 = **1.67 screens** (was 2.13).
-- Run screen: first choice card visible without scrolling.
+- Run screen at 393×852: the first choice card is fully on screen in every era
+  measured (115/115 across eight careers), starting at worst 678px of 852px.
+  Two options are fully visible in ~63% of eras. Getting the whole card list
+  above the fold is NOT achievable — the header and ledger sit above the cards
+  by design (rule 2) and cost ~570px before a card is reached.
 - The share card renders — `node qa/shoot-share.mjs <endingId>` writes the real
   PNG. Nothing in the repo had ever looked at it before; it is a canvas, so no
   DOM screenshot shows it.
@@ -58,41 +66,62 @@ device, not a breakpoint to degrade toward.
 
 ## Outstanding, in priority order
 
-### 1. The collection barely moves — MEASURED, NOT FIXED
+### 1. The collection — FIXED
 
-`npm run sim` now reports a collection curve (120 simulated players, sequential
-careers, folded into one grid exactly as `recordRun` does):
+The binding constraint was content, exactly as the previous measurement said:
+only 28 of 110 offers granted a relic at all. Ten offers gained a grant,
+weighted toward `decline` and the Pale Academy (2 granting offers out of 13,
+despite being the seal faction players court most warily).
 
 ```
-relics discovered per career            1.16
-careers discovering nothing at all     29.7%
-slots filled after 40 careers       12.4 / 30
-careers that add nothing new           80.2%
+mean relics discovered per career   1.11 -> 1.51
+careers discovering nothing        31.4% -> 21.6%
+slots filled after 10 careers    6.7/30  -> 9.8/30
+median careers to half the grid      58  -> 25
 ```
 
-`NOVELTY_BIAS` (prefer a relic never held, within a rarity) was added and is
-worth about **+0.6 slots at forty careers** — honest, and small. Do not reach
-for a bigger number: **the binding constraint is that only 33 of 110 offers
-grant a relic at all.** More granting options is the change that moves this.
-The wiki page (`wiki/02`) carries the numbers and the reasoning.
+All thirteen sim targets held. The remaining lever, if it is ever wanted, is
+more granting content — `NOVELTY_BIAS` is still worth only ~+0.6 slots at forty
+careers and should not be reached for.
 
-Related open question the numbers raise: 29.7% of careers end with no relic
-found at all, so those runs have nothing for the ending card's trophy case. A
-per-run guarantee (like `FACTION_OFFER_GAP` guarantees faction presence) is one
-option; more granting content is the other.
+### 2. "Woah" moments — FIXED
 
-### 2. More "woah" moments — PARTLY ADDRESSED
+- **The gamble verdict now waits for the roll.** The card used to finish
+  revealing `Success`/`Failure` at 320ms while the needle landed at 720ms — it
+  announced the result and then invited you to watch a marker slide to a
+  position whose meaning was already spent. The needle now runs first (900ms,
+  decelerating), the word and the colour land on the settle at ~1080ms, and
+  the consequences follow. Measured settle ~1268ms; **every screenshot probe's
+  wait was raised past it**, which is the thing to remember if a capture ever
+  looks half-empty again.
+- **The whole card carries the outcome.** It was the word plus a top border;
+  it is now a ring, a ground wash, a glow and the rail, all off one
+  `--ew-verdict` property. Deterministic eras stay grey.
+- **Legendary relics stop reading like commons.** The old ladder was a
+  2.8%-alpha hatch and a font-weight step at identical geometry. Now: frame
+  weight, elevation, glyph size, type scale, corner marks — plus a gold edge on
+  the four legendaries, pinned to `--ew-legendary` rather than `--ew-tier`,
+  because the tier colour is set per-run and a legendary won at low Notoriety
+  would have drawn its edge in the Unknown tier's grey. Applied to the
+  acquisition row in `ResolutionOverlay` too, which had no rarity signal at all.
+- **The ending card says what the career added.** From
+  `run.knownArtifactIds` — the pre-run snapshot — never from the live
+  collection, which `recordRun` has already updated by the time that screen
+  mounts. Reaching for the collection there reports zero forever AND typechecks;
+  `EndingScreen.test.tsx` pins both failure directions.
+- **The hero's approach is dramatised.** A rail in the header showing the
+  distance closing, plus up to three narrative beats fired off `heroBand` —
+  the same function the rail reads, so the fiction and the bar cannot disagree.
+- **Pact interest has a face.** `+1 Pact Debt` still leads the row; the
+  Covenant's visit is the note beside the denominator. The first attempt put
+  the prose in the emphasised slot and demoted a lethal counter's label — the
+  tests that exist because someone died at 6/7 caught it.
 
-Reported: *"there aren't enough 'woah, I can't believe I did this!' kinds of
-events, making you feel very happy or positive about your progress."*
-
-Done: the long-odds win, the first-ever relic, and a verdict you can read at
-arm's length. Still on the table:
-
-- The ending card never says what the career ADDED to the collection.
-- A legendary relic arrives looking like a common with a different word on it.
-- Ascension's near-miss (peak 75+, no ascension) is engineered and never named.
-- The collection screen does not celebrate a newly filled slot on return.
+Still open: the Ascension near-miss is deliberately NOT named (considered and
+rejected — the mystery is the point), and the collection screen still does not
+celebrate a newly filled slot on return. The latter needs a persisted field and
+a `COLLECTION_VERSION` bump for a small payoff; the pre-run snapshot is gone by
+the time that screen mounts.
 
 ### 3. The editorial pass — RULE VIOLATIONS FIXED, VOICE NOTES NOT
 
@@ -101,23 +130,27 @@ A full content review ran over every user-facing string. Everything in its
 alone deliberately — the jokes are the author's call — but two findings there
 are real and worth a decision:
 
-- **Deed lines.** 321 options, only 44 carry authored text, and 71 of 73
-  gambles have no `successText` — so ~86% of ledger rows draw on 8 stock tails,
-  4 of which are near-synonyms. Rule 2 says rows that read alike mean the
-  ledger has stopped saying anything. Either author ~20 `successText` lines for
-  the highest-weight gambles or widen the tail pools.
-- **Vocabulary drift.** The ledger header says `Artifacts` where the rest of
-  the game says `relic`; `EndingSlot` maps `legendary → 'Rare'` while
-  `ArtifactCard` prints `rare` raw on the same screen; `Faction.adjective` is
-  authored for all six factions and read by nothing, while two other short-name
-  systems exist.
+- ~~**Deed lines.**~~ FIXED for the rows that matter: 24 `successText` lines
+  were authored on the highest-weight gambles (73 gambles had **two** between
+  them). Authoring beats widening the tail pool because only authored text adds
+  information — the tail is three words carrying none. The long tail of
+  low-weight gambles still falls through to the stock pool, which is the right
+  place to stop.
+- **Vocabulary drift.** Partly fixed: `EndingSlot` now grades endings
+  `Ordinary / Storied / Fabled` and a locked slot reads `Unopened` with a hint,
+  so it no longer collides with the relic grid's raw rarity words. Still open —
+  the ledger header says `Artifacts` where the rest of the game says `relic`,
+  and `Faction.adjective` is authored for all six factions and read by nothing.
 - Content is en-GB throughout except ~34 strings (all 30 artifact `Defense +N.`
   lines against `stakes.ts`'s `defence`).
 
 ### 4. Unverified
 
-- No tests for `CreationScreen`, `TitleScreen`, `CollectionScreen`,
-  `ProphecyInterstitial`.
+- ~~No tests for `CreationScreen`, `TitleScreen`, `CollectionScreen`,
+  `ProphecyInterstitial`.~~ All four now covered — 219 tests across 17 files.
+  Every new assertion was mutation-tested. `ProphecyInterstitial` uses the
+  `matchMedia` reduced-motion stub rather than fake timers, which remains the
+  house pattern.
 - The share card's fixed 1080×1350 canvas has variable-height sections; a run
   with many lairs AND many relics may overflow the bottom. Never measured.
 

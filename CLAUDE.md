@@ -63,9 +63,19 @@ These come from a game that worked at scale. They look arbitrary in isolation.
    so the renderer can always print it) and `OfferOption`'s `gamble` variant
    cannot compile without `onFailure`. `validate:content` catches the ways
    around it, like an empty failure branch.
-   *The corollary is easy to miss:* disclosure does not stop at the choice. A
-   stat that silently counts toward an ending is an undisclosed consequence too,
-   which is why every header stat names its threshold.
+   *Two corollaries are easy to miss.* First, disclosure does not stop at the
+   choice: a stat that silently counts toward an ending is an undisclosed
+   consequence too, which is why every header stat names its threshold.
+   Second — **the card prints what the ENGINE will do, not what the author
+   typed.** Authored effects pass through `projectEffects` before they are
+   rendered, because two things came between the list and the outcome: standing
+   spills onto `hostileTo` (so `+8 Gilded Hand` also moved the Choir, unnamed),
+   and floor clamps ate costs whole (49.6% of accepted follower costs deducted
+   nothing). Anything deterministic is projected; anything random —
+   `artifactFrom`, `loseArtifact` — stays as authored, because resolving a draw
+   early would either spoil the reveal or print a lie. If you add a
+   deterministic `Effect` variant, add it to `PROJECTABLE` or the card starts
+   lying again.
 2. **The ledger appends and never resets.** The accumulating table is what makes
    abandoning a run expensive. Its Deeds column is the only prose in it — if
    rows start reading alike, the ledger has stopped saying anything.
@@ -113,7 +123,7 @@ now: the erosion stays quiet, the lethal counters do not.
 
 ### 2. Written but never wired
 
-Code that exists and is never called. Four times:
+Code that exists and is never called. Five times:
 
 - `deeds.ts` — complete, never imported. Every ledger row read `It is done.`
 - `becomeLich` — handled only via the legacy `ending: 'lichdom'` path, so moving
@@ -122,10 +132,20 @@ Code that exists and is never called. Four times:
   the lichdom branch and the Chosen One were unreachable content.
 - The engine never set `roll`/`odds`, so the resolution's roll rail — principle
   4's visual proof a gamble was fair — **never rendered once, the entire build**.
+- `planShareTail` — a complete, well-argued, unit-testable fix for the share
+  card's footer overlap, sitting in the file above a renderer that still ran
+  `.slice(0, 8)` and drew the footer at a fixed offset. The bug it fixed was
+  still fully live.
 
 **Check:** after adding a module or a union member, `rg` for its call site. A file
 that exists is not a file that runs. Prefer an exhaustive `switch` with a `never`
 guard so the compiler names the unwired case.
+
+*The last one has a specific cause worth naming:* work that stops partway —
+an interrupted session, a subagent that hits a limit mid-task — lands as a
+plausible, well-commented, uncalled function, and it reads like a finished
+change. Before believing any handed-over work, `rg` for the call site and run
+the thing it claims to fix.
 
 ### 3. Optional fields hide drift at a seam
 
@@ -222,6 +242,58 @@ python -c "d=open('README.md','rb').read(); print(d[:6], d.decode('utf-8')[:40])
 More generally: when you report a fix, the thing you verified must be the thing
 you claimed. "I replaced the contents" is not "I fixed the encoding".
 
+*Line endings are the same trap wearing a smaller hat.* This working tree is
+CRLF and the repo stores LF, so a `python` text-mode write silently converts.
+That is fine here — `git diff --numstat` proves it, and the check is one
+command — but "the diff is 8 lines, not 400" is the evidence, not the
+assumption.
+
+### 11. The check that graded its own homework
+
+The share card's regression test asserted `plan.bottomY <= plan.limitY`. Both
+numbers come from the function under test, so widening the limit satisfied the
+test — and it stayed **green** under a mutation that reintroduced the exact
+text-over-text overlap it was written to catch. Fixed by asserting against the
+footer position the *renderer* passes in.
+
+The same shape, twice more in one session: a validator rule for `Ending.hint`
+was appended *below* the report block, so it ran, pushed a real failure, and
+exited 0 with "content OK"; and a QA probe read the resolution card's prose to
+decide what a choice had charged, when the resolution omits zero-delta lines by
+design — so it reported a working fix as broken.
+
+**Check:** an assertion must be anchored to something the implementation does
+not also supply. Mutation-test it — break the behaviour and watch it go red —
+and for a gate, check the **exit code**, not just the message. When a probe
+disagrees with a unit test, suspect the probe: measure the state, never the
+story about the state.
+
+### 12. Acceptance criteria are targets too
+
+Failure mode 6 is about balance numbers. It applies just as hard to a number
+you invent while reviewing: "the first choice card must start within 520px" was
+never in the wiki, could not be met without moving the ledger below the cards
+(which rule 2 forbids), and was chased through several rounds of layout
+surgery before anyone asked where 520 came from.
+
+**Check:** before optimising toward a threshold, say where it came from. If the
+answer is "it seemed right", pick the criterion the design can actually satisfy
+— here, *the first card is fully on screen* — and say plainly that you changed
+it, rather than reporting a permanently red check or quietly relaxing it.
+
+### 13. A derived visual that saturates early
+
+The faction standing bar is centre-zero and computed its fill as
+`ratio * 100%` under `overflow: hidden`. So it reached the end of the rail at
+±50 and every value past that drew an identical bar — including the difference
+between "the Academy dislikes you" and "the Academy is sealing you in a gem",
+on the one bar where that difference ends the run. It looked correct in every
+screenshot, because the common values are inside the range that works.
+
+**Check:** for any bar, meter or scale, assert the mapping at the EXTREMES, not
+at a typical value. Clipping is not scaling, and `overflow: hidden` covering
+for an overflowing fill is the tell.
+
 ## Working on this
 
 ### Before calling a change done
@@ -231,8 +303,16 @@ you claimed. "I replaced the contents" is not "I fixed the encoding".
 2. Balance touched? `npm run sim`, and check the target's provenance.
 3. UI touched? `node qa/playthrough.mjs --width 393 --height 852` **and read the
    PNGs back**. 393px is the target device, not an afterthought.
-4. New test? Break the behaviour it pins and watch it go red.
+4. New test? Break the behaviour it pins and watch it go red — and check that
+   the assertion is anchored to something the code under test does not also
+   supply (failure mode 11).
 5. New state that can end a run? Make the screen say so.
+6. New `Effect` variant that is deterministic? Add it to `PROJECTABLE` in
+   `src/engine/effects.ts`, or the offer card goes back to printing the
+   authored number instead of the real one.
+7. New content field the UI reads? Make it **required** on the type and let the
+   compiler name every fixture. `Ending.hint` found all fourteen call sites
+   that way; an optional field would have rendered blank in two of them.
 
 ### Measure before you tune
 

@@ -501,3 +501,16 @@
     grid-template-columns: auto minmax(0, 1fr) 64px 38px;
   }
 }
+
+/* The career's contribution to the permanent collection, beside the total.
+   Quiet: it is a fact about a thirty-slot grid the player fills over many
+   careers, not a fanfare — and it is absent entirely in the 80% of careers
+   that add nothing. */
+.countNew {
+  font-size: var(--ew-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ew-ink-bright);
+  white-space: nowrap;
+}

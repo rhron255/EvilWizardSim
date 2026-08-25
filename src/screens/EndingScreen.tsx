@@ -117,17 +117,43 @@ export function EndingScreen({
       ...run.eras.flatMap((e) => e.artifactsGained),
       ...run.heldArtifactIds,
     ]);
+    /**
+     * What this career ADDED to the permanent collection.
+     *
+     * `run.knownArtifactIds` is the player's discovered list frozen at
+     * `createRun` and never touched again, so it is the only surviving
+     * pre-run snapshot by the time this screen mounts.
+     *
+     * Do NOT reach for the live collection here: `recordRun` is folded into
+     * the same reducer return that flips the screen to `ending`, so by render
+     * time it already contains this run's finds and the delta would be empty
+     * every time — and it would typecheck.
+     *
+     * The `recovered` union above is exactly `recordRun`'s definition of
+     * discovered, so the two can never disagree about what counts.
+     */
+    const known = new Set(run.knownArtifactIds ?? []);
     return [...recovered]
       .map((id) => artifacts.find((a) => a.id === id))
       .filter((a): a is Artifact => Boolean(a))
-      .map((artifact) => ({ artifact, lost: !run.heldArtifactIds.includes(artifact.id) }))
+      .map((artifact) => ({
+        artifact,
+        lost: !run.heldArtifactIds.includes(artifact.id),
+        isNew: !known.has(artifact.id),
+      }))
       .sort(
         (a, b) =>
+          // New to the collection leads. It is the rarest thing on this screen
+          // — 80% of careers add nothing at all — so it is not made to queue
+          // behind three commons the player has held a dozen times.
+          Number(b.isNew) - Number(a.isNew) ||
           Number(a.lost) - Number(b.lost) ||
           RARITY_ORDER[a.artifact.rarity] - RARITY_ORDER[b.artifact.rarity] ||
           a.artifact.name.localeCompare(b.artifact.name),
       );
-  }, [run.eras, run.heldArtifactIds, artifacts]);
+  }, [run.eras, run.heldArtifactIds, run.knownArtifactIds, artifacts]);
+
+  const newToCollection = relics.filter((r) => r.isNew).length;
 
   useEffect(() => {
     if (prefersReducedMotion()) {
@@ -230,7 +256,15 @@ export function EndingScreen({
               { label: 'Peak Notoriety', value: peak, hint: tier.name, accent: true },
               { label: 'Followers', value: run.followers.toLocaleString('en-US') },
               { label: 'Lairs held', value: tenures.length },
-              { label: 'Relics kept', value: run.heldArtifactIds.length },
+              {
+                label: 'Relics kept',
+                value: run.heldArtifactIds.length,
+                // The hint slot already exists (Peak Notoriety uses it for the
+                // tier name), so saying what the career ADDED costs no new API
+                // and no extra tile. Silent when nothing was new, which is the
+                // common case and reads as a fact rather than a failure.
+                hint: newToCollection > 0 ? `${newToCollection} new to the collection` : undefined,
+              },
             ]}
           />
           <StatBlock
@@ -260,6 +294,9 @@ export function EndingScreen({
           <h3 className={styles.sectionHead}>
             <span className={styles.sectionLabel}>Relics recovered</span>
             <span className={styles.headRule} aria-hidden />
+            {newToCollection > 0 && (
+              <span className={styles.countNew}>{newToCollection} new</span>
+            )}
             <span className={styles.count}>{relics.length}</span>
           </h3>
           <ArtifactGrid

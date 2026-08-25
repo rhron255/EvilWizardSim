@@ -5,7 +5,7 @@
  * "balancing without it is guesswork." It plays N runs with a mixed population
  * of player policies and reports the numbers the wiki names targets for.
  *
- *   npx tsx scripts/simulate.ts [--runs 2000] [--seed 1] [--eras 12|16|20]
+ *   npx tsx scripts/simulate.ts [--runs 2000] [--seed 1] [--eras <RUN_LENGTHS>]
  *                               [--policy random|safe|greedy|adaptive|courtier|lich]
  *                               [--fixtures] [--json]
  *
@@ -22,10 +22,15 @@
  *   - The decline reads as erosion, not a cliff
  */
 
-import type { Effect, EndingId, Offer, OfferOption, RunState } from '../src/types';
+import type { Effect, EndingId, Offer, OfferOption, RunState, TierId } from '../src/types';
 import type { ContentBundle } from '../src/engine';
-import { tierFor } from '../src/theme/tokens';
-import { createRun, defenseOf, nextOffer, resolveChoice } from '../src/engine';
+import { TIERS, tierFor } from '../src/theme/tokens';
+import { ascensionReady, createRun, defenseOf, nextOffer, resolveChoice } from '../src/engine';
+import {
+  ASCENSION_LEGENDARIES,
+  ASCENSION_MIN_NOTORIETY,
+  RUN_LENGTHS,
+} from '../src/engine/constants';
 import { fixtureContent } from '../src/engine/__fixtures__/content';
 import {
   artifacts,
@@ -186,6 +191,15 @@ function scoreEffects(effects: readonly Effect[], w: Weights, takesLichdom: bool
       case 'becomeLich':
         // Not an ending — a transformation. The lich player wants it; everyone
         // else is looking at "forfeit the vault and the household".
+        //
+        // This is a flat price for a variable cost, which is a known
+        // simplification: a wizard holding four relics forfeits more than one
+        // holding none. Pricing it against the actual holdings was tried and
+        // is WORSE — the card's own `+12 Notoriety` is already scored above,
+        // so any additional "what the rite buys" term double-counts, and a
+        // wizard with an empty vault ends up being paid to take it (43% of
+        // runs became liches, and Legend and lair targets both broke). Leave
+        // it flat unless you are prepared to re-derive the whole player model.
         total += takesLichdom ? 40 : -30;
         break;
       case 'ending':
@@ -309,7 +323,23 @@ type RunResult = {
   artifacts: number;
   legendaries: number;
   peakLegendaries: number;
-  hitLegendTierInDecline: boolean;
+  /**
+   * Ascension's two conjuncts, measured against `ASCENSION_MIN_NOTORIETY` and
+   * `ASCENSION_LEGENDARIES` — never against a literal.
+   *
+   * The harness previously hard-coded `notoriety >= 90` and reported it as
+   * "reached Legend tier in decline" while the engine gated on 84, and printed
+   * "2+ legendaries" as the binding conjunct while `ASCENSION_LEGENDARIES` was
+   * 1. Both conjuncts are upper bounds on the ascension rate by construction,
+   * so printing 0.05% above a 2.20% headline was arithmetically impossible —
+   * that impossibility is the only reason it was caught. `everAscensionReady`
+   * exists so the impossibility is now a target check rather than a thing a
+   * reader has to notice.
+   */
+  metNotorietyConjunct: boolean;
+  metLegendaryConjunct: boolean;
+  /** The engine's own `ascensionReady`, sampled at every era boundary. */
+  everAscensionReady: boolean;
   declineDeltas: number[];
   /**
    * What this run would add to the persistent collection.
@@ -353,7 +383,9 @@ function playRun(
   let run = createRun({ wizardName: 'Sim', originId, eraCount, seed, knownArtifactIds }, content);
   let notorietyAtProphecy = run.notoriety;
   let peakLegendaries = 0;
-  let hitLegendTierInDecline = false;
+  let metNotorietyConjunct = false;
+  let metLegendaryConjunct = false;
+  let everAscensionReady = false;
   let becameLich = false;
   const declineDeltas: number[] = [];
 
@@ -374,7 +406,17 @@ function playRun(
       peakLegendaries,
       run.heldArtifactIds.filter((id) => LEGENDARY_IDS.has(id)).length,
     );
-    if (run.phase === 'decline' && run.notoriety >= 90) hitLegendTierInDecline = true;
+    // Ascension's conjuncts, read off the same state `checkEndings` saw, with
+    // the same thresholds it used. `ascensionReady` is called rather than
+    // reimplemented: it also carries the `isLich` and phase gates, and a
+    // hand-copy of it is exactly the drift that produced the old readout.
+    if (run.phase === 'decline' && run.notoriety >= ASCENSION_MIN_NOTORIETY) {
+      metNotorietyConjunct = true;
+    }
+    if (run.heldArtifactIds.filter((id) => LEGENDARY_IDS.has(id)).length >= ASCENSION_LEGENDARIES) {
+      metLegendaryConjunct = true;
+    }
+    if (ascensionReady(run, content)) everAscensionReady = true;
   }
 
   let peak = run.notoriety;
@@ -405,11 +447,17 @@ function playRun(
     eras: run.eras.length,
     eraCount,
     age: run.age,
+    // Mirrors the age-limit branch of `checkEndings` (endings.ts). It reads
+    // two state fields rather than restating a threshold, so there is no
+    // constant to import — but it IS a copy of an engine rule, so if that
+    // branch ever changes shape this line has to move with it.
     reachedAgeLimit: run.eraIndex >= run.eraCount,
     artifacts: run.heldArtifactIds.length,
     legendaries: run.heldArtifactIds.filter((id) => LEGENDARY_IDS.has(id)).length,
     peakLegendaries,
-    hitLegendTierInDecline,
+    metNotorietyConjunct,
+    metLegendaryConjunct,
+    everAscensionReady,
     declineDeltas,
     discoveredIds: Array.from(discovered),
     lairsHeld: lairIds.size,
@@ -451,6 +499,23 @@ type CollectionCurve = {
   barrenRunRate: number;
 };
 
+/**
+ * Brief / Standard / Long, from `RUN_LENGTHS` — the harness does not keep its
+ * own copy of the three lengths. The 25/50/25 SPLIT is a harness modelling
+ * choice (most people take the default), not an engine constant; the wiki sets
+ * no distribution over run lengths.
+ */
+const ERA_LENGTH_WEIGHTS = [0.25, 0.5, 0.25] as const;
+
+function pickEraCount(roll: number): number {
+  let acc = 0;
+  for (let i = 0; i < RUN_LENGTHS.length; i++) {
+    acc += ERA_LENGTH_WEIGHTS[i] ?? 0;
+    if (roll < acc) return RUN_LENGTHS[i];
+  }
+  return RUN_LENGTHS[RUN_LENGTHS.length - 1];
+}
+
 function pickPolicy(roll: number): Policy {
   let acc = 0;
   for (const [name, share] of POPULATION) {
@@ -477,8 +542,7 @@ function collectionCurve(baseSeed: number, players: number, cap: number): Collec
     let fullAt = cap + 1;
 
     for (let n = 1; n <= cap; n++) {
-      const eraRoll = rng();
-      const eraCount = eraRoll < 0.25 ? 12 : eraRoll < 0.75 ? 16 : 20;
+      const eraCount = pickEraCount(rng());
       const result = playRun(
         baseSeed + p * 104729 + n * 7919,
         eraCount,
@@ -520,6 +584,14 @@ function collectionCurve(baseSeed: number, players: number, cap: number): Collec
 // Reporting
 // ---------------------------------------------------------------------------
 
+/**
+ * Display order only — narrative, not a source of truth about WHICH endings
+ * exist. `ALL_ENDING_IDS` is the content bundle's own list, so an ending added
+ * to `src/content/endings.ts` is measured for reachability the same day it is
+ * authored rather than the day someone remembers to retype it here. Rule 6
+ * ("every ending must be reachable") is only enforceable against a list the
+ * harness cannot forget to update.
+ */
 const ENDING_ORDER: EndingId[] = [
   'slain_by_chosen_one',
   'retired_to_swamp',
@@ -528,6 +600,13 @@ const ENDING_ORDER: EndingId[] = [
   'consumed_by_pact',
   'lichdom',
   'ascension',
+];
+
+const ALL_ENDING_IDS: EndingId[] = content.endings.map((e) => e.id);
+const UNORDERED_ENDINGS = ALL_ENDING_IDS.filter((id) => !ENDING_ORDER.includes(id));
+const DISPLAY_ENDINGS: EndingId[] = [
+  ...ENDING_ORDER.filter((id) => ALL_ENDING_IDS.includes(id)),
+  ...UNORDERED_ENDINGS,
 ];
 
 function pct(n: number, total: number): string {
@@ -566,6 +645,26 @@ function median(xs: number[]): number {
 function rule(width = 66): string {
   return '-'.repeat(width);
 }
+
+/**
+ * A tier band's floor, read from `src/theme/tokens.ts` rather than retyped.
+ *
+ * Every threshold this harness prints or checks has to come from the module
+ * that owns it. The tier table is the UI's, the ending gates are
+ * `constants.ts`'s, and the moment the harness keeps its own copy of either it
+ * starts grading a game nobody plays — which is how it came to print
+ * "Legend tier" over a hard-coded 90 while the engine gated Ascension at 84.
+ */
+function tierMin(id: TierId): number {
+  const tier = TIERS.find((t) => t.id === id);
+  if (!tier) throw new Error(`unknown tier id: ${id}`);
+  return tier.min;
+}
+
+const LOCAL_MENACE_MIN = tierMin('local_menace');
+const NAMED_THREAT_MIN = tierMin('named_threat');
+const KINGDOM_MIN = tierMin('kingdom');
+const LEGEND_MIN = tierMin('legend');
 
 // ---------------------------------------------------------------------------
 // Main
@@ -606,13 +705,7 @@ function main(): void {
     }
 
     const lengthRoll = policyPicker();
-    const eraCount = forcedEras
-      ? parseInt(forcedEras, 10)
-      : lengthRoll < 0.25
-        ? 12
-        : lengthRoll < 0.75
-          ? 16
-          : 20;
+    const eraCount = forcedEras ? parseInt(forcedEras, 10) : pickEraCount(lengthRoll);
 
     results.push(playRun(baseSeed + i * 7919, eraCount, policy));
   }
@@ -629,7 +722,7 @@ function main(): void {
       JSON.stringify(
         {
           runs: total,
-          endings: Object.fromEntries(ENDING_ORDER.map((e) => [e, byEnding.get(e) ?? 0])),
+          endings: Object.fromEntries(DISPLAY_ENDINGS.map((e) => [e, byEnding.get(e) ?? 0])),
           ascensionRate: (byEnding.get('ascension') ?? 0) / total,
           ageLimitRate: results.filter((r) => r.reachedAgeLimit).length / total,
           meanEras: mean(results.map((r) => r.eras)),
@@ -651,7 +744,7 @@ function main(): void {
   console.log('');
   console.log('ENDING DISTRIBUTION');
   console.log(`${pad('ending', 24)}${padLeft('n', 6)}${padLeft('share', 9)}  distribution`);
-  for (const ending of ENDING_ORDER) {
+  for (const ending of DISPLAY_ENDINGS) {
     const n = byEnding.get(ending) ?? 0;
     console.log(
       `${pad(ending, 24)}${padLeft(String(n), 6)}${padLeft(pct(n, total), 9)}  ${bar(n, total)}`,
@@ -697,11 +790,23 @@ function main(): void {
 
   // --- headline numbers ---------------------------------------------------
   const ascension = byEnding.get('ascension') ?? 0;
+  const ascensionReadyRuns = results.filter((r) => r.everAscensionReady).length;
   const ageLimit = results.filter((r) => r.reachedAgeLimit).length;
   const slain = byEnding.get('slain_by_chosen_one') ?? 0;
   const declineAll = results.flatMap((r) => r.declineDeltas);
   const declineNoto = results.filter((r) => r.declineDeltas.length > 0);
-  const nearMiss = results.filter((r) => r.ending !== 'ascension' && r.peakNotoriety >= 75).length;
+  // "Near miss" is the Kingdom-Level band's floor, not a coincidence and not a
+  // literal: wiki/04 § Near-Miss Tuning is about players who saw the violet
+  // badge and still did not transcend.
+  const nearMiss = results.filter(
+    (r) => r.ending !== 'ascension' && r.peakNotoriety >= KINGDOM_MIN,
+  ).length;
+  // The badge the ending screen prints is `tierFor(peak)`, so the share of
+  // careers that finish showing the grey UNKNOWN badge is the same number as
+  // "never crossed 40", stated from the player's side. Kept explicit because
+  // that is the side the design cares about.
+  const unknownBadgeRate =
+    results.filter((r) => tierFor(r.peakNotoriety).id === 'unknown').length / total;
 
   console.log('');
   console.log('HEADLINE');
@@ -718,12 +823,19 @@ function main(): void {
   row('ASCENSION rate  (target 1-4%)', pct(ascension, total));
   row('age-limit survival (uncommon)', pct(ageLimit, total));
   row('slain by chosen one', pct(slain, total));
-  row('near-miss (peak 75+, no ascend)', pct(nearMiss, total));
+  row(`near-miss (peak ${KINGDOM_MIN}+, no ascend)`, pct(nearMiss, total));
+  row('ending screen shows the grey badge', `${(unknownBadgeRate * 100).toFixed(2)}%`);
   console.log(rule());
   console.log('  ascension is the AND of two rare things:');
-  row('  ...reached Legend tier in decline', pct(results.filter((r) => r.hitLegendTierInDecline).length, total));
-  row('  ...ever held 2+ legendaries', pct(results.filter((r) => r.peakLegendaries >= 2).length, total));
-  row('  ...ever held 1+ legendary', pct(results.filter((r) => r.peakLegendaries >= 1).length, total));
+  row(
+    `  ...notoriety ${ASCENSION_MIN_NOTORIETY}+ in decline`,
+    pct(results.filter((r) => r.metNotorietyConjunct).length, total),
+  );
+  row(
+    `  ...ever held ${ASCENSION_LEGENDARIES}+ legendary`,
+    pct(results.filter((r) => r.metLegendaryConjunct).length, total),
+  );
+  row('  ...both at once (engine ascensionReady)', pct(ascensionReadyRuns, total));
   console.log(rule());
   row('mean notoriety at prophecy', mean(declineNoto.map((r) => r.notorietyAtProphecy)).toFixed(1));
   row('mean notoriety delta / decline era', mean(declineAll).toFixed(2));
@@ -734,10 +846,15 @@ function main(): void {
   const tierReach = (min: number) => pct(results.filter((r) => r.peakNotoriety >= min).length, total);
   console.log(rule());
   console.log('  notoriety tier REACHED at peak (the rationed color):');
-  row('  ...Local Menace (40+)', tierReach(40));
-  row('  ...Named Threat (60+)', tierReach(60));
-  row('  ...Kingdom-Level (75+, violet)', tierReach(75));
-  row('  ...Legend (90+, gold)', tierReach(90));
+  row(`  ...Local Menace (${LOCAL_MENACE_MIN}+)`, tierReach(LOCAL_MENACE_MIN));
+  row(`  ...Named Threat (${NAMED_THREAT_MIN}+)`, tierReach(NAMED_THREAT_MIN));
+  row(`  ...Kingdom-Level (${KINGDOM_MIN}+, violet)`, tierReach(KINGDOM_MIN));
+  row(`  ...Legend (${LEGEND_MIN}+, gold)`, tierReach(LEGEND_MIN));
+  console.log('  the tier the ENDING SCREEN actually shows (tierOf peak):');
+  for (const tier of TIERS) {
+    const n = results.filter((r) => tierFor(r.peakNotoriety).id === tier.id).length;
+    row(`  ...${tier.name}`, pct(n, total));
+  }
   console.log(rule());
   row('mean relics discovered per run', mean(results.map((r) => r.discoveredIds.length)).toFixed(2));
   row(
@@ -790,55 +907,127 @@ function main(): void {
     (a, b) => b[1] - a[1],
   )[0] ?? ['none', 0];
   const topEndingShare = topEndingCount / total;
-  const namedThreatRate = results.filter((r) => r.peakNotoriety >= 60).length / total;
-  const kingdomRate = results.filter((r) => r.peakNotoriety >= 75).length / total;
-  const legendRate = results.filter((r) => r.peakNotoriety >= 90).length / total;
+  const localMenaceCount = results.filter((r) => r.peakNotoriety >= LOCAL_MENACE_MIN).length;
+  const localMenaceRate = localMenaceCount / total;
+  const namedThreatRate = results.filter((r) => r.peakNotoriety >= NAMED_THREAT_MIN).length / total;
+  const kingdomRate = results.filter((r) => r.peakNotoriety >= KINGDOM_MIN).length / total;
+  const legendRate = results.filter((r) => r.peakNotoriety >= LEGEND_MIN).length / total;
   const lichSeekers = results.filter((r) => r.policy === 'lich');
   const lichSeekerRuns = lichSeekers.length;
   const lichSeekerLichdoms = lichSeekers.filter((r) => r.ending === 'lichdom').length;
   const lichSeekerLichdomRate = lichSeekerRuns > 0 ? lichSeekerLichdoms / lichSeekerRuns : 0;
   const meanLairs = mean(results.map((r) => r.lairsHeld));
   const repeatRate = repeatedDeeds / Math.max(1, allDeeds.length);
+  const notorietyConjunct = results.filter((r) => r.metNotorietyConjunct).length / total;
+  const legendaryConjunct = results.filter((r) => r.metLegendaryConjunct).length / total;
   const checks: Array<[string, boolean, string]> = [
     [
+      // Provenance: wiki/04 § Near-Miss Tuning names 1-4%; this is the one
+      // headline band in the file that the wiki states outright.
       'Ascension in 1-4%',
       ascensionRate >= 0.01 && ascensionRate <= 0.04,
       pct(ascension, total),
     ],
     [
+      // INSTRUMENT SELF-CHECK, not a balance target. Three identities that
+      // hold by construction, checked PER RUN rather than as population rates
+      // because a rate comparison can pass on a coincidence:
+      //
+      //   1. every run that ends in `ascension` satisfies BOTH conjuncts;
+      //   2. every run that ever satisfies `ascensionReady` ends in
+      //      `ascension` (`checkEndings` tests it first, so it cannot be
+      //      overtaken by another ending);
+      //   3. therefore the headline rate cannot exceed either conjunct.
+      //
+      // All three were false for the entire life of the old readout, which
+      // printed a 0.05% conjunct above a 2.20% headline and was believed. No
+      // wiki provenance is needed or possible: this is arithmetic, and it is
+      // here so a future drift in either threshold is a [FAIL] and not
+      // something a reader has to happen to notice.
+      'Instrument: ascension conjuncts reconcile',
+      results.every(
+        (r) =>
+          (r.ending !== 'ascension' || (r.metNotorietyConjunct && r.metLegendaryConjunct)) &&
+          r.everAscensionReady === (r.ending === 'ascension'),
+      ) &&
+        ascensionRate <= notorietyConjunct + 1e-9 &&
+        ascensionRate <= legendaryConjunct + 1e-9,
+      `${pct(ascension, total)} vs ${pct(ascensionReadyRuns, total)}`,
+    ],
+    [
+      // PROVENANCE: the WORD is wiki/04 § Hero Escalation ("survival to the
+      // age limit is uncommon — the swamp retirement ending should feel
+      // earned, not default"). The 8-35% BAND is not in the wiki; it is a
+      // reading of "uncommon" wide enough to admit the courtier build, which
+      // deliberately survives, without letting retirement become the default.
       'Age-limit survival uncommon (8-35%)',
       survivalRate >= 0.08 && survivalRate <= 0.35,
       pct(ageLimit, total),
     ],
     [
+      // PROVENANCE: wiki/04 § Notoriety Decay ("the decline should feel like
+      // erosion, not a cliff"). The -12 and the 12% are NOT in the wiki: -12
+      // is four times `DECAY_BASE`, i.e. an era that lost noticeably more than
+      // four ordinary eras' drift, and 12% is "fewer than one era in eight".
+      // Both are this harness's operationalisation of a qualitative line.
       'Decline is erosion, not a cliff (<12% of eras <= -12)',
       cliffRate < 0.12,
       `${(cliffRate * 100).toFixed(2)}%`,
     ],
     [
-      'All seven endings occur',
-      ENDING_ORDER.every((e) => (byEnding.get(e) ?? 0) > 0),
-      `${ENDING_ORDER.filter((e) => (byEnding.get(e) ?? 0) > 0).length}/7`,
+      // Rule 6, counted against the content bundle rather than a literal seven.
+      `Every authored ending occurs (${ALL_ENDING_IDS.length} in content)`,
+      ALL_ENDING_IDS.every((e) => (byEnding.get(e) ?? 0) > 0),
+      `${ALL_ENDING_IDS.filter((e) => (byEnding.get(e) ?? 0) > 0).length}/${ALL_ENDING_IDS.length}`,
     ],
     [
+      // PROVENANCE: none. The wiki names no ceiling on any single ending; it
+      // only lists the seven and calls Ascension "genuinely uncommon"
+      // (wiki/01 § 7). 45% is a floor under variety — it keeps the biography
+      // from being a coin toss between two outcomes — and it is stated here
+      // as invented so nobody chases it the way the lichdom band was chased.
       'No single ending above 45%',
       topEndingShare <= 0.45,
       `${topEndingName} ${(topEndingShare * 100).toFixed(2)}%`,
     ],
     [
-      'Named Threat (60+) reached in 35-75% of runs',
+      // PROVENANCE: none in the wiki. wiki/02 marks the tier thresholds
+      // "starting guesses" and both wiki/00:80 and wiki/02:214 leave
+      // "tune Notoriety tier thresholds against real run distributions" open,
+      // so there is no authored rate to cite; this band is set from the
+      // measured distribution (see the tuning note in src/theme/tokens.ts).
+      // It exists because crossing 40 is the first time the game's one
+      // rationed colour does anything, and it was the only tier crossing with
+      // no check at all.
+      `Local Menace (${LOCAL_MENACE_MIN}+) reached in 70-95% of runs`,
+      localMenaceRate >= 0.7 && localMenaceRate <= 0.95,
+      pct(localMenaceCount, total),
+    ],
+    [
+      // PROVENANCE: none — same open task as the Local Menace check above.
+      // Band set from the measured distribution: the bronze badge should be
+      // the median career's high-water mark without being universal.
+      `Named Threat (${NAMED_THREAT_MIN}+) reached in 35-75% of runs`,
       namedThreatRate >= 0.35 && namedThreatRate <= 0.75,
-      pct(results.filter((r) => r.peakNotoriety >= 60).length, total),
+      pct(results.filter((r) => r.peakNotoriety >= NAMED_THREAT_MIN).length, total),
     ],
     [
-      'Kingdom-Level (75+) reached in 12-40% of runs',
+      // PROVENANCE: wiki/02's tier table says of the 75 crossing "the color
+      // moment. Crossing 75 must feel like an event." An event roughly one
+      // career in five clears that bar; the 12-40% band is this harness's,
+      // not the wiki's.
+      `Kingdom-Level (${KINGDOM_MIN}+) reached in 12-40% of runs`,
       kingdomRate >= 0.12 && kingdomRate <= 0.4,
-      pct(results.filter((r) => r.peakNotoriety >= 75).length, total),
+      pct(results.filter((r) => r.peakNotoriety >= KINGDOM_MIN).length, total),
     ],
     [
-      'Legend (90+) stays rare (1-12%)',
+      // PROVENANCE: wiki/02's tier table calls Legend "Rare. Ascension
+      // territory." The 1-12% band is not authored. The floor matters more
+      // than the ceiling: Legend must stay reachable, because it is the
+      // notoriety side of Ascension's AND.
+      `Legend (${LEGEND_MIN}+) stays rare (1-12%)`,
       legendRate >= 0.01 && legendRate <= 0.12,
-      pct(results.filter((r) => r.peakNotoriety >= 90).length, total),
+      pct(results.filter((r) => r.peakNotoriety >= LEGEND_MIN).length, total),
     ],
     [
       // Measured WITHIN the cohort that seeks it, not across the population:
@@ -859,11 +1048,18 @@ function main(): void {
       pct(lichSeekerLichdoms, lichSeekerRuns),
     ],
     [
+      // PROVENANCE: wiki/01 § 8 specifies "a grid of lairs held, one card
+      // each" as the ending card's centrepiece; a grid of one is not a grid.
+      // The 3-5 BAND is not authored anywhere — it is the range that fills
+      // the card without making any single lair unmemorable.
       'Trophy case: mean lairs held 3-5',
       meanLairs >= 3 && meanLairs <= 5,
       meanLairs.toFixed(2),
     ],
     [
+      // PROVENANCE: CLAUDE.md rule 2 ("if rows start reading alike, the ledger
+      // has stopped saying anything"). The 2% is not authored; it is strict
+      // enough that a stock-tail regression shows up immediately.
       'Ledger: <2% of deed lines repeat consecutively',
       repeatRate < 0.02,
       `${(repeatRate * 100).toFixed(2)}%`,

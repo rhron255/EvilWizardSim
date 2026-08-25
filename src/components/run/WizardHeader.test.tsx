@@ -12,10 +12,26 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { RunState } from '../../types';
 import { SEAL_MAX_STANDING } from '../../engine';
+import type { DefenseReadout } from '../../engine';
 import { demoEarlyRun, demoFactions, demoLairs, demoRun } from './__fixtures__/demo';
 import { WizardHeader } from './WizardHeader';
 
-const show = (run: RunState, defense: number | null = 120) =>
+/**
+ * A defence readout with named terms, because the wards caption now has to
+ * report where the wards came from — the lair is 30% of the mean total and was
+ * disclosed nowhere.
+ */
+const wards = (total: number): DefenseReadout => ({
+  total,
+  terms: [
+    { label: 'Lair', value: 32 },
+    { label: 'Relics', value: 6 },
+    { label: 'Fame', value: Math.round(total - 32 - 6 - 42) },
+    { label: 'Standing ground', value: 42 },
+  ],
+});
+
+const show = (run: RunState, defense: DefenseReadout | null = wards(120)) =>
   render(
     <WizardHeader
       run={run}
@@ -106,13 +122,13 @@ describe('WizardHeader · disclosure', () => {
 
 describe('WizardHeader · the wards readout', () => {
   it('appears in the decline, where a hero exists to compare against', () => {
-    show(demoRun, 120);
+    show(demoRun, wards(120));
     expect(screen.getByText('Wards')).toBeInTheDocument();
     expect(screen.getByText('The hero')).toBeInTheDocument();
   });
 
   it('stays out of the ascent, so the early run is clean', () => {
-    show(demoEarlyRun, 60);
+    show(demoEarlyRun, wards(60));
     expect(screen.queryByText('Wards')).toBeNull();
   });
 

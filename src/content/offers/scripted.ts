@@ -78,7 +78,35 @@ export const scriptedOffers: Offer[] = [
     factionId: 'worm_below',
     scripted: true,
     requires: [{ c: 'minStanding', factionId: 'worm_below', v: 20 }],
-    weight: 1,
+    /**
+     * The whole lichdom branch is this one option, so its weight is an
+     * availability decision, not a texture one.
+     *
+     * At weight 1 (plus `SCRIPTED_WEIGHT_BONUS`) a player who spent the run
+     * courting the Worm Below specifically to be offered this reached the
+     * standing gate in 61% of careers and was then shown the card in only
+     * **19.9% of those** — it lost the draw to texture cards across the seven
+     * or so decline eras it was eligible, and the LICHDOM ending landed in
+     * 0.25% of all runs. wiki/01 § 7 calls lichdom "a live decision rather
+     * than a strict upgrade"; a decision you are offered in one run out of
+     * five while actively pursuing it is a lottery, and rule 6 wants all seven
+     * collection slots reachable.
+     *
+     * Availability to a dedicated seeker, measured: 19.9% at w1, 59.6% at w6,
+     * 73.3% at w12, 78.0% at w20 — the ceiling past w12 is the gate being met
+     * late in the decline, not the draw.
+     *
+     * SIX, not twelve, because the weight is not free. This card is eligible
+     * only in the decline, where the pool is small, so a heavy thumb crowds
+     * out the relic-granting cards that share it: population-wide, "ever held
+     * 1+ legendary" fell 10.6% → 8.2% and Ascension 2.20% → 1.60%, both of
+     * which stay in band but neither of which is worth buying more of a
+     * second branch with. w6 turns the lottery into a decision and stops.
+     *
+     * It cannot leak to anyone who has not earned it: the `requires` gate, the
+     * decline phase and the seen-once rule all still apply.
+     */
+    weight: 6,
     options: [
       {
         kind: 'certain',

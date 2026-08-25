@@ -14,7 +14,7 @@ export const origins: Origin[] = [
     id: 'expelled_pale_academy',
     name: 'Expelled from the Pale Academy',
     blurb:
-      'Two years of excellent marks, one incident in the specimen wing, and a letter signed by four people who each believed a different one of them had made the decision. You kept the robes.',
+      'One incident in the specimen wing. Four signatures on the letter, no author. You kept the robes.',
     effects: [
       { t: 'standing', factionId: 'pale_academy', v: -30 },
       { t: 'standing', factionId: 'ashen_covenant', v: 10 },
@@ -25,7 +25,7 @@ export const origins: Origin[] = [
     id: 'bog_autodidact',
     name: 'Self-Taught in a Bog',
     blurb:
-      'Nobody taught you. You worked it out from a waterlogged primer, three bad winters, and a frog that had previously been somebody. The Choir noticed before anyone else did.',
+      'Nobody taught you. A waterlogged primer, three bad winters, and a frog that used to be somebody.',
     effects: [
       { t: 'standing', factionId: 'verdant_choir', v: 15 },
       { t: 'standing', factionId: 'pale_academy', v: -10 },
@@ -37,7 +37,7 @@ export const origins: Origin[] = [
     id: 'inherited_tower_and_debts',
     name: 'Inherited a Tower and Its Debts',
     blurb:
-      'Your master died owing money to people who keep excellent records. The tower is yours. So is the correspondence, which continues to arrive.',
+      'Your master died owing money to people who keep excellent records. The letters still arrive.',
     effects: [
       { t: 'lairTier', v: 3 },
       { t: 'pactDebt', v: 2 },
@@ -49,7 +49,7 @@ export const origins: Origin[] = [
     id: 'sold_masters_estate',
     name: 'Sold Your Master’s Estate',
     blurb:
-      'You were the apprentice on duty the week the estate became available, and you handled the liquidation personally, and quickly. The Gilded Hand still refers to it as a clean piece of work.',
+      'You were on duty the week the estate became available. The Gilded Hand still calls it clean work.',
     effects: [
       { t: 'standing', factionId: 'gilded_hand', v: 20 },
       { t: 'standing', factionId: 'verdant_choir', v: -15 },

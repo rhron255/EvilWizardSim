@@ -239,6 +239,34 @@
     padding: var(--ew-space-4) var(--ew-space-4) var(--ew-space-7);
   }
 
+  /* One scrolling row instead of a wrapped stack.
+     Seven chips wrapped to SIX rows at 393px — roughly 500px of filter
+     furniture before a single relic appeared, on the screen whose entire
+     purpose is showing relics. A snapping strip is the pattern phones already
+     use for filters, and it costs one row. `ALL` is first, so the default
+     state still reads as unfiltered without scrolling. */
+  .filters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    padding-bottom: var(--ew-space-4);
+    /* Bleed to the screen edge so the strip reads as scrollable rather than
+       as a row that happens to be clipped. */
+    margin: 0 calc(-1 * var(--ew-space-4));
+    padding-left: var(--ew-space-4);
+    padding-right: var(--ew-space-4);
+  }
+
+  .filters::-webkit-scrollbar {
+    display: none;
+  }
+
+  .filter {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+  }
+
   .groupHead {
     flex-wrap: wrap;
   }

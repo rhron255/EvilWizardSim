@@ -77,4 +77,16 @@
   .hint {
     display: none;
   }
+
+  /* Leading, not size. The prompt is the joke and the title is the hook, so
+     neither shrinks; what goes is the air between them and the 1.62 line
+     height, which is a reading-column value on a 44-character line. Measured
+     worth ~30px, which is a quarter of a choice card. */
+  .header {
+    gap: var(--ew-space-1);
+  }
+
+  .body {
+    line-height: 1.45;
+  }
 }

@@ -9,6 +9,7 @@
 
 import type { Artifact, Faction, Lair, Offer, RunState } from '../types';
 import type { Resolution } from '../components/run/resolution';
+import type { DefenseReadout } from '../engine';
 import { Ledger, OfferPanel, ResolutionOverlay, WizardHeader } from '../components/run';
 import { tierColor, tierFor, tierGlow } from '../theme/tokens';
 import styles from './RunScreen.module.css';
@@ -23,10 +24,11 @@ export type RunScreenProps = {
   onChoose(i: number): void;
   onContinue(): void;
   /**
-   * Current defence, from the engine. Passed down rather than computed here so
-   * the screen stays presentational. Feeds the decline-phase wards readout.
+   * Current defence, itemised, from the engine. Passed down rather than
+   * computed here so the screen stays presentational. Feeds the decline-phase
+   * wards readout and its breakdown.
    */
-  defense?: number | null;
+  defense?: DefenseReadout | null;
 };
 
 export function RunScreen({

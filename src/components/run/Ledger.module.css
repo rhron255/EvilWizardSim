@@ -282,15 +282,21 @@
     padding: var(--ew-space-3) var(--ew-space-2);
   }
 
-  /* Three rows and the pinned header. A phone viewport is 852px and the choice
-     cards sit BELOW this table by design, so the ledger is the one element here
-     that can be asked to spend less; 20rem of it was pushing the first option
-     past 1000px. A mobile row is ~2.4rem, so 9rem is the pinned header, three
-     whole rows and a sliver of a fourth — the sliver is the affordance, since
-     the scroll is pinned to the NEWEST era and everything the cap hides is
-     therefore above. The count in the corner opens it the rest of the way. */
+  /* Two rows and the pinned header, down from three.
+     A phone viewport is 852px and the choice cards sit BELOW this table by
+     design, so the ledger is the one element here that can be asked to spend
+     less. Measured at 393x852: header plus this frame were putting the first
+     choice card 793px down by era 11, so the player opened every era looking
+     at history instead of at the decision.
+
+     Rule 2 protects the LEDGER — that it appends, never resets, and always
+     carries the deed — not a particular number of visible rows. The era count
+     in the corner still opens it, the scroll is still pinned to the newest
+     line so everything hidden is ABOVE, and no row leaves the DOM. A mobile
+     row is ~2.4rem, so 5.9rem is the pinned header, two whole rows and the
+     sliver of a third that says there is more. Worth ~50px to the cards. */
   .scroll {
-    --ledger-max: 9rem;
+    --ledger-max: 5.9rem;
   }
 
   .wrap[data-expanded='true'] .scroll {

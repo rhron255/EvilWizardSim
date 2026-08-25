@@ -1,4 +1,8 @@
-/* One second of drama, staged. Skippable at any frame. */
+/* The drama, staged. Skippable at any frame.
+
+   A certain choice resolves in about a second. A GAMBLE takes ~1.6s, on
+   purpose: the needle has to finish before the card is allowed to say what
+   happened. See `.card[data-rolling]` for the schedule and why. */
 
 .scrim {
   position: fixed;
@@ -13,7 +17,24 @@
   cursor: pointer;
 }
 
+/* The roll schedule, in one place.
+
+   A gamble's card used to give the answer away: the verdict word finished its
+   reveal at 320ms while the needle did not land until 720ms, so the player was
+   told Success or Failure and then watched a marker slide to a position whose
+   meaning had already been spent. These four numbers reverse that — the needle
+   runs first, and the word and the colour arrive on the settle. */
+.card[data-rolling] {
+  --roll-start: 220ms;
+  --roll-dur: 900ms;
+  /* The instant the needle stops. Everything that names the outcome keys off
+     this, so the drama cannot drift out of sync with the instrument. */
+  --settle: 1080ms;
+  --after-settle: 1260ms;
+}
+
 .card {
+  position: relative;
   width: min(30rem, 100%);
   max-height: calc(100vh - var(--ew-space-6));
   overflow-y: auto;
@@ -29,8 +50,57 @@
   animation: cardIn var(--ew-slow) var(--ew-ease) both;
 }
 
-/* Staged reveal. Each block arrives a beat after the last; the whole sequence
-   is under a second so it never becomes a wait. */
+/* --------------------------------------------------------------------------
+   The verdict wash.
+
+   The outcome used to live in two places — the word, and `border-top-color`.
+   Everything else was grey, so a result read as a caption on a neutral card
+   rather than as the card's subject. This carries it across the whole object:
+   a ring, a ground that pools behind the verdict and fades before the
+   consequences, and an outward glow.
+
+   It is a PSEUDO-ELEMENT, not properties on `.card`, for one reason: custom
+   properties are not animatable, and the commit has to be an event. The wash
+   fades in on `--settle` so the card changes colour at the moment the needle
+   stops, which is the whole point of the reordering above.
+
+   No new hue enters the palette: `--ew-delta-up`/`--ew-delta-down` are the pair
+   every offer card already spends on `+8` and `-12`. And it stays CHROME —
+   edges, ground, glow — at low alpha, so the Notoriety badge in the middle of
+   the card is still the only saturated thing on it (rule 3).
+   -------------------------------------------------------------------------- */
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--ew-verdict, transparent) 15%, transparent),
+    transparent 58%
+  );
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--ew-verdict, transparent) 42%, transparent),
+    0 0 52px -14px color-mix(in srgb, var(--ew-verdict, transparent) 40%, transparent);
+}
+
+/* The card's own children sit above the wash. */
+.card > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* A gamble earns the wash on the settle; a certain choice has it from the
+   start, because there is no roll to wait for. */
+.card[data-rolling]::before {
+  animation: verdictIn 420ms var(--ew-ease) var(--settle) both;
+}
+
+/* Staged reveal, the base schedule — used as-is by a deterministic era, where
+   there is nothing to wait for. A gamble overrides everything from the third
+   child down so the consequences arrive AFTER the verdict. */
 .card > * {
   animation: riseIn 260ms var(--ew-ease) both;
 }
@@ -61,6 +131,45 @@
 }
 .card > *:nth-child(9) {
   animation-delay: 670ms;
+}
+
+/* --------------------------------------------------------------------------
+   A gamble's schedule.
+
+   Child 1 is `.top` (the Notoriety badge, which is not a verdict and may
+   appear at once) and child 2 is the roll block — those keep the fast reveal,
+   because they are the instrument the player is meant to be watching. The
+   verdict WORD inside child 1 is pulled out separately below, and everything
+   from child 3 down is the consequences, which cannot precede the result that
+   caused them.
+   -------------------------------------------------------------------------- */
+.card[data-rolling] > *:nth-child(3) {
+  animation-delay: calc(var(--settle) + 140ms);
+}
+.card[data-rolling] > *:nth-child(4) {
+  animation-delay: calc(var(--settle) + 220ms);
+}
+.card[data-rolling] > *:nth-child(5) {
+  animation-delay: calc(var(--settle) + 290ms);
+}
+.card[data-rolling] > *:nth-child(6) {
+  animation-delay: calc(var(--settle) + 350ms);
+}
+.card[data-rolling] > *:nth-child(7) {
+  animation-delay: calc(var(--settle) + 400ms);
+}
+.card[data-rolling] > *:nth-child(8) {
+  animation-delay: calc(var(--settle) + 440ms);
+}
+.card[data-rolling] > *:nth-child(9) {
+  animation-delay: calc(var(--settle) + 470ms);
+}
+
+/* The word lands as the needle stops. It is still in the DOM from the first
+   frame — the dialog is `aria-labelledby` it, so withholding the ELEMENT would
+   strip the dialog's accessible name. Only the presentation waits. */
+.card[data-rolling] .outcome {
+  animation: verdictWordIn 460ms var(--ew-ease) var(--settle) both;
 }
 
 .top {
@@ -96,12 +205,24 @@
   color: var(--ew-ink-dim);
 }
 
-.card[data-outcome='success'] .outcome {
-  color: var(--ew-delta-up);
+/* One property, set once, driving the word, the ring, the ground, the glow and
+   the rail. Everything that says "this went well" or "this did not" reads from
+   here, so the card can never disagree with itself. */
+.card[data-outcome='success'] {
+  --ew-verdict: var(--ew-delta-up);
 }
 
+.card[data-outcome='failure'] {
+  --ew-verdict: var(--ew-delta-down);
+}
+
+.card[data-outcome='success'] .outcome,
 .card[data-outcome='failure'] .outcome {
-  color: var(--ew-delta-down);
+  color: var(--ew-verdict);
+  /* Up a step from `lg`: after the Notoriety figure this is the largest thing
+     on the card, which is what "the failure / success indication is not clear
+     enough" was asking for. */
+  font-size: var(--ew-size-xl);
 }
 
 /* A deterministic era has no verdict to give — it is the quiet case, and it
@@ -115,14 +236,13 @@
   color: var(--ew-ink-faint);
 }
 
-/* The card edge repeats it, so the verdict is legible before a single word is
-   read. */
-.card[data-outcome='success'] {
-  border-top-color: color-mix(in srgb, var(--ew-delta-up) 45%, var(--ew-line-strong));
-}
-
+/* The edge used to be the ONLY place besides the word that carried the result,
+   and only its top border at that. The wash on `.card::before` now covers the
+   whole object; this stays as the base state so the card is never colourless
+   even before the wash animates in. */
+.card[data-outcome='success'],
 .card[data-outcome='failure'] {
-  border-top-color: color-mix(in srgb, var(--ew-delta-down) 45%, var(--ew-line-strong));
+  border-color: color-mix(in srgb, var(--ew-verdict) 30%, var(--ew-line-strong));
 }
 
 /* Getting away with it. Only ever shown on a win at long odds — the number is
@@ -134,6 +254,11 @@
   letter-spacing: 0.16em;
   color: var(--ew-delta-up);
   animation: oddsIn 420ms var(--ew-ease) 320ms both;
+}
+
+/* It only ever appears on a win, so it always follows a roll. */
+.card[data-rolling] .againstOdds {
+  animation-delay: var(--after-settle);
 }
 
 @keyframes oddsIn {
@@ -181,7 +306,9 @@
   position: absolute;
   inset: 0 auto 0 0;
   border-radius: var(--ew-radius-pill);
-  background: var(--ew-ink-faint);
+  /* The band you needed to land in, in the colour of landing in it. Neutral
+     ink made the rail a chart; this makes it the instrument that decided. */
+  background: color-mix(in srgb, var(--ew-delta-up) 42%, var(--ew-ink-faint));
 }
 
 .railTick {
@@ -202,7 +329,54 @@
   border-radius: 1px;
   background: var(--ew-ink-bright);
   box-shadow: 0 0 8px rgba(242, 236, 221, 0.35);
-  animation: land 520ms var(--ew-ease) 200ms both;
+  /* The wheel slowing.
+
+     `land` used to run 520ms on the standard ease, which reads as a bar
+     sliding to a value. The bezier below spends most of its distance in the
+     first third and then crawls, which is what a roulette wheel does and what
+     makes the last 100ms worth watching. `needleSettle` is the stop itself. */
+  animation:
+    land var(--roll-dur, 900ms) cubic-bezier(0.05, 0.72, 0.1, 1) var(--roll-start, 220ms) both,
+    needleSettle 460ms var(--ew-ease) var(--settle, 1080ms) both;
+}
+
+@keyframes needleSettle {
+  from {
+    transform: scaleY(1);
+    box-shadow: 0 0 8px rgba(242, 236, 221, 0.35);
+  }
+  30% {
+    transform: scaleY(1.35);
+    box-shadow: 0 0 16px color-mix(in srgb, var(--ew-verdict, #f2ecdd) 70%, transparent);
+  }
+  to {
+    transform: scaleY(1);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--ew-verdict, #f2ecdd) 45%, transparent);
+  }
+}
+
+@keyframes verdictIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes verdictWordIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(0) scale(1.04);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @keyframes land {
@@ -271,6 +445,58 @@
   font-size: var(--ew-size-xs);
   color: var(--ew-ink-faint);
   line-height: 1.6;
+}
+
+/* --------------------------------------------------------------------------
+   Rarity, on the row where the relic is actually won.
+
+   Mirrors `ArtifactCard.module.css`'s ladder: frame, ground, elevation, glyph,
+   type scale — and a tier-coloured edge for a legendary only. This card spends
+   the tier colour once, small, on the Notoriety badge, so a legendary edge is
+   the second gold object rather than the fourth; that is why it is allowed
+   here and suppressed on the ending card.
+   -------------------------------------------------------------------------- */
+
+.relic[data-rarity='rare'] {
+  border-width: 2px;
+  border-color: var(--ew-line-strong);
+  background: var(--ew-panel);
+  box-shadow: var(--ew-shadow-card);
+}
+
+.relic[data-rarity='rare'] .relicMark {
+  color: var(--ew-ink-dim);
+  font-size: var(--ew-size-sm);
+}
+
+.relic[data-rarity='rare'] .relicName {
+  color: var(--ew-ink-bright);
+}
+
+.relic[data-rarity='legendary'] {
+  border-width: 2px;
+  border-color: color-mix(in srgb, var(--ew-legendary) 55%, var(--ew-line-strong));
+  background:
+    repeating-linear-gradient(-45deg, rgba(242, 236, 221, 0.05) 0 1px, transparent 1px 7px),
+    var(--ew-panel);
+  box-shadow:
+    var(--ew-shadow-raised),
+    inset 0 0 0 1px color-mix(in srgb, var(--ew-legendary) 18%, transparent);
+}
+
+.relic[data-rarity='legendary'] .relicMark {
+  color: var(--ew-legendary);
+  font-size: var(--ew-size-md);
+}
+
+.relic[data-rarity='legendary'] .relicName {
+  font-size: var(--ew-size-md);
+  font-weight: 700;
+  color: var(--ew-ink-bright);
+}
+
+.relic[data-rarity='legendary'] .relicRarity {
+  color: color-mix(in srgb, var(--ew-legendary) 70%, var(--ew-ink-faint));
 }
 
 .relicBody {

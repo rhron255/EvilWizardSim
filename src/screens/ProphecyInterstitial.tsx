@@ -10,9 +10,18 @@
  * What this screen deliberately does NOT do (wiki/01 §6, wiki/04):
  *   - no doom meter
  *   - no "the decline begins" caption
- *   - no numbers at all
+ *   - no RUN numbers — no notoriety, no threat, no counters. (It has always
+ *     printed the era and the age; the old wording here said "no numbers at
+ *     all", which read as a rule those two were breaking.)
  * The decline works because it is a number quietly going the wrong way. Naming
- * it here would spend the whole effect in one screen.
+ * THAT here would spend the whole effect in one screen.
+ *
+ * The one thing it now says outright is the hand-off at the end: the hero
+ * becomes a counter that climbs. That was disclosed nowhere — not here, and
+ * deliberately not in the first-run guide either — so a player met the wards
+ * readout several eras later with no idea where it came from, and met the
+ * ending it leads to with no idea it had been coming. The erosion stays quiet;
+ * the lethal counter does not (CLAUDE.md, failure mode 1).
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -110,7 +119,11 @@ export function ProphecyInterstitial({ run, heroName, text, onContinue }: Prophe
           <span className={styles.sep} aria-hidden>
             ·
           </span>
-          {run.wizardName} is <span className={styles.num}>{run.age}</span>
+          {/* "Grishnak is 65" was read as notoriety by a reviewer, and
+              reasonably: at era 10 the age lands squarely in notoriety's range,
+              on the screen you reach straight from a header whose largest
+              number is notoriety. The unit is three words. */}
+          {run.wizardName} is <span className={styles.num}>{run.age}</span> years old
         </p>
 
         <h1 className={`${styles.headline} ${at(3)}`}>
@@ -138,6 +151,15 @@ export function ProphecyInterstitial({ run, heroName, text, onContinue }: Prophe
           >
             Return to your work
           </button>
+
+          {/* The hand-off.
+              The decline's notoriety erosion stays unnarrated — that is the
+              doom-meter ban and it is right. What was undisclosed is the OTHER
+              half: from this era the hero is a number that climbs, and a
+              readout the player has never seen is about to appear in their
+              header. This says that and nothing more; it names no phase and
+              draws no meter. */}
+          <p className={styles.handoff}>He becomes a number in your header. It climbs every era.</p>
         </div>
       </div>
 

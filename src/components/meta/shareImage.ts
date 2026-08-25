@@ -160,6 +160,178 @@ function fitSentences(
   return lines;
 }
 
+// ---------------------------------------------------------------------------
+// The tail plan — where the variable-height sections meet the fixed footer
+// ---------------------------------------------------------------------------
+
+/**
+ * One cell of the LAIRS HELD grid.
+ *
+ * `more` is a real cell, not a fallback: the card prints a LAIRS count in the
+ * stat row, so any tenure the grid declines to draw has to be named. The grid
+ * used to `.slice(0, 8)` and say nothing, which meant a ten-lair career
+ * printed "LAIRS 10" over eight cards and dropped the top two rungs — the
+ * climax of the biography — with no mark at all.
+ */
+export type LairSlot =
+  | { kind: 'tenure'; index: number }
+  | { kind: 'more'; count: number };
+
+export type ShareTailInput = {
+  /** Baseline of the LAIRS HELD label: where the variable-height tail starts. */
+  tailTop: number;
+  /** The hairline above the footer. Nothing may be drawn at or below it. */
+  footRuleY: number;
+  /** How many tenures the grid would like to draw. */
+  tenures: number;
+  /**
+   * How many lines the relic list wraps to with NOTHING elided. `1` for the
+   * empty state, which draws one line of prose.
+   */
+  relicLines: number;
+};
+
+export type ShareTailPlan = {
+  /** Grid columns: 2 normally, 3 once a career outgrows two. */
+  cols: number;
+  rowH: number;
+  /** Font ceiling for a lair name at this row height. */
+  nameFontPx: number;
+  rows: number;
+  /** Exactly what the grid draws, in order. Always accounts for every tenure. */
+  slots: LairSlot[];
+  /** Relic lines the layout can afford. Below `relicLines` means elide. */
+  relicLines: number;
+  gridTop: number;
+  relicLabelY: number;
+  relicFirstY: number;
+  /** Baseline of the last line of ink in the tail. */
+  bottomY: number;
+  /** The lowest baseline the tail may use. */
+  limitY: number;
+  /** False only if a single grid row plus one relic line cannot be afforded. */
+  fits: boolean;
+};
+
+/** Vertical rhythm of the tail. Advances, not sizes — all measured from a baseline. */
+const TAIL = {
+  /** LAIRS HELD baseline → top of the first grid row. */
+  labelGap: 26,
+  /** Bottom of the last grid row → RELICS RECOVERED baseline. */
+  gridGap: 22,
+  /** RELICS RECOVERED baseline → first relic line baseline. */
+  relicGap: 28,
+  relicLineH: 29,
+  /**
+   * Last relic baseline → footer hairline. A 21px serif's descenders run ~7px
+   * below the baseline; at 8px of air the rule reads as a rule rather than as
+   * an underline. At the shipped `0` the hairline vanished behind the
+   * descenders at seven lairs before any text had begun to overprint.
+   */
+  clearance: 15,
+  maxLines: 3,
+} as const;
+
+/**
+ * Comfort ladder, most comfortable first. Each step buys grid height without
+ * hiding anything: a third column costs name width, a shorter row costs type
+ * size, and `ceil(n/3)*46 <= ceil(n/2)*40` for every n, so a squashed two-column
+ * grid is never the better trade and is not offered.
+ */
+const TAIL_LADDER: ReadonlyArray<{ cols: number; rowH: number; nameFontPx: number }> = [
+  { cols: 2, rowH: 46, nameFontPx: 24 },
+  { cols: 3, rowH: 46, nameFontPx: 24 },
+  { cols: 3, rowH: 40, nameFontPx: 22 },
+  { cols: 3, rowH: 36, nameFontPx: 19 },
+];
+
+/**
+ * Fit the lair grid and the relic list into the space above the footer.
+ *
+ * THE CHOICE. The canvas is a fixed 1080×1350 and everything above this point
+ * — sigil, name, ending, narration — is the emotional payload, so the tail is
+ * where a long career has to give. It gives in a fixed order, and the order is
+ * the design:
+ *
+ *   1. Density first. Two columns become three, then rows and type shrink.
+ *      Nothing is hidden; a ten-lair career simply gets a denser trophy case.
+ *   2. Then the relic list sheds names — and says how many, inline, so the
+ *      RELICS tile above it is never contradicted.
+ *   3. Only when even the densest grid overflows do tenures go, into a `more`
+ *      cell that names the count and keeps the FINAL lair. Reachable at ~13
+ *      tenures; 6000 simulated careers against the real catalog topped out at
+ *      nine, so this is the totality guarantee, not the common path.
+ *
+ * Reserving a fixed slab for the tail was the other option and was rejected:
+ * the common career (1–6 tenures, 0–2 relics — 95% of the runs measured) would
+ * have paid for the rare one with permanent dead space at the bottom of every
+ * card. This is pure arithmetic on purpose — see `shareImage.test.ts`, which
+ * pins the two invariants a canvas screenshot cannot: the tail never reaches
+ * the footer, and the slots always account for every tenure.
+ */
+export function planShareTail(input: ShareTailInput): ShareTailPlan {
+  const n = Math.max(0, Math.floor(input.tenures));
+  const wanted = Math.max(1, Math.min(TAIL.maxLines, Math.floor(input.relicLines)));
+  const limitY = input.footRuleY - TAIL.clearance;
+
+  // Height available for grid rows, once the labels and one relic line are paid.
+  const gridBudget = (lines: number) =>
+    limitY -
+    input.tailTop -
+    TAIL.labelGap -
+    TAIL.gridGap -
+    TAIL.relicGap -
+    (lines - 1) * TAIL.relicLineH;
+
+  const build = (
+    step: { cols: number; rowH: number; nameFontPx: number },
+    rows: number,
+    slots: LairSlot[],
+    lines: number,
+  ): ShareTailPlan => {
+    const gridTop = input.tailTop + TAIL.labelGap;
+    const relicLabelY = gridTop + rows * step.rowH + TAIL.gridGap;
+    const relicFirstY = relicLabelY + TAIL.relicGap;
+    const bottomY = relicFirstY + (lines - 1) * TAIL.relicLineH;
+    return {
+      ...step,
+      rows,
+      slots,
+      relicLines: lines,
+      gridTop,
+      relicLabelY,
+      relicFirstY,
+      bottomY,
+      limitY,
+      fits: bottomY <= limitY,
+    };
+  };
+
+  const whole = (): LairSlot[] =>
+    Array.from({ length: n }, (_, index): LairSlot => ({ kind: 'tenure', index }));
+
+  // 1 & 2. Densify at full content; only then start dropping relic names.
+  for (let lines = wanted; lines >= 1; lines--) {
+    for (const step of TAIL_LADDER) {
+      const rows = Math.ceil(n / step.cols);
+      if (rows * step.rowH <= gridBudget(lines)) return build(step, rows, whole(), lines);
+    }
+  }
+
+  // 3. Elide tenures. Keep the opening rungs and the lair the career ended in;
+  //    the `more` cell in between names everything it stands for.
+  const step = TAIL_LADDER[TAIL_LADDER.length - 1];
+  const rows = Math.max(1, Math.floor(gridBudget(1) / step.rowH));
+  const cap = rows * step.cols;
+  const head = Math.max(0, cap - 2);
+  const slots: LairSlot[] = [
+    ...Array.from({ length: head }, (_, index): LairSlot => ({ kind: 'tenure', index })),
+    { kind: 'more', count: n - head - 1 },
+    { kind: 'tenure', index: n - 1 },
+  ];
+  return build(step, rows, slots, 1);
+}
+
 function hairline(ctx: CanvasRenderingContext2D, x1: number, y: number, x2: number, color: string, alpha = 1) {
   ctx.save();
   ctx.globalAlpha = alpha;
@@ -453,65 +625,114 @@ function paintCard(ctx: CanvasRenderingContext2D, input: ShareEndingInput) {
   });
   y += boxH + 46;
 
-  // --- lairs held ---
-  const tenures = lairTenures(run, lairs).slice(0, 8);
-  drawText(ctx, 'LAIRS HELD', boxX, y, { font: `600 12px ${UI}`, color: ink.faint, tracking: 3.4 });
-  hairline(ctx, boxX + 120, y - 4, boxX + boxW, surface.line);
-  y += 26;
-
-  const colW = boxW / 2;
-  const rowH = 46;
-  tenures.forEach((tn, i) => {
-    const col = i % 2;
-    const row = Math.floor(i / 2);
-    const x = boxX + col * colW;
-    const ry = y + row * rowH;
-
-    ctx.strokeStyle = surface.line;
-    ctx.strokeRect(x + 0.5, ry + 0.5, colW - 14, rowH - 10);
-
-    drawText(ctx, roman(tn.lair.tier + 1), x + 16, ry + 25, {
-      font: `600 13px ${UI}`,
-      color: tn.last ? accent : ink.faint,
-      tracking: 1.5,
-    });
-    const lairFont = fitFont(ctx, tn.lair.name, colW - 150, '600', 24, 15, DISPLAY);
-    drawText(ctx, tn.lair.name, x + 62, ry + 26, { font: lairFont, color: ink.bright });
-    drawText(ctx, `${tn.fromAge}–${tn.toAge}`, x + colW - 26, ry + 25, {
-      font: `500 13px ${UI}`,
-      color: ink.faint,
-      align: 'right',
-    });
-  });
-  y += Math.ceil(tenures.length / 2) * rowH + 22;
-
-  // --- relics ---
+  // --- the tail: lairs, relics, and the fixed footer they used to collide with
+  //
+  // `y` used to run free down the card while the footer was pinned at a fixed
+  // offset, so a long career drew its relic names straight over the footer
+  // text. Everything below is positioned by `planShareTail`, which owns that
+  // arithmetic and is unit-tested; nothing here advances `y` by feel.
+  const tenures = lairTenures(run, lairs);
   const held = run.heldArtifactIds
     .map((id) => artifacts.find((a) => a.id === id))
     .filter((a): a is Artifact => Boolean(a));
 
-  drawText(ctx, 'RELICS RECOVERED', boxX, y, { font: `600 12px ${UI}`, color: ink.faint, tracking: 3.4 });
-  hairline(ctx, boxX + 178, y - 4, boxX + boxW, surface.line);
-  y += 28;
+  const footY = H - MARGIN - 40;
+  const footRuleY = footY - 24;
+  const relicFont = `500 21px ${DISPLAY}`;
+  const wantedLines =
+    held.length === 0 ? 1 : wrap(ctx, held.map((a) => a.name).join('   ·   '), boxW, relicFont).length;
+
+  const plan = planShareTail({ tailTop: y, footRuleY, tenures: tenures.length, relicLines: wantedLines });
+
+  drawText(ctx, 'LAIRS HELD', boxX, y, { font: `600 12px ${UI}`, color: ink.faint, tracking: 3.4 });
+  hairline(ctx, boxX + 120, y - 4, boxX + boxW, surface.line);
+
+  const colW = boxW / plan.cols;
+  plan.slots.forEach((slot, i) => {
+    const col = i % plan.cols;
+    const row = Math.floor(i / plan.cols);
+    const x = boxX + col * colW;
+    const ry = plan.gridTop + row * plan.rowH;
+    const cellH = plan.rowH - 10;
+
+    ctx.strokeStyle = surface.line;
+    ctx.strokeRect(x + 0.5, ry + 0.5, colW - 14, cellH);
+
+    if (slot.kind === 'more') {
+      // The count the grid declined to draw, named. The stat tile above prints
+      // the true number of lairs; a silent drop made the card contradict it.
+      drawText(ctx, `+${slot.count}`, x + 16, ry + cellH / 2 + 5, {
+        font: `600 13px ${UI}`,
+        color: ink.faint,
+        tracking: 1.5,
+      });
+      drawText(ctx, slot.count === 1 ? 'one more' : 'more, held briefly', x + 62, ry + cellH / 2 + 6, {
+        font: `italic 400 ${Math.min(20, plan.nameFontPx)}px ${DISPLAY}`,
+        color: ink.faint,
+      });
+      return;
+    }
+
+    const tn = tenures[slot.index];
+    const nameX = plan.cols === 2 ? 62 : 52;
+    const dateGutter = plan.cols === 2 ? 26 : 20;
+    drawText(ctx, roman(tn.lair.tier + 1), x + 16, ry + cellH / 2 + 5, {
+      font: `600 13px ${UI}`,
+      color: tn.last ? accent : ink.faint,
+      tracking: 1.5,
+    });
+    const lairFont = fitFont(
+      ctx,
+      tn.lair.name,
+      colW - nameX - 74,
+      '600',
+      plan.nameFontPx,
+      15,
+      DISPLAY,
+    );
+    drawText(ctx, tn.lair.name, x + nameX, ry + cellH / 2 + 6, { font: lairFont, color: ink.bright });
+    drawText(ctx, `${tn.fromAge}–${tn.toAge}`, x + colW - dateGutter, ry + cellH / 2 + 5, {
+      font: `500 ${plan.cols === 2 ? 13 : 12}px ${UI}`,
+      color: ink.faint,
+      align: 'right',
+    });
+  });
+
+  // --- relics ---
+  drawText(ctx, 'RELICS RECOVERED', boxX, plan.relicLabelY, {
+    font: `600 12px ${UI}`,
+    color: ink.faint,
+    tracking: 3.4,
+  });
+  hairline(ctx, boxX + 178, plan.relicLabelY - 4, boxX + boxW, surface.line);
 
   if (held.length === 0) {
-    drawText(ctx, 'None. Not one, in a whole life.', boxX, y, {
+    drawText(ctx, 'None. Not one, in a whole life.', boxX, plan.relicFirstY, {
       font: `italic 400 22px ${DISPLAY}`,
       color: ink.faint,
     });
-    y += 30;
   } else {
-    const relicFont = `500 21px ${DISPLAY}`;
-    const relicLines = wrap(ctx, held.map((a) => a.name).join('   ·   '), boxW, relicFont).slice(0, 3);
-    for (const line of relicLines) {
-      drawText(ctx, line, boxX, y, { font: relicFont, color: ink.base });
-      y += 29;
+    // If the plan bought fewer lines than the names need, drop whole names and
+    // say how many went — never stop mid-list, which is the mistake this file
+    // already carries a comment about one section up.
+    const names = held.map((a) => a.name);
+    let lines = wrap(ctx, names.join('   ·   '), boxW, relicFont);
+    for (let show = names.length - 1; show >= 1 && lines.length > plan.relicLines; show--) {
+      const rest = names.length - show;
+      lines = wrap(
+        ctx,
+        `${names.slice(0, show).join('   ·   ')}   ·   and ${rest} more`,
+        boxW,
+        relicFont,
+      );
     }
+    lines.slice(0, plan.relicLines).forEach((line, i) => {
+      drawText(ctx, line, boxX, plan.relicFirstY + i * 29, { font: relicFont, color: ink.base });
+    });
   }
 
   // --- footer ---
-  const footY = H - MARGIN - 40;
-  hairline(ctx, boxX, footY - 24, boxX + boxW, surface.line, 0.8);
+  hairline(ctx, boxX, footRuleY, boxX + boxW, surface.line, 0.8);
   drawText(ctx, tier.line, boxX, footY, { font: `italic 400 20px ${DISPLAY}`, color: ink.faint });
   drawText(ctx, 'evil-wizard-simulator', boxX + boxW, footY, {
     font: `600 12px ${UI}`,

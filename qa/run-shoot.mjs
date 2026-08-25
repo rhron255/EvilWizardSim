@@ -31,7 +31,7 @@ for (const s of shots) {
   page.on('pageerror', (e) => console.log(`[${s.name}] page error:`, e.message));
   await page.goto(`${BASE}?scene=${s.scene}`, { waitUntil: 'networkidle' });
   await page.evaluate(() => document.fonts.ready);
-  await page.waitForTimeout(1400); // let the staged reveals settle
+  await page.waitForTimeout(1900); // past the gamble settle (~1550ms, measured)
   await page.screenshot({ path: `${out}/${tag}-${s.name}.png`, fullPage: Boolean(s.full) });
   await page.close();
 }

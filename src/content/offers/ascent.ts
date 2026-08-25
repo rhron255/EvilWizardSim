@@ -40,6 +40,7 @@ export const ascentOffers: Offer[] = [
           { t: 'notoriety', v: -2 },
         ],
         failureText: "The surveyor's report runs to forty pages. Page one is the word 'no'.",
+        successText: 'The survey passes. Nobody mentions the wall.',
       },
       {
         kind: 'certain',
@@ -135,6 +136,7 @@ export const ascentOffers: Offer[] = [
           { t: 'standing', factionId: 'ashen_covenant', v: -15 },
           { t: 'pactDebt', v: 1 },
         ],
+        successText: 'Nine clauses struck. The vellum objects.',
       },
     ],
   },
@@ -170,6 +172,7 @@ export const ascentOffers: Offer[] = [
           { t: 'standing', factionId: 'gilded_hand', v: 5 },
         ],
         failureText: 'It arrives. It is a very fine box. The box is the item.',
+        successText: 'The last page was not a misprint. It arrives.',
       },
       {
         kind: 'certain',
@@ -191,6 +194,7 @@ export const ascentOffers: Offer[] = [
         kind: 'certain',
         label: 'Donate generously',
         effects: [
+          { t: 'artifactFrom', factionId: 'pale_academy' },
           { t: 'followers', v: -12 },
           { t: 'standing', factionId: 'pale_academy', v: 20 },
           { t: 'notoriety', v: -2 },
@@ -238,6 +242,7 @@ export const ascentOffers: Offer[] = [
           { t: 'followers', v: -18 },
           { t: 'notoriety', v: 2 },
         ],
+        successText: 'The wall stands. The badgers are rehoused.',
       },
       {
         kind: 'certain',
@@ -288,6 +293,7 @@ export const ascentOffers: Offer[] = [
           { t: 'followers', v: -12 },
           { t: 'notoriety', v: -3 },
         ],
+        successText: 'Further down than advertised, and furnished.',
       },
     ],
   },
@@ -348,6 +354,7 @@ export const ascentOffers: Offer[] = [
           { t: 'followers', v: -10 },
         ],
         failureText: 'He wins. He is insufferable about it for the next thirty years.',
+        successText: 'Vorlag attends at dawn. Not at breakfast.',
       },
       {
         kind: 'certain',
@@ -379,6 +386,7 @@ export const ascentOffers: Offer[] = [
         kind: 'certain',
         label: 'Answer honestly',
         effects: [
+          { t: 'artifactFrom', factionId: 'crownlands', rarity: 'common' },
           { t: 'standing', factionId: 'crownlands', v: 12 },
           { t: 'notoriety', v: 4 },
           { t: 'heroThreat', v: 3 },
@@ -406,6 +414,7 @@ export const ascentOffers: Offer[] = [
           { t: 'heroThreat', v: 6 },
         ],
         failureText: 'She had a second clipboard, and a colleague waiting at the bottom of the hill.',
+        successText: 'The census records one further resident: her.',
       },
     ],
   },
@@ -471,6 +480,7 @@ export const ascentOffers: Offer[] = [
           { t: 'notoriety', v: -2 },
         ],
         failureText: "Contents of the study: one study's worth of damp.",
+        successText: 'Contents of the study: rather more than damp.',
       },
       {
         kind: 'certain',
@@ -531,6 +541,7 @@ export const ascentOffers: Offer[] = [
           { t: 'standing', factionId: 'pale_academy', v: -20 },
           { t: 'notoriety', v: -4 },
         ],
+        successText: 'Two third-years do not return to the Academy.',
       },
     ],
   },
@@ -730,6 +741,7 @@ export const ascentOffers: Offer[] = [
           { t: 'heroThreat', v: 2 },
         ],
         failureText: 'They take the insult to a competitor.',
+        successText: 'Half the rate. The captain calls it a pilot.',
       },
       {
         kind: 'certain',
@@ -801,6 +813,7 @@ export const ascentOffers: Offer[] = [
           { t: 'standing', factionId: 'gilded_hand', v: -18 },
           { t: 'followers', v: -10 },
         ],
+        successText: 'Clause eleven goes at the fourth reading.',
       },
     ],
   },
@@ -836,6 +849,7 @@ export const ascentOffers: Offer[] = [
         label: 'Find Reviewer Two',
         odds: 0.45,
         onSuccess: [
+          { t: 'artifactFrom', factionId: 'pale_academy', rarity: 'common' },
           { t: 'notoriety', v: 12 },
           { t: 'standing', factionId: 'pale_academy', v: -10 },
           { t: 'followers', v: 4 },
@@ -845,6 +859,7 @@ export const ascentOffers: Offer[] = [
           { t: 'notoriety', v: -4 },
         ],
         failureText: 'Reviewer Two is the Provost. He was not hard to find, and he was expecting you.',
+        successText: 'Reviewer Two withdraws all three objections.',
       },
     ],
   },
@@ -1287,6 +1302,7 @@ export const ascentOffers: Offer[] = [
           { t: 'heroThreat', v: 7 },
           { t: 'followers', v: -10 },
         ],
+        successText: 'She helps draft the second demand herself.',
       },
     ],
   },
@@ -1617,6 +1633,7 @@ export const ascentOffers: Offer[] = [
           { t: 'heroThreat', v: 8 },
         ],
         failureText: 'The speech was longer than expected and the armour, it turns out, was borrowed from someone competent.',
+        successText: 'The speech is read at the funeral. It is long.',
       },
       {
         kind: 'certain',

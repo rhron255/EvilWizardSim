@@ -265,8 +265,11 @@ function drawArtifact(
   if (rarity) {
     // Devotion is the route to a faction's best relic. Only three of the six
     // factions have an authored legendary grant at all, so without this the
-    // Pale Academy's legendary is unreachable and Ascension — which needs two
-    // — sat at 0.00% across 2000 runs. Standing this high is a run-defining
+    // Pale Academy's legendary is unreachable and Ascension — which needs
+    // `ASCENSION_LEGENDARIES`, currently one — sat at 0.00% across 2000 runs.
+    // (This comment said "two" long after the constant became one; the sim's
+    // ascension diagnostic had drifted the same way. Read the constant.)
+    // Standing this high is a run-defining
     // commitment, which is exactly the "committed path" wiki/04 asks routing
     // to reward, and it gives the near-miss a legible cause.
     const devoted = (draft.factionStanding[factionId] ?? 0) >= DEVOTION_STANDING;
@@ -351,4 +354,85 @@ function moveLair(draft: RunState, v: number, index: ContentIndex): number {
   if (next === current) return 0;
   draft.lairId = ladder[next].id;
   return next - current;
+}
+
+// ---------------------------------------------------------------------------
+// Projection — what the card should print, given where the run actually is
+// ---------------------------------------------------------------------------
+
+/**
+ * Effects whose landed value is a pure function of the current run state.
+ *
+ * Everything NOT in this set stays exactly as the author wrote it, because
+ * projecting it would either be a lie or spoil a reveal: `artifactFrom` draws
+ * at random and the card's honest promise is "a common Gilded Hand relic",
+ * `loseArtifact` picks at random, and `ending`/`becomeLich` are not quantities.
+ */
+const PROJECTABLE: ReadonlySet<Effect['t']> = new Set([
+  'notoriety',
+  'followers',
+  'apprentices',
+  'loyalty',
+  'pactDebt',
+  'heroThreat',
+  'standing',
+  'lairTier',
+]);
+
+/** Never reached: no projectable effect draws from the rng. */
+const NO_RNG: Rng = () => {
+  throw new Error('projectEffects: a projectable effect must not draw from the rng');
+};
+
+/**
+ * What an option will ACTUALLY do to this run, ready to print on the card.
+ *
+ * Two ways the authored list and the outcome came apart, both of which the
+ * player then saw only after committing:
+ *
+ *   1. CONTAGION. `applyStanding` spills onto `hostileTo` at 0.5 of a gain and
+ *      0.25 of a loss. So a card reading "+8 Standing · The Gilded Hand" also
+ *      cost 4 with the Verdant Choir, and the card never said so. CLAUDE.md
+ *      names this exactly — "an undisclosed downside reached by an invisible
+ *      route" — and it is the route into `sealed_in_gem`, which is 18.5% of
+ *      runs. The spill is deterministic and computable before the commit, so
+ *      there was never a reason it could not be printed.
+ *
+ *   2. FLOOR CLAMPS. Followers clamp at 0, and the run starts at 0. Measured
+ *      over 800 runs: 49.6% of options that printed a follower cost deducted
+ *      NOTHING, and in era 1 it was 70%. "−12 Followers" on a card that will
+ *      charge nothing is not a downside the player can reason about; it is
+ *      decoration that teaches them to discount every number on the card.
+ *
+ * Printing the projection fixes both, and it cannot drift from the engine
+ * because it IS the engine: each effect is run through `applyEffects` against a
+ * draft and what comes back is what the card prints. A parallel "what would
+ * this do" implementation is precisely the seam CLAUDE.md's failure mode 3 is
+ * about.
+ *
+ * Effects are projected in list order against a running draft, so a card that
+ * touches the same faction twice reads with the second value already knowing
+ * about the first — the same order the resolution applies them in.
+ */
+export function projectEffects(
+  run: RunState,
+  effects: readonly Effect[],
+  content: ContentBundle,
+): Effect[] {
+  const draft = draftOf(run);
+  const out: Effect[] = [];
+
+  for (const effect of effects) {
+    if (!PROJECTABLE.has(effect.t)) {
+      out.push(effect);
+      continue;
+    }
+    const { applied } = applyEffects(draft, [effect], NO_RNG, content);
+    // An effect that lands as nothing is still worth a line ONLY if the author
+    // meant a quantity and the state ate it — but a zero row reads as noise,
+    // and the honest reading of "this will cost you nothing" is silence.
+    out.push(...applied);
+  }
+
+  return out;
 }

@@ -77,7 +77,7 @@ Blocked on the language decision.
 - [ ] Tune decay base/exponent against 100 simulated runs.
 - [ ] Tune hero escalation so age-limit survival is uncommon.
 - [ ] Hold Ascension rate in the low single-digit percent.
-- [ ] Tune Notoriety tier thresholds against real run distributions.
+- [x] Tune Notoriety tier thresholds against real run distributions. Measured 2026-08-23 against 2000 runs of the real catalog: the 0-39 / 40-59 / 60-74 / 75-89 / 90-99 bands survive measurement unchanged, and `npm run sim` now carries a target for the 40+ crossing (70-95%, currently 87.70%) alongside the 60+/75+/90+ ones it already had. The first tier crossing — the first time the rationed colour does anything — had never been measured.
 
 ## P7 — Release Readiness
 

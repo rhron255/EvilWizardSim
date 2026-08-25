@@ -92,3 +92,17 @@
   font-size: var(--ew-size-xs);
   font-weight: 600;
 }
+
+/* A five- or six-effect card is the tallest thing that can land on the choice
+   screen, and on a 852px phone it is what decides whether the first card fits
+   above the fold. The numbers and the labels keep their size; only the leading
+   between rows gives way. Measured worth ~4px a row. */
+@media (max-width: 420px) {
+  .list {
+    gap: 0.05rem;
+  }
+
+  .row {
+    line-height: 1.4;
+  }
+}

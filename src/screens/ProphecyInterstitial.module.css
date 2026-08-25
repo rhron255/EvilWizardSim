@@ -342,3 +342,18 @@
     margin-top: var(--ew-space-7);
   }
 }
+
+/* The hand-off line, under the button.
+   Deliberately the quietest type on the screen: it is a mechanic note beside a
+   set piece, and it must not compete with the prophecy for attention. It sits
+   BELOW the exit, so a player who is done reading has already left. */
+.handoff {
+  margin: var(--ew-space-4) 0 0;
+  font-family: var(--ew-font-ui);
+  font-size: var(--ew-size-xs);
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+  color: var(--ew-ink-faint);
+  text-align: center;
+  text-wrap: balance;
+}

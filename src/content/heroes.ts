@@ -47,3 +47,49 @@ export function prophecyTextFor(heroName: string, wizardName: string): string {
     `Nobody has ever bothered to spell ${wizardName} correctly before.`
   );
 }
+
+/**
+ * The approach, narrated.
+ *
+ * Hero threat used to close in as a number and nothing else. The content that
+ * dramatised the chosen one — `decline_sighting`, `decline_the_squire` — was
+ * sampled at random, so a player could read about a sighting while perfectly
+ * safe and then die three eras later with no warning in the fiction at all.
+ *
+ * These fire off `heroBand` in the engine, once per band per run, so the prose
+ * and the rail are the same fact told twice. Each band has a small pool picked
+ * by a stable hash, the same way `deeds.ts` picks its tails: a given moment in
+ * a given run always narrates the same way.
+ *
+ * Note the register. This is not a doom meter — wiki/04's ban is on announcing
+ * the DECLINE, and the notoriety erosion stays unnarrated. This says only what
+ * a lethal counter is required to say (04:82-86), in fiction rather than in
+ * digits, and it never states a threshold or a rate; the readout above it does
+ * that.
+ */
+const APPROACH: Record<'warn' | 'danger' | 'through', readonly string[]> = {
+  warn: [
+    'A rider was seen on the north road. She did not stop at the village.',
+    'Someone has been asking, in the sensible towns, what your gate is made of.',
+    'A horse was bought three provinces away, and paid for by a temple.',
+  ],
+  danger: [
+    'She crossed the river at dusk and did not use the bridge.',
+    'The last village between you sent no tithe this year. They fed her instead.',
+    'Your outer wards were tested in the night. Politely, and only once.',
+  ],
+  through: [
+    'She is inside the wards. There is nothing further between you.',
+    'The gate held until it did not. She is not hurrying now.',
+    'Your wards are behind her. She has been walking a long time.',
+  ],
+};
+
+/**
+ * A line for a crossing. `key` is any stable per-run number — the engine passes
+ * the run seed — so the same run always tells it the same way.
+ */
+export function heroApproachLine(band: 'warn' | 'danger' | 'through', key: number): string {
+  const pool = APPROACH[band];
+  return pool[Math.abs(key | 0) % pool.length];
+}

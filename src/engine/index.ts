@@ -13,12 +13,24 @@ export { indexOf, FALLBACK_EPITHETS } from './content-port';
 export type { Resolution, SystemicChange } from './resolution';
 export type { CreateRunOptions } from './run';
 
-export { createRun, resolveChoice } from './run';
+export { createRun, resolveChoice, MAX_NAME_LENGTH } from './run';
 export { nextOffer, buildOfferPool, standingWeight, hasCertainOption, QUIET_ERA_OFFER } from './offers';
-export { defenseOf, tierCrossing, peakNotoriety, prophecyEraFor, decayFor, threatGainFor } from './systems';
+export {
+  defenseOf,
+  defenseReadout,
+  heroBand,
+  HERO_BANDS,
+  tierCrossing,
+  peakNotoriety,
+  prophecyEraFor,
+  decayFor,
+  threatGainFor,
+} from './systems';
+export type { DefenseReadout, DefenseTerm, HeroBand } from './systems';
 export { projectedEpithet } from './epithets';
 export { checkEndings, ascensionReady, legendariesHeld } from './endings';
 export { conditionMet, conditionsMet } from './conditions';
+export { projectEffects } from './effects';
 
 export {
   loadCollection,
@@ -41,6 +53,9 @@ export { RUN_LENGTHS, DEFAULT_ERA_COUNT, YEARS_PER_ERA, START_AGE } from './cons
  * that surprise, so the numbers the endings turn on are public.
  */
 export {
+  DEF_LAIR,
+  HERO_BAND_DANGER,
+  HERO_BAND_WARN,
   PACT_LIMIT,
   PACT_INTEREST,
   PACT_INTEREST_MIN_DEBT,

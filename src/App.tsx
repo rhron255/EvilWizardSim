@@ -9,7 +9,7 @@
 
 import { useMemo } from 'react';
 import type { ContentBundle } from './engine';
-import { defenseOf, useGame } from './engine';
+import { defenseReadout, projectEffects, useGame } from './engine';
 import {
   artifacts,
   endings,
@@ -51,9 +51,38 @@ export default function App() {
   // The chosen one is drawn from the run seed, so a seed is a rematch.
   const heroName = useMemo(() => (run ? heroNameFor(run.seed) : ''), [run]);
 
-  // The denominator for the decline-phase wards readout. Offers already print
-  // `+9 Hero Threat`; without this the player has no scale to read it against.
-  const defense = useMemo(() => (run ? defenseOf(run, CONTENT) : null), [run]);
+  // The denominator for the decline-phase wards readout, itemised. Offers
+  // already print `+9 Hero Threat`; without this the player has no scale to
+  // read it against, and without the TERMS they never learn that the lair —
+  // 30% of the mean defence — is what has been holding the hero off.
+  const defense = useMemo(() => (run ? defenseReadout(run, CONTENT) : null), [run]);
+
+  /**
+   * The offer as it will actually land, for DISPLAY ONLY.
+   *
+   * `game.offer` stays the authoritative object — `game.choose(i)` resolves
+   * against it by index, and nothing here touches that. What changes is what
+   * the card prints: the authored numbers are replaced by the numbers the
+   * engine will produce from this run state, which is the only way the card
+   * can honour the odds rule once contagion and floor clamps are in play.
+   * See `projectEffects` for the two ways they came apart.
+   */
+  const shownOffer = useMemo(() => {
+    const offer = game.offer;
+    if (!run || !offer) return offer;
+    return {
+      ...offer,
+      options: offer.options.map((o) =>
+        o.kind === 'certain'
+          ? { ...o, effects: projectEffects(run, o.effects, CONTENT) }
+          : {
+              ...o,
+              onSuccess: projectEffects(run, o.onSuccess, CONTENT),
+              onFailure: projectEffects(run, o.onFailure, CONTENT),
+            },
+      ),
+    };
+  }, [game.offer, run]);
 
   switch (screen) {
     case 'creation':
@@ -75,7 +104,7 @@ export default function App() {
         <>
           <RunScreen
             run={run}
-            offer={game.offer}
+            offer={shownOffer}
             resolution={game.resolution}
             lairs={lairs}
             artifacts={artifacts}

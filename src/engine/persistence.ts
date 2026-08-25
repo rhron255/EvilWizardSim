@@ -212,6 +212,12 @@ function looksLikeRun(value: unknown): value is RunState {
     Array.isArray(r.eras) &&
     Array.isArray(r.seenOfferIds) &&
     Array.isArray(r.heldArtifactIds) &&
+    // Added late, and the ending card now reads it to work out what the career
+    // contributed to the collection. A save written before it existed would
+    // deserialise with `undefined` here; `RUN_SAVE_VERSION` should already
+    // reject those, but a shape check is cheaper than trusting that it was
+    // bumped at the right moment.
+    Array.isArray(r.knownArtifactIds) &&
     !!r.factionStanding &&
     typeof r.factionStanding === 'object' &&
     !!r.apprentices &&

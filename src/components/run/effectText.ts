@@ -27,6 +27,8 @@
 import { BETRAYAL_MAX_LOYALTY, PACT_LIMIT } from '../../engine';
 import type { Artifact, Effect, EndingId, Faction, FactionId, Rarity } from '../../types';
 import type { SystemicChange } from './resolution';
+import { heroApproachLine } from '../../content/heroes';
+import { covenantVisitFor } from '../../content/systemic';
 
 /**
  * How a line should be *colored*, which is not the same as its sign.
@@ -230,15 +232,42 @@ export type SystemicLine = EffectLine & { note: string };
 
 export function describeSystemic(change: SystemicChange): SystemicLine {
   switch (change.t) {
-    case 'pactInterest':
+    /**
+     * The tick, with somebody attached to it.
+     *
+     * This was `+1 Pact Debt · the Covenant's interest · 4 / 7` — a correct
+     * disclosure of a number that grew while nobody appeared to make it grow.
+     * The visit line gives the increase an agent; the denominator and the
+     * ceiling are untouched beside it, because the disclosure is what stopped
+     * a player dying at 6/7 believing they had an era of headroom.
+     */
+    case 'pactInterest': {
+      const atLimit = change.debt >= PACT_LIMIT;
+      const visit = covenantVisitFor(change.debt, atLimit, change.v * 977 + change.debt);
       return {
         num: signed(change.v),
+        // `Pact Debt` STAYS the emphasised label. The first version of this put
+        // the visit line here and pushed the stat name into the quiet note —
+        // which made the joke louder than a lethal counter, and the tests that
+        // exist because someone died at 6/7 caught it immediately. The face
+        // goes in the note, beside the denominator, not instead of it.
         text: 'Pact Debt',
-        note:
-          change.debt >= PACT_LIMIT
-            ? `the Covenant’s interest · ${change.debt} / ${PACT_LIMIT} · the debt is called in`
-            : `the Covenant’s interest · ${change.debt} / ${PACT_LIMIT}`,
+        note: atLimit
+          ? `${visit} · ${change.debt} / ${PACT_LIMIT} · the debt is called in`
+          : `${visit} · ${change.debt} / ${PACT_LIMIT}`,
         tone: 'down',
+      };
+    }
+
+    case 'heroApproach':
+      return {
+        num: '',
+        // The line IS the payload here, so it goes in `text` where the row's
+        // emphasis is. `note` carries the comparison the readout above already
+        // shows, so a player who reads only this block still has the numbers.
+        text: heroApproachLine(change.band, change.threat * 1000 + change.wards),
+        note: `the hero · ${Math.round(change.threat)} against ${Math.round(change.wards)} wards`,
+        tone: change.band === 'through' ? 'down' : 'neutral',
       };
 
     case 'loyaltyDrift':

@@ -87,6 +87,10 @@ export function ResolutionOverlay({
       <div
         className={styles.card}
         data-outcome={outcome}
+        /* Drives the whole reveal schedule. A gamble makes the player watch the
+           needle before it names the verdict; a certain choice has nothing to
+           watch and keeps the fast reveal. */
+        data-rolling={showRoll ? 'true' : undefined}
         style={
           {
             // The card speaks with the tier the badge is *about to* show, so the
@@ -176,8 +180,21 @@ export function ResolutionOverlay({
 
         {resolution.artifactsGained.length > 0 && (
           <div className={styles.relics}>
+            {/* `data-rarity` below is the same hook `ArtifactCard` reads. This
+                row is hand-rolled rather than an ArtifactCard — different
+                layout, and it carries `data-new` — but it must not speak a
+                different vocabulary, so its ladder mirrors that stylesheet's.
+
+                This is the ACQUISITION moment, and until now rarity here was
+                the printed word and nothing else: a legendary and a common
+                arrived as identical rows. */}
             {resolution.artifactsGained.map((a) => (
-              <div key={a.id} className={styles.relic} data-new={newRelicIds.has(a.id) || undefined}>
+              <div
+                key={a.id}
+                className={styles.relic}
+                data-rarity={a.rarity}
+                data-new={newRelicIds.has(a.id) || undefined}
+              >
                 <span className={styles.relicMark} aria-hidden="true">
                   ◆
                 </span>
