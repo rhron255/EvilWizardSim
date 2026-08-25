@@ -18,7 +18,17 @@ export type NotorietyBadgeProps = {
   animateFrom?: number;
   /** True only for the two celebrated crossings. */
   celebrate?: boolean;
-  size?: 'sm' | 'lg';
+  /**
+   * `lg` stacks label over value over tier — the reward presentation, used on
+   * the resolution card and the ending screen.
+   *
+   * `row` is the same information on one line under 560px, and identical to
+   * `lg` above it. The run header needs it because the stacked badge spends
+   * ~125px of a 852px phone on a single number, directly above the choice
+   * cards it pushes off the fold; the ending card, where the badge IS the
+   * moment, keeps `lg`.
+   */
+  size?: 'sm' | 'row' | 'lg';
 };
 
 const COUNT_MS = 680;

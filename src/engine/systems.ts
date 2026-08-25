@@ -17,6 +17,8 @@ import {
   DEF_LAIR,
   DEF_LICH,
   DEF_NOTORIETY,
+  HERO_BAND_DANGER,
+  HERO_BAND_WARN,
   HERO_FAME_COEF,
   HERO_THREAT_BASE,
   HERO_THREAT_RAMP,
@@ -125,6 +127,76 @@ export function defenseOf(run: RunState, content: ContentBundle): number {
     lairTier * DEF_LAIR +
     (run.isLich ? DEF_LICH : 0);
   return Math.round(total * 10) / 10;
+}
+
+/**
+ * How close the chosen one is, in bands.
+ *
+ * `calm` → `warn` → `danger` → `through`, where `through` means threat has
+ * passed defence and `checkEndings` will return `slain_by_chosen_one`.
+ *
+ * Lives in the engine rather than beside the readout because BOTH consumers
+ * need it: the header fills a rail from it, and the era-end systems fire a
+ * narrative beat when a band is crossed for the first time. The approach used
+ * to be two numbers that only ever changed colour, and the fiction that
+ * dramatised it — a sighting, a squire — was sampled at random, unconnected to
+ * whether the player was actually about to die.
+ */
+export type HeroBand = 'calm' | 'warn' | 'danger' | 'through';
+
+/** Rank order, so a run can remember the furthest band it has reached. */
+export const HERO_BANDS: HeroBand[] = ['calm', 'warn', 'danger', 'through'];
+
+export function heroBand(threat: number, defense: number): HeroBand {
+  if (defense <= 0) return threat > 0 ? 'through' : 'calm';
+  if (threat > defense) return 'through';
+  const ratio = threat / defense;
+  if (ratio >= HERO_BAND_DANGER) return 'danger';
+  if (ratio >= HERO_BAND_WARN) return 'warn';
+  return 'calm';
+}
+
+/** One named term of `defenseOf`, for a UI that has to say where wards come from. */
+export type DefenseTerm = { label: string; value: number };
+
+/** `defenseOf`, itemised, plus the same total. */
+export type DefenseReadout = { total: number; terms: DefenseTerm[] };
+
+/**
+ * The same arithmetic as `defenseOf`, with its terms named.
+ *
+ * Measured: lair tier supplies 30.2% of the mean defence, and 16.6% of runs
+ * flip from surviving the hero to slain if the lair term is removed — yet the
+ * only place the UI ever said a lair defends you was a `title` tooltip, which
+ * a phone cannot show. A stat that decides one run in six and is disclosed
+ * nowhere is the header's oldest bug wearing a new hat.
+ *
+ * This deliberately re-derives rather than instrumenting `defenseOf`: that
+ * function is on the ending check's hot path and its signature is depended on
+ * by `endings.ts`. The pair is pinned together by a test asserting the terms
+ * sum to `defenseOf` — the seam this repo has been bitten at before.
+ */
+export function defenseReadout(run: RunState, content: ContentBundle): DefenseReadout {
+  const index = indexOf(content);
+
+  let artifactDefense = 0;
+  for (const id of run.heldArtifactIds) {
+    artifactDefense += index.artifactById.get(id)?.defense ?? 0;
+  }
+
+  const rung = index.lairRung.get(run.lairId);
+  const lairTier = rung === undefined ? 0 : (index.lairLadder[rung]?.tier ?? 0);
+
+  const round = (n: number) => Math.round(n * 10) / 10;
+  const terms: DefenseTerm[] = [
+    { label: 'Lair', value: round(lairTier * DEF_LAIR) },
+    { label: 'Relics', value: round(artifactDefense) },
+    { label: 'Fame', value: round(run.notoriety * DEF_NOTORIETY) },
+    { label: 'Standing ground', value: round(DEF_FLOOR) },
+  ];
+  if (run.isLich) terms.push({ label: 'Undeath', value: round(DEF_LICH) });
+
+  return { total: defenseOf(run, content), terms };
 }
 
 /**

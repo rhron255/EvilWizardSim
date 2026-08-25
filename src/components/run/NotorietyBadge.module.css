@@ -40,9 +40,44 @@
 
 /* Sizes ------------------------------------------------------------------ */
 
-.badge[data-size='lg'] .value {
+.badge[data-size='lg'] .value,
+.badge[data-size='row'] .value {
   font-size: var(--ew-size-xxl);
   margin: 0.08rem 0 0.12rem;
+}
+
+/* `row` — the header variant.
+
+   Mobile-first: one line, label and tier flanking the number, so the headline
+   stat costs a band instead of a block. The label is NOT dropped the way
+   `sm` drops it; this is the run screen's headline number and an unlabelled
+   figure is the same defect the prophecy interstitial has. Above 560px the
+   rules below hand it straight back to the stacked `lg` presentation. */
+.badge[data-size='row'] {
+  grid-template-columns: auto auto auto;
+  align-items: baseline;
+  justify-items: start;
+  gap: 0 var(--ew-space-2);
+  padding: 0;
+}
+
+.badge[data-size='row'] .value {
+  font-size: var(--ew-size-lg);
+  margin: 0;
+}
+
+@media (min-width: 561px) {
+  .badge[data-size='row'] {
+    grid-template-columns: auto;
+    justify-items: end;
+    gap: 0.05rem;
+    padding: var(--ew-space-2) var(--ew-space-1) var(--ew-space-2) var(--ew-space-4);
+  }
+
+  .badge[data-size='row'] .value {
+    font-size: var(--ew-size-xxl);
+    margin: 0.08rem 0 0.12rem;
+  }
 }
 
 .badge[data-size='sm'] {

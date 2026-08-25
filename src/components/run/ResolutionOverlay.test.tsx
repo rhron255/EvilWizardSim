@@ -130,3 +130,55 @@ describe('ResolutionOverlay · while you were elsewhere', () => {
     expect(screen.getAllByText('Pact Debt')).toHaveLength(1);
   });
 });
+
+/**
+ * The roll has to decide the verdict, not follow it.
+ *
+ * The pieces were always right — a rail, a threshold tick, and a needle that
+ * genuinely travels to the roll. The ORDER was wrong: the verdict word
+ * finished its reveal at 320ms while the needle did not land until 720ms, so
+ * the card announced Success or Failure and then invited the player to watch a
+ * marker slide to a position whose meaning had already been spent.
+ *
+ * The schedule itself is CSS and cannot be asserted in jsdom. What can be
+ * pinned is the switch the schedule hangs off, and the one thing the reordering
+ * must never do: withhold the verdict from the accessibility tree.
+ */
+describe('ResolutionOverlay · the roll decides the verdict', () => {
+  const card = () => screen.getByRole('dialog').querySelector('[data-outcome]')!;
+
+  it('marks a gamble as rolling, so the reveal waits for the needle', () => {
+    show([], { outcome: 'success', roll: 0.2, odds: 0.6 });
+    expect(card()).toHaveAttribute('data-rolling', 'true');
+  });
+
+  it('does NOT mark a certain choice as rolling — there is nothing to watch', () => {
+    // A deterministic era has no roll and must keep the fast reveal. If this
+    // ever flips, every certain choice gains a second of dead air.
+    show([], { outcome: 'deterministic', roll: undefined, odds: undefined });
+    expect(card()).not.toHaveAttribute('data-rolling');
+  });
+
+  it('does not mark a gamble as rolling when the engine supplied no roll', () => {
+    // The roll rail shipped broken for an entire build because the engine
+    // never set `roll`/`odds` (CLAUDE.md § 2). If that regresses, the card must
+    // fall back to the fast reveal rather than waiting for a needle that will
+    // never move.
+    show([], { outcome: 'success', roll: undefined, odds: undefined });
+    expect(card()).not.toHaveAttribute('data-rolling');
+  });
+
+  it('keeps the verdict in the accessibility tree from the first frame', () => {
+    // The delay is presentational ONLY. The dialog is `aria-labelledby` the
+    // verdict, so withholding the element — rather than its opacity — would
+    // strip the dialog's accessible name for the whole sweep.
+    show([], { outcome: 'failure', roll: 0.9, odds: 0.4 });
+    const dialog = screen.getByRole('dialog');
+    const labelledBy = dialog.getAttribute('aria-labelledby');
+    expect(labelledBy).toBeTruthy();
+    const label = document.getElementById(labelledBy!);
+    expect(label).not.toBeNull();
+    expect(label!.textContent).toBe('Failure');
+    expect(dialog).toHaveAccessibleName('Failure');
+  });
+});

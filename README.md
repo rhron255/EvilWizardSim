@@ -39,11 +39,17 @@ they come from analysis of a game that worked at scale, recorded in
 - **The ledger appends, never resets.** By the late run you are looking at a
   table with fifteen eras in it, and that is what makes quitting expensive.
 - **One scarce color.** The palette is a near-monochrome warm dark. The only
-  real chromatic reward is the Notoriety tier badge.
+  chromatic *reward* is the Notoriety tier badge. Two semantic accents exist
+  and are spent nowhere else: the red/green pair an offer card already uses for
+  `+8` and `-12`, which the faction standing bars now inherit rather than
+  inventing a vocabulary of their own.
 - **Comedy in the text, never in the numbers.** Flavor text is funny; stat
   changes are straight-faced.
 - **No doom meter.** The decline works because a number is quietly going the
-  wrong way, not because it is announced.
+  wrong way, not because it is announced. The erosion stays unnarrated; the
+  lethal counters do not. The prophecy hands off with one line — the hero
+  becomes a number that climbs — and the wards readout names the threshold,
+  the rate, and what the lair is contributing to it.
 
 ## Development
 

@@ -21,7 +21,7 @@ for (const [scene, label] of [
   page.on('pageerror', (e) => console.log(`[${label}] page error:`, e.message));
   await page.goto(`${BASE}?scene=${scene}`, { waitUntil: 'networkidle' });
   await page.evaluate(() => document.fonts.ready);
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(1900);
 
   out[label] = await page.evaluate(() => {
     // `[data-outcome]` also matches every ledger row, and the ledger comes

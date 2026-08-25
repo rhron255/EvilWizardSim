@@ -26,6 +26,19 @@
   --ew-delta-down: #b4453c;
   --ew-delta-none: #6a6153;
 
+  /* Legendary relics.
+
+     NOT `--ew-tier`. That is set per-tier at runtime, so a legendary found at
+     low Notoriety would have drawn its edge in the Unknown tier's #7A7365 —
+     a muted grey-brown, i.e. no signal at exactly the moment the relic is won.
+     This is the Legend tier's gold, pinned: the tier and the rarity share a
+     name, so they now share a colour, and it never moves.
+
+     It is spent on an EDGE only, on four relics out of thirty, and it is
+     suppressed on the ending card where the tier colour is already spoken for.
+     The Notoriety badge remains the only chromatic REWARD (rule 3). */
+  --ew-legendary: #e8b93f;
+
   /* The scarce color. Set per-tier at runtime on the app root. */
   --ew-tier: #7a7365;
   --ew-tier-glow: rgba(122, 115, 101, 0);
@@ -158,5 +171,13 @@ input {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+    /* DELAY, not just duration. Zeroing the duration alone leaves every
+       `animation-delay` intact, so a staged reveal degraded to "nothing, then
+       everything at once, one second later" rather than to instant. That was
+       survivable while the longest delay was 670ms of stagger; the gamble
+       verdict now waits 1080ms for the needle to stop, which would have meant
+       a reduced-motion player staring at a card with no result on it. */
+    animation-delay: 0ms !important;
+    transition-delay: 0ms !important;
   }
 }

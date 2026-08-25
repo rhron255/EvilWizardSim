@@ -15,6 +15,13 @@ export type ArtifactGridEntry = {
   artifact: Artifact;
   locked?: boolean;
   lost?: boolean;
+  /**
+   * Never held in ANY previous career — this run is the one that filled the
+   * slot. The resolution overlay already says so at the moment of pickup; the
+   * ending card is where the whole career gets totted up, and it was the one
+   * screen that did not.
+   */
+  isNew?: boolean;
 };
 
 export type ArtifactGridProps = {
@@ -43,12 +50,13 @@ export function ArtifactGrid({
       className={compact ? `${styles.grid} ${styles.compact}` : styles.grid}
       style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${minColumn}px, 1fr))` }}
     >
-      {entries.map(({ artifact, locked, lost }) => (
+      {entries.map(({ artifact, locked, lost, isNew }) => (
         <ArtifactCard
           key={artifact.id}
           artifact={artifact}
           locked={locked}
           lost={lost}
+          isNew={isNew}
           compact={compact}
           faction={factions?.find((f) => f.id === artifact.factionId)}
         />

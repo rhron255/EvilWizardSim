@@ -127,7 +127,24 @@
   color: var(--ew-ink-dim);
 }
 
-/* --- rarity: weight, frame, ground. No new hues. ------------------------- */
+/* --------------------------------------------------------------------------
+   The rarity ladder.
+
+   What this replaced: a 1px inset ring at rgba(60,52,39,.55) against #3C3427, a
+   2.8%-alpha hatch, and font-weight 500/600/700 — a ~4% luminance difference on
+   a near-black ground, at identical geometry. Every rarity had the same radius,
+   the same 1px border, the same 56px well and the same type scale, so a
+   legendary arrived looking like a common with a different word on it.
+
+   Now the rank is GEOMETRY, which survives a 264px column on a phone: the frame
+   thickens, the card lifts off the page, the glyph grows and the name goes up
+   the scale. The one colour is a legendary's edge — an edge, never a fill or a
+   glow, on four relics out of thirty.
+
+   The +2px padding the old `.rare`/`.legendary` carried is gone. It made the
+   box 4px taller and read as noise rather than rank; the ladder below changes
+   things the eye reads as rank.
+   -------------------------------------------------------------------------- */
 
 .pips {
   display: inline-flex;
@@ -143,58 +160,128 @@
   border: 1px solid var(--ew-ink-ghost);
 }
 
-.common .name {
+/* --- common: the base state, unchanged ----------------------------------- */
+
+.card[data-rarity='common'] .name {
   font-weight: 500;
   color: var(--ew-ink);
 }
 
-.rare {
+/* --- rare: a heavier frame, and it lifts --------------------------------- */
+
+.card[data-rarity='rare'] {
+  border-width: 2px;
   border-color: var(--ew-line-strong);
-  box-shadow: var(--ew-lip), inset 0 0 0 3px var(--ew-void), inset 0 0 0 4px rgba(60, 52, 39, 0.55);
-  padding: calc(var(--ew-space-4) + 2px);
+  background: var(--ew-raised);
+  /* `--ew-shadow-card` was defined and never used on this card. Elevation is
+     the cheapest rank signal there is and it costs no colour at all. */
+  box-shadow: var(--ew-lip), var(--ew-shadow-card);
 }
 
-.rare.compact {
-  padding: calc(var(--ew-space-3) + 2px);
+.card[data-rarity='rare'] .name {
+  font-weight: 600;
+  color: var(--ew-ink-bright);
 }
 
-.rare .pip {
+.card[data-rarity='rare'] .well {
+  border-color: var(--ew-line-strong);
+}
+
+.card[data-rarity='rare'] .pip {
   border-color: var(--ew-ink-faint);
+  background: var(--ew-ink-faint);
 }
 
-.legendary {
+/* --- legendary: the ceremony --------------------------------------------- */
+
+.card[data-rarity='legendary'] {
+  border-width: 2px;
+  border-color: color-mix(in srgb, var(--ew-legendary) 55%, var(--ew-line-strong));
+  background:
+    repeating-linear-gradient(-45deg, rgba(242, 236, 221, 0.05) 0 1px, transparent 1px 7px),
+    var(--ew-raised);
+  box-shadow:
+    var(--ew-lip),
+    var(--ew-shadow-raised),
+    inset 0 0 0 1px color-mix(in srgb, var(--ew-legendary) 18%, transparent);
+}
+
+.card[data-rarity='legendary'] .name {
+  /* Up a step. The name is the thing being celebrated. */
+  font-size: var(--ew-size-lg);
+  line-height: 1.15;
+  font-weight: 700;
+  color: var(--ew-ink-bright);
+}
+
+.card[data-rarity='legendary'] .well {
+  border-color: color-mix(in srgb, var(--ew-legendary) 40%, var(--ew-line-strong));
+  background:
+    radial-gradient(70% 70% at 50% 30%, color-mix(in srgb, var(--ew-legendary) 12%, transparent), transparent 72%),
+    var(--ew-void);
+}
+
+.card[data-rarity='legendary'] .glyph {
+  color: var(--ew-ink-bright);
+}
+
+.card[data-rarity='legendary'] .pip {
+  border-color: var(--ew-legendary);
+  background: var(--ew-legendary);
+}
+
+.corner {
+  position: absolute;
+  color: color-mix(in srgb, var(--ew-legendary) 45%, transparent);
+  pointer-events: none;
+}
+
+/* The ending card has already spent the tier colour on the peak-notoriety
+   figure, the flourish and the tier name. A fourth gold object there would
+   make the trophy case louder than the number the whole screen is about, so
+   on that surface the legendary keeps its geometry and gives up its hue.
+   `compact` is only ever set by the ending card (`ArtifactGrid` → `compact`). */
+.card[data-rarity='legendary'].compact {
+  border-color: var(--ew-line-strong);
+  box-shadow: var(--ew-lip), var(--ew-shadow-raised);
+}
+
+.card[data-rarity='legendary'].compact .well {
   border-color: var(--ew-line-strong);
   background:
-    repeating-linear-gradient(
-      -45deg,
-      rgba(242, 236, 221, 0.028) 0 1px,
-      transparent 1px 6px
-    ),
-    var(--ew-raised);
-  box-shadow: var(--ew-lip), inset 0 0 0 3px var(--ew-void), inset 0 0 0 4px var(--ew-line-strong);
-  padding: calc(var(--ew-space-4) + 2px);
+    radial-gradient(70% 70% at 50% 30%, rgba(255, 246, 224, 0.05), transparent 70%),
+    var(--ew-void);
 }
 
-.legendary.compact {
-  padding: calc(var(--ew-space-3) + 2px);
-}
-
-.legendary .name {
-  color: var(--ew-ink-bright);
-  font-weight: 700;
-}
-
-.legendary .pip {
+.card[data-rarity='legendary'].compact .pip {
   border-color: var(--ew-ink-dim);
   background: var(--ew-ink-dim);
 }
 
-.legendary .well {
-  border-color: var(--ew-line-strong);
+.card[data-rarity='legendary'].compact .corner {
+  color: var(--ew-line-strong);
 }
 
-.legendary .glyph {
-  color: var(--ew-ink);
+/* A locked slot is a silhouette and must not leak its rank — the redaction is
+   the point, and a gold frame would say "there is something good behind this". */
+.card[data-rarity='legendary'].locked,
+.card[data-rarity='rare'].locked {
+  border-width: 1px;
+  border-color: var(--ew-line);
+  background: rgba(19, 17, 14, 0.35);
+  box-shadow: none;
+}
+
+.card[data-rarity='legendary'].locked .well,
+.card[data-rarity='rare'].locked .well {
+  border-color: var(--ew-line);
+  background: var(--ew-void);
+}
+
+.card[data-rarity='legendary'].locked .pip,
+.card[data-rarity='rare'].locked .pip {
+  border-color: var(--ew-ink-ghost);
+  background: none;
 }
 
 /* --- locked: the visible gap --------------------------------------------- */
@@ -283,4 +370,43 @@
     width: 46px;
     height: 46px;
   }
+}
+
+/* --------------------------------------------------------------------------
+   Never seen before.
+
+   The collection is thirty silhouettes filled across many careers, and 80% of
+   careers add nothing to it — so the career that DOES fill a slot is the rare
+   event and the ending card was the one screen that never mentioned it. The
+   resolution overlay has said it at the moment of pickup for a while; this is
+   the same badge, same words, on the summary.
+
+   Ink and frame only. On the ending card the tier colour is already spent on
+   the peak-notoriety figure, the flourish and the tier name; this is not
+   allowed to be a fourth.
+   -------------------------------------------------------------------------- */
+
+.freshBadge {
+  flex: none;
+  align-self: center;
+  padding: 2px var(--ew-space-2);
+  font-family: var(--ew-font-ui);
+  font-size: 0.5625rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ew-ink-bright);
+  border: 1px solid var(--ew-ink-faint);
+  border-radius: var(--ew-radius-pill);
+}
+
+.fresh {
+  border-color: var(--ew-ink-faint);
+}
+
+/* A legendary already has a gold frame; a `fresh` border must not overwrite it
+   with plain ink and quietly demote the rarest thing on the screen. */
+.card[data-rarity='legendary'].fresh {
+  border-color: color-mix(in srgb, var(--ew-legendary) 55%, var(--ew-line-strong));
 }

@@ -260,7 +260,33 @@ for (const a of artifacts) {
 for (const e of endings) {
   checkAscensionPrice(`ending "${e.id}"`, e.summary);
   checkAscensionPrice(`ending "${e.id}"`, e.narration);
+  checkAscensionPrice(`ending "${e.id}"`, e.hint);
 }
+
+/**
+ * Locked ending slots have to say something, and it must not be the answer.
+ *
+ * All seven slots are visible from run one (rule 6). Before `Ending.hint`
+ * existed, an unseen slot's ONLY text was a rarity word — and the word collided
+ * with the relic grid's own rarity vocabulary two sections above it, so seven
+ * doors read as a drop table. The hint is what makes the slot a door.
+ *
+ * It must not leak the ending's name, or the slot spoils the thing it exists
+ * to withhold.
+ */
+for (const e of endings) {
+  if (!e.hint || !e.hint.trim()) {
+    fail('endings', `ending "${e.id}" has no hint — its locked slot would render empty`);
+    continue;
+  }
+  if (e.hint.toLowerCase().includes(e.name.toLowerCase())) {
+    fail(
+      'endings',
+      `ending "${e.id}" hint names the ending ("${e.name}") — a locked slot must not spoil itself`,
+    );
+  }
+}
+
 for (const o of offers) {
   checkAscensionPrice(`offer "${o.id}"`, o.title);
   checkAscensionPrice(`offer "${o.id}"`, o.body);

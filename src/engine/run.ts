@@ -45,8 +45,11 @@ import {
   clamp,
   clampNotoriety,
   decayFor,
+  defenseOf,
   emptyStanding,
   erasSinceProphecyFor,
+  heroBand,
+  HERO_BANDS,
   phaseFor,
   promoteLair,
   prophecyEraFor,
@@ -73,7 +76,16 @@ export type CreateRunOptions = {
   knownArtifactIds?: readonly string[];
 };
 
-const MAX_NAME_LENGTH = 40;
+/**
+ * The longest name the engine will store.
+ *
+ * EXPORTED because the creation screen's input has to agree with it. It used
+ * to be copied there as a separate `MAX_NAME = 40`, with a comment promising
+ * the two matched — the shape CLAUDE.md failure mode 3 is about, and the
+ * reason a name was once silently truncated to "Vashter of the Long Arrear".
+ * One constant, re-exported, so the two cannot drift.
+ */
+export const MAX_NAME_LENGTH = 40;
 
 function sanitizeName(raw: string): string {
   const trimmed = (raw ?? '').trim().replace(/\s+/g, ' ');
@@ -113,6 +125,7 @@ export function createRun(opts: CreateRunOptions, content: ContentBundle): RunSt
     lairId: index.lairLadder[0]?.id ?? '',
     heldArtifactIds: [],
     knownArtifactIds: Array.from(new Set(opts.knownArtifactIds ?? [])),
+    heroBandSeen: 0,
     factionStanding: emptyStanding(),
     apprentices: { count: 0, loyalty: START_LOYALTY },
     pactDebt: 0,
@@ -296,6 +309,38 @@ export function resolveChoice(
     const threatGain = threatGainFor(draft);
     if (threatGain !== 0) {
       draft.heroThreat = Math.round((draft.heroThreat + threatGain) * 10) / 10;
+    }
+
+    /**
+     * The approach, narrated — once per band, not once per era.
+     *
+     * Hero threat used to close in as a number and nothing else, while the
+     * content that dramatised the chosen one was sampled at random and so had
+     * no connection to whether the player was actually about to die. This fires
+     * off `heroBand`, the SAME function the header's rail reads, so the fiction
+     * and the bar are one fact told twice.
+     *
+     * `heroBandSeen` is a high-water mark: crossing back down (a new relic, a
+     * better lair) does not re-arm a beat the player has already had. Three
+     * lines a run, maximum.
+     *
+     * Not a doom meter. wiki/04 bans announcing the DECLINE — the notoriety
+     * erosion above stays unnarrated, deliberately. This is the disclosure a
+     * run-ending counter is owed (04:82-86), paid in fiction rather than digits.
+     */
+    const wards = defenseOf(draft, content);
+    const band = heroBand(draft.heroThreat, wards);
+    const rank = HERO_BANDS.indexOf(band);
+    if (rank > draft.heroBandSeen) {
+      draft.heroBandSeen = rank;
+      if (band !== 'calm') {
+        systemic.push({
+          t: 'heroApproach',
+          band,
+          threat: draft.heroThreat,
+          wards,
+        });
+      }
     }
 
     if (draft.phase === 'decline') {

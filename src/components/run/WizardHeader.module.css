@@ -219,12 +219,12 @@
 @media (max-width: 560px) {
   .header {
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--ew-space-2);
-    padding-bottom: var(--ew-space-3);
+    gap: var(--ew-space-1);
+    padding-bottom: var(--ew-space-2);
   }
 
   .eyebrow {
-    margin-bottom: var(--ew-space-1);
+    margin-bottom: 0;
   }
 
   .epithet {
@@ -250,19 +250,31 @@
     padding-left: 0;
   }
 
+  /* The trophy lies down.
+     Stacked, the slot and its label made this band 62px tall for two things
+     that are each one line of information — and the band sits directly above
+     the choice cards. Side by side it is 26px and says exactly as much. The
+     slot keeps its dashed frame, which is the part that reads as "unfilled"
+     (wiki/04 § Near-Miss Tuning); only the axis changed. */
+  .right {
+    align-items: center;
+    padding-top: var(--ew-space-1);
+  }
+
   .trophy {
-    gap: var(--ew-space-1);
-    padding-left: var(--ew-space-4);
+    flex-direction: row;
+    gap: var(--ew-space-2);
+    padding-left: var(--ew-space-3);
   }
 
   .trophySlot {
-    width: 2.2rem;
-    height: 2.2rem;
+    width: 1.65rem;
+    height: 1.65rem;
   }
 
   .trophyMark {
-    width: 1.1rem;
-    height: 1.1rem;
+    width: 0.9rem;
+    height: 0.9rem;
   }
 
   /* Every band below the badge loses its double spacing — a margin AND a
@@ -270,8 +282,12 @@
      over, on the screen where 24px is a third of a choice card. */
   .allegiances {
     gap: var(--ew-space-1) var(--ew-space-3);
-    margin-top: var(--ew-space-2);
-    padding-top: var(--ew-space-2);
+    margin-top: var(--ew-space-1);
+    padding-top: var(--ew-space-1);
+  }
+
+  .stats {
+    gap: var(--ew-space-1) var(--ew-space-3);
   }
 
   .allegianceName,
@@ -287,8 +303,56 @@
   }
 
   .siege {
-    margin-top: var(--ew-space-2);
+    margin-top: var(--ew-space-1);
     padding-top: var(--ew-space-2);
+  }
+
+  /* Both lethal readouts are now two lines instead of one, so they pay for it
+     in leading rather than in size. Neither number shrinks. */
+  /* The hero's distance, drawn.
+
+   Fills LEFT TO RIGHT across the whole track from 0 to 1 — he starts far and
+   arrives at the end of the rail. The fill is `ratio * 100%` of a track that
+   represents the full range, which is the mapping the standing bar got wrong
+   (it spread ±100 across half a track under `overflow: hidden`, so everything
+   past ±50 drew the same picture). `stakes.test.ts` asserts both extremes.
+
+   Colour comes from `data-tone` on the parent, which is `heroBand` — the same
+   function the era-end beat uses. */
+.siegeRail {
+  display: block;
+  position: relative;
+  height: 3px;
+  margin-top: var(--ew-space-1);
+  border-radius: var(--ew-radius-pill);
+  background: var(--ew-line);
+  overflow: hidden;
+}
+
+.siegeFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--ratio) * 100%);
+  border-radius: var(--ew-radius-pill);
+  background: var(--ew-ink-faint);
+  transition: width var(--ew-slow) var(--ew-ease), background-color var(--ew-base) var(--ew-ease);
+}
+
+.siege[data-tone='warn'] .siegeFill {
+  background: color-mix(in srgb, var(--ew-danger) 45%, var(--ew-ink-faint));
+}
+
+.siege[data-tone='danger'] .siegeFill {
+  background: var(--ew-danger);
+}
+
+.siegeSentence {
+    margin-top: 1px;
+    line-height: 1.3;
+  }
+
+  .siegeValue {
+    font-size: var(--ew-size-base);
   }
 }
 
@@ -358,15 +422,65 @@
 
 .siege {
   grid-column: 1 / -1;
-  display: flex;
-  align-items: baseline;
-  gap: var(--ew-space-2);
   margin: var(--ew-space-3) 0 0;
   padding-top: var(--ew-space-3);
   border-top: 1px solid var(--ew-line);
   font-size: var(--ew-size-sm);
   color: var(--ew-ink-dim);
 }
+
+/* The comparison. */
+.siegeRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--ew-space-2);
+  margin: 0;
+}
+
+/* The hero's distance, drawn.
+
+   Fills LEFT TO RIGHT across the whole track from 0 to 1 — he starts far and
+   arrives at the end of the rail. The fill is `ratio * 100%` of a track that
+   represents the full range, which is the mapping the standing bar got wrong
+   (it spread ±100 across half a track under `overflow: hidden`, so everything
+   past ±50 drew the same picture). `stakes.test.ts` asserts both extremes.
+
+   Colour comes from `data-tone` on the parent, which is `heroBand` — the same
+   function the era-end beat uses. */
+.siegeRail {
+  display: block;
+  position: relative;
+  height: 3px;
+  margin-top: var(--ew-space-1);
+  border-radius: var(--ew-radius-pill);
+  background: var(--ew-line);
+  overflow: hidden;
+}
+
+.siegeFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--ratio) * 100%);
+  border-radius: var(--ew-radius-pill);
+  background: var(--ew-ink-faint);
+  transition: width var(--ew-slow) var(--ew-ease), background-color var(--ew-base) var(--ew-ease);
+}
+
+.siege[data-tone='warn'] .siegeFill {
+  background: color-mix(in srgb, var(--ew-danger) 45%, var(--ew-ink-faint));
+}
+
+.siege[data-tone='danger'] .siegeFill {
+  background: var(--ew-danger);
+}
+
+.siegeSentence {
+  margin: var(--ew-space-1) 0 0;
+  font-size: var(--ew-size-xs);
+  line-height: 1.35;
+  color: var(--ew-ink-faint);
+}
+
 
 .siegeLabel {
   font-size: var(--ew-size-xs);
@@ -445,27 +559,69 @@
 .allegianceTrack {
   grid-area: track;
   position: relative;
-  height: 2px;
+  height: 3px;
   background: var(--ew-line);
   border-radius: var(--ew-radius-pill);
-  overflow: hidden;
+  /* Was `hidden`, which was load-bearing only because the fill overflowed —
+     see the width below. With the fill correctly scaled to the half-track,
+     nothing needs clipping and the seal tick can sit proud of the rail. */
+  overflow: visible;
 }
 
 .allegianceFill {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: calc(var(--ratio) * 100%);
+  /* HALF the track, not all of it: the bar is centre-zero, so ±100 standing
+     is 50% of the rail in either direction.
+
+     This read `* 100%` with `overflow: hidden` above it, which meant the bar
+     hit the end of the rail at ±50 and every value past that looked identical
+     — the Academy at −55 (sealing) and at −100 drew the same picture, on the
+     one bar where the difference decides whether a run ends. */
+  width: calc(var(--ratio) * 50%);
   background: var(--ew-ink-ghost);
+  border-radius: var(--ew-radius-pill);
   transition: width var(--ew-slow) var(--ew-ease);
 }
 
 .allegianceFill[data-sign='pos'] {
   left: 50%;
+  /* Signed colour, using the SAME two accents the option cards already spend
+     on `+8` and `−12`. This is not a new accent: a player who has read one
+     offer card already knows what these two mean, and the bar inherits the
+     vocabulary instead of inventing one. Held at low alpha so the notoriety
+     badge stays the loudest colour on the screen (rule 3). */
+  background: color-mix(in srgb, var(--ew-delta-up) 55%, var(--ew-ink-ghost));
 }
 
 .allegianceFill[data-sign='neg'] {
   right: 50%;
+  background: color-mix(in srgb, var(--ew-delta-down) 55%, var(--ew-ink-ghost));
+}
+
+/* The centre line, so a bar reads as two-sided rather than as a part-filled
+   meter. Without it, −40 and +40 look like the same amount of something. */
+.allegianceTrack::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -1px;
+  bottom: -1px;
+  width: 1px;
+  background: var(--ew-line-strong);
+}
+
+/* Where the Academy stops deliberating. */
+.allegianceMark {
+  position: absolute;
+  left: var(--at);
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--ew-danger);
+  opacity: 0.75;
 }
 
 .allegiance[data-tone='devoted'] .allegianceValue { color: var(--ew-tier); }

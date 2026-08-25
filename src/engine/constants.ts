@@ -36,7 +36,31 @@ export const PROPHECY_FRACTION = 0.57;
 // ---------------------------------------------------------------------------
 
 export const START_NOTORIETY = 6;
-export const START_FOLLOWERS = 0;
+
+/**
+ * A small household, so the early cards can charge for one.
+ *
+ * PROVENANCE: measurement, not the wiki. wiki/02 § three currencies calls
+ * Followers "ledger filler — the quietly accumulating number" and sets no
+ * starting value; `origins.ts` already grants one origin +4, so a nonzero
+ * start is not against the design, but the number below is mine.
+ *
+ * Why it moved off 0: `effects.ts` clamps followers at `Math.max(0, …)`, so a
+ * card printing "−12 Followers" against an empty household charged nothing.
+ * Measured over 800 runs of the real catalog, 49.6% of every follower cost a
+ * player accepted was never paid, and in era 1 it was 70% — which made the
+ * opening choices dominated rather than difficult ("gain a relic, −12
+ * Followers, +8 Standing" is a pure gain if you have no followers).
+ *
+ * At 10: era 1 falls to 0% unpaid and era 2 to 21%, overall 49.6% → 33.8%.
+ * The remainder is a real state — you spent them — and is now DISCLOSED,
+ * because `projectEffects` prints the clamped cost the engine will actually
+ * charge rather than the authored one.
+ *
+ * Re-measured across all thirteen sim targets before and after: none moved
+ * outside its band, ascension held at 2.20%, `slain_by_chosen_one` at 42.75%.
+ */
+export const START_FOLLOWERS = 10;
 export const START_LOYALTY = 60;
 
 // ---------------------------------------------------------------------------
@@ -69,6 +93,22 @@ export const DECAY_RAMP = 0.15;
 export const HERO_THREAT_BASE = 4;
 export const HERO_THREAT_RAMP = 2;
 export const HERO_FAME_COEF = 0.18;
+
+/**
+ * How close the hero is, as a fraction of what stands in his way.
+ *
+ * ONE pair of thresholds, read by two things that must never disagree: the
+ * header's wards readout (which colours and fills from it) and the era-end
+ * beat that narrates his approach. Two independent copies of "close" is the
+ * shape of failure mode 4 — a shared number with two readings — and here it
+ * would let the fiction say he was at the gate while the bar said he was
+ * halfway.
+ *
+ * These are the values the readout has used since it shipped; naming them is
+ * what makes them shareable, not a retune.
+ */
+export const HERO_BAND_WARN = 0.6;
+export const HERO_BAND_DANGER = 0.85;
 
 /**
  * `defenseOf` = floor + notoriety term + artifact defenses + lair term.
@@ -116,7 +156,12 @@ export const ARTIFACT_LOCKOUT_STANDING = -50;
 /**
  * At or above this standing, a faction opens its reliquary: a `rare` grant
  * from them yields their legendary instead. A run-defining commitment, and the
- * only reliable route to the two legendaries Ascension requires.
+ * only reliable route to the legendary `ASCENSION_LEGENDARIES` asks for.
+ *
+ * (This said "the two legendaries" until long after the constant became one —
+ * the third place that same drift was found, after the sim's ascension
+ * diagnostic and a comment in `effects.ts`. Read the constant, never a
+ * sentence about it.)
  */
 export const DEVOTION_STANDING = 55;
 

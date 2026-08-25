@@ -37,6 +37,18 @@ export type Allegiance = {
   standing: number;
   /** −1..1, for the bar. */
   ratio: number;
+  /**
+   * Where the seal sits on this faction's bar, as −1..1 — `null` for the five
+   * factions that cannot end a run.
+   *
+   * The header used to carry the seal as a permanent sentence. That sentence
+   * is now taught once in the first-run guide and printed again only when the
+   * seal is genuinely close, so the LIVE distance has to live somewhere that
+   * costs no vertical space: a tick on the Academy's own bar, which the player
+   * is already scanning. A threshold you can see the bar approaching is the
+   * same disclosure in a band that was already on screen.
+   */
+  sealAt: number | null;
   tone: 'devoted' | 'warm' | 'neutral' | 'cold' | 'locked' | 'lethal';
   /** One line naming what this standing is currently doing. */
   note: string;
@@ -95,6 +107,7 @@ export function allegiancesFor(run: RunState, factions: Faction[]): Allegiance[]
       short: SHORT_NAME[f.id],
       standing,
       ratio: Math.max(-1, Math.min(1, standing / 100)),
+      sealAt: f.id === SEAL_FACTION ? Math.max(-1, Math.min(1, SEAL_MAX_STANDING / 100)) : null,
       tone,
       note: noteFor(run, f.id, standing, tone),
     };
@@ -108,11 +121,37 @@ export function allegiancesFor(run: RunState, factions: Faction[]): Allegiance[]
  */
 export type SealWarning = { standing: number; margin: number; armed: boolean };
 
+/**
+ * How close the fame half has to be before the sentence is worth a line.
+ *
+ * The seal needs BOTH halves. A wizard at 11 Notoriety with the Academy 20
+ * from the gem cannot be sealed by anything, yet the header printed the
+ * sentence anyway from era one — a permanent line about a threat that was not
+ * live, directly above the choice cards on a screen where the first card
+ * already starts ~630px down.
+ *
+ * Provenance: this number is a screen-budget judgement, not a wiki figure.
+ * What the wiki fixes is the trigger (`SEAL_MAX_STANDING`, `SEAL_MIN_NOTORIETY`);
+ * what is disclosed continuously is the standing half, now drawn as a tick on
+ * the Academy's own bar. The sentence is the ARMED warning, and the first-run
+ * guide teaches what the seal is.
+ */
+const SEAL_FAME_LEAD = 12;
+
 export function sealWarningFor(run: RunState): SealWarning | null {
   const standing = run.factionStanding[SEAL_FACTION] ?? 0;
   const margin = standing - SEAL_MAX_STANDING;
   // Only warn once it is genuinely close; a full-health Academy is not news.
   if (margin > 25) return null;
+  // ...and, while standing still has room, only once the OTHER half of the
+  // trigger is within reach. Both conditions have to be live before this is a
+  // warning rather than trivia.
+  //
+  // The exception is not optional: once standing is already at or past the
+  // threshold, the ONLY thing keeping the run alive is a notoriety number that
+  // the whole game pushes upward. That is precisely when the fame half has to
+  // be named, and it is the case `WizardHeader.test.tsx` pins.
+  if (margin > 0 && run.notoriety < SEAL_MIN_NOTORIETY - SEAL_FAME_LEAD) return null;
   return { standing, margin, armed: run.notoriety >= SEAL_MIN_NOTORIETY };
 }
 

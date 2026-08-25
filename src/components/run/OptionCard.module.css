@@ -170,6 +170,29 @@
     gap: var(--ew-space-2);
   }
 
+  /* A gamble prints two branches, each of which can run to three effects, so
+     it is the tallest thing on the screen and the only card that still fell
+     past the fold. The odds, the arrow and every effect keep their size —
+     what gives is the stacking between them. Worth ~18px on the tall cards
+     and nothing at all on the short ones. */
+  .body {
+    gap: var(--ew-space-1);
+  }
+
+  .branches {
+    gap: var(--ew-space-1);
+  }
+}
+
+/* At the reference device's width the tallest cards were overshooting the fold
+   by TWO pixels — a five-effect certain card in a late era, where the header is
+   carrying both lethal readouts. Vertical padding only: the horizontal gutter
+   is what keeps the keycap off the text, and the type does not shrink. */
+@media (max-width: 420px) {
+  .card {
+    padding: var(--ew-space-2) var(--ew-space-3);
+  }
+
   .pct {
     flex-basis: 2.9rem;
     font-size: var(--ew-size-base);

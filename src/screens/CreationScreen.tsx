@@ -12,6 +12,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import type { Artifact, Faction, Origin } from '../types';
+import { MAX_NAME_LENGTH } from '../engine';
 import { formatEffect, isNegative, Sigil, tierVars } from '../components/meta';
 import styles from './CreationScreen.module.css';
 
@@ -31,15 +32,17 @@ export type CreationScreenProps = {
 };
 
 /**
- * Matches `MAX_NAME_LENGTH` in src/engine/run.ts exactly.
+ * The engine's limit, imported rather than copied.
  *
- * It used to be 26, which silently ate the last character of anything longer —
- * "Vashter of the Long Arrears" was committed as "Vashter of the Long Arrear".
- * The name is the identity anchor the whole run hangs off (reference principle
- * 1), so the input must never quietly edit it. Anything the engine will accept,
- * this field accepts, and the display scales to fit instead of clipping.
+ * This was a local `const MAX_NAME = 40` with a comment promising it matched
+ * `MAX_NAME_LENGTH` in run.ts. A promise in a comment is what failure mode 3
+ * is about, and this field has already truncated a name once — at 26, which
+ * committed "Vashter of the Long Arrears" as "Vashter of the Long Arrear".
+ * The name is the identity anchor the whole run hangs off, so the input must
+ * accept exactly what the engine accepts, and the display scales to fit
+ * instead of clipping.
  */
-const MAX_NAME = 40;
+const MAX_NAME = MAX_NAME_LENGTH;
 
 /** Sizes the placeholder when the field is empty, so it does not jump on type. */
 const PLACEHOLDER_LEN = 8;
@@ -108,12 +111,18 @@ export function CreationScreen({
         {/* I. The name                                                       */}
         {/* ---------------------------------------------------------------- */}
         <section className={styles.nameSection} aria-labelledby={`${nameId}-label`}>
+          {/* The label sits ABOVE the ring, not inside it.
+              Measured at 393x852: the sigil's box was [72, 244] and the label's
+              [105, 120] — entirely enclosed, so the ring's strokes ran through
+              the letters and it read as a collision rather than as a
+              composition. The seal keeps the name; it does not get the caption
+              too. */}
+          <label className={styles.sectionLabel} htmlFor={nameId} id={`${nameId}-label`}>
+            <span className={styles.numeral}>I</span> Your name
+          </label>
           <div className={styles.sigilStage}>
             <Sigil name={sigilSeed} size={300} className={styles.sigil} />
             <div className={styles.nameField}>
-              <label className={styles.sectionLabel} htmlFor={nameId} id={`${nameId}-label`}>
-                <span className={styles.numeral}>I</span> Your name
-              </label>
               <input
                 id={nameId}
                 ref={nameRef}

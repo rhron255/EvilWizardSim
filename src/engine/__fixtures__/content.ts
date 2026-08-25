@@ -210,6 +210,7 @@ export const fixtureOrigins: Origin[] = [
 export const fixtureEndings: Ending[] = [
   {
     id: 'slain_by_chosen_one',
+    hint: 'for a name the hero can find',
     name: 'Slain by the Chosen One',
     narration:
       'A farmhand with a prophecy and a borrowed sword ended a long career in an afternoon.',
@@ -218,6 +219,7 @@ export const fixtureEndings: Ending[] = [
   },
   {
     id: 'sealed_in_gem',
+    hint: 'for a famous enemy of the Academy',
     name: 'Sealed in a Gem',
     narration: 'The Academy voted. The vote was to put you in a stone and change the subject.',
     summary: 'Filed away by your alma mater.',
@@ -225,6 +227,7 @@ export const fixtureEndings: Ending[] = [
   },
   {
     id: 'betrayed_by_apprentice',
+    hint: 'for a large school and a small wage',
     name: 'Betrayed by an Apprentice',
     narration: 'You taught them everything. They took notes on the parts about your weaknesses.',
     summary: 'Undone by your own curriculum.',
@@ -232,6 +235,7 @@ export const fixtureEndings: Ending[] = [
   },
   {
     id: 'lichdom',
+    hint: 'for one who declines to stop',
     name: 'Lichdom',
     narration: 'You gave up everything you owned and everyone who followed you, and kept going.',
     summary: 'Traded a life for an afterlife.',
@@ -239,6 +243,7 @@ export const fixtureEndings: Ending[] = [
   },
   {
     id: 'retired_to_swamp',
+    hint: 'for a long life and a quiet one',
     name: 'Retired to a Swamp',
     narration: 'You stopped. The swamp is quiet. Nobody writes.',
     summary: 'Made it to the end. Nothing tried to stop you.',
@@ -246,6 +251,7 @@ export const fixtureEndings: Ending[] = [
   },
   {
     id: 'consumed_by_pact',
+    hint: 'for a debt carried to the end',
     name: 'Consumed by the Pact',
     narration: 'The instalments came due all at once, as instalments do.',
     summary: 'The bill arrived.',
@@ -253,6 +259,7 @@ export const fixtureEndings: Ending[] = [
   },
   {
     id: 'ascension',
+    hint: 'for the greatest name and a relic to match',
     name: 'Ascension',
     narration: 'You stepped out of the story before it could finish you.',
     summary: 'Left the world by the front door.',

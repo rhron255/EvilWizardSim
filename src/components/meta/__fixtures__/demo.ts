@@ -426,6 +426,7 @@ export const demoEpithets = ['the Unwashed', 'the Patient', 'of the Long Winter'
 export const demoEndings: Ending[] = [
   {
     id: 'slain_by_chosen_one',
+    hint: 'for a name the hero can find',
     name: 'Slain by the Chosen One',
     summary: 'A farm boy with a prophecy and a borrowed sword.',
     narration:
@@ -434,6 +435,7 @@ export const demoEndings: Ending[] = [
   },
   {
     id: 'sealed_in_gem',
+    hint: 'for a famous enemy of the Academy',
     name: 'Sealed in a Gem',
     summary: 'Not dead. Filed.',
     narration:
@@ -442,6 +444,7 @@ export const demoEndings: Ending[] = [
   },
   {
     id: 'betrayed_by_apprentice',
+    hint: 'for a large school and a small wage',
     name: 'Betrayed by an Apprentice',
     summary: 'You taught her everything. She took notes.',
     narration:
@@ -450,6 +453,7 @@ export const demoEndings: Ending[] = [
   },
   {
     id: 'lichdom',
+    hint: 'for one who declines to stop',
     name: 'Lichdom',
     summary: 'The decline stopped. So did most other things.',
     narration:
@@ -458,6 +462,7 @@ export const demoEndings: Ending[] = [
   },
   {
     id: 'retired_to_swamp',
+    hint: 'for a long life and a quiet one',
     name: 'Retired to a Swamp',
     summary: 'Nobody came. That was the plan.',
     narration:
@@ -466,6 +471,7 @@ export const demoEndings: Ending[] = [
   },
   {
     id: 'consumed_by_pact',
+    hint: 'for a debt carried to the end',
     name: 'Consumed by the Pact',
     summary: 'The interest was always going to be the problem.',
     narration:
@@ -474,6 +480,7 @@ export const demoEndings: Ending[] = [
   },
   {
     id: 'ascension',
+    hint: 'for the greatest name and a relic to match',
     name: 'Ascension',
     summary: 'Very few. Fewer who deserved it.',
     narration:
@@ -555,6 +562,7 @@ export const demoRun: RunState = {
   lairId: 'cloudward',
   // The Bone Crown and the Censer went into the hole. Everything else was kept.
   knownArtifactIds: [],
+  heroBandSeen: 0,
   heldArtifactIds: ['gilded_ledger', 'worm_tooth', 'seed_of_the_slow_war', 'oath_iron', 'heartwood_stake'],
   factionStanding: {
     ashen_covenant: 62,

@@ -11,6 +11,7 @@
  */
 
 import { useId, useState } from 'react';
+import type { DefenseReadout } from '../../engine';
 import type { Faction, Lair, RunState } from '../../types';
 import { tierColor, tierFor } from '../../theme/tokens';
 import { NotorietyBadge } from './NotorietyBadge';
@@ -24,10 +25,16 @@ export type WizardHeaderProps = {
   factions: Faction[];
   hasAscensionTrophy: boolean;
   /**
-   * Current defence. Supplied by the screen rather than computed here so this
-   * component stays presentational; `null` hides the siege readout entirely.
+   * Current defence, itemised. Supplied by the screen rather than computed
+   * here so this component stays presentational; `null` hides the siege
+   * readout entirely.
+   *
+   * This is `DefenseReadout` re-exported from the engine, never a hand-written
+   * mirror of it — the roll rail shipped broken for an entire build because a
+   * UI-side copy of an engine type made "never supplied" and "supplied"
+   * typecheck identically (CLAUDE.md, failure mode 3).
    */
-  defense?: number | null;
+  defense?: DefenseReadout | null;
 };
 
 export function WizardHeader({
@@ -88,7 +95,7 @@ export function WizardHeader({
       </div>
 
       <div className={styles.right}>
-        <NotorietyBadge value={run.notoriety} animateFrom={previous} />
+        <NotorietyBadge value={run.notoriety} animateFrom={previous} size="row" />
 
         <div
           className={styles.trophy}
@@ -156,6 +163,15 @@ export function WizardHeader({
                 style={{ '--ratio': Math.abs(a.ratio) } as React.CSSProperties}
                 data-sign={a.ratio < 0 ? 'neg' : 'pos'}
               />
+              {/* The seal, drawn where it actually sits. The sentence that
+                  used to carry this is now the armed warning only; the bar
+                  carries the live distance, in a band already on screen. */}
+              {a.sealAt !== null && (
+                <span
+                  className={styles.allegianceMark}
+                  style={{ '--at': `${50 + a.sealAt * 50}%` } as React.CSSProperties}
+                />
+              )}
             </span>
           </li>
         ))}
@@ -168,15 +184,35 @@ export function WizardHeader({
       )}
 
       {siege && (
-        <p className={styles.siege} data-tone={siege.tone}>
-          <span className={styles.siegeLabel}>Wards</span>
-          <span className={`${styles.siegeValue} ew-num`}>{siege.wards}</span>
-          <span className={styles.siegeVs} aria-hidden="true">
-            against
+        <div className={styles.siege} data-tone={siege.tone}>
+          <p className={styles.siegeRow}>
+            <span className={styles.siegeLabel}>Wards</span>
+            <span className={`${styles.siegeValue} ew-num`}>{siege.wards}</span>
+            <span className={styles.siegeVs} aria-hidden="true">
+              against
+            </span>
+            <span className={styles.siegeLabel}>The hero</span>
+            <span className={`${styles.siegeValue} ew-num`}>{siege.threat}</span>
+          </p>
+
+          {/* The distance, as a distance.
+              Two numbers with "against" between them told the player how close
+              the hero was only if they did the division. The rail does it for
+              them, and it is the same 0..1 the era-end beat bands on, so the
+              bar and the fiction cannot disagree. */}
+          <span className={styles.siegeRail} aria-hidden="true">
+            <span
+              className={styles.siegeFill}
+              style={{ '--ratio': siege.ratio } as React.CSSProperties}
+            />
           </span>
-          <span className={styles.siegeLabel}>The hero</span>
-          <span className={`${styles.siegeValue} ew-num`}>{siege.threat}</span>
-        </p>
+
+          {/* Always visible, never tap-to-reveal. The stat captions above may
+              hide behind a tap because their stats are survivable; this one
+              names a lethal threshold, and `stakes.ts` already holds the line
+              that a lethal threshold is not something you had to tap for. */}
+          <p className={styles.siegeSentence}>{siege.sentence}</p>
+        </div>
       )}
     </header>
   );

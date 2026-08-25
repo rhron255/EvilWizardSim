@@ -111,9 +111,9 @@
   container-type: inline-size;
 }
 
-.nameField .sectionLabel {
+.nameSection > .sectionLabel {
   justify-content: center;
-  margin-bottom: 0;
+  margin-bottom: var(--ew-space-2);
   text-indent: 0.22em;
 }
 
@@ -519,13 +519,15 @@
     padding-bottom: var(--ew-space-4);
   }
 
+  /* The ring no longer has to make room for the caption above it, so the
+     stage gives back the difference rather than banking it as air. */
   .sigilStage {
-    min-height: 172px;
+    min-height: 148px;
   }
 
   .sigil {
-    width: 172px;
-    height: 172px;
+    width: 158px;
+    height: 158px;
   }
 
   .chipText {
@@ -548,18 +550,17 @@
     padding: var(--ew-space-3);
   }
 
-  /* Flavour, clamped — the full sentence is still in the DOM and still read
-     aloud, it just stops setting the height of a card whose job is to show a
-     name and a modifier. The blurbs themselves live in src/content/origins.ts,
-     which is where they would actually be shortened. */
+  /* Flavour, unclamped.
+     This used to be `-webkit-line-clamp: 2`, with a comment saying the blurbs
+     "would actually be shortened" in src/content/origins.ts. They never were,
+     so at 393px every origin showed 36px of a 164px sentence and all four
+     ended mid-clause — the first characterful writing in the game, delivered
+     as a fragment, on the device the game is built for. The blurbs are now
+     ~95 characters and complete, so the clamp has nothing left to do except
+     re-break them. */
   .originBlurb {
     margin-top: var(--ew-space-1);
     line-height: 1.4;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    overflow: hidden;
   }
 
   .originRule {

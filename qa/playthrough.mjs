@@ -50,11 +50,16 @@ page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`));
 
 async function shot(name) {
   const file = path.join(OUT, `${LABEL}-${String(shots.length).padStart(2, '0')}-${name}.png`);
-  // Let fonts AND staged reveals settle. The resolution card reveals its blocks
-  // on delays out to ~580ms + 260ms of animation; shooting at 260ms captured a
-  // half-empty card and made a correct UI look broken more than once.
+  // Let fonts AND staged reveals settle. Shooting early captured a half-empty
+  // card and made a correct UI look broken more than once.
+  //
+  // MEASURED, not guessed (`.tmp/settle.mjs`): a GAMBLE now runs the needle
+  // before it names the verdict — the needle stops at ~1109ms, the verdict
+  // reaches full opacity at ~1268ms, and the last consequence block lands at
+  // ~1550ms. 1100 was inside the sweep, so every gamble screenshot would have
+  // caught a card mid-roll with no result on it.
   await page.evaluate(() => document.fonts?.ready);
-  await page.waitForTimeout(1100);
+  await page.waitForTimeout(1900);
   await page.screenshot({ path: file, fullPage: true });
   shots.push(file);
   console.log(`  shot  ${file}`);

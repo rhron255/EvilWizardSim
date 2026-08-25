@@ -64,6 +64,10 @@
 
 @media (max-width: 420px) {
   .column {
-    padding: var(--ew-space-3) var(--ew-space-3) var(--ew-space-6);
+    /* Top padding goes to zero: the header's own first line is an eyebrow in
+       small caps, which reads as breathing room on its own. On the reference
+       device every pixel above the fold is competing with the choice cards. */
+    padding: var(--ew-space-1) var(--ew-space-3) var(--ew-space-6);
+    gap: var(--ew-space-2);
   }
 }

@@ -32,7 +32,15 @@ import type { Artifact, EndingId, EraRecord, Effect, Lair, Outcome, Tier } from 
  */
 export type SystemicChange =
   | { t: 'pactInterest'; v: number; debt: number }
-  | { t: 'loyaltyDrift'; v: number; loyalty: number };
+  | { t: 'loyaltyDrift'; v: number; loyalty: number }
+  /**
+   * The chosen one got closer, and crossed a band while doing it.
+   *
+   * Structured, not prose: the renderer looks the line up from content, the
+   * same way every other `Effect` is data the renderer can always print. Fires
+   * at most three times a run — see `heroApproachLine`.
+   */
+  | { t: 'heroApproach'; band: 'warn' | 'danger' | 'through'; threat: number; wards: number };
 
 export type Resolution = {
   outcome: Outcome;

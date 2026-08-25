@@ -216,6 +216,17 @@ export type Ending = {
   narration: string;
   /** One-line summary for the collection list. */
   summary: string;
+  /**
+   * One line for the LOCKED slot in the collection, shown where `summary`
+   * would be. Names the PRESSURE that leads here, never the outcome — the
+   * outcome is what `name` and `summary` are withholding.
+   *
+   * Required, not optional. The seven slots are visible from run one (rule 6),
+   * and an optional field here is the shape that lets a slot silently render
+   * nothing — which is what they did: every locked slot's only text was a
+   * rarity word, and the word collided with the relic grid's.
+   */
+  hint: string;
   rarity: Rarity;
 };
 
@@ -267,6 +278,15 @@ export type RunState = {
    * `createRun` like everything else.
    */
   knownArtifactIds: string[];
+  /**
+   * The furthest `HeroBand` this run has reached, as an index into
+   * `HERO_BANDS`. A high-water mark, so the approach is narrated ONCE per band
+   * rather than every era the player happens to sit inside it.
+   *
+   * It has to be state rather than something derived at render: `EraRecord`
+   * does not persist hero threat, so there is nothing to reconstruct it from.
+   */
+  heroBandSeen: number;
   factionStanding: Record<FactionId, number>;
   apprentices: { count: number; loyalty: number };
   pactDebt: number;

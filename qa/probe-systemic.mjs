@@ -10,7 +10,7 @@ for (const [w, h, tag] of [[393, 852, 'phone'], [1440, 900, 'wide']]) {
   page.on('console', (m) => m.type() === 'error' && console.log(`[${tag}] console:`, m.text()));
   await page.goto(`${BASE}?scene=resolutionFail`, { waitUntil: 'networkidle' });
   await page.evaluate(() => document.fonts.ready);
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(1900);
   const data = await page.evaluate(() => {
     const label = [...document.querySelectorAll('p')].find(
       (p) => p.textContent.trim() === 'While you were elsewhere',

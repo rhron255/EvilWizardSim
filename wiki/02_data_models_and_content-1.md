@@ -10,7 +10,7 @@ description: Schemas for run state, eras, factions, artifacts and offers, plus b
 | Area | Status | Notes |
 |------|--------|-------|
 | Schemas | Planned | Drafted below; not implemented or reviewed. |
-| Notoriety tiers | Planned | Thresholds are starting guesses. |
+| Notoriety tiers | Measured | Thresholds held against 2000 real runs; see the tuning task below. |
 | Faction catalog | Missing | Six proposed, none written. |
 | Artifact catalog | Missing | Target 30; none written. |
 | Offer/event catalog | Missing | Target 80–120; none written. |
@@ -110,8 +110,9 @@ type Collection = {           // persisted across runs
 
 ## Notoriety Tiers
 
-Drives the badge color — the game's only rationed visual reward. Copy is
-placeholder.
+Drives the badge color — the game's only rationed visual reward. The bands
+below were guesses when written and have since been measured against 2000 runs
+of the real catalog; they were kept. Copy is still placeholder.
 
 | Range | Tier | Badge | Player-facing line |
 |-------|------|-------|--------------------|
@@ -211,5 +212,5 @@ that would move this number.
 - [ ] Write the six faction blurbs and demand rules.
 - [ ] Author 30 artifacts with faction assignment and flavor.
 - [ ] Author a first 20 offers spanning both phases for the vertical slice.
-- [ ] Tune Notoriety tier thresholds against real run distributions.
+- [x] Tune Notoriety tier thresholds against real run distributions. Measured 2026-08-23 against 2000 runs of the real catalog: the 0-39 / 40-59 / 60-74 / 75-89 / 90-99 bands survive measurement unchanged, and `npm run sim` now carries a target for the 40+ crossing (70-95%, currently 87.70%) alongside the 60+/75+/90+ ones it already had. The first tier crossing — the first time the rationed colour does anything — had never been measured.
 - [ ] Add profanity screening before sharing ships.

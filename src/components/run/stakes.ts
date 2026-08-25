@@ -26,10 +26,14 @@
 import {
   BETRAYAL_MAX_LOYALTY,
   BETRAYAL_MIN_APPRENTICES,
+  DEF_LAIR,
+  heroBand,
   PACT_INTEREST,
   PACT_INTEREST_MIN_DEBT,
   PACT_LIMIT,
+  threatGainFor,
 } from '../../engine';
+import type { DefenseReadout, DefenseTerm } from '../../engine';
 import type { RunState } from '../../types';
 
 export type Stake = {
@@ -160,14 +164,90 @@ export function stakesFor(run: RunState): Stake[] {
  * it is a comparison, not a countdown, and it appears only once a hero exists,
  * so the ascent stays clean.
  */
-export type Siege = { wards: number; threat: number; tone: 'calm' | 'warn' | 'danger' };
+export type Siege = {
+  wards: number;
+  threat: number;
+  /** How far the hero still has to climb. Negative once he is through. */
+  margin: number;
+  /** Threat the hero gains at the end of THIS era. The clock on the ceiling. */
+  rate: number;
+  /** Where the wards come from, largest first. The lair is usually top. */
+  terms: DefenseTerm[];
+  /** The consequence and the rate, in the shape of the seal sentence. */
+  sentence: string;
+  /**
+   * How far the hero has come, 0..1, for the rail. Clamped at both ends.
+   *
+   * Asserted at the EXTREMES in `stakes.test.ts`, not at a typical value: the
+   * faction standing bar shipped mapping its range across half its track and
+   * saturated at ±50, so every value past that drew an identical bar — on the
+   * one bar where the difference decided whether a run ended (CLAUDE.md
+   * failure mode 13).
+   */
+  ratio: number;
+  /**
+   * `calm | warn | danger` from `heroBand`, minus `through` — once the hero is
+   * through, `checkEndings` has already ended the run, so the header never
+   * renders that band.
+   */
+  tone: 'calm' | 'warn' | 'danger';
+};
 
-export function siegeFor(run: RunState, defense: number): Siege | null {
+/**
+ * The caption the readout was missing.
+ *
+ * Two bare numbers with "against" between them disclosed nothing: not what
+ * happens at the crossing, not that the gap closes on its own, and not where
+ * the wards came from. The seal warning one line above has said all of that
+ * for months (`allegiances.ts` → `sealSentence`), so the header was holding
+ * its two lethal counters to two different standards — and this is the one
+ * that takes the larger share of careers.
+ *
+ * Three facts, in the order a player can act on them:
+ *
+ *   1. `he kills you above {wards}` — "above", not "at": `endings.ts` compares
+ *      with `>`, so "at" would be wrong by one.
+ *   2. `+{rate} an era` — the clock. A ceiling without one is the exact defect
+ *      CLAUDE.md's failure mode 1 describes, and the pact caption already says
+ *      `+1 an era on its own` in this same header.
+ *   3. The lair clause. Measured: lair tier is 30.2% of the mean defence and
+ *      16.6% of runs flip from surviving to slain without it — and the only
+ *      place the UI ever said so was a `title` attribute, i.e. nowhere on a
+ *      phone. Calm shows what the lair is already worth; warn and danger switch
+ *      to what one more rung buys, because in trouble the marginal number is
+ *      the actionable one. `DEF_LAIR` is 8 and rungs are one tier apart, so
+ *      "the next lair adds 8" is exact.
+ *
+ * Not the forbidden doom meter: wiki/04 bans ANNOUNCING the losing phase, and
+ * the notoriety erosion stays unnarrated. Naming the trigger of an ending is
+ * the disclosure rule, not a violation of the tone rule.
+ */
+function siegeSentence(wards: number, rate: number, lairValue: number, tone: Siege['tone']): string {
+  const lairClause = tone === 'calm' ? `your lair adds ${lairValue}` : `the next lair adds ${DEF_LAIR}`;
+  return `he kills you above ${wards} · +${rate} an era · ${lairClause}`;
+}
+
+export function siegeFor(run: RunState, defense: DefenseReadout): Siege | null {
   if (run.phase !== 'decline') return null;
-  const ratio = defense > 0 ? run.heroThreat / defense : 0;
+  const raw = defense.total > 0 ? run.heroThreat / defense.total : 0;
+  const ratio = Math.max(0, Math.min(1, raw));
+  // The SAME band function the era-end beat uses, so the bar and the fiction
+  // can never disagree about how close he is.
+  const band = heroBand(run.heroThreat, defense.total);
+  const tone: Siege['tone'] = band === 'calm' ? 'calm' : band === 'warn' ? 'warn' : 'danger';
+  const wards = Math.round(defense.total);
+  const rate = Math.round(threatGainFor(run));
+  const lairValue = Math.round(defense.terms.find((t) => t.label === 'Lair')?.value ?? 0);
   return {
-    wards: Math.round(defense),
+    wards,
     threat: Math.round(run.heroThreat),
-    tone: ratio >= 0.85 ? 'danger' : ratio >= 0.6 ? 'warn' : 'calm',
+    margin: Math.round(defense.total - run.heroThreat),
+    rate,
+    // Zero terms are noise in a four-item strip; a wizard with no relics does
+    // not need a row telling them so.
+    terms: [...defense.terms].filter((t) => t.value !== 0).sort((a, b) => b.value - a.value),
+    sentence: siegeSentence(wards, rate, lairValue, tone),
+    ratio,
+    tone,
   };
 }

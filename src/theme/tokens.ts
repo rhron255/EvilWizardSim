@@ -70,6 +70,19 @@ export const tierColor: Record<TierId, string> = {
   legend: '#E8B93F',
 };
 
+/**
+ * Legendary relics — the CSS side is `--ew-legendary` in tokens.css.
+ *
+ * Deliberately the SAME value as `tierColor.legend`: the Legend tier and a
+ * legendary relic share a name, so they share a colour. It is pinned rather
+ * than read from `--ew-tier`, which is set per-tier at runtime — a legendary
+ * won at low Notoriety would otherwise have drawn its edge in the Unknown
+ * tier's muted grey, i.e. no signal at the exact moment it was won.
+ *
+ * If `tierColor.legend` ever moves, move this and `--ew-legendary` with it.
+ */
+export const legendaryColor = tierColor.legend;
+
 /** Glow color used for the two celebrated crossings only. */
 export const tierGlow: Record<TierId, string> = {
   unknown: 'rgba(122, 115, 101, 0.0)',

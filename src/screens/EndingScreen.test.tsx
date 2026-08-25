@@ -199,3 +199,76 @@ describe('attributionFor', () => {
     expect(attributionFor('slain_by_chosen_one', { ...ctx, heroName: '   ' })).toBeNull();
   });
 });
+
+/**
+ * What this career added to the collection.
+ *
+ * The collection is thirty silhouettes filled across many careers, and the sim
+ * says 80% of careers add nothing to it. So the career that DOES fill a slot is
+ * the rare event — and the ending card, the one screen that tots the career up,
+ * was the only place that never mentioned it.
+ *
+ * The trap this pins: the pre-run collection is `run.knownArtifactIds`, frozen
+ * at `createRun`. `recordRun` is folded into the SAME reducer return that flips
+ * the screen to `ending`, so reaching for the live collection here would report
+ * zero new relics forever — and it would typecheck.
+ */
+describe('EndingScreen · what the career added', () => {
+  /**
+   * Everything the career recovered, derived the way the screen derives it —
+   * held at the end UNION granted in any era, which is also `recordRun`'s
+   * definition of discovered. Computed rather than hard-coded: the fixture
+   * recovers seven relics but only holds five, and a test that assumed those
+   * were the same set passed for the wrong reason.
+   */
+  const recovered = [
+    ...new Set([...demoRun.eras.flatMap((e) => e.artifactsGained), ...demoRun.heldArtifactIds]),
+  ].filter((id) => demoArtifacts.some((a) => a.id === id));
+
+  const withKnown = (knownArtifactIds: string[]) =>
+    render(
+      <EndingScreen
+        run={{ ...demoRun, knownArtifactIds }}
+        ending={endings.find((e) => e.id === 'slain_by_chosen_one')!}
+        lairs={demoLairs}
+        artifacts={demoArtifacts}
+        factions={factions}
+        onPlayAgain={() => {}}
+        onViewCollection={() => {}}
+        onShare={() => {}}
+      />,
+    );
+
+  it('marks every relic this player has never held before', () => {
+    withKnown([]);
+    expect(screen.getAllByText('Never seen before')).toHaveLength(recovered.length);
+  });
+
+  it('says nothing when the career added nothing — the common case', () => {
+    withKnown(recovered);
+    expect(screen.queryByText('Never seen before')).toBeNull();
+    expect(screen.queryByText(/new to the collection/)).toBeNull();
+  });
+
+  it('counts the new ones beside the total, not instead of it', () => {
+    // Known everything except one, so exactly one slot was filled this career.
+    withKnown(recovered.slice(1));
+    expect(screen.getAllByText('Never seen before')).toHaveLength(1);
+    expect(screen.getByText(/1 new to the collection/)).toBeInTheDocument();
+    // The full recovered count is still reported next to it.
+    expect(screen.getByText(String(recovered.length))).toBeInTheDocument();
+  });
+
+  it('reads the pre-run snapshot, not the run itself', () => {
+    // Derive "new" from the run's own finds and everything looks new forever;
+    // derive it from the post-run collection and nothing ever does. One
+    // identical run under two collections must give two different answers.
+    const { unmount } = withKnown([]);
+    const allNew = screen.queryAllByText('Never seen before').length;
+    unmount();
+    withKnown(recovered);
+    const noneNew = screen.queryAllByText('Never seen before').length;
+    expect(allNew).toBe(recovered.length);
+    expect(noneNew).toBe(0);
+  });
+});
