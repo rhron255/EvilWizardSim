@@ -16,7 +16,7 @@ import type { Faction, Lair, RunState } from '../../types';
 import { tierColor, tierFor } from '../../theme/tokens';
 import { NotorietyBadge } from './NotorietyBadge';
 import { allegiancesFor, sealSentence, sealWarningFor } from './allegiances';
-import { siegeFor, stakesFor } from './stakes';
+import { lichSentence, siegeFor, stakesFor } from './stakes';
 import styles from './WizardHeader.module.css';
 
 export type WizardHeaderProps = {
@@ -52,6 +52,7 @@ export function WizardHeader({
   const stakes = stakesFor(run);
   const allegiances = allegiancesFor(run, factions);
   const seal = sealWarningFor(run);
+  const lich = lichSentence(run);
   const siege = defense == null ? null : siegeFor(run, defense);
   const lair = lairs.find((l) => l.id === run.lairId);
   const previous = run.eras.length > 1 ? run.eras[run.eras.length - 2].notoriety : undefined;
@@ -91,6 +92,18 @@ export function WizardHeader({
             ·
           </span>
           <span className={`${styles.age} ew-num`}>Age {run.age}</span>
+          {/* What you ARE, once you have paid for it. Inline in the identity
+              line so it costs no vertical space on the one screen that has
+              none — and beside the epithet, because it is the same kind of
+              fact: what the world would call you. */}
+          {lich && (
+            <>
+              <span className={styles.dot} aria-hidden="true">
+                ·
+              </span>
+              <span className={styles.undying}>Undying</span>
+            </>
+          )}
         </p>
       </div>
 
@@ -182,6 +195,11 @@ export function WizardHeader({
           {sealSentence(seal)}
         </p>
       )}
+
+      {/* Stated for as long as it is true, not just on the card that did it.
+          The rite is three or four eras from the end and the two things it
+          changed — the decay and the wards — are otherwise invisible. */}
+      {lich && <p className={styles.lich}>{lich}</p>}
 
       {siege && (
         <div className={styles.siege} data-tone={siege.tone}>

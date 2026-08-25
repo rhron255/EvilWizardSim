@@ -157,7 +157,20 @@ export function heroBand(threat: number, defense: number): HeroBand {
 }
 
 /** One named term of `defenseOf`, for a UI that has to say where wards come from. */
-export type DefenseTerm = { label: string; value: number };
+export type DefenseTerm = {
+  label: string;
+  value: number;
+  /**
+   * Something the wizard BUILT, as opposed to the floor everybody starts with.
+   *
+   * The readout names the largest term as the thing currently keeping the
+   * player alive, and `Standing ground` is the one term that is a constant —
+   * naming it would be advice nobody can act on. A flag rather than a string
+   * comparison on the label: a shared field with two readings is failure
+   * mode 4, and the label is display text that a content pack may translate.
+   */
+  earned: boolean;
+};
 
 /** `defenseOf`, itemised, plus the same total. */
 export type DefenseReadout = { total: number; terms: DefenseTerm[] };
@@ -189,12 +202,14 @@ export function defenseReadout(run: RunState, content: ContentBundle): DefenseRe
 
   const round = (n: number) => Math.round(n * 10) / 10;
   const terms: DefenseTerm[] = [
-    { label: 'Lair', value: round(lairTier * DEF_LAIR) },
-    { label: 'Relics', value: round(artifactDefense) },
-    { label: 'Fame', value: round(run.notoriety * DEF_NOTORIETY) },
-    { label: 'Standing ground', value: round(DEF_FLOOR) },
+    { label: 'Lair', value: round(lairTier * DEF_LAIR), earned: true },
+    { label: 'Relics', value: round(artifactDefense), earned: true },
+    { label: 'Fame', value: round(run.notoriety * DEF_NOTORIETY), earned: true },
+    { label: 'Standing ground', value: round(DEF_FLOOR), earned: false },
   ];
-  if (run.isLich) terms.push({ label: 'Undeath', value: round(DEF_LICH) });
+  // The largest single term in the game — bigger than the whole lair ladder —
+  // and until now it was computed here and named nowhere on screen.
+  if (run.isLich) terms.push({ label: 'Undeath', value: round(DEF_LICH), earned: true });
 
   return { total: defenseOf(run, content), terms };
 }

@@ -27,6 +27,7 @@ import {
   BETRAYAL_MAX_LOYALTY,
   BETRAYAL_MIN_APPRENTICES,
   DEF_LAIR,
+  DEF_LICH,
   heroBand,
   PACT_INTEREST,
   PACT_INTEREST_MIN_DEBT,
@@ -145,6 +146,30 @@ function pactStake(run: RunState): Stake {
   };
 }
 
+/**
+ * What being a lich is, stated once, for as long as you are one.
+ *
+ * `run.isLich` was mechanically enormous and visually SILENT: decay stops, the
+ * largest defence term in the game switches on, and Ascension closes — and
+ * nothing on screen changed. A player took the rite and the run looked
+ * identical, which is why the lichdom ending was reported as arriving from
+ * nowhere "a few turns after".
+ *
+ * `null` when not a lich, so the line costs nothing to a run that never took
+ * the rite. Held to one line at 393px, the same budget `sealSentence` is held
+ * to — a second line here pushes the first choice card further down the one
+ * screen this game is built for.
+ *
+ * Shape is the header's `<clause> · <clause>`, but both clauses are GAINS
+ * rather than the usual state-then-trigger: the lich state has no pending
+ * trigger, it has already fired. Inventing one would be a lie in the direction
+ * rule 5 cares about.
+ */
+export function lichSentence(run: RunState): string | null {
+  if (!run.isLich) return null;
+  return `Undeath adds ${DEF_LICH} Wards · Notoriety no longer decays`;
+}
+
 export function stakesFor(run: RunState): Stake[] {
   return [
     followersStake(run),
@@ -171,7 +196,10 @@ export type Siege = {
   margin: number;
   /** Threat the hero gains at the end of THIS era. The clock on the ceiling. */
   rate: number;
-  /** Where the wards come from, largest first. The lair is usually top. */
+  /**
+   * Where the wards come from, largest first, zero terms dropped.
+   * `terms[0]` drives the caption's third clause — see `siegeSentence`.
+   */
   terms: DefenseTerm[];
   /** The consequence and the rate, in the shape of the seal sentence. */
   sentence: string;
@@ -210,21 +238,36 @@ export type Siege = {
  *   2. `+{rate} an era` — the clock. A ceiling without one is the exact defect
  *      CLAUDE.md's failure mode 1 describes, and the pact caption already says
  *      `+1 an era on its own` in this same header.
- *   3. The lair clause. Measured: lair tier is 30.2% of the mean defence and
- *      16.6% of runs flip from surviving to slain without it — and the only
- *      place the UI ever said so was a `title` attribute, i.e. nowhere on a
- *      phone. Calm shows what the lair is already worth; warn and danger switch
- *      to what one more rung buys, because in trouble the marginal number is
- *      the actionable one. `DEF_LAIR` is 8 and rungs are one tier apart, so
- *      "the next lair adds 8" is exact.
+ *   3. What is actually holding him off. Calm names the LARGEST EARNED term —
+ *      whatever is currently carrying the player, not always the lair. Measured,
+ *      lair tier is 30.2% of the mean defence and 16.6% of runs flip from
+ *      surviving to slain without it, and the only place the UI ever said so was
+ *      a `title` attribute, i.e. nowhere on a phone. But a lich's `Undeath` is
+ *      60 — larger than the entire ten-rung lair ladder — and hardcoding "your
+ *      lair" would have gone on crediting the lair for it.
+ *
+ *      `Standing ground` is excluded by `earned`: it is the floor everybody
+ *      starts with, so naming it would be advice nobody can act on.
+ *
+ *      Warn and danger switch to what one more RUNG buys, because in trouble
+ *      the marginal number is the actionable one. `DEF_LAIR` is 8 and rungs are
+ *      one tier apart, so "the next lair adds 8" is exact.
  *
  * Not the forbidden doom meter: wiki/04 bans ANNOUNCING the losing phase, and
  * the notoriety erosion stays unnarrated. Naming the trigger of an ending is
  * the disclosure rule, not a violation of the tone rule.
  */
-function siegeSentence(wards: number, rate: number, lairValue: number, tone: Siege['tone']): string {
-  const lairClause = tone === 'calm' ? `your lair adds ${lairValue}` : `the next lair adds ${DEF_LAIR}`;
-  return `he kills you above ${wards} · +${rate} an era · ${lairClause}`;
+function siegeSentence(
+  wards: number,
+  rate: number,
+  carrying: DefenseTerm | undefined,
+  tone: Siege['tone'],
+): string {
+  const clause =
+    tone === 'calm' && carrying
+      ? `${carrying.label.toLowerCase()} adds ${carrying.value}`
+      : `the next lair adds ${DEF_LAIR}`;
+  return `he kills you above ${wards} · +${rate} an era · ${clause}`;
 }
 
 export function siegeFor(run: RunState, defense: DefenseReadout): Siege | null {
@@ -237,16 +280,20 @@ export function siegeFor(run: RunState, defense: DefenseReadout): Siege | null {
   const tone: Siege['tone'] = band === 'calm' ? 'calm' : band === 'warn' ? 'warn' : 'danger';
   const wards = Math.round(defense.total);
   const rate = Math.round(threatGainFor(run));
-  const lairValue = Math.round(defense.terms.find((t) => t.label === 'Lair')?.value ?? 0);
+  // Largest first, so `terms[0]` is what is keeping the player alive. This is
+  // the field's only consumer and the reason it exists — it was computed and
+  // rendered nowhere for a while, which is failure mode 2 in miniature.
+  const terms = [...defense.terms]
+    .filter((t) => t.value !== 0)
+    .sort((a, b) => b.value - a.value);
+  const carrying = terms.find((t) => t.earned);
   return {
     wards,
     threat: Math.round(run.heroThreat),
     margin: Math.round(defense.total - run.heroThreat),
     rate,
-    // Zero terms are noise in a four-item strip; a wizard with no relics does
-    // not need a row telling them so.
-    terms: [...defense.terms].filter((t) => t.value !== 0).sort((a, b) => b.value - a.value),
-    sentence: siegeSentence(wards, rate, lairValue, tone),
+    terms,
+    sentence: siegeSentence(wards, rate, carrying, tone),
     ratio,
     tone,
   };

@@ -420,6 +420,29 @@
   color: var(--ew-danger);
 }
 
+/* The lich state.
+
+   Deliberately NOT the tier colour: that is the notoriety badge's, and being
+   undying is not a rank. Ink and a hairline, sitting in the same band as the
+   seal warning and the wards caption — the header's three "what is true about
+   you right now" lines. */
+.undying {
+  font-family: var(--ew-font-ui);
+  font-size: var(--ew-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ew-ink-bright);
+}
+
+.lich {
+  grid-column: 1 / -1;
+  margin: var(--ew-space-1) 0 0;
+  font-size: var(--ew-size-xs);
+  line-height: 1.35;
+  color: var(--ew-ink-dim);
+}
+
 .siege {
   grid-column: 1 / -1;
   margin: var(--ew-space-3) 0 0;

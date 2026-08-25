@@ -24,7 +24,7 @@
  * which makes the second one look like a different class of thing.
  */
 
-import { BETRAYAL_MAX_LOYALTY, PACT_LIMIT } from '../../engine';
+import { BETRAYAL_MAX_LOYALTY, DEF_LICH, PACT_LIMIT } from '../../engine';
 import type { Artifact, Effect, EndingId, Faction, FactionId, Rarity } from '../../types';
 import type { SystemicChange } from './resolution';
 import { heroApproachLine } from '../../content/heroes';
@@ -47,11 +47,20 @@ export type EffectLine = {
 const MINUS = '−'; // U+2212 MINUS SIGN — optically matches the plus, unlike a hyphen.
 
 /**
- * The lichdom price, written once and shared with the meta renderer so the two
+ * The lichdom bill, written once and shared with the meta renderer so the two
  * screens can never disagree about what the player is giving up.
+ *
+ * The wards clause is new and it was a rule-1 hole: `DEF_LICH` is 60, the
+ * single largest defence term in the game — more than the entire ten-rung lair
+ * ladder — and the card offering the rite disclosed it NOWHERE. An undisclosed
+ * upside is the same defect as an undisclosed downside; the player could not
+ * price the trade either way.
+ *
+ * `DEF_LICH` is interpolated, never written as a literal. Reads as a bill with
+ * a rebate: the forfeiture stays adjacent to "Become a lich" and the two gains
+ * follow.
  */
-export const LICH_LINE =
-  'Become a lich · forfeit every relic and all Followers · Notoriety decay ends';
+export const LICH_LINE = `Become a lich · forfeit every relic and all Followers · Notoriety decay ends · +${DEF_LICH} Wards`;
 
 /** Signed, with a real minus sign. Zero is rare but must not render as "+0". */
 export function signed(v: number): string {
