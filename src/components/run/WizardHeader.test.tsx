@@ -11,7 +11,9 @@ import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { RunState } from '../../types';
-import { SEAL_MAX_STANDING } from '../../engine';
+import { DEF_LICH, SEAL_MAX_STANDING } from '../../engine';
+import { LICH_LINE } from './effectText';
+import { lichSentence } from './stakes';
 import type { DefenseReadout } from '../../engine';
 import { demoEarlyRun, demoFactions, demoLairs, demoRun } from './__fixtures__/demo';
 import { WizardHeader } from './WizardHeader';
@@ -24,10 +26,10 @@ import { WizardHeader } from './WizardHeader';
 const wards = (total: number): DefenseReadout => ({
   total,
   terms: [
-    { label: 'Lair', value: 32 },
-    { label: 'Relics', value: 6 },
-    { label: 'Fame', value: Math.round(total - 32 - 6 - 42) },
-    { label: 'Standing ground', value: 42 },
+    { label: 'Lair', value: 32, earned: true },
+    { label: 'Relics', value: 6, earned: true },
+    { label: 'Fame', value: Math.round(total - 32 - 6 - 42), earned: true },
+    { label: 'Standing ground', value: 42, earned: false },
   ],
 });
 
@@ -135,5 +137,79 @@ describe('WizardHeader · the wards readout', () => {
   it('stays out when the screen has no defence to show', () => {
     show(demoRun, null);
     expect(screen.queryByText('Wards')).toBeNull();
+  });
+});
+
+/**
+ * Being a lich was mechanically enormous and visually silent.
+ *
+ * Reported from play: the lichdom ending "felt sudden — a few turns after the
+ * lichdom it just happened." The cause was not pacing. `isLich` stops notoriety
+ * decay, switches on `DEF_LICH` — 60, more than the entire ten-rung lair ladder
+ * — and closes Ascension, and NOTHING on screen changed. The player took the
+ * rite and the run looked identical, so the ending arrived with no visible
+ * connection to the choice that caused it.
+ */
+describe('WizardHeader · the lich says so', () => {
+  const lich = (over: Partial<RunState> = {}): RunState =>
+    ({ ...demoRun, isLich: true, ...over }) as RunState;
+
+  it('says nothing about undeath for a wizard who never took the rite', () => {
+    show(demoRun);
+    expect(screen.queryByText('Undying')).toBeNull();
+    expect(screen.queryByText(/Undeath adds/)).toBeNull();
+  });
+
+  it('names the state beside the epithet', () => {
+    show(lich());
+    expect(screen.getByText('Undying')).toBeInTheDocument();
+  });
+
+  it('states BOTH things the rite changed, for as long as they are true', () => {
+    // Not just on the card that did it — the rite is three or four eras from
+    // the end and both consequences are otherwise invisible.
+    show(lich());
+    const line = screen.getByText(/Undeath adds/);
+    expect(line.textContent).toContain(`${DEF_LICH} Wards`);
+    expect(line.textContent).toMatch(/no longer decays/i);
+  });
+
+  it('holds the line to one line at 393px', () => {
+    // Same budget `sealSentence` is held to. A second line here pushes the
+    // first choice card further down the one screen this game is built for.
+    const line = lichSentence(lich())!;
+    expect(line.length).toBeLessThanOrEqual(56);
+  });
+});
+
+/**
+ * The rite's own card has to price the trade.
+ *
+ * `DEF_LICH` is the single biggest defensive swing in the game and the option
+ * offering it disclosed the forfeiture, the decay and NOT the wards. An
+ * undisclosed upside is the same defect as an undisclosed downside: either way
+ * the player cannot price what they are being offered.
+ */
+describe('the lichdom bill', () => {
+  it('names all four consequences', () => {
+    expect(LICH_LINE).toMatch(/forfeit every relic/i);
+    expect(LICH_LINE).toMatch(/Followers/);
+    expect(LICH_LINE).toMatch(/decay ends/i);
+    expect(LICH_LINE).toContain(`+${DEF_LICH} Wards`);
+  });
+
+  it('tracks the constant, so prose cannot drift from the rule', () => {
+    // Anchored to `DEF_LICH`, never to a literal. Note the limit honestly:
+    // by the time a test sees `LICH_LINE` the value is already interpolated,
+    // so this cannot prove the SOURCE reads the constant today. What it does
+    // guarantee is that a hardcoded number goes red the moment `DEF_LICH`
+    // moves — which is the drift this is guarding against, and the same class
+    // the Ascension validator exists to catch.
+    expect(LICH_LINE).toContain(String(DEF_LICH));
+    expect(LICH_LINE).toContain(`+${DEF_LICH} Wards`);
+  });
+
+  it('stays scannable on a choice card', () => {
+    expect(LICH_LINE.length).toBeLessThanOrEqual(90);
   });
 });

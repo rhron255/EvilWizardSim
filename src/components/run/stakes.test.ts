@@ -102,7 +102,7 @@ describe('the hero rail', () => {
     run({ phase: 'decline', heroThreat } as Partial<RunState>);
   const wards = (total: number): DefenseReadout => ({
     total,
-    terms: [{ label: 'Lair', value: total }],
+    terms: [{ label: 'Lair', value: total, earned: true }],
   });
 
   it('is empty when the hero has not started', () => {
@@ -136,5 +136,78 @@ describe('the hero rail', () => {
 
   it('stays out of the ascent entirely', () => {
     expect(siegeFor(run({ phase: 'ascent' } as Partial<RunState>), wards(100))).toBeNull();
+  });
+});
+
+/**
+ * The caption credits whatever is actually holding the hero off.
+ *
+ * It used to hardcode the lair, which was right for most runs and wrong for
+ * the one that matters most: a lich's `Undeath` is worth 60, more than the
+ * entire ten-rung lair ladder, and the caption went on crediting a lair that
+ * might be worth 8. Taking the rite is the biggest defensive swing in the
+ * game and the readout said nothing about it — `DEF_LICH` was disclosed
+ * NOWHERE, on the card or after it.
+ */
+describe('the wards caption names what is carrying you', () => {
+  const decline = (heroThreat: number): RunState =>
+    run({ phase: 'decline', heroThreat } as Partial<RunState>);
+
+  const readout = (terms: DefenseReadout['terms']): DefenseReadout => ({
+    total: terms.reduce((a, t) => a + t.value, 0),
+    terms,
+  });
+
+  it('credits the largest EARNED term, not always the lair', () => {
+    const siege = siegeFor(
+      decline(10),
+      readout([
+        { label: 'Lair', value: 8, earned: true },
+        { label: 'Relics', value: 30, earned: true },
+        { label: 'Standing ground', value: 42, earned: false },
+      ]),
+    )!;
+    expect(siege.sentence).toContain('relics adds 30');
+    expect(siege.sentence).not.toContain('lair adds');
+  });
+
+  it('credits a lich its undeath, which outweighs the whole lair ladder', () => {
+    const siege = siegeFor(
+      decline(10),
+      readout([
+        { label: 'Lair', value: 24, earned: true },
+        { label: 'Undeath', value: 60, earned: true },
+        { label: 'Standing ground', value: 42, earned: false },
+      ]),
+    )!;
+    expect(siege.sentence).toContain('undeath adds 60');
+  });
+
+  it('never credits the floor, which is not something anyone built', () => {
+    // `Standing ground` is a constant. Naming it would be advice nobody can act
+    // on, and it is the largest term for most of the early decline.
+    const siege = siegeFor(
+      decline(10),
+      readout([
+        { label: 'Lair', value: 8, earned: true },
+        { label: 'Standing ground', value: 42, earned: false },
+      ]),
+    )!;
+    expect(siege.sentence).not.toContain('standing ground');
+    expect(siege.sentence).toContain('lair adds 8');
+  });
+
+  it('orders the terms largest first, so terms[0] is the answer', () => {
+    const siege = siegeFor(
+      decline(10),
+      readout([
+        { label: 'Lair', value: 8, earned: true },
+        { label: 'Undeath', value: 60, earned: true },
+        { label: 'Relics', value: 0, earned: true },
+      ]),
+    )!;
+    expect(siege.terms[0].label).toBe('Undeath');
+    // Zero terms are noise — a wizard with no relics needs no row saying so.
+    expect(siege.terms.map((t) => t.label)).not.toContain('Relics');
   });
 });
