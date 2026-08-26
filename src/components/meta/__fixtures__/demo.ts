@@ -431,6 +431,13 @@ export const demoEndings: Ending[] = [
     summary: 'A farm boy with a prophecy and a borrowed sword.',
     narration:
       'He came up the stair alone, which was arrogant, and he was right to be. It took four minutes. Afterwards they found your ledgers, and the ledgers were the problem: seventy years of them, itemised, in your own hand. The kingdom read them aloud at the trial of a dead man and could not decide whether to burn them or file them. They filed them. You are, at present, the longest entry in the Crownlands archive, and the boy is a footnote in your paperwork rather than the other way around.',
+    coda: {
+      unknown: 'Fixture coda · slain_by_chosen_one · unknown.',
+      local_menace: 'Fixture coda · slain_by_chosen_one · local_menace.',
+      named_threat: 'Fixture coda · slain_by_chosen_one · named_threat.',
+      kingdom: 'Fixture coda · slain_by_chosen_one · kingdom.',
+      legend: 'Fixture coda · slain_by_chosen_one · legend.',
+    },
     rarity: 'common',
   },
   {
@@ -440,6 +447,13 @@ export const demoEndings: Ending[] = [
     summary: 'Not dead. Filed.',
     narration:
       'The Academy voted on it, which is the most Academy thing that has ever happened to you. Seventeen to four. You are approximately the size of a plum, entirely conscious, and mounted in a display case with a small brass label that misspells your name. The label has been wrong for a hundred and forty years. Someone will notice. When they open the case to correct it, you will be ready, and you have had a very long time to prepare exactly one sentence.',
+    coda: {
+      unknown: 'Fixture coda · sealed_in_gem · unknown.',
+      local_menace: 'Fixture coda · sealed_in_gem · local_menace.',
+      named_threat: 'Fixture coda · sealed_in_gem · named_threat.',
+      kingdom: 'Fixture coda · sealed_in_gem · kingdom.',
+      legend: 'Fixture coda · sealed_in_gem · legend.',
+    },
     rarity: 'rare',
   },
   {
@@ -449,6 +463,13 @@ export const demoEndings: Ending[] = [
     summary: 'You taught her everything. She took notes.',
     narration:
       'She had been with you nineteen years and she did it on a Tuesday, in the workroom, using a preparation you had shown her yourself and had praised her for improving. That last part is the part that stings. She kept the tower, the moat, and the name — she signs it exactly as you did, down to the flourish, and the kingdom has not yet worked out that anything changed. In every sense that the archives measure, you are still alive and still working. She just does the work now.',
+    coda: {
+      unknown: 'Fixture coda · betrayed_by_apprentice · unknown.',
+      local_menace: 'Fixture coda · betrayed_by_apprentice · local_menace.',
+      named_threat: 'Fixture coda · betrayed_by_apprentice · named_threat.',
+      kingdom: 'Fixture coda · betrayed_by_apprentice · kingdom.',
+      legend: 'Fixture coda · betrayed_by_apprentice · legend.',
+    },
     rarity: 'common',
   },
   {
@@ -458,6 +479,13 @@ export const demoEndings: Ending[] = [
     summary: 'The decline stopped. So did most other things.',
     narration:
       'You gave up the relics first — all of them, in a single night, into a hole that did not echo. The followers went the next morning without being asked to. What is left does not decay, does not sleep, and does not particularly want anything, which turns out to be the cost nobody warned you about. You are still in the tower. You will be in the tower for a very long time. On clear nights you can see the lights of the town you used to terrorise, and you remember that you enjoyed it, without being able to remember how.',
+    coda: {
+      unknown: 'Fixture coda · lichdom · unknown.',
+      local_menace: 'Fixture coda · lichdom · local_menace.',
+      named_threat: 'Fixture coda · lichdom · named_threat.',
+      kingdom: 'Fixture coda · lichdom · kingdom.',
+      legend: 'Fixture coda · lichdom · legend.',
+    },
     rarity: 'rare',
   },
   {
@@ -467,6 +495,13 @@ export const demoEndings: Ending[] = [
     summary: 'Nobody came. That was the plan.',
     narration:
       'The prophecy expired. The boy grew up, married a cooper, and never once came looking. You sold the spire, kept the books, and moved into four rooms above a slow green water where the frogs are the loudest thing for nine miles. You are extremely dangerous and no longer of interest to anyone, which is a combination almost no wizard in recorded history has survived long enough to enjoy. You have a garden. It is, by every account, a very good garden.',
+    coda: {
+      unknown: 'Fixture coda · retired_to_swamp · unknown.',
+      local_menace: 'Fixture coda · retired_to_swamp · local_menace.',
+      named_threat: 'Fixture coda · retired_to_swamp · named_threat.',
+      kingdom: 'Fixture coda · retired_to_swamp · kingdom.',
+      legend: 'Fixture coda · retired_to_swamp · legend.',
+    },
     rarity: 'common',
   },
   {
@@ -476,6 +511,13 @@ export const demoEndings: Ending[] = [
     summary: 'The interest was always going to be the problem.',
     narration:
       'You read the terms. You want that on the record — you read every line, and you signed anyway, because in the year you signed it the terms were extremely good. They remained extremely good for sixty-one years. The Covenant does not gloat and did not send anyone; a clause simply matured, quietly, the way clauses do, and the tower is now empty and legally theirs. Your name is still on the door. They have not taken it down. It is, in its way, a testimonial.',
+    coda: {
+      unknown: 'Fixture coda · consumed_by_pact · unknown.',
+      local_menace: 'Fixture coda · consumed_by_pact · local_menace.',
+      named_threat: 'Fixture coda · consumed_by_pact · named_threat.',
+      kingdom: 'Fixture coda · consumed_by_pact · kingdom.',
+      legend: 'Fixture coda · consumed_by_pact · legend.',
+    },
     rarity: 'rare',
   },
   {
@@ -485,6 +527,13 @@ export const demoEndings: Ending[] = [
     summary: 'Very few. Fewer who deserved it.',
     narration:
       'It did not look like anything. There was no light, no thunder, no witnesses worth the name — just a tower with nobody in it and a door standing open onto a stair that was not there the day before. The Academy has a word for what you did and refuses to use it in print. The Crownlands has closed the file, which they do not do. Somewhere above the ordinary sky there is now one more thing that was once a person, and it remembers being cold, and being expelled, and being twenty.',
+    coda: {
+      unknown: 'Fixture coda · ascension · unknown.',
+      local_menace: 'Fixture coda · ascension · local_menace.',
+      named_threat: 'Fixture coda · ascension · named_threat.',
+      kingdom: 'Fixture coda · ascension · kingdom.',
+      legend: 'Fixture coda · ascension · legend.',
+    },
     rarity: 'legendary',
   },
 ];

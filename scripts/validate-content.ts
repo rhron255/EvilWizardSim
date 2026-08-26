@@ -261,6 +261,9 @@ for (const e of endings) {
   checkAscensionPrice(`ending "${e.id}"`, e.summary);
   checkAscensionPrice(`ending "${e.id}"`, e.narration);
   checkAscensionPrice(`ending "${e.id}"`, e.hint);
+  for (const [tier, line] of Object.entries(e.coda)) {
+    checkAscensionPrice(`ending "${e.id}" coda.${tier}`, line);
+  }
 }
 
 /**
@@ -274,6 +277,45 @@ for (const e of endings) {
  * It must not leak the ending's name, or the slot spoils the thing it exists
  * to withhold.
  */
+/**
+ * Every tier gets a coda, and every coda fits the card.
+ *
+ * `coda` is a full `Record<TierId, string>` so the compiler already catches a
+ * missing KEY. What it cannot catch is an empty string, a duplicate pasted
+ * across two tiers, or one that has grown past what the ending card can hold —
+ * and the point of the field is that a Local Menace career reads differently
+ * from a Kingdom-Level one, which a duplicate silently undoes.
+ *
+ * 110 is the authoring budget, not a layout measurement: the coda sits under a
+ * ~500-character narration on a 393px phone, and the card is already 3.4
+ * screens tall.
+ */
+const CODA_MAX = 110;
+
+for (const e of endings) {
+  const seen = new Map<string, string>();
+  for (const [tier, line] of Object.entries(e.coda)) {
+    if (!line || !line.trim()) {
+      fail('endings', `ending "${e.id}" has an empty coda for tier "${tier}"`);
+      continue;
+    }
+    if (line.length > CODA_MAX) {
+      fail(
+        'endings',
+        `ending "${e.id}" coda.${tier} is ${line.length} chars, over the ${CODA_MAX} budget`,
+      );
+    }
+    const dupe = seen.get(line);
+    if (dupe) {
+      fail(
+        'endings',
+        `ending "${e.id}" reuses the same coda for "${dupe}" and "${tier}" — the tier is the point`,
+      );
+    }
+    seen.set(line, tier);
+  }
+}
+
 for (const e of endings) {
   if (!e.hint || !e.hint.trim()) {
     fail('endings', `ending "${e.id}" has no hint — its locked slot would render empty`);

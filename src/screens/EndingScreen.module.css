@@ -129,7 +129,7 @@
 .flourish {
   margin: var(--ew-space-4) 0;
   width: 200px;
-  color: var(--ew-tier);
+  color: var(--ew-line-strong);
   opacity: 0.9;
 }
 
@@ -506,6 +506,33 @@
    Quiet: it is a fact about a thirty-slot grid the player fills over many
    careers, not a fanfare — and it is absent entirely in the 80% of careers
    that add nothing. */
+/* The tier coda.
+
+   THE ONE PROSE ELEMENT ON THIS CARD THAT TAKES THE TIER COLOUR. The card was
+   already spending it three times — the peak-notoriety figure, the flourish
+   and the tier name — so the flourish gives its tint back below rather than
+   this becoming a fourth. Colour on the sentence beats colour on decoration,
+   and this sentence is the only thing here that changes with rank. */
+.coda {
+  margin: var(--ew-space-4) 0 0;
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-size-md);
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--ew-tier);
+  text-wrap: pretty;
+}
+
+/* Who remembers you. Quiet — it is a fact about the cast, not a verdict, and
+   it sits under a sentence that is already carrying the colour. */
+.bonds {
+  margin: var(--ew-space-3) 0 0;
+  font-size: var(--ew-size-sm);
+  line-height: 1.55;
+  color: var(--ew-ink-faint);
+  text-wrap: pretty;
+}
+
 .countNew {
   font-size: var(--ew-size-xs);
   font-weight: 600;

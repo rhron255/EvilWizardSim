@@ -215,6 +215,13 @@ export const fixtureEndings: Ending[] = [
     narration:
       'A farmhand with a prophecy and a borrowed sword ended a long career in an afternoon.',
     summary: 'Killed by a teenager with narrative momentum.',
+    coda: {
+      unknown: 'Fixture coda · slain_by_chosen_one · unknown.',
+      local_menace: 'Fixture coda · slain_by_chosen_one · local_menace.',
+      named_threat: 'Fixture coda · slain_by_chosen_one · named_threat.',
+      kingdom: 'Fixture coda · slain_by_chosen_one · kingdom.',
+      legend: 'Fixture coda · slain_by_chosen_one · legend.',
+    },
     rarity: 'common',
   },
   {
@@ -223,6 +230,13 @@ export const fixtureEndings: Ending[] = [
     name: 'Sealed in a Gem',
     narration: 'The Academy voted. The vote was to put you in a stone and change the subject.',
     summary: 'Filed away by your alma mater.',
+    coda: {
+      unknown: 'Fixture coda · sealed_in_gem · unknown.',
+      local_menace: 'Fixture coda · sealed_in_gem · local_menace.',
+      named_threat: 'Fixture coda · sealed_in_gem · named_threat.',
+      kingdom: 'Fixture coda · sealed_in_gem · kingdom.',
+      legend: 'Fixture coda · sealed_in_gem · legend.',
+    },
     rarity: 'rare',
   },
   {
@@ -231,6 +245,13 @@ export const fixtureEndings: Ending[] = [
     name: 'Betrayed by an Apprentice',
     narration: 'You taught them everything. They took notes on the parts about your weaknesses.',
     summary: 'Undone by your own curriculum.',
+    coda: {
+      unknown: 'Fixture coda · betrayed_by_apprentice · unknown.',
+      local_menace: 'Fixture coda · betrayed_by_apprentice · local_menace.',
+      named_threat: 'Fixture coda · betrayed_by_apprentice · named_threat.',
+      kingdom: 'Fixture coda · betrayed_by_apprentice · kingdom.',
+      legend: 'Fixture coda · betrayed_by_apprentice · legend.',
+    },
     rarity: 'rare',
   },
   {
@@ -239,6 +260,13 @@ export const fixtureEndings: Ending[] = [
     name: 'Lichdom',
     narration: 'You gave up everything you owned and everyone who followed you, and kept going.',
     summary: 'Traded a life for an afterlife.',
+    coda: {
+      unknown: 'Fixture coda · lichdom · unknown.',
+      local_menace: 'Fixture coda · lichdom · local_menace.',
+      named_threat: 'Fixture coda · lichdom · named_threat.',
+      kingdom: 'Fixture coda · lichdom · kingdom.',
+      legend: 'Fixture coda · lichdom · legend.',
+    },
     rarity: 'rare',
   },
   {
@@ -247,6 +275,13 @@ export const fixtureEndings: Ending[] = [
     name: 'Retired to a Swamp',
     narration: 'You stopped. The swamp is quiet. Nobody writes.',
     summary: 'Made it to the end. Nothing tried to stop you.',
+    coda: {
+      unknown: 'Fixture coda · retired_to_swamp · unknown.',
+      local_menace: 'Fixture coda · retired_to_swamp · local_menace.',
+      named_threat: 'Fixture coda · retired_to_swamp · named_threat.',
+      kingdom: 'Fixture coda · retired_to_swamp · kingdom.',
+      legend: 'Fixture coda · retired_to_swamp · legend.',
+    },
     rarity: 'common',
   },
   {
@@ -255,6 +290,13 @@ export const fixtureEndings: Ending[] = [
     name: 'Consumed by the Pact',
     narration: 'The instalments came due all at once, as instalments do.',
     summary: 'The bill arrived.',
+    coda: {
+      unknown: 'Fixture coda · consumed_by_pact · unknown.',
+      local_menace: 'Fixture coda · consumed_by_pact · local_menace.',
+      named_threat: 'Fixture coda · consumed_by_pact · named_threat.',
+      kingdom: 'Fixture coda · consumed_by_pact · kingdom.',
+      legend: 'Fixture coda · consumed_by_pact · legend.',
+    },
     rarity: 'rare',
   },
   {
@@ -263,6 +305,13 @@ export const fixtureEndings: Ending[] = [
     name: 'Ascension',
     narration: 'You stepped out of the story before it could finish you.',
     summary: 'Left the world by the front door.',
+    coda: {
+      unknown: 'Fixture coda · ascension · unknown.',
+      local_menace: 'Fixture coda · ascension · local_menace.',
+      named_threat: 'Fixture coda · ascension · named_threat.',
+      kingdom: 'Fixture coda · ascension · kingdom.',
+      legend: 'Fixture coda · ascension · legend.',
+    },
     rarity: 'legendary',
   },
 ];
