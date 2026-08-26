@@ -47,6 +47,9 @@ export function RunScreen({
   return (
     <div
       className={styles.screen}
+      /* Undeath cools the whole screen. See `.screen[data-lich]` in the
+         stylesheet for what it shifts and why it is surfaces only. */
+      data-lich={run.isLich ? 'true' : undefined}
       style={
         {
           '--ew-tier': tierColor[tier.id],
