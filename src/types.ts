@@ -227,6 +227,20 @@ export type Ending = {
    * rarity word, and the word collided with the relic grid's.
    */
   hint: string;
+  /**
+   * The last thing said about the career, one line per Notoriety tier.
+   *
+   * A Local Menace lich read identically to a Kingdom-Level lich: notoriety is
+   * the spine of the whole game and the ending ignored it. The coda answers
+   * "and how much did the world notice?" for this specific ending.
+   *
+   * REQUIRED, and a full `Record` rather than a partial one, so the compiler
+   * names every missing tier — the mechanism that found all fourteen call
+   * sites when `hint` was added. A partial map would render nothing for the
+   * band nobody remembered to write, which is the tier a player is most likely
+   * to be in.
+   */
+  coda: Record<TierId, string>;
   rarity: Rarity;
 };
 

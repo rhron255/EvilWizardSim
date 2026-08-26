@@ -32,6 +32,8 @@ import {
   tierVars,
 } from '../components/meta';
 import type { ArtifactGridEntry } from '../components/meta';
+import { standingPassageFor } from '../components/meta/standing';
+import { nemesisLineFor, patronLineFor } from '../content/standing';
 import { heroNameFor } from '../content/heroes';
 import styles from './EndingScreen.module.css';
 
@@ -95,6 +97,7 @@ export function EndingScreen({
 
   const peak = peakNotoriety(run.eras, run.notoriety);
   const tier = tierOf(peak);
+  const bonds = standingPassageFor(run, factions);
   const startAge = run.eras[0]?.age ?? run.age;
   const tenures = useMemo(() => lairTenures(run, lairs), [run, lairs]);
 
@@ -214,7 +217,11 @@ export function EndingScreen({
           </h1>
           {run.epithet ? <p className={styles.epithet}>{run.epithet}</p> : null}
 
-          <Flourish className={styles.flourish} tone="tier" />
+          {/* `quiet`, not `tier`. The card's scarce colour now lands on the
+              coda — the one sentence here that changes with rank — so the rule
+              gives its tint back rather than the coda becoming a fourth gold
+              object. Colour on a sentence beats colour on decoration. */}
+          <Flourish className={styles.flourish} />
 
           <p className={styles.span}>
             Aged <span className={styles.num}>{startAge}</span> to{' '}
@@ -245,6 +252,24 @@ export function EndingScreen({
             </p>
           ) : null}
           <p className={styles.narration}>{ending.narration}</p>
+
+          {/* How much the world noticed. The one prose element on this card
+              that carries the tier colour — a Local Menace lich and a
+              Kingdom-Level lich used to read identically, on a card whose
+              whole spine is Notoriety. */}
+          <p className={styles.coda}>{ending.coda[tier.id]}</p>
+
+          {/* Who remembers you. Standing had six bars on this card and not one
+              word; during a run its only visible payoffs are a locked
+              reliquary and a gem, both punishments. Absent entirely for a
+              wizard who courted and offended nobody — a real career, and the
+              usual one for a quiet retirement. */}
+          {(bonds.patron || bonds.nemesis) && (
+            <p className={styles.bonds}>
+              {bonds.patron && <span>{patronLineFor(bonds.patron.factionId)}</span>}{' '}
+              {bonds.nemesis && <span>{nemesisLineFor(bonds.nemesis.factionId, ending.id)}</span>}
+            </p>
+          )}
         </section>
 
         {/* --- lifetime totals --------------------------------------------- */}
