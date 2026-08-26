@@ -22,6 +22,45 @@
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
+/* --------------------------------------------------------------------------
+   Undeath, as a temperature.
+
+   The palette is a WARM dark — every surface has R > G > B, and the ink is
+   parchment rather than white. A lich has stopped being warm, so the whole
+   screen shifts cold: blue lifted above green in every surface token, red left
+   alone. The result is a violet cast you feel before you read anything.
+
+   SURFACES ONLY. Not the ink, not `--ew-tier`, not the delta pair, not
+   `--ew-danger`. The Notoriety badge is still the only chromatic reward on the
+   screen (rule 3) and a red number still reads as a red number — what changed
+   is the room they are sitting in, which is exactly the amount of signal a
+   state change is worth.
+
+   It is also NOT the Kingdom-Level tier violet (#9B6BE8). That hue means a
+   rank, and undeath is not a rank; these are desaturated near-blacks that
+   never come close to reading as an accent.
+
+   Costs no layout, no vertical space, and nothing to a run that never took the
+   rite — which is the "minor UI tweak" a state this large was missing.
+   -------------------------------------------------------------------------- */
+.screen[data-lich] {
+  --ew-void: #0a0910;
+  --ew-panel: #12111c;
+  --ew-raised: #191725;
+  --ew-hover: #211e30;
+  --ew-line: #272235;
+  --ew-line-strong: #3a344d;
+}
+
+/* The light from above cools with the room. Leaving the warm key light over
+   violet surfaces reads as a rendering mistake rather than as a mood — the two
+   have to move together or neither should. */
+.screen[data-lich] {
+  background:
+    radial-gradient(90% 55% at 50% -10%, rgba(214, 224, 255, 0.05), transparent 68%),
+    var(--ew-void);
+}
+
 .column {
   position: relative;
   z-index: 1;
@@ -52,7 +91,46 @@
    §3), so the choice cards can only be pulled up the page by the three things
    above them costing less. This file owns two of the gaps. */
 @media (max-width: 700px) {
-  .column {
+  /* --------------------------------------------------------------------------
+   Undeath, as a temperature.
+
+   The palette is a WARM dark — every surface has R > G > B, and the ink is
+   parchment rather than white. A lich has stopped being warm, so the whole
+   screen shifts cold: blue lifted above green in every surface token, red left
+   alone. The result is a violet cast you feel before you read anything.
+
+   SURFACES ONLY. Not the ink, not `--ew-tier`, not the delta pair, not
+   `--ew-danger`. The Notoriety badge is still the only chromatic reward on the
+   screen (rule 3) and a red number still reads as a red number — what changed
+   is the room they are sitting in, which is exactly the amount of signal a
+   state change is worth.
+
+   It is also NOT the Kingdom-Level tier violet (#9B6BE8). That hue means a
+   rank, and undeath is not a rank; these are desaturated near-blacks that
+   never come close to reading as an accent.
+
+   Costs no layout, no vertical space, and nothing to a run that never took the
+   rite — which is the "minor UI tweak" a state this large was missing.
+   -------------------------------------------------------------------------- */
+.screen[data-lich] {
+  --ew-void: #0a0910;
+  --ew-panel: #12111c;
+  --ew-raised: #191725;
+  --ew-hover: #211e30;
+  --ew-line: #272235;
+  --ew-line-strong: #3a344d;
+}
+
+/* The light from above cools with the room. Leaving the warm key light over
+   violet surfaces reads as a rendering mistake rather than as a mood — the two
+   have to move together or neither should. */
+.screen[data-lich] {
+  background:
+    radial-gradient(90% 55% at 50% -10%, rgba(214, 224, 255, 0.05), transparent 68%),
+    var(--ew-void);
+}
+
+.column {
     gap: var(--ew-space-3);
     padding: var(--ew-space-4) var(--ew-space-4) var(--ew-space-7);
   }
@@ -63,7 +141,46 @@
 }
 
 @media (max-width: 420px) {
-  .column {
+  /* --------------------------------------------------------------------------
+   Undeath, as a temperature.
+
+   The palette is a WARM dark — every surface has R > G > B, and the ink is
+   parchment rather than white. A lich has stopped being warm, so the whole
+   screen shifts cold: blue lifted above green in every surface token, red left
+   alone. The result is a violet cast you feel before you read anything.
+
+   SURFACES ONLY. Not the ink, not `--ew-tier`, not the delta pair, not
+   `--ew-danger`. The Notoriety badge is still the only chromatic reward on the
+   screen (rule 3) and a red number still reads as a red number — what changed
+   is the room they are sitting in, which is exactly the amount of signal a
+   state change is worth.
+
+   It is also NOT the Kingdom-Level tier violet (#9B6BE8). That hue means a
+   rank, and undeath is not a rank; these are desaturated near-blacks that
+   never come close to reading as an accent.
+
+   Costs no layout, no vertical space, and nothing to a run that never took the
+   rite — which is the "minor UI tweak" a state this large was missing.
+   -------------------------------------------------------------------------- */
+.screen[data-lich] {
+  --ew-void: #0a0910;
+  --ew-panel: #12111c;
+  --ew-raised: #191725;
+  --ew-hover: #211e30;
+  --ew-line: #272235;
+  --ew-line-strong: #3a344d;
+}
+
+/* The light from above cools with the room. Leaving the warm key light over
+   violet surfaces reads as a rendering mistake rather than as a mood — the two
+   have to move together or neither should. */
+.screen[data-lich] {
+  background:
+    radial-gradient(90% 55% at 50% -10%, rgba(214, 224, 255, 0.05), transparent 68%),
+    var(--ew-void);
+}
+
+.column {
     /* Top padding goes to zero: the header's own first line is an eyebrow in
        small caps, which reads as breathing room on its own. On the reference
        device every pixel above the fold is competing with the choice cards. */
