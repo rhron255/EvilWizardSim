@@ -80,9 +80,12 @@ export function formatEffect(e: Effect, ctx: EffectContext = {}): string {
     case 'artifact':
       return `Gain ${artifactName(e.artifactId, ctx)}`;
     case 'artifactFrom':
+      // An unspecified rarity is drawn rarity-weighted at resolution; name the
+      // uncertainty rather than implying a common. Kept in step with the run
+      // renderer (components/run/effectText.ts) so the two never disagree.
       return e.rarity
         ? `Gain a ${e.rarity} ${factionAdjectival(e.factionId, ctx)} relic`
-        : `Gain a ${factionAdjectival(e.factionId, ctx)} relic`;
+        : `Gain a ${factionAdjectival(e.factionId, ctx)} relic · random rarity`;
     case 'loseArtifact':
       return 'Lose a held relic';
     case 'apprentices':

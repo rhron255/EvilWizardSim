@@ -123,9 +123,14 @@ export const concordatOffers: Offer[] = CONCORDATS.map((c) => ({
   phase: 'any',
   factionId: c.factionId,
   scripted: true,
-  // Devotion only. This mirrors DEVOTION_STANDING in the engine; a faction that
-  // merely tolerates you does not open its reliquary.
-  requires: [{ c: 'minStanding', factionId: c.factionId, v: 55 }],
+  // Devotion only: a faction that merely tolerates you does not open its
+  // reliquary. This value must equal DEVOTION_STANDING in the engine (the same
+  // threshold that upgrades a draw), so the two legendary routes agree on what
+  // "devoted" means. Content cannot import the engine constant without breaking
+  // the content/engine separation, so `scripts/validate-content.ts` asserts the
+  // equality instead — a literal copy here would silently drift, as it did when
+  // DEVOTION_STANDING moved from 55 to 50.
+  requires: [{ c: 'minStanding', factionId: c.factionId, v: 50 }],
   weight: 3,
   options: [
     c.price,

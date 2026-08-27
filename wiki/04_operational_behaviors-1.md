@@ -119,6 +119,17 @@ runs feel like committed paths rather than shopping trips, and it is
 what gives self-imposed constraints ("Covenant-only run") something to
 push against.
 
+**Standing must pay before the endgame (added 2026-08-27).** In-run, standing's
+only *visible* consequences used to be punishments — the seal threshold and a
+locked reliquary — with the reward (the concordat legendary) sitting at
+`DEVOTION_STANDING` (50), a gate most runs never reach. That made deliberate
+faction routing, the behaviour meant to produce hundred-run players, read as all
+stick and no carrot. A mid-run **favor** beat now fills the gap: at +30 standing
+each of the four courtable factions offers a genuine reward in its own currency
+(the Gilded Hand a discounted relic, the Covenant infamy on credit, the Academy
+shelter that dulls your menace, the Choir followers), for a real price and always
+with a walk-away. The carrot arrives while there is still a run to spend it on.
+
 ## Near-Miss Tuning
 
 The Ascension ending is the run's visible unattainable prize, with its

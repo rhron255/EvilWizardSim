@@ -238,10 +238,20 @@ export function applyStanding(
  * `artifactFrom`: a random not-yet-held artifact from a faction.
  *
  * Three rules ride on this:
- *   1. `rarity` is a CAP, not an exact match ("optionally rarity-capped").
- *   2. Draws are rarity-weighted so an uncapped draw almost never coughs up a
- *      legendary — legendaries gate Ascension and are meant to be granted by
- *      id, deliberately, as an authored prize.
+ *   1. `rarity`, when present, is an EXACT request, not a cap. Content asking
+ *      for a `legendary` is authoring a set-piece grant, not an upper bound —
+ *      the field once meant "cap" to this function and "exact" to the author,
+ *      and the mismatch weighted legendary grants down to a common ~97% of the
+ *      time and sat Ascension at 0.00% across 2000 runs (CLAUDE.md failure mode
+ *      4). Two riders on the exact match: a faction courted to
+ *      `DEVOTION_STANDING` upgrades the request one rarity (common→rare,
+ *      rare→legendary), and if the requested rarity is exhausted for this
+ *      faction the draw falls to the next tier DOWN rather than granting
+ *      nothing. Omitting `rarity` is the only way to ask for a rarity-weighted
+ *      random draw.
+ *   2. Draws with no `rarity` are rarity-weighted so they almost never cough up
+ *      a legendary — legendaries gate Ascension and are meant to be granted by
+ *      id or by the devotion upgrade, deliberately, as an authored prize.
  *   3. A faction at or below `ARTIFACT_LOCKOUT_STANDING` gives you nothing.
  *      wiki/04: "Hostile → their artifacts lock out." The empty result shows
  *      up in `appliedEffects`, so the UI can say the vault was shut.

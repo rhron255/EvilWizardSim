@@ -163,7 +163,7 @@ export const ARTIFACT_LOCKOUT_STANDING = -50;
  * diagnostic and a comment in `effects.ts`. Read the constant, never a
  * sentence about it.)
  */
-export const DEVOTION_STANDING = 55;
+export const DEVOTION_STANDING = 50;
 
 /** Standing multiplier on offer weight: `1 + standing/100 * COEF`, clamped. */
 export const STANDING_WEIGHT_COEF = 1.4;
@@ -203,8 +203,10 @@ export const RARITY_DRAW_WEIGHT = { common: 12, rare: 3, legendary: 0.5 } as con
  *
  * Worth knowing before reaching for a bigger number: raising this is NOT how
  * the collection fills. It bought 0.6 slots at forty runs, because the real
- * constraint is how often a run draws at all (33 granting options across 110
- * offers, ~1.16 relics a run), not which relic it gets.
+ * constraint is how often a run draws at all, not which relic it gets. So the
+ * lever actually pulled was more granting offers (a mid-run favor beat and
+ * several decline offers), which took draws to ~1.66 relics a run (from ~1.51
+ * before them, ~1.16 at first measurement); NOVELTY_BIAS was left where it was.
  */
 export const NOVELTY_BIAS = 6;
 

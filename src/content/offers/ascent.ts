@@ -978,7 +978,7 @@ export const ascentOffers: Offer[] = [
         label: 'Ask for a share of the hoard',
         odds: 0.2,
         onSuccess: [
-          { t: 'artifactFrom', factionId: 'gilded_hand', rarity: 'legendary' },
+          { t: 'artifactFrom', factionId: 'gilded_hand', rarity: 'rare' },
           { t: 'notoriety', v: 10 },
         ],
         onFailure: [
