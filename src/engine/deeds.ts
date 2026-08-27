@@ -6,10 +6,23 @@
  * read `It is done.` has a ledger that says nothing, which is the same as not
  * having one.
  *
- * Only ~39 of ~280 authored options carry a `resultText`/`successText`/
- * `failureText`, and authoring the other 240 is a content job, not an engine
- * one. So the engine SYNTHESIZES a line from what actually happened — the
- * option the player picked, the offer it came from, and how it resolved.
+ * Every GAMBLE now narrates both of its branches: `successText`/`failureText`
+ * are required on the `gamble` variant of `OfferOption`, so a bet always
+ * reports itself in words its own author chose. This file no longer writes
+ * outcome prose at all.
+ *
+ * It used to. Failure lines were assembled from the option label plus a tail
+ * drawn from a four-entry pool by hash, and one of those four was `It does
+ * not.` — an auxiliary with no main verb, bolted onto a clause it had no
+ * relation to, producing "Have her intercepted. It does not." Generated prose
+ * cannot refer to the offer it came from; that is not a tuning problem, so the
+ * pools are gone rather than reworded.
+ *
+ * What remains is the fallback for a `certain` option with no `resultText`,
+ * which resolves `deterministic` and reads as a plain echo of the decision
+ * ("Pay for the pipes."). That is grammatical, it names the choice, and
+ * authoring `resultText` for ~200 deterministic options is a content job this
+ * file should not pre-empt.
  *
  * Rules this file exists to keep:
  *
@@ -17,14 +30,11 @@
  *   2. A line is derived from the option LABEL, which differs from era to era
  *      because the sampler excludes offers already seen. Two consecutive rows
  *      can therefore only match if the player genuinely repeated an action.
- *   3. Failure reads differently from success, and both read differently from
- *      a deterministic choice.
- *   4. It fits a table cell. `LedgerRow` clips with an ellipsis, but a column
+ *   3. It fits a table cell. `LedgerRow` clips with an ellipsis, but a column
  *      that is always clipped is a column nobody reads.
  */
 
 import type { Offer, OfferOption, Outcome } from '../types';
-import { hashString } from './rng';
 
 /**
  * Budget for a synthesized line. `LedgerRow` clips at whatever the column is
@@ -32,20 +42,6 @@ import { hashString } from './rng';
  * Authored lines are exempt — an author who writes a long one meant it.
  */
 export const DEED_MAX_LENGTH = 46;
-
-/**
- * Outcome tails. Small pools rather than one constant each, picked by a stable
- * hash of the offer so a given deed always narrates the same way — a repeated
- * action must produce a repeated line, per rule 2.
- */
-const SUCCESS_TAILS = ['It holds.', 'It works.', 'It takes.', 'It lands.'];
-const FAILURE_TAILS = ['It does not.', 'It does not hold.', 'It goes badly.', 'It fails.'];
-
-function tailFor(outcome: Outcome, key: string): string {
-  if (outcome === 'deterministic') return '';
-  const pool = outcome === 'success' ? SUCCESS_TAILS : FAILURE_TAILS;
-  return pool[hashString(key) % pool.length];
-}
 
 /** Trailing punctuation is re-applied by the caller; strip whatever is there. */
 function stripEnd(s: string): string {
@@ -87,59 +83,50 @@ function upperFirst(s: string): string {
 }
 
 /**
- * Build the line for an option that carries no authored text.
+ * Build the line for a `certain` option that carries no `resultText`.
  *
  * Shape, in preference order:
- *   `The Herald — let him finish. It holds.`   (short label, room for both)
- *   `Let him finish. It holds.`                (title dropped to fit)
- *   `Let him finish.`                          (deterministic, no tail)
+ *   `The Herald — let him finish.`   (short label, room for both)
+ *   `Correct three of the charges.`  (title dropped to fit)
  *
  * The offer title is a prefix rather than a replacement because the label
  * alone can be generic ("Accept", "Refuse") while the pair never is.
  */
-export function synthesizeDeed(offer: Offer, option: OfferOption, outcome: Outcome): string {
+export function synthesizeDeed(offer: Offer, option: OfferOption): string {
   const clause = firstClause(option.label) || 'Act';
-  const tail = tailFor(outcome, `${offer.id}|${option.label}`);
   const title = stripEnd(offer.title.trim());
-
-  const withTail = (head: string): string => {
-    const sentence = `${upperFirst(head)}.`;
-    if (!tail) return sentence;
-    return `${sentence} ${tail}`;
-  };
+  const sentence = (head: string): string => `${upperFirst(head)}.`;
 
   // 1. Title-prefixed, if the label is short enough that the pair earns its
   //    keep and the whole thing still fits.
   if (title && clause.length <= 22) {
-    const prefixed = withTail(`${title} — ${lowerFirst(clause)}`);
+    const prefixed = sentence(`${title} — ${lowerFirst(clause)}`);
     if (prefixed.length <= DEED_MAX_LENGTH) return prefixed;
   }
 
-  // 2. Label alone with its outcome tail.
-  const plain = withTail(clause);
+  // 2. Label alone.
+  const plain = sentence(clause);
   if (plain.length <= DEED_MAX_LENGTH) return plain;
 
-  // 3. Trim the label until the tail fits — the outcome is the part a reader
-  //    cannot reconstruct from the other ledger columns, so it is kept last.
-  const room = DEED_MAX_LENGTH - (tail ? tail.length + 2 : 1);
-  return withTail(truncate(clause, Math.max(12, room)));
+  // 3. Trim the label to fit, on a word boundary.
+  return sentence(truncate(clause, DEED_MAX_LENGTH - 1));
 }
 
 /**
- * The one entry point. Authored text wins outright; everything else is
- * synthesized so that no two consecutive eras read the same unless the player
- * genuinely made the same choice twice.
+ * The one entry point.
+ *
+ * A gamble always returns authored prose — the type requires both branches, so
+ * `outcome` here only chooses which of the two the author wrote. Only a
+ * `certain` option can reach the synthesizer, and only when it declined to
+ * write a `resultText`.
  */
 export function deedLineFor(offer: Offer, option: OfferOption, outcome: Outcome): string {
-  const authored =
-    option.kind === 'certain'
-      ? option.resultText
-      : outcome === 'success'
-        ? option.successText
-        : option.failureText;
+  if (option.kind === 'gamble') {
+    return (outcome === 'success' ? option.successText : option.failureText).trim();
+  }
 
-  const trimmed = authored?.trim();
+  const trimmed = option.resultText?.trim();
   if (trimmed) return trimmed;
 
-  return synthesizeDeed(offer, option, outcome);
+  return synthesizeDeed(offer, option);
 }

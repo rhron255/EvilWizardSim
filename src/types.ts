@@ -114,6 +114,16 @@ export type Effect =
  * declare both branches — the type system is the guard on the odds-display
  * rule, which wiki/04_operational_behaviors-1.md calls "the single most
  * important rule in the codebase."
+ *
+ * A gamble must also NARRATE both branches. `successText`/`failureText` were
+ * optional, and the 21 gambles that supplied neither had their outcome written
+ * by `src/engine/deeds.ts`, which picked a tail from a four-entry pool by hash
+ * — so a quarter of unauthored failures resolved to "It does not.", a clause
+ * with no main verb, bolted onto a label it had no relation to. That line is
+ * the resolution card's pull quote AND the ledger's Deeds column, the only
+ * prose in the element wiki/01 calls "the single most important UI element".
+ * Prose generated from a hash cannot refer to the offer it belongs to, so
+ * these are required and the generator is gone.
  */
 export type OfferOption =
   | {
@@ -130,8 +140,9 @@ export type OfferOption =
       odds: number;
       onSuccess: Effect[];
       onFailure: Effect[];
-      successText?: string;
-      failureText?: string;
+      /** Required, and non-empty — `validate-content` rejects `''`. */
+      successText: string;
+      failureText: string;
     };
 
 /** Gate conditions for whether an offer may enter the sampling pool. */

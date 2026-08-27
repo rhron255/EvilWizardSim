@@ -28,6 +28,14 @@ const warnings: string[] = [];
 const fail = (where: string, msg: string) => problems.push(`${where}: ${msg}`);
 const warn = (where: string, msg: string) => warnings.push(`${where}: ${msg}`);
 
+/**
+ * Above this, an outcome line will be ellipsised in the ledger's Deeds cell.
+ * A warning, never a failure — the register the shipped lines are written in
+ * runs past it on purpose, and the full text is reachable on the resolution
+ * card and on hover. This exists so that is a decision, not a surprise.
+ */
+const DEED_CLIP_WARN = 90;
+
 const { artifacts, factions, lairs, origins, endings, offers, epithets } = content;
 
 const factionIds = new Set(factions.map((f) => f.id));
@@ -173,6 +181,25 @@ function checkOption(where: string, option: OfferOption) {
   if (option.onFailure.length === 0) {
     fail(where, 'gamble has an empty failure branch — a bet with no downside is not a decision');
   }
+
+  // The type requires both branches to NARRATE. This catches the way around
+  // that: `''` satisfies `string`. A blank one puts the ledger back on the
+  // synthesizer, which is what produced "Have her intercepted. It does not."
+  if (!option.successText.trim()) fail(where, 'gamble has an empty successText');
+  if (!option.failureText.trim()) fail(where, 'gamble has an empty failureText');
+
+  // Not a failure: the resolution card prints these in full and `LedgerRow`
+  // keeps the whole line in a `title`, so a long one is legible in both
+  // places. It is the Deeds CELL that clips, and the author should know.
+  for (const [field, text] of [
+    ['successText', option.successText],
+    ['failureText', option.failureText],
+  ] as const) {
+    if (text.trim().length > DEED_CLIP_WARN) {
+      warn(where, `${field} is ${text.trim().length} chars — the Deeds column will clip it`);
+    }
+  }
+
   checkEffects(`${where} (success)`, option.onSuccess);
   checkEffects(`${where} (failure)`, option.onFailure);
 }
