@@ -57,4 +57,16 @@ describe('EffectList', () => {
     expect(screen.getAllByText(/Pale Academy/)).toHaveLength(1);
     expect(screen.getAllByText(/Crownlands/)).toHaveLength(1);
   });
+
+  it('names the uncertainty on an un-raritied relic draw', () => {
+    // The rarity is drawn at resolution, so the card must not imply a common.
+    show([{ t: 'artifactFrom', factionId: 'gilded_hand' }]);
+    expect(screen.getByText(/random rarity/i)).toBeInTheDocument();
+  });
+
+  it('prints the rarity on a specified draw and does not call it random', () => {
+    show([{ t: 'artifactFrom', factionId: 'gilded_hand', rarity: 'rare' }]);
+    expect(screen.getByText(/rare .*relic/i)).toBeInTheDocument();
+    expect(screen.queryByText(/random rarity/i)).not.toBeInTheDocument();
+  });
 });

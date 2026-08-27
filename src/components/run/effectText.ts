@@ -25,7 +25,7 @@
  */
 
 import { BETRAYAL_MAX_LOYALTY, DEF_LICH, PACT_LIMIT } from '../../engine';
-import type { Artifact, Effect, EndingId, Faction, FactionId, Rarity } from '../../types';
+import type { Artifact, Effect, EndingId, Faction, FactionId } from '../../types';
 import type { SystemicChange } from './resolution';
 import { heroApproachLine } from '../../content/heroes';
 import { covenantVisitFor } from '../../content/systemic';
@@ -115,10 +115,6 @@ function factionAdjectival(id: FactionId, factions: Faction[]): string {
   return factionName(id, factions).replace(/^The\s+/i, '');
 }
 
-function rarityWord(r: Rarity | undefined): string {
-  return r ? `${r} ` : '';
-}
-
 /** Directional tone for a stat where "more" is good. */
 function good(v: number): EffectTone {
   return v > 0 ? 'up' : v < 0 ? 'down' : 'neutral';
@@ -156,8 +152,15 @@ export function describeEffect(
       return { text: `Gain ${artifactName(effect.artifactId, artifacts)}`, tone: 'up' };
 
     case 'artifactFrom':
+      // A specified rarity prints itself ("a legendary Gilded Hand relic"). An
+      // UNspecified one draws rarity-weighted at resolution, so the honest,
+      // non-spoiling line names the uncertainty rather than implying a common:
+      // "a Gilded Hand relic · random rarity". Resolving the draw here would
+      // either spoil the reveal or print a lie (see `PROJECTABLE`).
       return {
-        text: `Gain a ${rarityWord(effect.rarity)}${factionAdjectival(effect.factionId, factions)} relic`,
+        text: effect.rarity
+          ? `Gain a ${effect.rarity} ${factionAdjectival(effect.factionId, factions)} relic`
+          : `Gain a ${factionAdjectival(effect.factionId, factions)} relic · random rarity`,
         tone: 'up',
       };
 

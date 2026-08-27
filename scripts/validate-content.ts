@@ -21,6 +21,7 @@
 
 import type { Artifact, Condition, Effect, OfferOption, Rarity } from '../src/types';
 import * as content from '../src/content';
+import { DEVOTION_STANDING } from '../src/engine/constants';
 
 const problems: string[] = [];
 const warnings: string[] = [];
@@ -132,12 +133,25 @@ function checkEffects(where: string, effects: readonly Effect[]) {
         }
         const pool = artifactsByFaction.get(e.factionId) ?? [];
         if (pool.length === 0) fail(where, `faction "${e.factionId}" has no artifacts to grant`);
-        // `rarity` is an exact request that degrades downward, so the grant is
-        // satisfiable if anything at or below it exists.
+        // `rarity`, when present, is an EXACT request. At runtime it degrades one
+        // tier DOWN only when the exact tier is exhausted for the player (see
+        // `drawArtifact` in src/engine/effects.ts), so the grant is satisfiable
+        // as long as anything at or below it exists.
         if (e.rarity) {
           const cap = RARITY_RANK[e.rarity];
           if (!pool.some((a) => RARITY_RANK[a.rarity] <= cap)) {
             fail(where, `no "${e.rarity}"-or-lower artifact exists for "${e.factionId}"`);
+          }
+          // But a faction that owns NOTHING of the exact rarity can never honour
+          // the request — every draw degrades to a lower tier. That is CLAUDE.md
+          // failure mode 4 in miniature: an authored "legendary" prize that hands
+          // out a common. Flagged so the downgrade is a decision, not a surprise.
+          else if (!pool.some((a) => a.rarity === e.rarity)) {
+            warn(
+              where,
+              `requests a "${e.rarity}" ${e.factionId} relic but the faction owns none — ` +
+                'every draw will degrade to a lower tier',
+            );
           }
         }
         break;
@@ -231,6 +245,34 @@ for (const offer of offers) {
 
   offer.options.forEach((option, i) => checkOption(`${where} option ${i + 1}`, option));
   for (const c of offer.requires ?? []) checkCondition(where, c);
+}
+
+// ---------------------------------------------------------------------------
+// The concordat gate must track DEVOTION_STANDING
+// ---------------------------------------------------------------------------
+
+/**
+ * The reliquary offers (`concordat_*`) gate on devotion — the same threshold the
+ * engine uses to upgrade a draw (`DEVOTION_STANDING`). Content is pure data and
+ * must not import the engine constant (it would couple the pluggable content
+ * bundle to the engine), so the two are held in step here rather than by a shared
+ * import. A literal copy drifted once already, when DEVOTION_STANDING moved from
+ * 55 to 50 and the gate stayed at 55.
+ */
+for (const offer of offers.filter((o) => o.id.startsWith('concordat_'))) {
+  const gate = (offer.requires ?? []).find(
+    (c): c is Extract<Condition, { c: 'minStanding' }> =>
+      c.c === 'minStanding' && c.factionId === offer.factionId,
+  );
+  if (!gate) {
+    fail(`offer "${offer.id}"`, 'a concordat must gate on minStanding for its own faction');
+  } else if (gate.v !== DEVOTION_STANDING) {
+    fail(
+      `offer "${offer.id}"`,
+      `devotion gate is ${gate.v} but DEVOTION_STANDING is ${DEVOTION_STANDING} — ` +
+        'the reliquary and the draw upgrade must agree on what "devoted" means',
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -188,6 +188,24 @@ next: **the binding constraint is how often a career draws at all** — 33
 relic-granting options across 110 offers. More granting offers is the change
 that would move this number.
 
+**Update, 2026-08-27 — the lever was pulled.** Granting offers were added for
+exactly this reason: a mid-run *favor* beat (one per courted faction, gated at
++30 standing) and five decline offers, several of which grant a relic. The
+catalog is now 119 offers, and the same harness reports:
+
+| | first measurement | now |
+|---|---|---|
+| relics discovered per career | 1.16 | ~1.66 |
+| careers that discover nothing at all | 29.7% | ~17.7% |
+| slots filled after 40 careers | 11.8 / 30 | ~18.6 / 30 |
+
+`NOVELTY_BIAS` was left untouched, as above. Ascension held inside its 1–4%
+band (~2.2%) because the added draws are rarity-weighted and never
+uncapped-legendary — the thing that gates Ascension did not move. A second,
+smaller lever came free alongside it: syncing the concordat reliquary gate to
+`DEVOTION_STANDING` (both now 50; the gate had drifted to 55) lifted the share
+of careers that ever hold a legendary from ~7.9% to ~11.8%.
+
 ## Offers & Events
 
 - Target **80–120** authored offers for launch; below ~60 repetition

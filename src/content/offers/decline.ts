@@ -1576,7 +1576,7 @@ export const declineOffers: Offer[] = [
         label: 'Ask for the deep grove instead',
         odds: 0.35,
         onSuccess: [
-          { t: 'artifactFrom', factionId: 'verdant_choir', rarity: 'legendary' },
+          { t: 'artifactFrom', factionId: 'verdant_choir', rarity: 'rare' },
           { t: 'notoriety', v: 12 },
           { t: 'standing', factionId: 'verdant_choir', v: 10 },
         ],
@@ -1719,6 +1719,204 @@ export const declineOffers: Offer[] = [
         ],
         successText: 'The barony has stores. It also had a baron.',
         failureText: 'The barony still has its baron, its stores, and now a grievance with witnesses.',
+      },
+    ],
+  },
+
+  // ---------------------------------------------------------------------------
+  // Shape variety — decline is not only institutions sending menacing letters.
+  // These break the pay-down / defy / gamble rhythm with apprentice drama, an
+  // opportunist at the door, an omen, an old rival, and a relic loan; and they
+  // carry the low-stakes 0.70-0.90 gambles the decline band was missing.
+  // ---------------------------------------------------------------------------
+  {
+    id: 'decline_the_heir',
+    title: 'The Heir Apparent',
+    body: 'Your most able apprentice has begun finishing your sentences, then your spells, then — this week — a rival you had not yet decided to finish. She is waiting to be told this was correct.',
+    phase: 'decline',
+    weight: 2,
+    options: [
+      {
+        kind: 'certain',
+        label: 'Name her your heir',
+        effects: [
+          { t: 'loyalty', v: 12 },
+          { t: 'notoriety', v: 4 },
+        ],
+        resultText: 'She stops finishing your sentences. She has started finishing your enemies instead.',
+      },
+      {
+        kind: 'certain',
+        label: 'Remind her whose tower this is',
+        effects: [
+          { t: 'loyalty', v: -6 },
+          { t: 'notoriety', v: 2 },
+        ],
+        resultText: 'She apologises so precisely that the apology is itself a small threat.',
+      },
+      {
+        kind: 'gamble',
+        label: 'Set her a test she can fail',
+        odds: 0.75,
+        onSuccess: [
+          { t: 'apprentices', v: 1 },
+          { t: 'loyalty', v: 8 },
+          { t: 'notoriety', v: 6 },
+        ],
+        onFailure: [
+          { t: 'apprentices', v: -1 },
+          { t: 'loyalty', v: -12 },
+        ],
+        successText: 'She passes, and brings you the head of the test. You did not set a head as the pass mark.',
+        failureText: 'She fails, understands exactly why you set it, and packs that night.',
+      },
+    ],
+  },
+  {
+    id: 'decline_wandering_collector',
+    title: 'The Collector',
+    body: 'A woman with too many rings and one enormous empty bag has walked a long way to stand in your hall. She buys, she sells, and she is very clear that she also trades.',
+    phase: 'decline',
+    factionId: 'gilded_hand',
+    weight: 2,
+    options: [
+      {
+        kind: 'certain',
+        label: 'Sell her a relic for what you need',
+        effects: [
+          { t: 'loseArtifact' },
+          { t: 'followers', v: 20 },
+          { t: 'notoriety', v: -2 },
+        ],
+        resultText: 'The relic goes into the bag. The bag does not look any fuller, which bothers you later.',
+      },
+      {
+        kind: 'gamble',
+        label: 'Ask what she has to trade',
+        odds: 0.8,
+        onSuccess: [
+          { t: 'artifactFrom', factionId: 'gilded_hand', rarity: 'rare' },
+          { t: 'followers', v: -8 },
+        ],
+        onFailure: [{ t: 'followers', v: -12 }],
+        successText: 'She trades up. You come out ahead, which means she came out further ahead.',
+        failureText: 'What she has to trade is a long story about the last person who asked.',
+      },
+      {
+        kind: 'certain',
+        label: 'Send her on',
+        effects: [{ t: 'standing', factionId: 'gilded_hand', v: -2 }],
+        resultText: 'She leaves a card. The card is heavier than a card should be.',
+      },
+    ],
+  },
+  {
+    id: 'decline_the_good_omen',
+    title: 'A Good Omen, For Once',
+    body: 'A comet has parked itself over your tower for a week, and the villagers — who have never once read an omen in your favour — have decided this one is about your ascendancy. It is not, but it could be.',
+    phase: 'decline',
+    weight: 2,
+    options: [
+      {
+        kind: 'certain',
+        label: 'Take the credit quietly',
+        effects: [{ t: 'notoriety', v: 6 }],
+        resultText: 'You say nothing, which the villagers correctly read as confirmation.',
+      },
+      {
+        kind: 'gamble',
+        label: 'Stage something to live up to it',
+        odds: 0.5,
+        onSuccess: [
+          { t: 'notoriety', v: 16 },
+          { t: 'standing', factionId: 'crownlands', v: -8 },
+        ],
+        onFailure: [
+          { t: 'notoriety', v: -6 },
+          { t: 'heroThreat', v: 8 },
+        ],
+        successText: 'The comet leaves on cue. You did not arrange that, but you will accept the timing.',
+        failureText: 'The comet leaves on the wrong cue, mid-demonstration, in front of everyone.',
+      },
+    ],
+  },
+  {
+    id: 'decline_old_rival',
+    title: 'The Unremarkable Offer',
+    body: 'Vorlag the Unremarkable proposes an alliance against the Chosen One. He is, as ever, unremarkable, which is exactly why no prophecy has ever bothered to mention him, and he knows it.',
+    phase: 'decline',
+    weight: 2,
+    options: [
+      {
+        kind: 'certain',
+        label: 'Pool your defences',
+        effects: [
+          { t: 'heroThreat', v: -8 },
+          { t: 'followers', v: -6 },
+        ],
+        resultText: 'Two towers now watch the north road. Vorlag watches yours as well, just in case.',
+      },
+      {
+        kind: 'gamble',
+        label: 'Let him take the front',
+        odds: 0.7,
+        onSuccess: [
+          { t: 'heroThreat', v: -14 },
+          { t: 'notoriety', v: 4 },
+        ],
+        onFailure: [
+          { t: 'heroThreat', v: 6 },
+          { t: 'followers', v: -10 },
+        ],
+        successText: 'The hero spends a season on Vorlag first. He is, it turns out, remarkably hard to find.',
+        failureText: 'Vorlag is remarkably easy to find, and remarkably keen to explain where you live.',
+      },
+      {
+        kind: 'certain',
+        label: 'Work alone, as always',
+        effects: [{ t: 'notoriety', v: 3 }],
+        resultText: 'You decline. Vorlag is unsurprised, which is the most remarkable thing about him.',
+      },
+    ],
+  },
+  {
+    id: 'decline_the_undertow',
+    title: 'The Undertow',
+    body: 'Something the Worm Below took years ago has been returned to your doorstep, cleaned, repaired, and improved. There is no note. The Worm does not write notes. It writes schedules.',
+    phase: 'decline',
+    factionId: 'worm_below',
+    weight: 2,
+    options: [
+      {
+        kind: 'certain',
+        label: 'Take it back inside',
+        effects: [
+          { t: 'artifactFrom', factionId: 'worm_below', rarity: 'common' },
+          { t: 'pactDebt', v: 1 },
+          { t: 'notoriety', v: 4 },
+        ],
+        resultText: 'The relic is warm, which relics returned from underground have no business being.',
+      },
+      {
+        kind: 'gamble',
+        label: 'Ask what else is down there for you',
+        odds: 0.85,
+        onSuccess: [
+          { t: 'artifactFrom', factionId: 'worm_below', rarity: 'rare' },
+          { t: 'pactDebt', v: 1 },
+        ],
+        onFailure: [
+          { t: 'artifactFrom', factionId: 'worm_below', rarity: 'common' },
+          { t: 'pactDebt', v: 2 },
+        ],
+        successText: 'The Worm is generous. Generosity, on its schedule, is just a longer repayment plan.',
+        failureText: 'You are shown a great deal, and charged for the viewing rather than the goods.',
+      },
+      {
+        kind: 'certain',
+        label: 'Leave it on the step',
+        effects: [{ t: 'standing', factionId: 'worm_below', v: -3 }],
+        resultText: 'By morning it is gone. So is the step. The Worm keeps its receipts.',
       },
     ],
   },
