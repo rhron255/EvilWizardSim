@@ -151,6 +151,8 @@ describe('the odds rules', () => {
           odds: 0.35,
           onSuccess: [{ t: 'notoriety', v: 5 } as Effect],
           onFailure: [{ t: 'notoriety', v: -5 } as Effect],
+          successText: 'It works.',
+          failureText: 'It does not work.',
         },
       ],
     };

@@ -504,6 +504,8 @@ export const demoOfferB: Offer = {
         { t: 'loyalty', v: -18 },
         { t: 'followers', v: -140 },
       ],
+      successText: 'She comes back up carrying something, and does not mention the stairs.',
+      failureText: 'The door knocks again that evening, politely, at a reasonable hour.',
     },
     {
       kind: 'gamble',
@@ -515,6 +517,8 @@ export const demoOfferB: Offer = {
         { t: 'lairTier', v: 1 },
       ],
       onFailure: [{ t: 'ending', endingId: 'consumed_by_pact' }],
+      successText: 'The crown was the correct choice of hat. You are expected, and seated.',
+      failureText: 'The manners were for the door’s benefit, not yours.',
     },
     {
       kind: 'certain',
