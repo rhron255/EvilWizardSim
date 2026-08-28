@@ -32,6 +32,8 @@
  *      can therefore only match if the player genuinely repeated an action.
  *   3. It fits a table cell. `LedgerRow` clips with an ellipsis, but a column
  *      that is always clipped is a column nobody reads.
+ *   4. The offer title is not repeated back by the option label. "Sanctuary —
+ *      take sanctuary." is one word doing two jobs; see `echoes`.
  */
 
 import type { Offer, OfferOption, Outcome } from '../types';
@@ -40,6 +42,16 @@ import type { Offer, OfferOption, Outcome } from '../types';
  * Budget for a synthesized line. `LedgerRow` clips at whatever the column is
  * wide, so this is about the line being *finishable*, not about pixels.
  * Authored lines are exempt — an author who writes a long one meant it.
+ *
+ * A playtest report of a mid-word clip ("The ivy was the outer part. Th…")
+ * prompted extending this budget to authored prose. MEASURED FIRST: 86.2% of
+ * the 196 authored deed lines in the catalog are longer than 46 characters,
+ * median 72. Applying the budget to them would abridge five deed lines in six —
+ * gutting rule 2's "only prose in the ledger" to fix its presentation. The clip
+ * is a genuine cost of fitting ~72 characters into a phone-width cell, and it
+ * is mitigated where it can be: `LedgerRow` carries the full line in `title`.
+ * Changing it needs a ledger LAYOUT answer or shorter authored prose, not a
+ * truncation rule here.
  */
 export const DEED_MAX_LENGTH = 46;
 
@@ -70,6 +82,60 @@ function truncate(s: string, max: number): string {
   return stripEnd(lastSpace > max * 0.5 ? window.slice(0, lastSpace) : window);
 }
 
+/**
+ * Words too common to count as an echo. A title and a label that share only
+ * "the" are not repeating themselves; one that shares "sanctuary" is.
+ */
+const ECHO_STOP_WORDS = new Set([
+  'a',
+  'an',
+  'and',
+  'at',
+  'for',
+  'her',
+  'his',
+  'in',
+  'it',
+  'its',
+  'of',
+  'on',
+  'that',
+  'the',
+  'their',
+  'them',
+  'to',
+  'with',
+]);
+
+/** Lowercase content words, singularised, so "relics" matches "relic". */
+function contentWords(s: string): Set<string> {
+  const out = new Set<string>();
+  for (const raw of s.toLowerCase().match(/[a-z']+/gu) ?? []) {
+    if (ECHO_STOP_WORDS.has(raw)) continue;
+    out.add(raw.length > 3 && raw.endsWith('s') ? raw.slice(0, -1) : raw);
+  }
+  return out;
+}
+
+/**
+ * Would `Title — label` stutter?
+ *
+ * The prefix earns its keep when the label is generic ("Accept", "Refuse") and
+ * the title supplies what the label omits. When the label already contains the
+ * title's own noun the pair says one thing twice — `Sanctuary` over
+ * `Take sanctuary` produced "Sanctuary — take sanctuary.", which is the ledger
+ * spending its only prose column on an echo.
+ */
+function echoes(title: string, clause: string): boolean {
+  const titleWords = contentWords(title);
+  if (titleWords.size === 0) return false;
+  const clauseWords = contentWords(clause);
+  for (const word of titleWords) {
+    if (clauseWords.has(word)) return true;
+  }
+  return false;
+}
+
 function lowerFirst(s: string): string {
   // Leave acronyms and proper nouns alone: only de-capitalize a word that is
   // otherwise lowercase, so "Yull" stays "Yull" but "Sign" becomes "sign".
@@ -98,8 +164,9 @@ export function synthesizeDeed(offer: Offer, option: OfferOption): string {
   const sentence = (head: string): string => `${upperFirst(head)}.`;
 
   // 1. Title-prefixed, if the label is short enough that the pair earns its
-  //    keep and the whole thing still fits.
-  if (title && clause.length <= 22) {
+  //    keep, the pair does not say the same word twice, and the whole thing
+  //    still fits.
+  if (title && clause.length <= 22 && !echoes(title, clause)) {
     const prefixed = sentence(`${title} — ${lowerFirst(clause)}`);
     if (prefixed.length <= DEED_MAX_LENGTH) return prefixed;
   }

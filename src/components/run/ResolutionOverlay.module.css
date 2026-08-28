@@ -592,10 +592,14 @@
 
 /* Foot -------------------------------------------------------------------- */
 
+/* Continue is the only child now: the "RECORDED IN THE LEDGER" caption that
+   used to sit opposite it narrated the record instead of being it — the row
+   arriving in the ledger is the message. `flex-end` rather than
+   `space-between`, which with one child would have parked the button left. */
 .foot {
   display: flex;
   align-items: flex-end;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--ew-space-4);
   padding-top: var(--ew-space-1);
 }
@@ -689,16 +693,6 @@
   .continue {
     justify-content: center;
   }
-}
-
-/* Replaces `.deed`, which echoed the pull quote verbatim. This is a label, not
-   a second copy of the sentence. */
-.deedNote {
-  margin: 0;
-  font-size: var(--ew-size-xs);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ew-ink-ghost);
 }
 
 /* --------------------------------------------------------------------------

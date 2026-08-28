@@ -243,7 +243,6 @@ export function ResolutionOverlay({
             pull quote IS the deed line. The ledger row underneath is where it
             belongs permanently. */}
         <div className={styles.foot}>
-          <p className={styles.deedNote}>Recorded in the ledger</p>
           <button type="button" className={styles.continue} onClick={onContinue} ref={continueRef}>
             Continue
             <span className={styles.key} aria-hidden="true">

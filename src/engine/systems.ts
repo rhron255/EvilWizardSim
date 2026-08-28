@@ -45,6 +45,27 @@ export function clampNotoriety(v: number): number {
   return clamp(Math.round(v), 0, 99);
 }
 
+/**
+ * Hero threat is a non-negative INTEGER, for the same reason notoriety is:
+ * a card that prints a fractional delta reads as a rendering bug.
+ *
+ * It used to carry one decimal, because `threatGainFor` mixes `HERO_FAME_COEF`
+ * (0.18) against an integer notoriety. Nothing displayed the stat itself in
+ * tenths — `stakes.ts` rounds the wards readout — so the fraction stayed
+ * invisible until a card charged more threat than the wizard had. Then the
+ * `Math.max(0, …)` floor ate part of the authored cost and the SURVIVING
+ * remainder was printed: a player who took a −25 against 18.3 threat was shown
+ * `−18.3 Hero Threat`, which is a true number in a unit the game never uses.
+ *
+ * Rounding at the boundary rather than at the point of display is deliberate:
+ * the clamped delta is computed from the stored value, so a display-only round
+ * would still have to agree with a fractional store — failure mode 4, one
+ * field with two readings.
+ */
+export function clampThreat(v: number): number {
+  return Math.max(0, Math.round(v));
+}
+
 export function emptyStanding(): Record<FactionId, number> {
   return {
     ashen_covenant: 0,
@@ -91,6 +112,9 @@ export function decayFor(run: Pick<RunState, 'phase' | 'erasSinceProphecy' | 'is
 /**
  * Threat added at the end of a decline era. Ramps on time and on fame: the
  * more famous the wizard, the better the hero the Crownlands can afford.
+ *
+ * Whole numbers, per `clampThreat`. `HERO_FAME_COEF` stays fractional — it is
+ * the per-point weight of fame, not a quantity the run ever stores.
  */
 export function threatGainFor(
   run: Pick<RunState, 'phase' | 'erasSinceProphecy' | 'notoriety'>,
@@ -98,7 +122,7 @@ export function threatGainFor(
   if (run.phase !== 'decline') return 0;
   const gain =
     HERO_THREAT_BASE + HERO_THREAT_RAMP * run.erasSinceProphecy + HERO_FAME_COEF * run.notoriety;
-  return Math.round(gain * 10) / 10;
+  return Math.round(gain);
 }
 
 /**

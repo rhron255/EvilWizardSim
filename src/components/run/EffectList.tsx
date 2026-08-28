@@ -7,8 +7,9 @@
  * (wiki/02_data_models_and_content-1.md, Tone rule).
  */
 
-import type { Artifact, Effect, Faction } from '../../types';
-import { describeEffect, effectKey } from './effectText';
+import type { Artifact, Effect, Faction, FactionId } from '../../types';
+import type { EffectLine } from './effectText';
+import { describeEffect, describeStandingGroup, effectKey } from './effectText';
 import styles from './EffectList.module.css';
 
 export type EffectListProps = {
@@ -70,6 +71,44 @@ function coalesce(effects: Effect[]): Effect[] {
   return out.filter((e) => !('v' in e) || e.v !== 0);
 }
 
+/**
+ * Effects to display lines, with equal-magnitude standing moves on one row.
+ *
+ * See `describeStandingGroup` for why: contagion turns one authored move into
+ * up to four, and the identical number repeated down four rows is the densest
+ * thing on the offer card. The first faction of a magnitude keeps its position
+ * in the list, so the authored order still reads.
+ */
+function toLines(
+  effects: Effect[],
+  artifacts: Artifact[],
+  factions: Faction[],
+): { key: string; line: EffectLine }[] {
+  const out: { key: string; line: EffectLine }[] = [];
+  const rowFor = new Map<number, number>();
+  const idsFor = new Map<number, FactionId[]>();
+
+  effects.forEach((effect, i) => {
+    if (effect.t === 'standing') {
+      const row = rowFor.get(effect.v);
+      if (row !== undefined) {
+        idsFor.get(effect.v)!.push(effect.factionId);
+        return;
+      }
+      rowFor.set(effect.v, out.length);
+      idsFor.set(effect.v, [effect.factionId]);
+    }
+    out.push({ key: effectKey(effect, i), line: describeEffect(effect, artifacts, factions) });
+  });
+
+  for (const [v, row] of rowFor) {
+    const ids = idsFor.get(v)!;
+    if (ids.length > 1) out[row]!.line = describeStandingGroup(v, ids, factions);
+  }
+
+  return out;
+}
+
 export function EffectList({ effects, artifacts, factions, compact = false }: EffectListProps) {
   const merged = coalesce(effects);
 
@@ -77,10 +116,7 @@ export function EffectList({ effects, artifacts, factions, compact = false }: Ef
     return <span className={styles.nothing}>No change</span>;
   }
 
-  const lines = merged.map((effect, i) => ({
-    key: effectKey(effect, i),
-    line: describeEffect(effect, artifacts, factions),
-  }));
+  const lines = toLines(merged, artifacts, factions);
 
   if (compact) {
     return (

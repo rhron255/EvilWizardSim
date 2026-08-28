@@ -49,13 +49,42 @@ describe('EffectList', () => {
     expect(screen.getAllByText(/relic/i).length).toBeGreaterThanOrEqual(3);
   });
 
-  it('leaves distinct factions distinct', () => {
+  it('names every faction that moved, once each', () => {
     show([
       { t: 'standing', factionId: 'pale_academy', v: -15 },
       { t: 'standing', factionId: 'crownlands', v: -15 },
     ]);
     expect(screen.getAllByText(/Pale Academy/)).toHaveLength(1);
     expect(screen.getAllByText(/Crownlands/)).toHaveLength(1);
+  });
+
+  it('puts equal-magnitude standing moves on one row, naming each faction', () => {
+    // Contagion along `hostileTo` turns one authored move into up to four. The
+    // number is identical on every spilled line, so a row apiece was the same
+    // fact three times. Disclosure is unchanged: every faction is still named.
+    show([
+      { t: 'standing', factionId: 'verdant_choir', v: -20 },
+      { t: 'standing', factionId: 'gilded_hand', v: 5 },
+      { t: 'standing', factionId: 'pale_academy', v: 5 },
+      { t: 'standing', factionId: 'crownlands', v: 5 },
+    ]);
+
+    // One "+5" row, not three.
+    expect(screen.getAllByText('+5')).toHaveLength(1);
+    // The article is dropped inside a list — see `describeStandingGroup`.
+    expect(screen.getByText('Standing · Gilded Hand, Pale Academy, Crownlands')).toBeInTheDocument();
+    // The odd one out keeps its own row.
+    expect(screen.getByText('−20')).toBeInTheDocument();
+    expect(screen.getAllByText(/Verdant Choir/)).toHaveLength(1);
+  });
+
+  it('does not merge standing moves of different magnitudes', () => {
+    show([
+      { t: 'standing', factionId: 'gilded_hand', v: 5 },
+      { t: 'standing', factionId: 'crownlands', v: 6 },
+    ]);
+    expect(screen.getByText('+5')).toBeInTheDocument();
+    expect(screen.getByText('+6')).toBeInTheDocument();
   });
 
   it('names the uncertainty on an un-raritied relic draw', () => {

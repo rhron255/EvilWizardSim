@@ -42,6 +42,7 @@ import {
   ageForEra,
   clamp,
   clampNotoriety,
+  clampThreat,
   decayFor,
   defenseOf,
   emptyStanding,
@@ -306,7 +307,7 @@ export function resolveChoice(
 
     const threatGain = threatGainFor(draft);
     if (threatGain !== 0) {
-      draft.heroThreat = Math.round((draft.heroThreat + threatGain) * 10) / 10;
+      draft.heroThreat = clampThreat(draft.heroThreat + threatGain);
     }
 
     /**

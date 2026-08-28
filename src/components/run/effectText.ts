@@ -212,6 +212,37 @@ export function describeEffect(
   }
 }
 
+/**
+ * One line for several factions that moved by the SAME amount.
+ *
+ * `projectEffects` turns one authored `standing` effect into as many as four,
+ * because hostility is contagious along `hostileTo`. Printed a row apiece, a
+ * single decision to sign with the Choir spent three more rows saying "+5" to
+ * three factions the player never named — five rows for one move, on the
+ * screen where the phone has the least room.
+ *
+ * This is a PRESENTATION merge, not a disclosure one: every faction is still
+ * named and the number is still printed, so rule 1 is untouched. The reading is
+ * the same as the single-faction line it generalises — the number applies to
+ * each faction listed, not split between them.
+ */
+export function describeStandingGroup(
+  v: number,
+  ids: FactionId[],
+  factions: Faction[],
+): EffectLine {
+  // The article is dead weight in a list — every faction has one, and three
+  // of them cost a wrapped line on a 393px screen. `ArtifactCard` drops it for
+  // the same reason. The single-faction line keeps its "The": there it is one
+  // word, and the name reads as prose rather than as a list.
+  const names = ids.map((id) => factionName(id, factions).replace(/^The /, ''));
+  return {
+    num: signed(v),
+    text: `Standing · ${names.join(', ')}`,
+    tone: good(v),
+  };
+}
+
 /** Stable React key for an effect at a given position. */
 export function effectKey(effect: Effect, index: number): string {
   switch (effect.t) {

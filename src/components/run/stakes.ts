@@ -224,9 +224,14 @@ export type Siege = {
  *
  *   1. `he kills you above {wards}` — "above", not "at": `endings.ts` compares
  *      with `>`, so "at" would be wrong by one.
- *   2. `+{rate} an era` — the clock. A ceiling without one is the exact defect
- *      CLAUDE.md's failure mode 1 describes, and the pact caption already says
- *      `+1 an era on its own` in this same header.
+ *   2. `his threat +{rate} an era` — the clock. A ceiling without one is the
+ *      exact defect CLAUDE.md's failure mode 1 describes, and the pact caption
+ *      already says `+1 an era on its own` in this same header.
+ *
+ *      It said `+{rate} an era` until a playtester read the whole line as
+ *      confusing: between a ceiling ("above 71") and a credit ("the next lair
+ *      adds 8"), a bare `+16` is as easily read as WARDS going up as threat.
+ *      Naming the subject is the one word that disambiguates it.
  *   3. What is actually holding him off. Calm names the LARGEST EARNED term —
  *      whatever is currently carrying the player, not always the lair. Measured,
  *      lair tier is 30.2% of the mean defence and 16.6% of runs flip from
@@ -256,7 +261,7 @@ function siegeSentence(
     tone === 'calm' && carrying
       ? `${carrying.label.toLowerCase()} adds ${carrying.value}`
       : `the next lair adds ${DEF_LAIR}`;
-  return `he kills you above ${wards} · +${rate} an era · ${clause}`;
+  return `he kills you above ${wards} · his threat +${rate} an era · ${clause}`;
 }
 
 export function siegeFor(run: RunState, defense: DefenseReadout): Siege | null {

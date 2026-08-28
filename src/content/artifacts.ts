@@ -66,7 +66,7 @@ export const artifacts: Artifact[] = [
     name: 'The Cinder Testament',
     factionId: 'ashen_covenant',
     rarity: 'legendary',
-    effect: 'Defense +8. Legendary — the rank Ascension turns on.',
+    effect: 'Defense +8.',
     flavorText:
       'Every pact the Covenant has ever signed, bound in one volume, in the order they were made. Your name is in it. It was in it before you signed.',
     defense: 8,
@@ -174,7 +174,7 @@ export const artifacts: Artifact[] = [
     name: 'The Pale Orrery',
     factionId: 'pale_academy',
     rarity: 'legendary',
-    effect: 'Defense +7. Legendary — the rank Ascension turns on.',
+    effect: 'Defense +7.',
     flavorText:
       'Models the heavens accurately, including the parts that have not happened yet. It is kept in a room with no door, on the reasoning that a locked door implies somebody, somewhere, has a key.',
     defense: 7,
@@ -282,7 +282,7 @@ export const artifacts: Artifact[] = [
     name: 'The Unbroken Line',
     factionId: 'crownlands',
     rarity: 'legendary',
-    effect: 'Defense +9. Legendary — the rank Ascension turns on.',
+    effect: 'Defense +9.',
     flavorText:
       'The complete genealogy of the hero-bloodline, sealed in one roll. Whoever holds it holds the name of the Chosen One’s grandmother, and every party to the matter understands what that means.',
     defense: 9,
@@ -336,7 +336,7 @@ export const artifacts: Artifact[] = [
     name: 'The Long Appetite',
     factionId: 'worm_below',
     rarity: 'legendary',
-    effect: 'Defense +8. Legendary — the rank Ascension turns on.',
+    effect: 'Defense +8.',
     flavorText:
       'The Worm’s hunger, decanted and worn at the hip. It is not a weapon. It is a share, and shares can be called in.',
     defense: 8,

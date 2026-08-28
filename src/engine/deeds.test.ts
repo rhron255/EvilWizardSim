@@ -114,6 +114,26 @@ describe('synthesizeDeed', () => {
     expect(line).not.toMatch(/\w-\.$/); // never cut mid-word
   });
 
+  it('drops the title prefix when the label already says the title', () => {
+    // `decline_sanctuary` in the shipped catalog: title "Sanctuary", label
+    // "Take sanctuary". The pair rendered as "Sanctuary — take sanctuary.",
+    // one word doing two jobs in the ledger's only prose column.
+    const line = synthesizeDeed(offer('Sanctuary'), certain('Take sanctuary'));
+    expect(line).toBe('Take sanctuary.');
+  });
+
+  it('matches an echo across singular and plural', () => {
+    const line = synthesizeDeed(offer('The Relics'), certain('Bury the relic'));
+    expect(line).toBe('Bury the relic.');
+  });
+
+  it('still prefixes when the title and label share only stop words', () => {
+    // The guard must not fire on "the" — that would delete the prefix from
+    // most of the catalog, which is the opposite failure.
+    const line = synthesizeDeed(offer('The Herald'), certain('Let the man finish'));
+    expect(line).toBe('The Herald — let the man finish.');
+  });
+
   it('uses only the first clause of a two-sentence label', () => {
     // "Accept" is short enough to earn the title prefix, which is the point of
     // the prefix: the label alone would be generic, the pair never is.

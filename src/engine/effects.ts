@@ -24,7 +24,7 @@ import {
 } from './constants';
 import type { Rng } from './rng';
 import { weightedPick } from './rng';
-import { clamp, clampNotoriety } from './systems';
+import { clamp, clampNotoriety, clampThreat } from './systems';
 
 export type EffectApplication = {
   /** Exactly what landed, with post-clamp magnitudes. */
@@ -156,8 +156,8 @@ export function applyEffects(
 
       case 'heroThreat': {
         const before = draft.heroThreat;
-        draft.heroThreat = Math.max(0, Math.round((before + effect.v) * 10) / 10);
-        const delta = Math.round((draft.heroThreat - before) * 10) / 10;
+        draft.heroThreat = clampThreat(before + effect.v);
+        const delta = draft.heroThreat - before;
         if (delta !== 0) out.applied.push({ t: 'heroThreat', v: delta });
         break;
       }

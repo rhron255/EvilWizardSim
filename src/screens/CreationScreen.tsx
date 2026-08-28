@@ -103,8 +103,6 @@ export function CreationScreen({
           <button type="button" className={styles.back} onClick={onBack}>
             ← Back
           </button>
-          <p className={styles.chapter}>Chapter One</p>
-          <span className={styles.topSpacer} aria-hidden />
         </header>
 
         {/* ---------------------------------------------------------------- */}
@@ -143,16 +141,11 @@ export function CreationScreen({
                 autoCapitalize="words"
                 spellCheck={false}
                 enterKeyHint="done"
-                aria-describedby={`${nameId}-help`}
                 autoFocus
               />
               <span className={styles.nameRule} aria-hidden />
             </div>
           </div>
-
-          <p className={styles.help} id={`${nameId}-help`}>
-            The seal is drawn from the name. The only thing you will type all game.
-          </p>
         </section>
 
         {/* ---------------------------------------------------------------- */}
@@ -181,11 +174,6 @@ export function CreationScreen({
               </label>
             ))}
           </div>
-
-          <p className={styles.preview} aria-live="polite">
-            <span className={styles.previewName}>{trimmed || 'Nameless'}</span>
-            <span className={styles.previewEpithet}>{epithet ? `, ${epithet}` : ''}</span>
-          </p>
         </fieldset>
 
         {/* ---------------------------------------------------------------- */}
@@ -270,19 +258,16 @@ export function CreationScreen({
               </label>
             ))}
           </div>
-
-          <p className={styles.help}>
-            Length sets how many decisions you make, not how hard they are.
-          </p>
         </fieldset>
 
         <footer className={styles.bottom}>
           <button type="submit" className={styles.commit} disabled={!ready}>
             Begin the career
           </button>
-          <p className={styles.commitNote}>
-            {ready ? 'No second chances. Plenty of second runs.' : 'Give yourself a name first.'}
-          </p>
+          {/* Only the blocking reason. The `ready` branch used to carry a
+              flourish ("No second chances. Plenty of second runs.") that told
+              the player nothing the button did not already say. */}
+          {!ready && <p className={styles.commitNote}>Give yourself a name first.</p>}
         </footer>
       </form>
     </main>

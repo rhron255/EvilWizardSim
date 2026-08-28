@@ -754,7 +754,7 @@ export const ascentOffers: Offer[] = [
       },
       {
         kind: 'certain',
-        label: 'Turn them into something',
+        label: 'Transmute them instead',
         effects: [
           { t: 'followers', v: 8 },
           { t: 'notoriety', v: 10 },
