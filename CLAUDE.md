@@ -30,7 +30,7 @@ constraints below exist, and is the thing to read before relaxing any of them.
 | `src/types.ts` | **The frozen contract.** Every module is written against it. |
 | `src/theme/` | Design tokens (`tokens.ts` for JS, `tokens.css` for `--ew-*`). |
 | `src/engine/` | Run state, offer sampling, resolution, endings, persistence. |
-| `src/content/` | Factions, artifacts, lairs, origins, endings, epithets, ~110 offers. |
+| `src/content/` | Factions, artifacts, lairs, origins, endings, epithets, ~130 offers. |
 | `src/components/run/` | The run loop: ledger, offer panel, notoriety badge. |
 | `src/components/meta/` | Set-piece parts: lair grid, artifact grid, sigil. |
 | `src/screens/` | Screen composition. |
@@ -101,10 +101,17 @@ The odds rule is satisfied on the card and then quietly abandoned. Four times:
 
 | What shipped | How it presented |
 |---|---|
-| Pact debt showed its ceiling but not that it accrues `+1` per decline era | Player died at 6/7 having been shown one era of headroom that did not exist |
+| Pact debt showed its ceiling but not that it accrues `+1` per decline era † | Player died at 6/7 having been shown one era of headroom that did not exist |
 | Faction standing was not on the run screen at all | `sealed_in_gem` is **18.5% of runs** and arrived with no warning, twice |
 | Stats were bare numbers | "the implications of followers, pact debt, loyalty… are not clear" |
-| The pact interest tick fired in the era-end systems, which the resolution card omits by design | "I died being consumed by the pact, even though the last action I took had nothing to do with pacts" |
+| The pact interest tick fired in the era-end systems, which the resolution card omits by design † | "I died being consumed by the pact, even though the last action I took had nothing to do with pacts" |
+
+† **The pact interest tick no longer exists.** Both of these were patched by
+disclosing it better; it was eventually deleted instead, and pact debt now moves
+only on a card the player accepted. The bugs are kept here because they are what
+the checks below were bought with — and because the second one still describes
+apprentice loyalty drift, which does still tick. The mechanic went; the lesson
+did not.
 
 Standing made it worse: it moves by **contagion** along `hostileTo`, so courting
 the Covenant drives the Academy toward the seal through cards that never name the
@@ -113,6 +120,14 @@ Academy — an undisclosed downside reached by an invisible route.
 **Check:** for every field on `RunState`, ask *can this end or change a run, and
 does the screen say so?* If it counts toward a threshold, show the threshold, the
 distance, **and the rate of change**. A ceiling without its clock is a lie.
+
+*And the inverse is a lie too.* Pact debt has no clock any more — it moves only
+on cards the player accepted — so its caption states the ceiling and nothing
+else. A rate clause left behind after the rate is deleted misleads exactly as
+badly as a missing one, pointing the other way. `stakes.test.ts` sweeps every
+balance in both phases for the words that would reintroduce it, asserted against
+the rendered caption rather than a constant, because a deleted constant cannot
+fail a test.
 
 And ask it again of the *resolution*: if an era-end system can end the run, the
 card reporting that era must say the tick fired, in a section of its own
@@ -179,11 +194,24 @@ plays. Three separate times:
   after, reporting 0.00% for a branch a real seeker reaches ~3% of the time.
 - `wormAffinity` scored a gamble's success branch at face value, so the policy
   chased bets it lost — raising its devotion made it **less** likely to succeed.
+- Every policy priced pact debt linearly, with no awareness of `PACT_LIMIT`, so
+  a bot at 6/7 paid the same as one at 0/7. Fixing that to a convex cost was
+  correct AND exposed the deeper version of the same defect: once the debt tick
+  was deleted, every policy became a perfect ceiling-avoider, and the ending's
+  measured rate dropped to ~1% — a fact about **optimisers**, not about the
+  game. A player who simply keeps saying yes reaches it ~10% of the time. The
+  fix was a `reckless` policy carrying the target as a cohort, with the
+  population figure printed beside it untargeted.
 
 **Check:** when a metric looks impossible, suspect the harness first. Confirm the
 target measures the population you mean (a cohort-level effect measured
 population-wide mostly measures the population mix). Sanity-check any policy
 against an independent throwaway probe before believing it.
+
+**And ask who the model player is.** A number produced by policies that all play
+better than any human is a measurement of the policies. Any mechanic whose whole
+point is punishing inattention needs a cohort in the population that is not
+paying attention, or the harness will report it as dead content.
 
 ### 6. Invented targets get chased
 
@@ -306,7 +334,9 @@ for an overflowing fill is the tell.
 4. New test? Break the behaviour it pins and watch it go red — and check that
    the assertion is anchored to something the code under test does not also
    supply (failure mode 11).
-5. New state that can end a run? Make the screen say so.
+5. New state that can end a run? Make the screen say so — the threshold, the
+   distance, and the rate **if there is one**. If there is not, do not invent
+   one; see failure mode 1.
 6. New `Effect` variant that is deterministic? Add it to `PROJECTABLE` in
    `src/engine/effects.ts`, or the offer card goes back to printing the
    authored number instead of the real one.
