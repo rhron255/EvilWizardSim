@@ -578,11 +578,12 @@ export const demoResolutionFailure: Resolution = {
   artifactsGained: [],
   newToCollection: [],
   notorietyDelta: 0,
-  // The era-end ticks that arrive whatever the card said. A decline era with
-  // real debt and a school always has these; the demo shows the shape.
+  // The era-end ticks that arrive whatever the card said. A decline era with a
+  // school always has one; the demo shows the shape. Pact debt is NOT among
+  // them any more — it moves only on a card the player picked.
   systemic: [
-    { t: 'pactInterest', v: 1, debt: 6 },
     { t: 'loyaltyDrift', v: -5, loyalty: 22 },
+    { t: 'heroApproach', band: 'danger', threat: 40, wards: 44 },
   ],
   eraRecord: {
     ...demoResolutionSuccess.eraRecord,

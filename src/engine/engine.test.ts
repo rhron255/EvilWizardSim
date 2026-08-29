@@ -21,6 +21,12 @@ import {
   emptyCollection,
   migrateCollection,
   nextOffer,
+  pactRoleOf,
+  pactWeight,
+  PACT_LIMIT,
+  PACT_RELIEF_MAX,
+  PACT_TEMPT_MAX,
+  QUIET_ERA_OFFER,
   resolveChoice,
   tierCrossing,
 } from './index';
@@ -391,10 +397,15 @@ describe('endings', () => {
  * The era-end ticks that can end a run on a card that never mentioned them.
  *
  * Reported from play: "I died being consumed by the pact, even though the last
- * action I took had nothing to do with pacts." The interest that crossed
+ * action I took had nothing to do with pacts." An interest tick crossing
  * `PACT_LIMIT` was applied in the systems block, and `appliedEffects` carries
  * the OPTION's consequences only, so the card announcing the death listed
  * nothing capable of causing it.
+ *
+ * That tick has since been deleted outright — debt now moves only on a card
+ * the player picked, and the first two tests here pin that. Apprentice loyalty
+ * drift still fires in the same block and is still lethal, so the disclosure
+ * channel and the separation it enforces are unchanged.
  */
 /**
  * Novelty bias: which relic a random draw hands you, and what it must not touch.
@@ -496,19 +507,41 @@ describe('systemic disclosure', () => {
     ...over,
   });
 
-  it('reports the pact interest that ends the run', () => {
-    const run = declining({ pactDebt: 6 });
+  /**
+   * The regression pin for the interest tick's removal.
+   *
+   * Debt used to grow `+1` every decline era at or above 2, which killed 29.4%
+   * of all careers on a clock rather than on a choice. It does not any more:
+   * a wizard one point from the ceiling who picks a card that says nothing
+   * about pacts must survive the era with the same balance they started it.
+   *
+   * Anchored to `next.pactDebt` and `next.ending` — engine state, which the
+   * removal cannot also supply. Asserting on the absent constant would have
+   * gone green the moment it stopped existing (failure mode 11).
+   */
+  it('does not move pact debt on an era whose card never mentioned it', () => {
+    const run = declining({ pactDebt: PACT_LIMIT - 1 });
     const { next, resolution } = resolveChoice(run, quiet, 0, fixtureContent);
 
-    expect(next.ending).toBe('consumed_by_pact');
-    expect(resolution.systemic).toContainEqual({ t: 'pactInterest', v: 1, debt: 7 });
+    expect(next.pactDebt).toBe(PACT_LIMIT - 1);
+    expect(next.ending).toBeUndefined();
+    expect(resolution.systemic).toEqual([]);
+    expect(resolution.appliedEffects).toEqual([]);
   });
 
-  it('does not attribute the interest to the option the player picked', () => {
-    // The other half of the fix: folding the tick into `appliedEffects` would
-    // print it under the card's own consequences, which is a different lie.
-    const { resolution } = resolveChoice(declining({ pactDebt: 6 }), quiet, 0, fixtureContent);
-    expect(resolution.appliedEffects).toEqual([]);
+  /**
+   * The same pin across a whole decline, because one era proves nothing about
+   * a counter that used to compound. A run that signs one pact and then never
+   * touches another must reach the age limit holding exactly what it signed
+   * for — under the old tick this run died every single time.
+   */
+  it('carries a debt through the entire decline without it growing', () => {
+    let run = declining({ pactDebt: PACT_LIMIT - 1 });
+    for (let i = 0; i < 6 && !run.ending; i++) {
+      run = resolveChoice(run, quiet, 0, fixtureContent).next;
+      expect(run.pactDebt).toBe(PACT_LIMIT - 1);
+    }
+    expect(run.ending).not.toBe('consumed_by_pact');
   });
 
   it('reports the loyalty drift that ends the run', () => {
@@ -520,7 +553,7 @@ describe('systemic disclosure', () => {
   });
 
   it('stays silent during the ascent, when neither tick fires', () => {
-    const run = { ...start(), pactDebt: 6, apprentices: { count: 3, loyalty: 40 } };
+    const run = { ...start(), apprentices: { count: 3, loyalty: 40 } };
     expect(run.phase).toBe('ascent');
     const { resolution } = resolveChoice(run, quiet, 0, fixtureContent);
     expect(resolution.systemic).toEqual([]);
@@ -530,10 +563,11 @@ describe('systemic disclosure', () => {
     // wiki/04 § Notoriety Decay: "Do not add a doom meter." The erosion is
     // gradual and survivable; these two ticks are lethal and countable, which
     // is the whole distinction the section rests on.
-    const run = declining({ notoriety: 60, pactDebt: 6 });
+    const run = declining({ notoriety: 60, apprentices: { count: 3, loyalty: 60 } });
     const { next, resolution } = resolveChoice(run, quiet, 0, fixtureContent);
     expect(next.heroThreat).toBeGreaterThan(0);
-    expect(resolution.systemic.map((c) => c.t)).toEqual(['pactInterest']);
+    expect(next.notoriety).toBeLessThan(60);
+    expect(resolution.systemic.map((c) => c.t)).toEqual(['loyaltyDrift']);
   });
 
   it('reports nothing when the option itself ended the run', () => {
@@ -604,6 +638,116 @@ describe('offer sampling', () => {
     }
     expect(before).not.toContain('prophecy');
     if (!run.ending) expect(nextOffer(run, real).id).toBe('prophecy');
+  });
+});
+
+/**
+ * Pact debt's pull on the offer pool — what replaced the interest tick.
+ *
+ * Asserted at the EXTREMES rather than at a typical value. CLAUDE.md failure
+ * mode 13: the faction standing bar mapped its range across half its track and
+ * every value past ±50 drew an identical picture, on the one bar where the
+ * difference ended a run. A multiplier that quietly saturates two points early
+ * is the same defect with no pixels to give it away.
+ */
+describe('pact debt weighting', () => {
+  const tempts = { ...QUIET_ERA_OFFER, id: 't', options: [
+    { kind: 'certain' as const, label: 'Sign', effects: [{ t: 'pactDebt', v: 2 }] as Effect[] },
+    { kind: 'certain' as const, label: 'Decline', effects: [] as Effect[] },
+  ] };
+  const relieves = { ...tempts, id: 'r', options: [
+    { kind: 'certain' as const, label: 'Pay', effects: [{ t: 'pactDebt', v: -2 }] as Effect[] },
+    { kind: 'certain' as const, label: 'Walk', effects: [] as Effect[] },
+  ] };
+  const inert = { ...tempts, id: 'n', options: [
+    { kind: 'certain' as const, label: 'Brood', effects: [{ t: 'notoriety', v: 1 }] as Effect[] },
+    { kind: 'certain' as const, label: 'Sulk', effects: [] as Effect[] },
+  ] };
+  const bundle = { ...real, offers: [tempts, relieves, inert] };
+  const at = (pactDebt: number, offer: typeof tempts) =>
+    pactWeight({ ...start({}, real), pactDebt }, offer, bundle);
+
+  it('classifies each shape from its effects alone', () => {
+    expect(pactRoleOf(tempts)).toBe('tempts');
+    expect(pactRoleOf(relieves)).toBe('relieves');
+    expect(pactRoleOf(inert)).toBe('none');
+  });
+
+  /**
+   * The card that does BOTH. `decline_collections` clears 2 debt on two of its
+   * options and adds 2 on a lost gamble; to a wizard at 5/7 it is an exit, and
+   * weighting it as a temptation would be backwards. Named explicitly rather
+   * than derived, so an edit that flips it has to flip this line too.
+   */
+  it('reads a card that both clears and adds debt as an exit', () => {
+    const both = real.offers.find((o) => o.id === 'decline_collections')!;
+    expect(both).toBeDefined();
+    expect(pactRoleOf(both)).toBe('relieves');
+  });
+
+  it('reads a gamble that only clears on SUCCESS as an exit', () => {
+    const twoWay = {
+      ...tempts,
+      id: 'g',
+      options: [
+        { kind: 'certain' as const, label: 'Wait', effects: [] as Effect[] },
+        {
+          kind: 'gamble' as const,
+          label: 'Bet',
+          odds: 0.35,
+          onSuccess: [{ t: 'pactDebt', v: -2 }] as Effect[],
+          onFailure: [{ t: 'pactDebt', v: 3 }] as Effect[],
+          successText: 's',
+          failureText: 'f',
+        },
+      ],
+    };
+    expect(pactRoleOf(twoWay)).toBe('relieves');
+  });
+
+  it('leaves the pool completely unweighted at zero debt', () => {
+    // The property that keeps a pact-free career playing exactly as it did
+    // before this system existed. Exactly 1, not approximately.
+    for (const offer of [tempts, relieves, inert]) expect(at(0, offer)).toBe(1);
+  });
+
+  it('never weights an offer that does not touch debt', () => {
+    for (const debt of [0, 1, 4, PACT_LIMIT, 99]) expect(at(debt, inert)).toBe(1);
+  });
+
+  it('reaches its ceiling and stops, rather than clipping past it', () => {
+    expect(at(99, tempts)).toBe(PACT_TEMPT_MAX);
+    expect(at(99, relieves)).toBe(PACT_RELIEF_MAX);
+    // And is still BELOW the ceiling one step in, or the ramp is decoration.
+    expect(at(1, tempts)).toBeLessThan(PACT_TEMPT_MAX);
+    expect(at(1, relieves)).toBeLessThan(PACT_RELIEF_MAX);
+  });
+
+  it('climbs monotonically, and never lets relief outrun temptation', () => {
+    for (let debt = 1; debt <= PACT_LIMIT; debt++) {
+      expect(at(debt, tempts), `debt ${debt}`).toBeGreaterThanOrEqual(at(debt - 1, tempts));
+      expect(at(debt, relieves), `debt ${debt}`).toBeGreaterThanOrEqual(at(debt - 1, relieves));
+      expect(at(debt, relieves), `debt ${debt}`).toBeLessThan(at(debt, tempts));
+    }
+  });
+
+  /**
+   * The multiplier has to reach the SAMPLER, not just exist beside it. This
+   * repo shipped a roll rail that computed correctly and rendered never, and a
+   * `planShareTail` that fixed a bug the renderer went on having — so the pin
+   * is on which offer actually comes out of `nextOffer` across many seeds,
+   * which is the thing a player experiences.
+   */
+  it('actually shifts what the sampler draws', () => {
+    const draws = (pactDebt: number) => {
+      let temptCount = 0;
+      for (let seed = 0; seed < 400; seed++) {
+        const run = { ...start({ seed }, real), pactDebt, seenOfferIds: [], eraIndex: seed % 5 };
+        if (nextOffer(run, bundle).id === 't') temptCount++;
+      }
+      return temptCount;
+    };
+    expect(draws(6)).toBeGreaterThan(draws(0) * 1.3);
   });
 });
 

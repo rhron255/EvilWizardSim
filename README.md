@@ -33,9 +33,11 @@ they come from analysis of a game that worked at scale, recorded in
   probabilities and both outcomes up front. No hidden rolls, no undisclosed
   downside. This is enforced by the type system, not by convention — see
   `src/types.ts`. The rule outlives the card: a counter that can end the run
-  on its own — pact interest, apprentice loyalty drift — is named on the
-  resolution that reports the era, under *While you were elsewhere*, and
-  every header stat prints its threshold and its distance.
+  on its own — apprentice loyalty drift — is named on the resolution that
+  reports the era, under *While you were elsewhere*, and every header stat
+  prints its threshold and its distance. Pact debt has no such tick: it moves
+  only on cards you accepted, and the pressure comes from the Covenant's
+  offers surfacing more often the more you owe.
 - **The ledger appends, never resets.** By the late run you are looking at a
   table with fifteen eras in it, and that is what makes quitting expensive.
 - **One scarce color.** The palette is a near-monochrome warm dark. The only

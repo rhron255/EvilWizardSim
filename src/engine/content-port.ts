@@ -15,6 +15,7 @@ import type {
   FactionId,
   Lair,
   Offer,
+  OfferOption,
   Origin,
   RunState,
   TierId,
@@ -47,6 +48,51 @@ export type ContentBundle = {
 // Derived index
 // ---------------------------------------------------------------------------
 
+/**
+ * What an offer does to pact debt, from the PLAYER'S position.
+ *
+ *   'relieves' — at least one option can REDUCE debt on some branch.
+ *   'tempts'   — no option can reduce it, at least one can add it.
+ *   'none'     — no `pactDebt` effect anywhere in the offer.
+ *
+ * `relieves` WINS over `tempts` on a card that does both. `decline_collections`
+ * charges you 35 followers to clear 2 debt and adds 2 if you gamble for an
+ * extension and lose; to a wizard at 5/7 that card is an exit, and surfacing it
+ * as a temptation would be the exact opposite of what the weighting is for.
+ * The two-way gambles authored for this system are the same shape.
+ *
+ * Read the name as "what this card offers a wizard who already owes", not "what
+ * this card does on average" — a field whose name permits two readings is
+ * CLAUDE.md failure mode 4, which cost this repo a 0.00% Ascension rate.
+ */
+export type PactRole = 'tempts' | 'relieves' | 'none';
+
+/** Every branch of an option, so a gamble's two outcomes are both counted. */
+function branchesOf(option: OfferOption): readonly (readonly { t: string; v?: number }[])[] {
+  return option.kind === 'certain' ? [option.effects] : [option.onSuccess, option.onFailure];
+}
+
+/**
+ * DERIVED from the effect lists, never authored on `Offer`.
+ *
+ * An authored flag is free to disagree with the effects underneath it, and the
+ * disagreement typechecks. This cannot drift: if a card stops touching debt,
+ * it stops being classified as touching debt in the same edit.
+ */
+export function pactRoleOf(offer: Offer): PactRole {
+  let tempts = false;
+  for (const option of offer.options) {
+    for (const branch of branchesOf(option)) {
+      for (const effect of branch) {
+        if (effect.t !== 'pactDebt' || effect.v === undefined || effect.v === 0) continue;
+        if (effect.v < 0) return 'relieves';
+        tempts = true;
+      }
+    }
+  }
+  return tempts ? 'tempts' : 'none';
+}
+
 export type ContentIndex = {
   artifactById: Map<string, Artifact>;
   factionById: Map<FactionId, Faction>;
@@ -58,6 +104,8 @@ export type ContentIndex = {
   /** Position of a lair id on the ladder. */
   lairRung: Map<string, number>;
   artifactsByFaction: Map<FactionId, Artifact[]>;
+  /** `pactRoleOf` for every offer, by id. Drives `pactWeight` in `offers.ts`. */
+  pactRole: Map<string, PactRole>;
 };
 
 const cache = new WeakMap<ContentBundle, ContentIndex>();
@@ -90,6 +138,7 @@ export function indexOf(content: ContentBundle): ContentIndex {
     lairLadder,
     lairRung,
     artifactsByFaction,
+    pactRole: new Map(content.offers.map((o) => [o.id, pactRoleOf(o)])),
   };
   cache.set(content, built);
   return built;

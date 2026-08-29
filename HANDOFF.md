@@ -11,10 +11,10 @@ touching anything; every one of those patterns cost a real bug.
 ```bash
 npm run typecheck && npm run test && npm run lint && npm run validate:content
 npm run dev        # → localhost:5173
-npm run sim        # 2000-run balance report, 13/13 targets pass
+npm run sim        # 2000-run balance report, 12/14 targets pass — see Outstanding
 ```
 
-219 tests across 17 files. Every one was mutation-checked — broken deliberately
+259 tests across 20 files. Every one was mutation-checked — broken deliberately
 to confirm it goes red — because this repo has shipped a test that passed on
 `0 == 0`, and a *validator rule* that silently checked nothing (see below).
 
@@ -25,8 +25,9 @@ device, not a breakpoint to degrade toward.
 
 - Full run: title → creation → ~15 eras → prophecy → ending → collection. Clean
   playthrough at 393×852 and 1440×1000, no console errors.
-- 110 offers, 30 artifacts (all 30 reachable), 6 factions, 10 lairs, 7 endings.
-- All seven endings reachable. Ascension 1.50%, no single ending above 45%.
+- 129 offers, 30 artifacts (all 30 reachable), 6 factions, 10 lairs, 7 endings.
+- All seven endings reachable. Ascension ~2%. `slain_by_chosen_one` is ABOVE
+  45% and is the open question below.
   Lichdom went 0.25% -> 0.80% by raising the rite offer's weight: a dedicated
   seeker met its standing gate in 61% of careers but was shown the card in only
   19.9% of those, so the branch was a lottery rather than the "live decision"
@@ -43,11 +44,37 @@ device, not a breakpoint to degrade toward.
 
 ## Done since the last handoff
 
-- **Systemic ticks are disclosed.** Pact interest and apprentice loyalty drift
-  fire between eras and could end a run on a card that never mentioned them.
-  `Resolution.systemic` carries them; the overlay prints them under *While you
-  were elsewhere*, deliberately separated from the option's own consequences.
-  The seal warning names both of its conditions.
+- **Pact debt no longer ticks.** The `+1` per decline era is deleted, along
+  with `PACT_INTEREST`, `PACT_INTEREST_MIN_DEBT`, the `pactInterest`
+  `SystemicChange`, and `src/content/systemic.ts`. Debt now moves ONLY on a
+  card the player accepted. The pressure that replaced it is `pactWeight` in
+  `src/engine/offers.ts`: offers that deepen a debt and offers that clear one
+  both surface more often as the balance climbs, off a `pactRole` derived from
+  each offer's effects (never authored — failure mode 4). Ten new cards in
+  `src/content/offers/pacts.ts` ladder on `minPactDebt` so the Covenant's
+  register escalates with the balance; that fiction IS the disclosure, by
+  decision — there is no UI clause for the weighting. The header caption now
+  states the ceiling and nothing else.
+
+  **The tick was the ending.** `consumed_by_pact` was 29.4% of runs and is now
+  ~2% population-wide. Against the sim's scoring policies it cannot be restored
+  by weighting or content: a bot that can read the balance in the header never
+  accepts a card that reaches 7, so deaths come only from losing a gamble. A
+  new `reckless` policy — the player who does not track the balance, i.e. the
+  one in the original bug report — sits at **13.3%**, inside the 8-18% band,
+  and independently matches a throwaway always-first-option probe at 9.7%. The
+  target is attached to that cohort, with the population figure printed beside
+  it untargeted.
+
+  **Two balance targets are red as a result** and need a decision — see
+  *Outstanding*.
+
+- **Systemic ticks are disclosed.** Apprentice loyalty drift fires between eras
+  and could end a run on a card that never mentioned it. `Resolution.systemic`
+  carries it; the overlay prints it under *While you were elsewhere*,
+  deliberately separated from the option's own consequences. The seal warning
+  names both of its conditions. (Pact interest was the other tick here and has
+  since been deleted — see *Pact debt* below.)
 - **First-run guide.** Three cards, once ever, over the run screen.
   `Collection.tutorialSeen`, COLLECTION_VERSION 2. It does not teach the
   prophecy — that pivot is a staged reveal and explaining it spends the set
@@ -65,6 +92,52 @@ device, not a breakpoint to degrade toward.
   FirstRunGuide, and the `useGame` gates.
 
 ## Outstanding, in priority order
+
+### 0. The ending distribution, after the pact tick — NEEDS A DECISION
+
+Deleting the tick removed 29.4% of all deaths, and the runs it used to take now
+survive to meet the hero. Two targets are red:
+
+```
+slain_by_chosen_one   61.3%   (ceiling 45%)      was 42.35%
+lichdom, lich cohort  22.0%   (band 2-15%)       was 12.17%
+```
+
+Neither is a pact defect. `slain` was only ever under its ceiling because the
+pact was killing a third of the population first; the tick was masking how
+lethal the hero is. Lichdom rose because lich-seekers used to die of debt before
+reaching the age limit.
+
+**A sweep found no configuration that passes all fourteen.** The system is
+over-constrained — every knob that lowers `slain` squeezes something else:
+
+| Change | slain | cost |
+|---|---|---|
+| `HERO_THREAT_RAMP` 2 → 1.3 | 54.7% | age-limit survival hits 34.9% (ceiling 35%) |
+| `+ SEAL_MAX_STANDING` −55 → −42 | 44.9% | seal rate 19% → 33%; Ascension slides to 1.0% |
+| `+ DEF_LICH` 60 → 34 | 45.6% | fixes lichdom; slain still 0.6 over, Ascension at its floor |
+| `SEAL` −36, `RAMP` 1.7 | 43.4% | Ascension 0.52% and Kingdom-Level 11.1% both FAIL |
+
+The binding conflict: `sealed_in_gem` is the only elastic absorber, and it
+gates on high notoriety — so loosening it to take runs off the hero also eats
+the population that would otherwise ascend.
+
+The three honest options, none of which I took unilaterally because all three
+reshape the game well beyond pact debt:
+
+1. **Accept `slain` where it is** and record that the 45% ceiling (explicitly
+   marked invented in `simulate.ts`) no longer describes a game without a pact
+   tick. Cheapest; leaves a red gate, which this repo has been burned by.
+2. **Take the rebalance**: `HERO_THREAT_RAMP` 1.35, `SEAL_MAX_STANDING` −42,
+   `DEF_LICH` 34. 13/14 pass, `slain` 45.6%. Nearly doubles the seal rate,
+   which is a real identity change for the Pale Academy and directly worsens a
+   logged player complaint about the seal arriving unannounced.
+3. **Add lethality elsewhere** so `slain` has somewhere to go that is not the
+   seal — `betrayed_by_apprentice` is the natural candidate at 0.75%, but
+   raising `BETRAYAL_MAX_LOYALTY` 15 → 28 only moved it to 1.6%, so the
+   constraint is apprentice headcount and this needs content, not a constant.
+
+My recommendation is (3) as the real fix and (1) as the honest interim.
 
 ### 1. The collection — FIXED
 
@@ -112,10 +185,8 @@ careers and should not be reached for.
 - **The hero's approach is dramatised.** A rail in the header showing the
   distance closing, plus up to three narrative beats fired off `heroBand` —
   the same function the rail reads, so the fiction and the bar cannot disagree.
-- **Pact interest has a face.** `+1 Pact Debt` still leads the row; the
-  Covenant's visit is the note beside the denominator. The first attempt put
-  the prose in the emphasised slot and demoted a lethal counter's label — the
-  tests that exist because someone died at 6/7 caught it.
+- ~~**Pact interest has a face.**~~ SUPERSEDED — the tick it dressed is gone.
+  See *Pact debt no longer ticks* below.
 
 Still open: the Ascension near-miss is deliberately NOT named (considered and
 rejected — the mystery is the point), and the collection screen still does not

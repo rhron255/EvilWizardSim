@@ -45,6 +45,43 @@ describe('projectEffects · the card equals the outcome', () => {
     expect(projectEffects(empty, [{ t: 'followers', v: -12 }], content)).toEqual([]);
   });
 
+  /**
+   * The two-way pact gambles pay their debt down against the same floor.
+   *
+   * `pact_the_last_wager` clears 4 on success; a wizard at 1/7 can only be
+   * cleared by 1. The card has to say 1, or it is promising a discharge it
+   * cannot deliver — the same defect as the −12 followers charge that deducted
+   * nothing, on a stat where the number is the player's whole read of how much
+   * danger they are in.
+   *
+   * Paired against `applied`, never asserted as a literal: a standalone
+   * "−4 becomes −1" would pass against a drifting second implementation.
+   */
+  it('prints the debt a payment can actually clear, not the authored figure', () => {
+    const barelyIndebted = run({ pactDebt: 1 });
+    const authored: Effect[] = [{ t: 'pactDebt', v: -4 }];
+    const shown = projectEffects(barelyIndebted, authored, content);
+    expect(shown).toEqual([{ t: 'pactDebt', v: -1 }]);
+    expect(shown).toEqual(applied(barelyIndebted, authored));
+  });
+
+  it('prints nothing when there is no debt for a payment to clear', () => {
+    const clean = run({ pactDebt: 0 });
+    const authored: Effect[] = [{ t: 'pactDebt', v: -2 }];
+    expect(projectEffects(clean, authored, content)).toEqual([]);
+    expect(applied(clean, authored)).toEqual([]);
+  });
+
+  it('prints a debt INCREASE at face value, since nothing clamps it', () => {
+    // The other branch of the same gamble. Only the floor bites; the ceiling
+    // is an ending, not a clamp, so +2 at 6/7 really is +2 and the card says
+    // so before the player rolls.
+    const deep = run({ pactDebt: 6 });
+    const authored: Effect[] = [{ t: 'pactDebt', v: 2 }];
+    expect(projectEffects(deep, authored, content)).toEqual([{ t: 'pactDebt', v: 2 }]);
+    expect(projectEffects(deep, authored, content)).toEqual(applied(deep, authored));
+  });
+
   it('names the faction the spill lands on, which the authored list never did', () => {
     const state = run();
     const authored: Effect[] = [{ t: 'standing', factionId: 'gilded_hand', v: 8 }];

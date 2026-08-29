@@ -15,23 +15,25 @@ import type { Artifact, EndingId, EraRecord, Effect, Lair, Outcome, Tier } from 
  * These are NOT the option's consequences and must never be rendered as if
  * they were — the whole reason this type exists is a report from play: "I died
  * being consumed by the pact, even though the last action I took had nothing
- * to do with pacts." Pact interest had crossed `PACT_LIMIT` in the systems
+ * to do with pacts." A tick had crossed a lethal threshold in the systems
  * block, and `appliedEffects` is the *option's* ledger, so the card that
- * announced the death showed nothing that could have caused it.
+ * announced the death showed nothing that could have caused it. (That
+ * particular tick is gone — pact debt no longer moves on its own — but the
+ * defect it caused is the reason this channel exists, and apprentice loyalty
+ * drift still ends runs the same way.)
  *
  * Only counters that are LETHAL, COUNTABLE and PLAYER-CONTROLLABLE belong
  * here. Notoriety decay and hero-threat escalation deliberately do not:
  * wiki/04 § Notoriety Decay forbids the doom meter, and "the decline works
  * because it is a number quietly going the wrong way, not because it is
  * announced". Announcing the tick that ENDS a run is the opposite case — it is
- * the same disclosure the header's pact caption already makes, arriving at the
- * moment it becomes the cause of death.
+ * the same disclosure the header already makes, arriving at the moment it
+ * becomes the cause of death.
  *
  * `v` is the applied delta; the second field is the value it landed on, so the
  * renderer can print the distance to the threshold without recomputing it.
  */
 export type SystemicChange =
-  | { t: 'pactInterest'; v: number; debt: number }
   | { t: 'loyaltyDrift'; v: number; loyalty: number }
   /**
    * The chosen one got closer, and crossed a band while doing it.
