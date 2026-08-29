@@ -173,6 +173,37 @@ export const STANDING_WEIGHT_MAX = 2.6;
 /** A faction-affiliated offer must surface at least this often. */
 export const FACTION_OFFER_GAP = 3;
 
+/**
+ * Pact debt's multiplier on offer weight — what replaced the interest tick.
+ *
+ * Debt no longer grows on its own. Instead the POOL leans: the more a wizard
+ * owes, the more often the Covenant's cards come up in the draw, both the ones
+ * that deepen the hole (`tempts`) and the ones that offer a way out
+ * (`relieves`). `1 + pactDebt * COEF`, clamped — the same shape as the standing
+ * multiplier above, applied on the same scorer.
+ *
+ * At `pactDebt === 0` both are exactly 1, so a wizard who never signs anything
+ * draws from a pool identical to the one before this system existed.
+ *
+ * Temptation is weighted harder than relief on purpose: the spiral has to have
+ * a pull, or removing the tick just removes the ending. But relief is
+ * deliberately NOT trivial — a debt you cannot act against is the tick wearing
+ * a different hat.
+ *
+ * PROVENANCE: these four numbers were fitted, not reasoned. The target they
+ * were fitted to — `consumed_by_pact` in 8-18% of runs — was set in the
+ * session that built this system and is NOT in the wiki, which gives the
+ * ending the note "High-variance play punished" and no rate (wiki/01 § 7).
+ * CLAUDE.md failure mode 6 is about exactly this: an invented band chased hard
+ * enough to distort a constant. Anyone moving these should re-read
+ * `scripts/simulate.ts`'s target comment first and be willing to move the band
+ * instead.
+ */
+export const PACT_TEMPT_COEF = 0.35;
+export const PACT_TEMPT_MAX = 3.0;
+export const PACT_RELIEF_COEF = 0.22;
+export const PACT_RELIEF_MAX = 2.2;
+
 // ---------------------------------------------------------------------------
 // Random artifact draws
 // ---------------------------------------------------------------------------
@@ -214,16 +245,16 @@ export const NOVELTY_BIAS = 6;
 // Ending thresholds — wiki/01 § 7
 // ---------------------------------------------------------------------------
 
-/** Consumed by the Pact. */
-export const PACT_LIMIT = 7;
 /**
- * Unpaid debt compounds once the prophecy has landed — but only real debt.
- * A single point of inherited debt is a tone-setter, not a death sentence, so
- * interest does not start until the second point. Without this floor, the
- * "inherited a tower and its debts" origin was a hidden 100%-lethal trap.
+ * Consumed by the Pact.
+ *
+ * Debt reaches this ONLY through cards the player accepted. There is no
+ * interest tick: an automatic `+1` per decline era used to live in `run.ts`
+ * and was responsible for 29.4% of all careers, arriving on a clock rather
+ * than on a choice. What replaced it is `pactWeight` in `offers.ts` — the more
+ * you owe, the more often the Covenant's cards come up in the draw.
  */
-export const PACT_INTEREST = 1;
-export const PACT_INTEREST_MIN_DEBT = 2;
+export const PACT_LIMIT = 7;
 
 /** Betrayed by an Apprentice: many apprentices, little loyalty. */
 export const BETRAYAL_MIN_APPRENTICES = 2;

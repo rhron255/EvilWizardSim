@@ -4,9 +4,13 @@
  * These exist because of a real death: "I've been consumed by the pact while at
  * 6 out of 7." The ceiling was disclosed and the CLOCK was not, so the header
  * implied one era of headroom where there was none.
+ *
+ * The clock is gone — debt moves only on a card the player picked — so these
+ * now pin the OPPOSITE failure: a caption that still promises a rate would
+ * mislead a player exactly as badly, in the other direction.
  */
 import { describe, expect, it } from 'vitest';
-import { heroBand, PACT_INTEREST_MIN_DEBT, PACT_LIMIT } from '../../engine';
+import { heroBand, PACT_LIMIT } from '../../engine';
 import type { DefenseReadout } from '../../engine';
 import type { RunState } from '../../types';
 import { siegeFor, stakesFor } from './stakes';
@@ -52,33 +56,49 @@ describe('pact debt disclosure', () => {
     expect(pact(run({ pactDebt: 3 })).value).toBe(`3 / ${PACT_LIMIT}`);
   });
 
-  it('says the debt grows on its own once it is accruing', () => {
-    const s = pact(run({ pactDebt: 3, phase: 'decline' }));
-    expect(s.caption).toMatch(/an era/i);
+  it('names the ceiling, which is now the whole rule', () => {
+    expect(pact(run({ pactDebt: 3, phase: 'decline' })).caption).toMatch(
+      new RegExp(`in full at ${PACT_LIMIT}`),
+    );
   });
 
-  it('warns that collection is THIS era at one point short of the limit', () => {
-    // The exact case that was reported. Interest lands at end of era, so a
-    // wizard here has no headroom at all and the caption must not imply any.
-    const s = pact(run({ pactDebt: PACT_LIMIT - 1, phase: 'decline' }));
-    expect(s.tone).toBe('danger');
-    expect(s.caption).toMatch(/collects this era/i);
-    expect(s.caption).not.toMatch(new RegExp(`in full at ${PACT_LIMIT}`));
+  /**
+   * The regression pin for the tick's removal.
+   *
+   * Anchored to the rendered caption string, not to a constant the caption
+   * also reads — a deleted constant cannot fail a test, so asserting against
+   * `PACT_INTEREST` would have gone green the moment it stopped existing
+   * (failure mode 11). Every phase and every balance is checked, because the
+   * old caption had four branches and only two of them mentioned a rate.
+   */
+  it('never promises a per-era rate, at any debt in any phase', () => {
+    for (const phase of ['ascent', 'decline'] as const) {
+      for (let debt = 0; debt <= PACT_LIMIT; debt++) {
+        const { caption } = pact(run({ pactDebt: debt, phase, erasSinceProphecy: 2 }));
+        expect(caption).not.toMatch(/an era/i);
+        expect(caption).not.toMatch(/eras left/i);
+        expect(caption).not.toMatch(/this era/i);
+        expect(caption).not.toMatch(/after the prophecy/i);
+      }
+    }
   });
 
-  it('does not claim interest during the ascent, when none accrues', () => {
-    const s = pact(run({ pactDebt: PACT_LIMIT - 1, phase: 'ascent', erasSinceProphecy: 0 }));
-    expect(s.caption).not.toMatch(/collects this era/i);
+  it('reads the same in both phases, because the phase no longer changes it', () => {
+    const ascent = pact(run({ pactDebt: 5, phase: 'ascent' }));
+    const decline = pact(run({ pactDebt: 5, phase: 'decline', erasSinceProphecy: 3 }));
+    expect(ascent.caption).toBe(decline.caption);
+    expect(ascent.tone).toBe(decline.tone);
   });
 
-  it('flags that a quiet debt will start growing after the prophecy', () => {
-    const s = pact(run({ pactDebt: PACT_INTEREST_MIN_DEBT, phase: 'ascent' }));
-    expect(s.caption).toMatch(/after the prophecy/i);
-  });
-
-  it('stays calm at zero', () => {
-    const s = pact(run({ pactDebt: 0 }));
-    expect(s.tone).toBeUndefined();
+  /**
+   * Tone at the EXTREMES, not at a typical value (failure mode 13). `left` is
+   * a distance and still true; it is the one thing here that still escalates.
+   */
+  it('escalates tone on remaining headroom, and only there', () => {
+    expect(pact(run({ pactDebt: 0 })).tone).toBeUndefined();
+    expect(pact(run({ pactDebt: PACT_LIMIT - 3 })).tone).toBeUndefined();
+    expect(pact(run({ pactDebt: PACT_LIMIT - 2 })).tone).toBe('warn');
+    expect(pact(run({ pactDebt: PACT_LIMIT - 1 })).tone).toBe('danger');
   });
 });
 

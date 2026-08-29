@@ -7,14 +7,21 @@
  * outside world.
  */
 
-export type { ContentBundle, ContentIndex, Epithet } from './content-port';
-export { indexOf, FALLBACK_EPITHETS } from './content-port';
+export type { ContentBundle, ContentIndex, Epithet, PactRole } from './content-port';
+export { indexOf, pactRoleOf, FALLBACK_EPITHETS } from './content-port';
 
 export type { Resolution, SystemicChange } from './resolution';
 export type { CreateRunOptions } from './run';
 
 export { createRun, resolveChoice, MAX_NAME_LENGTH } from './run';
-export { nextOffer, buildOfferPool, standingWeight, hasCertainOption, QUIET_ERA_OFFER } from './offers';
+export {
+  nextOffer,
+  buildOfferPool,
+  standingWeight,
+  pactWeight,
+  hasCertainOption,
+  QUIET_ERA_OFFER,
+} from './offers';
 export {
   defenseOf,
   defenseReadout,
@@ -58,8 +65,10 @@ export {
   HERO_BAND_DANGER,
   HERO_BAND_WARN,
   PACT_LIMIT,
-  PACT_INTEREST,
-  PACT_INTEREST_MIN_DEBT,
+  PACT_TEMPT_COEF,
+  PACT_TEMPT_MAX,
+  PACT_RELIEF_COEF,
+  PACT_RELIEF_MAX,
   BETRAYAL_MAX_LOYALTY,
   BETRAYAL_MIN_APPRENTICES,
   SEAL_MAX_STANDING,

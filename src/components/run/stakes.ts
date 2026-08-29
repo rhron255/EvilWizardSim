@@ -29,8 +29,6 @@ import {
   DEF_LAIR,
   DEF_LICH,
   heroBand,
-  PACT_INTEREST,
-  PACT_INTEREST_MIN_DEBT,
   PACT_LIMIT,
   threatGainFor,
 } from '../../engine';
@@ -99,50 +97,41 @@ function loyaltyStake(run: RunState): Stake {
 }
 
 /**
- * Pact debt, with its interest disclosed.
+ * Pact debt, against its ceiling.
  *
  * Reported from play: "I've been consumed by the pact while at 6 out of 7."
- * That is not a miscount. Debt at or above `PACT_INTEREST_MIN_DEBT` accrues
- * `PACT_INTEREST` every decline era on its own (see run.ts), so a wizard
- * sitting at 6/7 had ZERO eras of headroom while the caption implied one.
+ * That was not a miscount — debt used to accrue `+1` every decline era on its
+ * own, so a wizard sitting at 6/7 had ZERO eras of headroom while the caption
+ * implied one. The fix at the time was to print the clock: `+1 an era on its
+ * own · 1 era left`.
  *
- * The old caption — "collected in full at 7" — was true and still misled,
- * which is precisely the surprise wiki/04's odds rule exists to prevent. The
- * ceiling was never the whole rule; the clock was.
+ * There is no clock any more. Debt moves only when the player picks a card
+ * that moves it, so the ceiling IS the whole rule and the caption says only
+ * that. Restoring a rate clause here would be the same lie the old one was,
+ * pointing the other way: a player told a number grows on its own, watching it
+ * sit still.
  *
- * This is not the doom meter wiki/04 forbids. That prohibition is about
- * announcing the decline's notoriety erosion, which is gradual and survivable.
- * This counter is lethal, countable, and player-controllable — the only reason
- * not to state it plainly would be to keep a death untelegraphed.
+ * What replaced the tick — the offer pool leaning toward the Covenant as the
+ * balance climbs — is deliberately NOT stated here. It changes which cards are
+ * drawn, never a number behind the player's back, and it is disclosed in the
+ * cards' own prose. Every point of debt is still printed on a card before it
+ * is taken, which is the disclosure rule this file exists to keep.
+ *
+ * The distance is still shown, and still drives `tone`: `left` is a real
+ * measure of how much more the player can sign for.
  */
 function pactStake(run: RunState): Stake {
   const left = PACT_LIMIT - run.pactDebt;
-  const accruing = run.phase === 'decline' && run.pactDebt >= PACT_INTEREST_MIN_DEBT;
 
   if (run.pactDebt === 0) {
     return { label: 'Pact Debt', value: `0 / ${PACT_LIMIT}`, caption: 'owed to the Covenant' };
   }
 
-  // Eras until collection, counting the interest that lands each era.
-  const erasLeft = accruing ? Math.max(0, Math.ceil(left / PACT_INTEREST)) : Infinity;
-
-  let caption: string;
-  if (!accruing) {
-    caption =
-      run.pactDebt >= PACT_INTEREST_MIN_DEBT
-        ? `starts growing +${PACT_INTEREST} an era after the prophecy`
-        : `collected in full at ${PACT_LIMIT}`;
-  } else if (erasLeft <= 1) {
-    caption = 'the Covenant collects this era unless you pay';
-  } else {
-    caption = `+${PACT_INTEREST} an era on its own · ${erasLeft} eras left`;
-  }
-
   return {
     label: 'Pact Debt',
     value: `${run.pactDebt} / ${PACT_LIMIT}`,
-    caption,
-    tone: erasLeft <= 1 ? 'danger' : erasLeft <= 3 || left <= 2 ? 'warn' : undefined,
+    caption: `collected in full at ${PACT_LIMIT}`,
+    tone: left <= 1 ? 'danger' : left <= 2 ? 'warn' : undefined,
   };
 }
 

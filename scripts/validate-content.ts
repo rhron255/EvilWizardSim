@@ -21,7 +21,8 @@
 
 import type { Artifact, Condition, Effect, OfferOption, Rarity } from '../src/types';
 import * as content from '../src/content';
-import { DEVOTION_STANDING } from '../src/engine/constants';
+import { DEVOTION_STANDING, PACT_LIMIT } from '../src/engine/constants';
+import { pactRoleOf } from '../src/engine/content-port';
 
 const problems: string[] = [];
 const warnings: string[] = [];
@@ -409,6 +410,98 @@ for (const o of offers) {
       checkAscensionPrice(`offer "${o.id}"`, opt.failureText);
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// The pact ladder
+//
+// Pact debt used to grow on its own; now it moves only on cards the player
+// accepted, which makes the CATALOG solely responsible for whether the ending
+// is reachable and whether it is escapable. Nothing below is expressible in
+// the type system, and none of it was checked at all before this system
+// existed — `checkEffects` fell through to `default: break` for `pactDebt`, so
+// a card granting an instant-death 7 passed silently.
+//
+// NOTE the placement: above the report block, never below it. A rule appended
+// after the report ran once pushed a real failure and still exited 0.
+// ---------------------------------------------------------------------------
+
+for (const o of offers) {
+  for (const opt of o.options) {
+    const branches = opt.kind === 'certain' ? [opt.effects] : [opt.onSuccess, opt.onFailure];
+    for (const branch of branches) {
+      for (const e of branch) {
+        if (e.t !== 'pactDebt') continue;
+        // A single card that can hand you the ceiling outright. The ending is
+        // meant to be the end of a sequence the player walked, not a trapdoor.
+        if (e.v >= PACT_LIMIT) {
+          fail(`offer "${o.id}"`, `a single pactDebt effect of +${e.v} reaches PACT_LIMIT (${PACT_LIMIT}) on its own`);
+        }
+      }
+    }
+  }
+
+  for (const c of o.requires ?? []) {
+    if (c.c === 'minPactDebt' && c.v >= PACT_LIMIT) {
+      fail(`offer "${o.id}"`, `requires minPactDebt ${c.v}, but the run ends at ${PACT_LIMIT} — unreachable`);
+    }
+  }
+
+  // The pact analogue of the no-forced-gamble guarantee. Every card that can
+  // deepen a debt must leave a way to walk past it without deepening one.
+  if (pactRoleOf(o) === 'tempts') {
+    const hasCleanOption = o.options.some((opt) => {
+      const branches = opt.kind === 'certain' ? [opt.effects] : [opt.onSuccess, opt.onFailure];
+      return branches.every((b) => b.every((e) => e.t !== 'pactDebt' || e.v <= 0));
+    });
+    if (!hasCleanOption) {
+      fail(`offer "${o.id}"`, 'every option can add pact debt — a forced pact is a forced gamble');
+    }
+  }
+}
+
+/**
+ * A CERTAIN way out, at every balance that can be in trouble, in both phases.
+ *
+ * Two-way gambles classify as `relieves` because they can clear debt, and they
+ * are weighted up as the balance climbs — but a bet is not an exit you can
+ * rely on. Without this rule a content edit could leave a wizard at 5/7 with
+ * nothing but coin flips.
+ *
+ * Walked level by level and phase by phase rather than counted. A count passes
+ * happily while every relief card sits behind `minPactDebt: 4`, and it misses
+ * the real gap this found: `decline_collections` is decline-only, so before
+ * `pact_settle_accounts` (phase `any`, gate 2) an indebted wizard in the
+ * ASCENT had no way to pay anything down at all.
+ *
+ * Levels start at 2: at 1 the wizard is six points from the ceiling and in no
+ * danger, and demanding an exit there would be a rule with no defect behind it.
+ */
+for (const phase of ['ascent', 'decline'] as const) {
+  for (let debt = 2; debt < PACT_LIMIT; debt++) {
+    const exits = offers.filter((o) => {
+      if (o.phase !== 'any' && o.phase !== phase) return false;
+      // Only gates this run could actually satisfy at this balance.
+      for (const c of o.requires ?? []) {
+        if (c.c === 'minPactDebt' && c.v > debt) return false;
+      }
+      return o.options.some(
+        (opt) => opt.kind === 'certain' && opt.effects.some((e) => e.t === 'pactDebt' && e.v < 0),
+      );
+    });
+    if (exits.length === 0) {
+      fail(
+        `pact ladder (${phase}, debt ${debt})`,
+        'no offer with a CERTAIN debt-reducing option is reachable — the only ways out are gambles',
+      );
+    }
+  }
+}
+
+// The ways out must not be authorable away wholesale.
+const relieving = offers.filter((o) => pactRoleOf(o) === 'relieves');
+if (relieving.length < 3) {
+  fail('pact ladder', `only ${relieving.length} offer(s) can reduce pact debt; at least 3 are required`);
 }
 
 // ---------------------------------------------------------------------------

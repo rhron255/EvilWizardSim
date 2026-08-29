@@ -46,7 +46,12 @@ Weighted pool, filtered then sampled:
 2. Exclude offers already seen **this run**.
 3. Weight by faction standing — factions the player has courted surface
    more often. This is what makes deliberate routing legible.
-4. Sample 2–4.
+4. Weight by pact debt — offers that deepen a debt, and offers that offer a
+   way out of one, both surface more often as the balance climbs. This is
+   the pressure that replaced the interest tick (see § Pact Debt below):
+   the world stops leaving a debtor alone, without any number moving on its
+   own.
+5. Sample 2–4.
 
 Guarantees:
 - At least one option in every era must be low-risk. A player should
@@ -80,16 +85,37 @@ line between them is drawn here:
   are gradual and survivable. Neither is announced as it happens, and no
   UI element counts down to them.
 - **A counter that ENDS a run is disclosed** — its threshold, the distance
-  to it, and its rate of change. Pact interest (`+1` per decline era) and
-  apprentice loyalty drift (`-(2 + count)` per decline era) are lethal,
-  countable and player-controllable; a player who cannot see them is not
-  playing a tenser game, only a more surprising one.
-- **Disclosure does not stop at the choice card.** Both of those ticks fire
-  in the era-end systems, so they are printed on the resolution that
-  reports the era — in a section of their own, never mixed into the
-  option's own consequences. A death arriving on a card that lists nothing
-  capable of causing it is the undisclosed downside this document forbids,
-  reached by a different route.
+  to it, and its rate of change. Apprentice loyalty drift (`-(2 + count)`
+  per decline era) is lethal, countable and player-controllable; a player
+  who cannot see it is not playing a tenser game, only a more surprising
+  one.
+- **Disclosure does not stop at the choice card.** That tick fires in the
+  era-end systems, so it is printed on the resolution that reports the era
+  — in a section of its own, never mixed into the option's own
+  consequences. A death arriving on a card that lists nothing capable of
+  causing it is the undisclosed downside this document forbids, reached by
+  a different route.
+
+### Pact Debt
+
+Pact debt **has no rate of change**. It moves only on a card the player
+accepted, and every point is printed on that card before the commit.
+
+It used to accrue `+1` per decline era, which made it the second most common
+ending in the game (29.4% of runs) and this project's richest source of
+disclosure defects — a player shown one era of headroom that did not exist,
+and a death arriving on a card that mentioned nothing capable of causing it.
+Both were patched by explaining the tick better; the tick was deleted instead.
+
+What carries the pressure now is the offer pool (§ Offer Generation, step 4).
+A wizard who owes nothing draws from an unweighted catalog. A wizard deep in
+debt meets the Ashen Covenant constantly — its temptations and its exits both
+— and the cards themselves escalate in register as the balance climbs, which
+is where the escalation is disclosed. There is deliberately no UI clause for
+it: it changes which cards are drawn, never a number behind the player's back.
+
+The header therefore states the ceiling and nothing else. Adding a rate clause
+back would be the same lie the old one told, pointing the other way.
 
 The same distinction covers the seal: `sealed_in_gem` takes Pale Academy
 standing **and** notoriety, so the run screen names both numbers.

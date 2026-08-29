@@ -2,7 +2,7 @@
  * Offer generation — wiki/04 § Offer Generation.
  *
  *   filter by phase + requires  →  drop seen-this-run  →  weight by faction
- *   standing  →  sample one.
+ *   standing AND by pact debt  →  sample one.
  *
  * Two guarantees are enforced here rather than left to content:
  *
@@ -24,6 +24,10 @@ import { indexOf } from './content-port';
 import { conditionsMet } from './conditions';
 import {
   FACTION_OFFER_GAP,
+  PACT_RELIEF_COEF,
+  PACT_RELIEF_MAX,
+  PACT_TEMPT_COEF,
+  PACT_TEMPT_MAX,
   STANDING_WEIGHT_COEF,
   STANDING_WEIGHT_MAX,
   STANDING_WEIGHT_MIN,
@@ -80,6 +84,32 @@ export function standingWeight(run: RunState, offer: Offer): number {
     STANDING_WEIGHT_MAX,
   );
   return base * multiplier;
+}
+
+/**
+ * The pull the interest tick used to be.
+ *
+ * Debt no longer grows on its own; the POOL leans instead. A wizard deep in
+ * debt meets the Covenant more often — its temptations AND its ways out — so
+ * the pressure that ends a run is made of cards the player was shown and
+ * accepted, not of arithmetic that ran while they were looking elsewhere.
+ *
+ * `relieves` is weighted more gently than `tempts` (see `constants.ts`), but
+ * both climb, so a deep debt is a situation rather than a sentence.
+ *
+ * Returns exactly `1` at zero debt for every role, which is the property worth
+ * remembering: a career that never signs a pact draws from an unweighted pool.
+ */
+export function pactWeight(run: RunState, offer: Offer, content: ContentBundle): number {
+  if (run.pactDebt <= 0) return 1;
+  switch (indexOf(content).pactRole.get(offer.id) ?? 'none') {
+    case 'tempts':
+      return clamp(1 + run.pactDebt * PACT_TEMPT_COEF, 1, PACT_TEMPT_MAX);
+    case 'relieves':
+      return clamp(1 + run.pactDebt * PACT_RELIEF_COEF, 1, PACT_RELIEF_MAX);
+    case 'none':
+      return 1;
+  }
 }
 
 /** Eras since a faction-affiliated offer last surfaced. */
@@ -205,7 +235,10 @@ export function nextOffer(run: RunState, content: ContentBundle): Offer {
     weightedPick(
       rng,
       pool,
-      (offer) => standingWeight(run, offer) * (offer.scripted ? SCRIPTED_WEIGHT_BONUS : 1),
+      (offer) =>
+        standingWeight(run, offer) *
+        pactWeight(run, offer, content) *
+        (offer.scripted ? SCRIPTED_WEIGHT_BONUS : 1),
     ) ?? QUIET_ERA_OFFER
   );
 }

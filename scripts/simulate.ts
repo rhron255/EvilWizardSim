@@ -29,6 +29,7 @@ import { ascensionReady, createRun, defenseOf, nextOffer, resolveChoice } from '
 import {
   ASCENSION_LEGENDARIES,
   ASCENSION_MIN_NOTORIETY,
+  PACT_LIMIT,
   RUN_LENGTHS,
 } from '../src/engine/constants';
 import { fixtureContent } from '../src/engine/__fixtures__/content';
@@ -63,7 +64,15 @@ const contentLabel = USE_FIXTURES ? 'FIXTURE content bundle' : 'real content bun
 // Player policies
 // ---------------------------------------------------------------------------
 
-type Policy = 'random' | 'safe' | 'greedy' | 'adaptive' | 'courtier' | 'lich' | 'ascendant';
+type Policy =
+  | 'random'
+  | 'safe'
+  | 'greedy'
+  | 'adaptive'
+  | 'courtier'
+  | 'lich'
+  | 'ascendant'
+  | 'reckless';
 
 /**
  * Population mix — an attempt at a realistic spread of how people actually
@@ -72,18 +81,26 @@ type Policy = 'random' | 'safe' | 'greedy' | 'adaptive' | 'courtier' | 'lich' | 
  * toward a specific ending by run five or six (`ascendant`, `lich`). The
  * headline Ascension rate is a property of this mix, so changing it changes
  * the reported number.
+ *
+ * `reckless` was added when pact debt stopped ticking upward on its own. Every
+ * other policy prices debt through a convex potential and therefore never
+ * accepts a card that reaches `PACT_LIMIT` — which is correct play, and left
+ * `consumed_by_pact` at 1.20% while a player who simply keeps saying yes hits
+ * 9.67%. A population made entirely of optimisers cannot measure an ending
+ * that exists to punish not paying attention.
  */
 const POPULATION: Array<[Policy, number]> = [
   ['random', 0.12],
-  ['safe', 0.18],
-  ['greedy', 0.18],
-  ['adaptive', 0.22],
-  ['courtier', 0.12],
+  ['safe', 0.16],
+  ['greedy', 0.14],
+  ['adaptive', 0.2],
+  ['courtier', 0.11],
   ['lich', 0.06],
-  ['ascendant', 0.12],
+  ['ascendant', 0.11],
+  ['reckless', 0.1],
 ];
 
-type Mode = 'notoriety' | 'defense' | 'standing' | 'ascendant';
+type Mode = 'notoriety' | 'defense' | 'standing' | 'ascendant' | 'reckless';
 
 type Weights = {
   notoriety: number;
@@ -94,6 +111,21 @@ type Weights = {
   apprentices: number;
   loyalty: number;
   pactDebt: number;
+  /**
+   * Whether this player watches the ceiling.
+   *
+   * `true` — debt is priced through `pactPotential`, so the last point costs
+   * far more than the first and a card that would reach `PACT_LIMIT` is scored
+   * as the ending it is. This is correct play and describes most of the
+   * population.
+   *
+   * `false` — debt is a flat linear cost and the ceiling is not modelled at
+   * all. Not a worse bot: a DIFFERENT one, and the one the pact ending is
+   * written for. The player in the original bug report — "I died being consumed
+   * by the pact, even though the last action I took had nothing to do with
+   * pacts" — was not tracking a denominator either.
+   */
+  pactCeilingAware: boolean;
   heroThreat: number;
   lairTier: number;
 };
@@ -108,6 +140,7 @@ const WEIGHTS: Record<Mode, Weights> = {
     apprentices: 0.6,
     loyalty: 0.06,
     pactDebt: -1.6,
+    pactCeilingAware: true,
     heroThreat: -0.18,
     lairTier: 3,
   },
@@ -120,6 +153,7 @@ const WEIGHTS: Record<Mode, Weights> = {
     apprentices: 0.2,
     loyalty: 0.12,
     pactDebt: -2.4,
+    pactCeilingAware: true,
     heroThreat: -1,
     lairTier: 4.5,
   },
@@ -132,8 +166,31 @@ const WEIGHTS: Record<Mode, Weights> = {
     apprentices: 0.4,
     loyalty: 0.08,
     pactDebt: -1.4,
+    pactCeilingAware: true,
     heroThreat: -0.3,
     lairTier: 3,
+  },
+  /**
+   * The player who is not counting.
+   *
+   * Fame-hungry like `notoriety`, and debt is merely a mild running cost — no
+   * ceiling term, no death score at the crossing. Deliberately NOT a copy of
+   * another mode's numbers: `lich` was a copy of `adaptive` and reported 0.00%
+   * for the branch it is named after, which is the failure this comment exists
+   * to prevent a second time.
+   */
+  reckless: {
+    notoriety: 1.15,
+    followers: 0.22,
+    standing: 0.05,
+    artifact: 2.2,
+    loseArtifact: -2.5,
+    apprentices: 0.7,
+    loyalty: 0.04,
+    pactDebt: -0.5,
+    pactCeilingAware: false,
+    heroThreat: -0.12,
+    lairTier: 3.2,
   },
   /** The informed player: fame AND routing, because Ascension needs both. */
   ascendant: {
@@ -145,6 +202,7 @@ const WEIGHTS: Record<Mode, Weights> = {
     apprentices: 0.3,
     loyalty: 0.08,
     pactDebt: -1.6,
+    pactCeilingAware: true,
     heroThreat: -0.35,
     lairTier: 4,
   },
@@ -153,8 +211,60 @@ const WEIGHTS: Record<Mode, Weights> = {
 /** An ending effect is a run-terminating commitment; ordinary policies avoid it. */
 const ENDING_SCORE = -80;
 
-function scoreEffects(effects: readonly Effect[], w: Weights, takesLichdom: boolean): number {
+/**
+ * How much worse the LAST point of debt is than the first.
+ *
+ * Debt used to be priced linearly — `e.v * w.pactDebt`, the same charge at 6/7
+ * as at 0/7 — which was tolerable while an automatic interest tick was doing
+ * most of the killing. It is not tolerable now. `consumed_by_pact` is reached
+ * ONLY through cards a player accepted, so these policies ARE the mechanism
+ * under test, and a bot that prices its seventh point of debt like its first
+ * walks into a wall no human walks into. Measuring that population would be
+ * CLAUDE.md failure mode 5 for the fourth time: a harness confidently
+ * reporting a rate for a game nobody plays.
+ *
+ * So debt is scored through a convex potential rather than a linear one, and
+ * the cost of a card is the DIFFERENCE in potential it moves you across:
+ *
+ *   potential(d) = d + PACT_DREAD * d² / PACT_LIMIT
+ *
+ * At `PACT_DREAD = 2` the step from 5 to 6 costs about 3.2x the step from 0 to
+ * 1, and paying debt down from a deep hole is worth proportionally more —
+ * which is what makes an exit card something a policy will actually take.
+ */
+const PACT_DREAD = 2;
+
+const pactPotential = (debt: number) => debt + (PACT_DREAD * debt * debt) / PACT_LIMIT;
+
+/**
+ * The price of moving debt from `from` to `to`.
+ *
+ * Reaching the ceiling is not expensive, it is the ending — scored as one,
+ * because that is exactly what the engine will do with it.
+ */
+function pactCost(from: number, to: number, w: Weights): number {
+  // The player who is not counting prices a point of debt as a point of debt,
+  // wherever the balance stands. That is the whole difference.
+  if (!w.pactCeilingAware) return w.pactDebt * (to - Math.max(0, from));
+  if (to >= PACT_LIMIT) return ENDING_SCORE;
+  return w.pactDebt * (pactPotential(to) - pactPotential(Math.max(0, from)));
+}
+
+/**
+ * `debt` is the run's CURRENT pact debt, so the same card is priced
+ * differently by a wizard who owes nothing and one who owes six.
+ */
+function scoreEffects(
+  effects: readonly Effect[],
+  w: Weights,
+  takesLichdom: boolean,
+  debt: number,
+): number {
   let total = 0;
+  // Debt accumulates WITHIN a branch: a card that adds 2 and then 2 again has
+  // to be priced as the move from d to d+4, not as two independent steps from
+  // d. The engine's floor clamp is mirrored here for the same reason.
+  let running = debt;
   for (const e of effects) {
     switch (e.t) {
       case 'notoriety':
@@ -179,9 +289,12 @@ function scoreEffects(effects: readonly Effect[], w: Weights, takesLichdom: bool
       case 'loyalty':
         total += e.v * w.loyalty;
         break;
-      case 'pactDebt':
-        total += e.v * w.pactDebt;
+      case 'pactDebt': {
+        const next = Math.max(0, running + e.v);
+        total += pactCost(running, next, w);
+        running = next;
         break;
+      }
       case 'heroThreat':
         total += e.v * w.heroThreat;
         break;
@@ -210,16 +323,27 @@ function scoreEffects(effects: readonly Effect[], w: Weights, takesLichdom: bool
   return total;
 }
 
-function optionScore(option: OfferOption, w: Weights, takesLichdom: boolean): number {
-  if (option.kind === 'certain') return scoreEffects(option.effects, w, takesLichdom);
+function optionScore(
+  option: OfferOption,
+  w: Weights,
+  takesLichdom: boolean,
+  debt: number,
+): number {
+  if (option.kind === 'certain') return scoreEffects(option.effects, w, takesLichdom, debt);
+  // Both branches are priced from the SAME starting debt, which is what makes
+  // a two-way gamble legible to a policy: at 5/7 the failure branch crosses
+  // the ceiling and is scored as the ending it is, so the expected value
+  // collapses exactly where a player would feel it collapse.
   return (
-    option.odds * scoreEffects(option.onSuccess, w, takesLichdom) +
-    (1 - option.odds) * scoreEffects(option.onFailure, w, takesLichdom)
+    option.odds * scoreEffects(option.onSuccess, w, takesLichdom, debt) +
+    (1 - option.odds) * scoreEffects(option.onFailure, w, takesLichdom, debt)
   );
 }
 
 function modeFor(policy: Policy, run: RunState, threatRatio: number): Mode {
   switch (policy) {
+    case 'reckless':
+      return 'reckless';
     case 'greedy':
       return 'notoriety';
     case 'courtier':
@@ -289,7 +413,7 @@ function chooseOption(policy: Policy, run: RunState, offer: Offer, roll: number)
     // The "safe" player never gambles — the certain-option guarantee is what
     // makes that a playable strategy at all.
     if (policy === 'safe' && option.kind === 'gamble') return;
-    let score = optionScore(option, w, takesLichdom);
+    let score = optionScore(option, w, takesLichdom, run.pactDebt);
     // A lich-seeker courts ONE faction, hard, because only the Worm Below
     // offers the rite and its gate is `minStanding worm_below 20`. Generic
     // standing-chasing spread the gain across all six and never opened it,
@@ -320,6 +444,19 @@ type RunResult = {
   eraCount: number;
   age: number;
   reachedAgeLimit: boolean;
+  /**
+   * Pact debt diagnostics.
+   *
+   * `consumed_by_pact` is now reached only through cards the player accepted,
+   * so its rate is downstream of a chain the old harness measured no part of:
+   * did the wizard ever take debt at all, how deep did it get, and how many
+   * eras separated the first point from the end. A rate alone cannot tell
+   * "nobody signs anything" apart from "everybody signs and nobody crosses",
+   * and those two want opposite fixes.
+   */
+  peakPactDebt: number;
+  everInDebt: boolean;
+  erasCarryingDebt: number;
   artifacts: number;
   legendaries: number;
   peakLegendaries: number;
@@ -383,6 +520,8 @@ function playRun(
   let run = createRun({ wizardName: 'Sim', originId, eraCount, seed, knownArtifactIds }, content);
   let notorietyAtProphecy = run.notoriety;
   let peakLegendaries = 0;
+  let peakPactDebt = run.pactDebt;
+  let erasCarryingDebt = 0;
   let metNotorietyConjunct = false;
   let metLegendaryConjunct = false;
   let everAscensionReady = false;
@@ -417,6 +556,8 @@ function playRun(
       metLegendaryConjunct = true;
     }
     if (ascensionReady(run, content)) everAscensionReady = true;
+    peakPactDebt = Math.max(peakPactDebt, run.pactDebt);
+    if (run.pactDebt > 0) erasCarryingDebt++;
   }
 
   let peak = run.notoriety;
@@ -451,6 +592,9 @@ function playRun(
     // two state fields rather than restating a threshold, so there is no
     // constant to import — but it IS a copy of an engine rule, so if that
     // branch ever changes shape this line has to move with it.
+    peakPactDebt,
+    everInDebt: peakPactDebt > 0,
+    erasCarryingDebt,
     reachedAgeLimit: run.eraIndex >= run.eraCount,
     artifacts: run.heldArtifactIds.length,
     legendaries: run.heldArtifactIds.filter((id) => LEGENDARY_IDS.has(id)).length,
@@ -855,6 +999,45 @@ function main(): void {
     const n = results.filter((r) => tierFor(r.peakNotoriety).id === tier.id).length;
     row(`  ...${tier.name}`, pct(n, total));
   }
+  // --- the pact ladder ----------------------------------------------------
+  //
+  // Printed as a CHAIN, not a rate. `consumed_by_pact` is the end of a
+  // sequence — sign something, keep signing, get deep, cross — and a bare
+  // share cannot say which link is short. The first build of this system read
+  // 0.90% and the chain immediately said why: the debt was being taken and
+  // then paid off, never carried.
+  console.log(rule());
+  row('runs that ever carried pact debt', pct(results.filter((r) => r.everInDebt).length, total));
+  row('mean peak pact debt', mean(results.map((r) => r.peakPactDebt)).toFixed(2));
+  row('...among runs that took any', mean(
+    results.filter((r) => r.everInDebt).map((r) => r.peakPactDebt),
+  ).toFixed(2));
+  for (const d of [2, 4, 6]) {
+    row(`runs reaching ${d}+ pact debt`, pct(results.filter((r) => r.peakPactDebt >= d).length, total));
+  }
+  row(
+    'mean eras spent carrying debt',
+    mean(results.filter((r) => r.everInDebt).map((r) => r.erasCarryingDebt)).toFixed(1),
+  );
+  {
+    const reckless = results.filter((r) => r.policy === 'reckless');
+    row(
+      'CONSUMED, population-wide',
+      pct(results.filter((r) => r.ending === 'consumed_by_pact').length, total),
+    );
+    row(
+      'CONSUMED, among the reckless cohort',
+      pct(reckless.filter((r) => r.ending === 'consumed_by_pact').length, Math.max(1, reckless.length)),
+    );
+  }
+  row(
+    'CONSUMED, among runs reaching 4+',
+    pct(
+      results.filter((r) => r.peakPactDebt >= 4 && r.ending === 'consumed_by_pact').length,
+      Math.max(1, results.filter((r) => r.peakPactDebt >= 4).length),
+    ),
+  );
+
   console.log(rule());
   row('mean relics discovered per run', mean(results.map((r) => r.discoveredIds.length)).toFixed(2));
   row(
@@ -979,6 +1162,35 @@ function main(): void {
       `Every authored ending occurs (${ALL_ENDING_IDS.length} in content)`,
       ALL_ENDING_IDS.every((e) => (byEnding.get(e) ?? 0) > 0),
       `${ALL_ENDING_IDS.filter((e) => (byEnding.get(e) ?? 0) > 0).length}/${ALL_ENDING_IDS.length}`,
+    ],
+    [
+      /*
+       * PROVENANCE: none in the wiki. wiki/01 § 7 lists `consumed_by_pact`
+       * with the note "High-variance play punished" and sets no rate; the
+       * 8-18% band was chosen in the session that deleted the interest tick.
+       * Stated as invented so nobody chases it the way the lichdom band was
+       * chased twice.
+       *
+       * Measured against the RECKLESS COHORT, not the population. Debt now
+       * moves only on cards the player accepted, and every other policy prices
+       * it through a convex potential that refuses anything reaching
+       * `PACT_LIMIT` — so population-wide this reads ~1%, which is a fact
+       * about optimisers rather than about the game. CLAUDE.md failure mode 5:
+       * "a cohort-level effect measured population-wide mostly measures the
+       * population mix." The population figure is printed above, deliberately
+       * without a target.
+       */
+      'Consumed by the pact, among the reckless (8-18%)',
+      (() => {
+        const cohort = results.filter((r) => r.policy === 'reckless');
+        if (cohort.length === 0) return false;
+        const share = cohort.filter((r) => r.ending === 'consumed_by_pact').length / cohort.length;
+        return share >= 0.08 && share <= 0.18;
+      })(),
+      pct(
+        results.filter((r) => r.policy === 'reckless' && r.ending === 'consumed_by_pact').length,
+        Math.max(1, results.filter((r) => r.policy === 'reckless').length),
+      ),
     ],
     [
       // PROVENANCE: none. The wiki names no ceiling on any single ending; it

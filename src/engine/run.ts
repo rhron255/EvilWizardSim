@@ -27,8 +27,6 @@ import {
   DEFAULT_ERA_COUNT,
   LOYALTY_DRIFT_BASE,
   LOYALTY_DRIFT_MIN_APPRENTICES,
-  PACT_INTEREST,
-  PACT_INTEREST_MIN_DEBT,
   START_FOLLOWERS,
   START_LOYALTY,
   START_NOTORIETY,
@@ -344,13 +342,11 @@ export function resolveChoice(
     }
 
     if (draft.phase === 'decline') {
-      // Unpaid debt compounds. wiki/01: "Consumed by the Pact | Demon-pact
-      // debt unpaid | High-variance play punished."
-      if (draft.pactDebt >= PACT_INTEREST_MIN_DEBT) {
-        draft.pactDebt += PACT_INTEREST;
-        systemic.push({ t: 'pactInterest', v: PACT_INTEREST, debt: draft.pactDebt });
-      }
-
+      // Pact debt used to compound here, +1 an era. It does not any more: debt
+      // moves ONLY when the player picks a card that moves it, and the pressure
+      // that used to come from this clock now comes from the offer pool — see
+      // `pactWeight` in `offers.ts`. Nothing is added to `systemic` for debt.
+      //
       // Ambition grows as the master visibly weakens, and faster in a crowd.
       if (draft.apprentices.count >= LOYALTY_DRIFT_MIN_APPRENTICES) {
         const drift = -(LOYALTY_DRIFT_BASE + draft.apprentices.count);
