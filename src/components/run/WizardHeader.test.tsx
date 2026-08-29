@@ -54,6 +54,30 @@ describe('WizardHeader · identity', () => {
     expect(screen.getByText('Age 75')).toBeInTheDocument();
   });
 
+  /*
+   * The name and epithet are rendered as two inline elements that read as one
+   * sentence, so the exact joined string is the thing that can break — and it
+   * breaks silently. Laid out as flex items they wrapped as whole boxes and put
+   * the comma at the head of the second line; switching to inline fixed the
+   * wrapping but moves the spacing burden into the JSX, where a missing `{' '}`
+   * renders "Debt.·Undying".
+   *
+   * The expected strings here are literals, not anything the component hands
+   * back (failure mode 11) — they are what a reader should see.
+   */
+  it('reads as one sentence: name, epithet, full stop', () => {
+    show(demoRun);
+    const line = screen.getByRole('heading', { name: 'Malvorn Ashgrave' }).parentElement!;
+    expect(line.textContent).toBe('Malvorn Ashgrave, the Unpaid Debt.');
+  });
+
+  it('keeps the age out of that sentence, on its own line', () => {
+    show(demoRun);
+    const line = screen.getByRole('heading', { name: 'Malvorn Ashgrave' }).parentElement!;
+    expect(line.textContent).not.toMatch(/Age/);
+    expect(screen.getByText('Age 75')).toBeInTheDocument();
+  });
+
   it('names the era out of the total, and the lair', () => {
     show(demoRun);
     expect(screen.getByText('Era 12 of 18')).toBeInTheDocument();
@@ -163,6 +187,14 @@ describe('WizardHeader · the lich says so', () => {
   it('names the state beside the epithet', () => {
     show(lich());
     expect(screen.getByText('Undying')).toBeInTheDocument();
+  });
+
+  it('joins Undying to the sentence with real spaces around the separator', () => {
+    // Inline layout means the gaps are JSX `{' '}`, not a flex `gap` — drop one
+    // and this renders "the Unpaid Debt.·Undying".
+    show(lich());
+    const line = screen.getByRole('heading', { name: 'Malvorn Ashgrave' }).parentElement!;
+    expect(line.textContent).toBe('Malvorn Ashgrave, the Unpaid Debt. · Undying');
   });
 
   it('states BOTH things the rite changed, for as long as they are true', () => {

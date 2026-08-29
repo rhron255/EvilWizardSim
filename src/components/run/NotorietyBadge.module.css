@@ -48,21 +48,28 @@
 
 /* `row` — the header variant.
 
-   Mobile-first: one line, label and tier flanking the number, so the headline
-   stat costs a band instead of a block. The label is NOT dropped the way
-   `sm` drops it; this is the run screen's headline number and an unlabelled
-   figure is the same defect the prophecy interstitial has. Above 560px the
-   rules below hand it straight back to the stacked `lg` presentation. */
+   Stacked and right-aligned, sitting in the header's right column BESIDE the
+   name rather than in a band under it, so it costs no vertical space of its
+   own: the identity column (name, epithet, age) is already taller than this.
+   That is why it is stacked here and not laid out on one line — a single line
+   is ~180px of a 393px screen, which is half the width the name needs.
+
+   The label is NOT dropped the way `sm` drops it; this is the run screen's
+   headline number and an unlabelled figure is the same defect the prophecy
+   interstitial has. The value is held at `xl`, not the `lg` badge's `xxl`:
+   beside a name that floors at 1.75rem, a 2.75rem number stops reading as the
+   name's companion and starts reading as the headline. Above 560px the rules
+   below hand it back to the full stacked `lg` presentation. */
 .badge[data-size='row'] {
-  grid-template-columns: auto auto auto;
-  align-items: baseline;
-  justify-items: start;
-  gap: 0 var(--ew-space-2);
+  grid-template-columns: auto;
+  justify-items: end;
+  gap: 0;
   padding: 0;
+  text-align: right;
 }
 
 .badge[data-size='row'] .value {
-  font-size: var(--ew-size-lg);
+  font-size: var(--ew-size-xl);
   margin: 0;
 }
 

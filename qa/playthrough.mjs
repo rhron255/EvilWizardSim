@@ -13,7 +13,7 @@
  * so this doubles as a smoke test.
  */
 import { chromium } from 'playwright';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readdir, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { dismissFirstRunGuide } from './first-run.mjs';
 
@@ -31,6 +31,20 @@ const SLOW = Number(arg('--slow', '0'));
 const LABEL = arg('--label', `${WIDTH}w`);
 
 await mkdir(OUT, { recursive: true });
+
+/*
+ * Clear this label's shots before writing new ones.
+ *
+ * Shots are numbered by counter and named by step, and the step ORDER moves
+ * between runs — the prophecy fires on a different era each time, so one run
+ * writes `05-prophecy`/`06-run-mid` and the next writes `05-run-mid`/
+ * `06-prophecy`. Without this, the loser of that swap survives as a plausible,
+ * correctly-named file from an older build, and reading it back reports a bug
+ * that was already fixed. That happened: a header fix was verified against a
+ * two-minute-old `06-run-mid.png` from the run before it.
+ */
+const stale = (await readdir(OUT)).filter((f) => f.startsWith(`${LABEL}-`) && f.endsWith('.png'));
+await Promise.all(stale.map((f) => unlink(path.join(OUT, f))));
 
 const problems = [];
 const shots = [];

@@ -76,34 +76,39 @@ export function WizardHeader({
           </span>
         </p>
 
-        {/* The one dynamic value here: how much name there is. The stylesheet
-            turns it into a type size that fits the column instead of clipping —
-            the name is the identity anchor and must render in full. */}
-        <h1
-          className={styles.name}
-          style={{ '--name-len': run.wizardName.length } as React.CSSProperties}
-        >
-          {run.wizardName}
-        </h1>
+        {/* Name and epithet read as ONE sentence — "Malachar the Unpaid, the
+            Unpleasant." — so both are rendered inline and wrap as text rather
+            than as blocks. Laid out as flex items they wrapped whole, which
+            stranded the comma at the start of the second line. */}
+        <div className={styles.nameLine}>
+          {/* The one dynamic value here: how much name there is. The stylesheet
+              turns it into a type size that fits the column instead of clipping —
+              the name is the identity anchor and must render in full. */}
+          <h1
+            className={styles.name}
+            style={{ '--name-len': run.wizardName.length } as React.CSSProperties}
+          >
+            {run.wizardName}
+          </h1>
+          <span className={styles.epithet}>, {run.epithet}.</span>
 
-        <p className={styles.epithet}>
-          {run.epithet}
-          <span className={styles.dot} aria-hidden="true">
-            ·
-          </span>
-          <span className={`${styles.age} ew-num`}>Age {run.age}</span>
           {/* What you ARE, once you have paid for it. Inline in the identity
               line so it costs no vertical space on the one screen that has
               none — and beside the epithet, because it is the same kind of
               fact: what the world would call you. */}
           {lich && (
             <>
+              {' '}
               <span className={styles.dot} aria-hidden="true">
                 ·
-              </span>
+              </span>{' '}
               <span className={styles.undying}>Undying</span>
             </>
           )}
+        </div>
+
+        <p className={styles.ageLine}>
+          <span className={`${styles.age} ew-num`}>Age {run.age}</span>
         </p>
       </div>
 
