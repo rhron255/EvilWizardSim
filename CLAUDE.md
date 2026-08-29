@@ -224,16 +224,37 @@ line, say so in the check's comment and pick a band the design can justify.
 
 ### 7. Screenshots lie
 
-Two traps, each of which nearly produced a "fix" for a non-bug:
+Three traps, each of which nearly produced a "fix" for a non-bug:
 
 - `fullPage` stitches `position: fixed` overlays over the content behind them.
   Text looks clipped and buttons look missing when neither is true.
 - Staged reveals. The ending card settles at ~840ms and the prophecy at ~2.9s;
   shooting earlier captures a half-empty screen.
+- **A shot from a previous run, under a name that looks current.** Shots are
+  numbered by counter and named by step, and the step ORDER moves between runs
+  — the prophecy fires on a different era each time, so one run writes
+  `05-prophecy`/`06-run-mid` and the next writes them swapped. The loser of that
+  swap survives on disk as a plausible, correctly-named file from an older
+  build. A header fix was diagnosed as broken against a `06-run-mid.png` that
+  was two minutes old and one build stale; the bug in it had already been fixed.
+  `playthrough.mjs` now clears its label's shots before writing, which is the
+  durable fix — but the trap generalises to any artifact directory a tool
+  appends to rather than owns.
 
 **Check:** probe the DOM (computed `opacity`, `scrollHeight` vs `clientHeight`,
 bounding boxes) before believing a visual defect. `qa/probe-mobile.mjs` does
-exactly this. Capture the viewport, not `fullPage`, when an overlay is up.
+exactly this. Capture the viewport, not `fullPage`, when an overlay is up. And
+before believing a PNG at all, confirm it is from THIS run — `ls -l` the
+directory and read the timestamps, or delete them first and let the run
+recreate what it actually covers. A screenshot with no mtime beside it is an
+undated claim.
+
+*The probe written to settle it is not exempt.* The one measuring where the
+identity line broke compared rect `top`s across a 28px name and a 17px epithet
+and reported every case as broken, including a single-line one — baseline-aligned
+text on one line has different tops. It went green only after it tested vertical
+overlap instead. Failure mode 5 applies to the thing you build to check, in the
+hour you build it.
 
 ### 8. Responsive layouts diverge from their markup
 
