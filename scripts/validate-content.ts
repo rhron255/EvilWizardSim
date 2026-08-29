@@ -461,6 +461,74 @@ for (const o of offers) {
 }
 
 /**
+ * A payment the engine can clamp to nothing is not a payment.
+ *
+ * `applyEffects` floors followers and apprentices at zero, and `loseArtifact`
+ * is a no-op on an empty reliquary. So an option that trades STOCK for debt
+ * relief hands a wizard who has none the full relief for whatever they happen
+ * to hold — ten followers where the card said forty, an apprentice who does
+ * not exist, a relic carried out of a room containing no relics — while its
+ * `resultText` narrates a payment that did not occur.
+ *
+ * The offer card stays honest either way: `projectEffects` prints the clamped
+ * number, which is what that projection is for. What breaks is the EXCHANGE —
+ * a fixed benefit bought with a cost the engine erased — and the prose that
+ * describes it. Three cards shipped this way in one file, and a fourth had
+ * been in the catalog since before the pact ladder existed.
+ *
+ * Scoped to branches that reduce pact debt on purpose. A partial follower loss
+ * elsewhere is a partial loss, not a bypassed trade: nothing fixed is being
+ * bought with it.
+ *
+ * The fix is always the same — gate the offer on the stock its option spends.
+ * Options carry no gates of their own, so a card offering two different
+ * payments has to require both.
+ */
+for (const o of offers) {
+  // The one exemption, and it is structural rather than a name on a list.
+  //
+  // A card whose SIBLING option ends the run outright is not trading stock for
+  // relief; it is pricing the whole career. `scripted_the_reckoning` offers
+  // "pay everything you have" against "refuse to pay", which is
+  // `consumed_by_pact` on the spot. A wizard with nothing to hand over gives
+  // nothing and is spared, and that is the card working: the alternative was
+  // never a cheaper exit, it was the ending. Gating the reckoning on eighty
+  // followers and a full reliquary would put the pact's own set piece out of
+  // reach of exactly the careers it was written for.
+  const terminal = o.options.some(
+    (opt) =>
+      opt.kind === 'certain'
+        ? opt.effects.some((e) => e.t === 'ending')
+        : [...opt.onSuccess, ...opt.onFailure].some((e) => e.t === 'ending'),
+  );
+  if (terminal) continue;
+
+  const gates = o.requires ?? [];
+  const stocked = (c: 'minFollowers' | 'minApprentices', need: number) =>
+    gates.some((g) => g.c === c && g.v >= need);
+  const stockedRelic = gates.some((g) => g.c === 'holdsAnyArtifact' || g.c === 'hasArtifact');
+
+  for (const opt of o.options) {
+    const branches = opt.kind === 'certain' ? [opt.effects] : [opt.onSuccess, opt.onFailure];
+    for (const branch of branches) {
+      if (!branch.some((e) => e.t === 'pactDebt' && e.v < 0)) continue;
+      const where = `offer "${o.id}" option "${opt.label}"`;
+      for (const e of branch) {
+        if (e.t === 'followers' && e.v < 0 && !stocked('minFollowers', -e.v)) {
+          fail(where, `buys debt relief for ${-e.v} followers with no minFollowers gate — a poorer wizard clears the same debt for less`);
+        }
+        if (e.t === 'apprentices' && e.v < 0 && !stocked('minApprentices', -e.v)) {
+          fail(where, `buys debt relief for ${-e.v} apprentice(s) with no minApprentices gate — a wizard with none clears the debt for free`);
+        }
+        if (e.t === 'loseArtifact' && !stockedRelic) {
+          fail(where, 'buys debt relief with a relic but the offer never requires one — an empty reliquary pays nothing');
+        }
+      }
+    }
+  }
+}
+
+/**
  * A CERTAIN way out, at every balance that can be in trouble, in both phases.
  *
  * Two-way gambles classify as `relieves` because they can clear debt, and they
@@ -481,9 +549,16 @@ for (const phase of ['ascent', 'decline'] as const) {
   for (let debt = 2; debt < PACT_LIMIT; debt++) {
     const exits = offers.filter((o) => {
       if (o.phase !== 'any' && o.phase !== phase) return false;
-      // Only gates this run could actually satisfy at this balance.
+      // Only gates this run could actually satisfy at this balance — and the
+      // run this guarantee exists FOR is the one with nothing left to sell.
+      // Any gate on stock is a gate that wizard cannot pass, and the rule
+      // above guarantees that an offer they CAN reach spends none of it. So
+      // the two rules compose: gating a card to make its payment real is only
+      // safe while a stock-free exit survives at the same balance.
       for (const c of o.requires ?? []) {
         if (c.c === 'minPactDebt' && c.v > debt) return false;
+        if (c.c === 'minFollowers' || c.c === 'minApprentices') return false;
+        if (c.c === 'holdsAnyArtifact' || c.c === 'hasArtifact') return false;
       }
       return o.options.some(
         (opt) => opt.kind === 'certain' && opt.effects.some((e) => e.t === 'pactDebt' && e.v < 0),
