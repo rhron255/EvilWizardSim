@@ -120,6 +120,23 @@ back would be the same lie the old one told, pointing the other way.
 The same distinction covers the seal: `sealed_in_gem` takes Pale Academy
 standing **and** notoriety, so the run screen names both numbers.
 
+#### Paying it down has to cost something
+
+An exit that trades stock — followers, an apprentice, a relic — for a fixed
+number of points must be **gated on the stock it spends**. `applyEffects`
+floors those balances at zero, so an ungated exit hands a wizard with nothing
+the full relief for whatever they happen to have, while the result text
+narrates a payment that did not occur. Six cards shipped that way and were
+found in review.
+
+Options carry no gates of their own, so a card offering two different payments
+requires both. That gating closes the ladder for the destitute, which is why
+`pact_service_in_lieu` exists: a certain exit in both phases priced in time and
+reputation, neither of which is a countable transfer and neither of which can
+therefore be clamped into a lie. `validate-content.ts` enforces both halves —
+the payment rule, and the exit ladder walked as a wizard with nothing left to
+sell.
+
 ## Hero Escalation
 
 `heroThreat` rises each decline-phase era. Compared against a defense

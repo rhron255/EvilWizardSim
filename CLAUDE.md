@@ -322,6 +322,30 @@ screenshot, because the common values are inside the range that works.
 at a typical value. Clipping is not scaling, and `overflow: hidden` covering
 for an overflowing fill is the tell.
 
+### 14. A cost the engine clamps to nothing
+
+`applyEffects` floors followers, apprentices and the reliquary at zero, and
+`loseArtifact` is a no-op on an empty one. So an option that trades stock for a
+FIXED benefit gives the full benefit to a player who cannot pay: ten followers
+where the card said forty, an apprentice who does not exist, a relic carried
+out of a room containing no relics — and the `resultText` narrates the payment
+regardless. Six cards across three files shipped this way; a code review found
+them, not the gates.
+
+Note what was *not* broken. The offer card printed the clamped number, because
+`projectEffects` exists precisely for this (failure mode 1's second corollary).
+Disclosure held. What failed was one layer down: the **exchange** — a fixed
+benefit bought with a cost that was erased — and the prose describing it. A
+projection that tells the truth about a cost does not make the trade honest.
+
+**Check:** whenever an effect list spends a countable balance to buy something
+fixed, ask what happens at zero. Gate the offer on the stock the option spends;
+`requires` is an AND and options carry no gates of their own, so a card offering
+two payments requires both. Then check what the gating closed — here it shut the
+ascent's only certain way out of a pact debt, which is why the ladder walk in
+`validate-content.ts` now walks it as a wizard with nothing left to sell. The
+two rules only compose while a stock-free exit survives at every level.
+
 ## Working on this
 
 ### Before calling a change done

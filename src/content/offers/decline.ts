@@ -289,7 +289,15 @@ export const declineOffers: Offer[] = [
     body: 'Something has arrived to discuss your outstanding balance. It is polite, it is patient, and it has brought a chair for you but not for itself.',
     phase: 'decline',
     factionId: 'ashen_covenant',
-    requires: [{ c: 'minPactDebt', v: 2 }],
+    // Two payments, both in stock, so both are required — see the payment
+    // rule in `scripts/validate-content.ts`. This card predates the pact
+    // ladder and carried the same bypass: no followers and no apprentices
+    // still cleared two points.
+    requires: [
+      { c: 'minPactDebt', v: 2 },
+      { c: 'minFollowers', v: 35 },
+      { c: 'minApprentices', v: 1 },
+    ],
     weight: 3,
     options: [
       {

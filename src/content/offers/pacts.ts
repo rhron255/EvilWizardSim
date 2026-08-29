@@ -231,12 +231,80 @@ export const pactOffers: Offer[] = [
   // EXITS — certain, and gated low enough to matter
   // -------------------------------------------------------------------------
   {
+    /**
+     * The exit for a wizard with nothing left to hand over.
+     *
+     * Every other certain way out of the pact spends STOCK — followers,
+     * apprentices, a relic — and each of those cards is now gated on the stock
+     * it spends, because the engine clamps those costs at zero and an ungated
+     * one sold real debt relief for a payment that never happened. Gating them
+     * made the payments real and, between them, closed the ascent: a wizard
+     * carrying an inherited debt with ten followers and no school had no
+     * certain exit at any balance. `validate-content.ts` walks that ladder as a
+     * destitute wizard and said so.
+     *
+     * So this card is priced in the one thing an indebted nobody still has,
+     * which is their own time and their standing in the world. Nothing here is
+     * a countable transfer, so nothing here can be clamped into a lie: an
+     * absent wizard is genuinely forgotten, whatever they were worth going in.
+     */
+    id: 'pact_service_in_lieu',
+    title: 'Service in Lieu',
+    body: 'A clerk observes that the Covenant accepts labour where coin is not forthcoming, and produces a schedule. The terms are three years, unpaid, in a records office beneath a mountain nobody has named for you.',
+    phase: 'any',
+    factionId: 'ashen_covenant',
+    requires: [{ c: 'minPactDebt', v: 2 }],
+    weight: 4,
+    options: [
+      {
+        kind: 'certain',
+        label: 'Serve the term yourself',
+        effects: [
+          { t: 'pactDebt', v: -1 },
+          { t: 'notoriety', v: -12 },
+          { t: 'standing', factionId: 'ashen_covenant', v: 8 },
+        ],
+        resultText: 'Three years of filing. The world does not notice you were gone, which is the fee.',
+      },
+      {
+        kind: 'gamble',
+        label: 'Send a convincing double',
+        odds: 0.55,
+        onSuccess: [
+          { t: 'pactDebt', v: -2 },
+          { t: 'standing', factionId: 'ashen_covenant', v: 6 },
+        ],
+        onFailure: [
+          { t: 'pactDebt', v: 1 },
+          { t: 'standing', factionId: 'ashen_covenant', v: -14 },
+        ],
+        successText: 'It files beautifully for three years. Nobody beneath the mountain asks it anything.',
+        failureText: 'It is asked a question in the second week. The schedule is reissued, longer.',
+      },
+      {
+        kind: 'certain',
+        label: 'Decline the schedule',
+        effects: [{ t: 'standing', factionId: 'ashen_covenant', v: -12 }],
+        resultText: 'The clerk marks it declined, which takes some time, and does it in front of you.',
+      },
+    ],
+  },
+  {
     id: 'pact_settle_accounts',
     title: 'Settling the Account',
     body: 'Interest was applied in your absence and a receipt left where you would find it. There is, at the bottom, a line for early settlement, and a note that the Covenant prefers to be paid in things that breathe.',
     phase: 'any',
     factionId: 'ashen_covenant',
-    requires: [{ c: 'minPactDebt', v: 2 }],
+    // Gated on the larger of the two payments (40 > 15), because an option
+    // carries no gate of its own. Ungated, a wizard with ten followers
+    // surrendered ten and cleared the full two points, while the result text
+    // said forty walked out in good order — a fixed benefit bought with a cost
+    // the engine had already clamped away. `pact_service_in_lieu` is the exit
+    // for a household that cannot cover this one.
+    requires: [
+      { c: 'minPactDebt', v: 2 },
+      { c: 'minFollowers', v: 40 },
+    ],
     weight: 4,
     options: [
       {
@@ -273,7 +341,13 @@ export const pactOffers: Offer[] = [
     body: 'The Covenant has reviewed your household and identified an efficiency. One of your apprentices has an aptitude they would like to develop, elsewhere, permanently, against the balance.',
     phase: 'any',
     factionId: 'ashen_covenant',
-    requires: [{ c: 'minPactDebt', v: 3 }],
+    // The card is about a specific apprentice. With none to indenture, the
+    // signature cost nothing and bought two points anyway, and the result text
+    // narrated a woman leaving who was never there.
+    requires: [
+      { c: 'minPactDebt', v: 3 },
+      { c: 'minApprentices', v: 1 },
+    ],
     weight: 3,
     options: [
       {
@@ -304,7 +378,15 @@ export const pactOffers: Offer[] = [
     body: 'The ledger was brought up to date. You were not consulted, and it balances — provided one item leaves your reliquary tonight, and the Covenant has already indicated which.',
     phase: 'decline',
     factionId: 'ashen_covenant',
-    requires: [{ c: 'minPactDebt', v: 4 }],
+    // Both certain payments are stock — one relic, or fifty of the household
+    // — and `requires` is an AND, so the card only surfaces to a wizard who
+    // can settle either way. Ungated, an empty reliquary erased three points
+    // for nothing and the cloth still came back laundered.
+    requires: [
+      { c: 'minPactDebt', v: 4 },
+      { c: 'holdsAnyArtifact' },
+      { c: 'minFollowers', v: 50 },
+    ],
     weight: 4,
     options: [
       {
