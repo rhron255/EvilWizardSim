@@ -176,6 +176,45 @@ for (let step = 0; step < 140 && !sawEnding; step++) {
 }
 
 if (sawEnding) {
+  /**
+   * A fresh browser profile has never seen ANY ending, so whichever one this
+   * run reached is a first discovery and must have unlocked its theme. The
+   * banner is the only thing that tells the player so, and it is easy to lose:
+   * it hangs off a value computed before `recordRun` mutates the collection,
+   * so anything that re-runs that reducer arm answers "not new" and the banner
+   * silently never appears. Measured here rather than left to the screenshot,
+   * because a missing element is exactly what a PNG is worst at proving.
+   */
+  // The card assembles in staged bands and the banner is in the last one, so
+  // this waits for the reveal rather than racing it — reading opacity the
+  // instant the screen mounts reports a correct banner as broken, which is the
+  // same trap as shooting a screenshot too early.
+  await page
+    .waitForFunction(
+      () => {
+        const el = document.querySelector('main aside');
+        return !!el && Number(getComputedStyle(el).opacity) > 0.9;
+      },
+      { timeout: 4000 },
+    )
+    .catch(() => {});
+
+  const unlock = await page.evaluate(() => {
+    const aside = document.querySelector('main aside');
+    return {
+      present: !!aside,
+      text: (aside?.textContent ?? '').slice(0, 80),
+      opacity: aside ? Number(getComputedStyle(aside).opacity) : 0,
+    };
+  });
+  if (!unlock.present) {
+    problems.push('ending: no theme-unlock banner on a first-ever ending');
+  } else if (unlock.opacity < 0.9) {
+    problems.push(`ending: unlock banner still at opacity ${unlock.opacity}`);
+  } else {
+    console.log(`  unlock      : ${unlock.text.replace(/\s+/g, ' ').trim()}`);
+  }
+
   await shot('ending');
   // Peek at the collection from the ending card.
   if (await clickByName(/collection/i, { optional: true })) {

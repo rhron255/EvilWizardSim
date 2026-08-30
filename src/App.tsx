@@ -28,6 +28,7 @@ import { FirstRunGuide } from './components/run';
 import { ProphecyInterstitial } from './screens/ProphecyInterstitial';
 import { EndingScreen } from './screens/EndingScreen';
 import { CollectionScreen } from './screens/CollectionScreen';
+import { ThemeScreen } from './screens/ThemeScreen';
 
 /**
  * Frozen at module scope: `indexOf` caches derived lookup tables against this
@@ -47,6 +48,15 @@ const CONTENT: ContentBundle = {
 export default function App() {
   const game = useGame(CONTENT);
   const { run, screen } = game;
+
+  /**
+   * The cosmetic worn on every screen.
+   *
+   * Read straight off the collection rather than held anywhere here — App
+   * holds no state (wiki/03 § Ownership rules), and a theme is not run state:
+   * it survives a career and does not travel with one.
+   */
+  const themeId = game.collection.selectedThemeId;
 
   // The chosen one is drawn from the run seed, so a seed is a rematch.
   const heroName = useMemo(() => (run ? heroNameFor(run.seed) : ''), [run]);
@@ -95,6 +105,7 @@ export default function App() {
           defaultName={game.collection.lastWizardName}
           onCreate={game.create}
           onBack={game.backToTitle}
+          themeId={themeId}
         />
       );
 
@@ -112,6 +123,7 @@ export default function App() {
             onChoose={game.choose}
             onContinue={game.continueAfterResolution}
             defense={defense}
+            themeId={themeId}
           />
           {/* A sibling, not a screen: the guide points at the header, the
               ledger and the allegiance strip, so all three have to be behind
@@ -128,6 +140,7 @@ export default function App() {
           heroName={heroName}
           text={prophecyTextFor(heroName, run.wizardName)}
           onContinue={game.acknowledgeProphecy}
+          themeId={themeId}
         />
       );
 
@@ -146,6 +159,9 @@ export default function App() {
           onPlayAgain={game.playAgain}
           onViewCollection={game.viewCollection}
           onShare={() => {}}
+          themeId={themeId}
+          unlockedTheme={game.unlockedTheme}
+          onApplyTheme={game.selectTheme}
         />
       );
     }
@@ -157,6 +173,17 @@ export default function App() {
           artifacts={artifacts}
           factions={factions}
           endings={endings}
+          onBack={game.backToTitle}
+          onViewThemes={game.viewThemes}
+        />
+      );
+
+    case 'themes':
+      return (
+        <ThemeScreen
+          collection={game.collection}
+          endings={endings}
+          onSelect={game.selectTheme}
           onBack={game.backToTitle}
         />
       );
@@ -173,6 +200,7 @@ export default function App() {
       onBegin={game.begin}
       onResume={game.resume}
       onViewCollection={game.viewCollection}
+      onViewThemes={game.viewThemes}
     />
   );
 }

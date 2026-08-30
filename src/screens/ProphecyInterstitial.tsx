@@ -25,8 +25,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { RunState } from '../types';
-import { Sigil, tierVars } from '../components/meta';
+import type { RunState, ThemeId } from '../types';
+import { Sigil, themeAttr, tierVars } from '../components/meta';
 import styles from './ProphecyInterstitial.module.css';
 
 export type ProphecyInterstitialProps = {
@@ -35,6 +35,8 @@ export type ProphecyInterstitialProps = {
   /** The prophecy body. Authored content; this screen only stages it. */
   text: string;
   onContinue(): void;
+  /** The cosmetic theme the player is wearing. */
+  themeId: ThemeId;
 };
 
 /** Cue times in ms. The last cue is the beat of silence before the button. */
@@ -59,7 +61,13 @@ function prefersReducedMotion(): boolean {
   );
 }
 
-export function ProphecyInterstitial({ run, heroName, text, onContinue }: ProphecyInterstitialProps) {
+export function ProphecyInterstitial({
+  run,
+  heroName,
+  text,
+  onContinue,
+  themeId,
+}: ProphecyInterstitialProps) {
   const [stage, setStage] = useState(0);
   const continueRef = useRef<HTMLButtonElement>(null);
 
@@ -102,6 +110,7 @@ export function ProphecyInterstitial({ run, heroName, text, onContinue }: Prophe
     <main
       className={styles.screen}
       style={tierVars(run.notoriety)}
+      {...themeAttr(run.isLich ? 'lichdom' : themeId)}
       onClick={stage < FINAL ? skip : undefined}
       aria-label="A prophecy"
     >

@@ -33,6 +33,7 @@ const show = (defaultName = '') => {
       defaultName={defaultName}
       onCreate={onCreate}
       onBack={onBack}
+      themeId="default"
     />,
   );
   return { onCreate, onBack, field: screen.getByRole('textbox') };

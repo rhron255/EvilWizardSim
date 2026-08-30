@@ -15,8 +15,9 @@
  * (CLAUDE.md § 2), and the previous instance of it — the roll rail — survived a
  * whole build because nothing rendered the component with real engine output.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { artifacts } from '../../content/artifacts';
 import { factions } from '../../content/factions';
 import { BETRAYAL_MAX_LOYALTY } from '../../engine';
@@ -186,5 +187,53 @@ describe('ResolutionOverlay · the roll decides the verdict', () => {
     expect(label).not.toBeNull();
     expect(label!.textContent).toBe('Failure');
     expect(dialog).toHaveAccessibleName('Failure');
+  });
+});
+
+describe('ResolutionOverlay · dismissing exactly once', () => {
+  /**
+   * The scrim dismisses on click ("dismiss anywhere") and the Continue button
+   * sits inside it. Without `stopPropagation` on the button, one tap called
+   * `onContinue` TWICE — which was invisible for fifteen eras, because the
+   * reducer's second pass hit a cleared resolution and returned early.
+   *
+   * On the SIXTEENTH it was not invisible: the ending arm was the one arm that
+   * did not clear `resolution`, so the second call re-ran `recordRun`. Every
+   * finished career was counted twice, and the theme-unlock check on that
+   * second pass found its own ending already recorded and reported "not new",
+   * so the unlock banner never rendered once in a real browser while every
+   * unit test passed.
+   */
+  it('calls onContinue once per click of the Continue button', async () => {
+    const user = userEvent.setup();
+    const onContinue = vi.fn();
+    render(
+      <ResolutionOverlay
+        resolution={demoResolutionSuccess}
+        artifacts={artifacts}
+        factions={factions}
+        onContinue={onContinue}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /continue/i }));
+    expect(onContinue).toHaveBeenCalledTimes(1);
+  });
+
+  it('still dismisses when the scrim itself is clicked', async () => {
+    // The stopPropagation must not cost the dismiss-anywhere affordance.
+    const user = userEvent.setup();
+    const onContinue = vi.fn();
+    render(
+      <ResolutionOverlay
+        resolution={demoResolutionSuccess}
+        artifacts={artifacts}
+        factions={factions}
+        onContinue={onContinue}
+      />,
+    );
+
+    await user.click(screen.getByRole('dialog'));
+    expect(onContinue).toHaveBeenCalledTimes(1);
   });
 });

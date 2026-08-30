@@ -54,6 +54,7 @@ const show = (over: Partial<RunState> = {}) => {
       heroName={HERO}
       text={TEXT}
       onContinue={onContinue}
+      themeId="default"
     />,
   );
   return { onContinue, container: view.container };

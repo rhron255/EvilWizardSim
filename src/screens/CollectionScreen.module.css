@@ -219,6 +219,25 @@
   gap: var(--ew-space-3);
 }
 
+.endingsNote {
+  margin: var(--ew-space-4) 0 0;
+  font-size: var(--ew-size-sm);
+  color: var(--ew-ink-dim);
+}
+
+.inlineLink {
+  font: inherit;
+  color: var(--ew-ink-bright);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--ew-line-strong);
+  transition: text-decoration-color var(--ew-base) var(--ew-ease);
+}
+
+.inlineLink:hover {
+  text-decoration-color: var(--ew-ink-dim);
+}
+
 /* --- bottom ---------------------------------------------------------------- */
 
 .bottom {

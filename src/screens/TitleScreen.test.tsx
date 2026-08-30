@@ -22,6 +22,7 @@ const show = (collection: Collection, hasResumableRun = false) => {
     onBegin: vi.fn(),
     onResume: vi.fn(),
     onViewCollection: vi.fn(),
+    onViewThemes: vi.fn(),
   };
   render(
     <TitleScreen

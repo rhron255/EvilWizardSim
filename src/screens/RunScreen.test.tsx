@@ -18,10 +18,10 @@ import { artifacts } from '../content/artifacts';
 import { factions } from '../content/factions';
 import { lairs } from '../content/lairs';
 import { demoRun, demoOffer } from '../components/run/__fixtures__/demo';
-import type { RunState } from '../types';
+import type { RunState, ThemeId } from '../types';
 import { RunScreen } from './RunScreen';
 
-const show = (run: RunState) =>
+const show = (run: RunState, themeId: ThemeId = 'default') =>
   render(
     <RunScreen
       run={run}
@@ -33,18 +33,19 @@ const show = (run: RunState) =>
       onChoose={() => {}}
       onContinue={() => {}}
       defense={null}
+      themeId={themeId}
     />,
   );
 
 describe('RunScreen · the lich tint', () => {
   it('leaves a living wizard warm', () => {
     const { container } = show({ ...demoRun, isLich: false } as RunState);
-    expect(container.querySelector('[data-lich]')).toBeNull();
+    expect(container.querySelector('[data-theme]')).toBeNull();
   });
 
   it('cools the whole screen once the rite is paid for', () => {
     const { container } = show({ ...demoRun, isLich: true } as RunState);
-    expect(container.querySelector('[data-lich]')).not.toBeNull();
+    expect(container.querySelector('[data-theme="lichdom"]')).not.toBeNull();
   });
 
   it('puts the switch on the screen root, so everything inside inherits it', () => {
@@ -53,6 +54,28 @@ describe('RunScreen · the lich tint', () => {
     // performs the transformation is the one card that does not show it.
     const { container } = show({ ...demoRun, isLich: true } as RunState);
     const root = container.firstElementChild;
-    expect(root).toHaveAttribute('data-lich', 'true');
+    expect(root).toHaveAttribute('data-theme', 'lichdom');
+  });
+});
+
+describe('RunScreen · the chosen theme', () => {
+  it('wears what the player selected', () => {
+    const { container } = show({ ...demoRun, isLich: false } as RunState, 'ascension');
+    expect(container.firstElementChild).toHaveAttribute('data-theme', 'ascension');
+  });
+
+  it('sets no attribute at all for the default, so :root stands', () => {
+    // An empty `data-theme=""` would match no block and read as a thrown
+    // switch that does nothing. Absence is the off state.
+    const { container } = show({ ...demoRun, isLich: false } as RunState, 'default');
+    expect(container.firstElementChild).not.toHaveAttribute('data-theme');
+  });
+
+  it('lets undeath outrank the wardrobe', () => {
+    // The cold IS the report that the rite landed. A player wearing Peat who
+    // becomes a lich must still see the room change, or the state that was
+    // "mechanically enormous and visually silent" is silent again.
+    const { container } = show({ ...demoRun, isLich: true } as RunState, 'retired_to_swamp');
+    expect(container.firstElementChild).toHaveAttribute('data-theme', 'lichdom');
   });
 });

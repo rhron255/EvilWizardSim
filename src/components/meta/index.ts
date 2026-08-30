@@ -37,6 +37,12 @@ export type { AttributionContext } from './attribution';
 export { tierVars, tierOf, peakNotoriety } from './tierVars';
 export type { TierVars } from './tierVars';
 
+export { themeAttr } from './themeAttr';
+export type { ThemeAttr } from './themeAttr';
+
+export { ThemeSwatch } from './ThemeSwatch';
+export type { ThemeSwatchProps } from './ThemeSwatch';
+
 export { buildSigilGeometry, sigilPoint, SIGIL_FIELD } from './sigilGeometry';
 export type { SigilGeometry } from './sigilGeometry';
 

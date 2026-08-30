@@ -17,8 +17,9 @@
  * failure (CLAUDE.md § 2, "written but never wired"), and only a render catches
  * it.
  */
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { EndingId, Faction, RunState } from '../types';
 import { endings } from '../content/endings';
 import { factions } from '../content/factions';
@@ -30,6 +31,7 @@ import {
   demoRun,
 } from '../components/meta/__fixtures__/demo';
 import { EndingScreen } from './EndingScreen';
+import type { EndingScreenProps } from './EndingScreen';
 
 /**
  * jsdom ships no `matchMedia`, so the screen's reduced-motion probe returns
@@ -72,7 +74,12 @@ const ATTRIBUTED: EndingId[] = [
   'consumed_by_pact',
 ];
 
-function show(endingId: EndingId, over: Partial<RunState> = {}, cast: Faction[] = factions) {
+function show(
+  endingId: EndingId,
+  over: Partial<RunState> = {},
+  cast: Faction[] = factions,
+  extra: Partial<EndingScreenProps> = {},
+) {
   const ending = endings.find((e) => e.id === endingId);
   if (!ending) throw new Error(`no such ending: ${endingId}`);
   const run: RunState = { ...demoRun, ending: endingId, ...over };
@@ -83,6 +90,10 @@ function show(endingId: EndingId, over: Partial<RunState> = {}, cast: Faction[] 
       lairs={demoLairs}
       artifacts={demoArtifacts}
       factions={cast}
+      themeId="default"
+      unlockedTheme={null}
+      onApplyTheme={() => {}}
+      {...extra}
       onPlayAgain={() => {}}
       onViewCollection={() => {}}
       onShare={() => {}}
@@ -233,6 +244,9 @@ describe('EndingScreen · what the career added', () => {
         lairs={demoLairs}
         artifacts={demoArtifacts}
         factions={factions}
+        themeId="default"
+        unlockedTheme={null}
+        onApplyTheme={() => {}}
         onPlayAgain={() => {}}
         onViewCollection={() => {}}
         onShare={() => {}}
@@ -270,5 +284,52 @@ describe('EndingScreen · what the career added', () => {
     const noneNew = screen.queryAllByText('Never seen before').length;
     expect(allNew).toBe(recovered.length);
     expect(noneNew).toBe(0);
+  });
+});
+
+describe('EndingScreen · the theme this run unlocked', () => {
+  it('says nothing at all for a repeat ending', () => {
+    // The common case by a mile. A banner that fired every run would be a
+    // reward that means nothing.
+    show('slain_by_chosen_one', {}, factions, { unlockedTheme: null });
+    expect(screen.queryByText(/new visual theme/i)).not.toBeInTheDocument();
+  });
+
+  it('names the theme on a first discovery', () => {
+    show('lichdom', {}, factions, { unlockedTheme: 'lichdom' });
+    expect(screen.getByText(/new visual theme unlocked/i)).toBeInTheDocument();
+    expect(screen.getByText('Cold Room')).toBeInTheDocument();
+  });
+
+  it('hands the id back when the player taps to wear it', async () => {
+    const user = userEvent.setup();
+    const onApplyTheme = vi.fn();
+    show('lichdom', {}, factions, { unlockedTheme: 'lichdom', onApplyTheme });
+
+    await user.click(screen.getByRole('button', { name: /wear it/i }));
+    expect(onApplyTheme).toHaveBeenCalledWith('lichdom');
+  });
+
+  it('previews the theme on the card once worn', async () => {
+    const user = userEvent.setup();
+    const { container } = show('ascension', {}, factions, {
+      unlockedTheme: 'ascension',
+      onApplyTheme: () => {},
+    });
+
+    // Before: the card wears whatever the player already had.
+    expect(container.firstElementChild).not.toHaveAttribute('data-theme');
+
+    await user.click(screen.getByRole('button', { name: /wear it/i }));
+    // After: the card itself changes, which is the only preview on offer.
+    expect(container.firstElementChild).toHaveAttribute('data-theme', 'ascension');
+    expect(screen.getByRole('button', { name: /wearing it/i })).toBeDisabled();
+  });
+
+  it('keeps the banner outside the card, so it is not in the screenshot', () => {
+    const { container } = show('lichdom', {}, factions, { unlockedTheme: 'lichdom' });
+    const card = container.querySelector('article');
+    expect(card).not.toBeNull();
+    expect(card!.textContent).not.toMatch(/new visual theme/i);
   });
 });

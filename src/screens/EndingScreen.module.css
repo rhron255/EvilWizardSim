@@ -398,6 +398,74 @@
    "the buttons are huge" report. A grid has no such trapdoor; the track sizes
    the width and nothing sizes the height but the content and min-height. */
 
+/* --- the theme this run unlocked -------------------------------------------
+   Same 460px track as the controls, so the two read as one block of "what
+   happens next" sitting under the artefact rather than as a banner bolted on.
+   Never inside the card: the card is what gets screenshotted. */
+
+.unlock {
+  display: flex;
+  align-items: center;
+  gap: var(--ew-space-3);
+  width: 100%;
+  max-width: 460px;
+  margin-top: var(--ew-space-5);
+  padding: var(--ew-space-3) var(--ew-space-4);
+  background: color-mix(in srgb, var(--ew-tier) 5%, var(--ew-panel));
+  border: 1px solid color-mix(in srgb, var(--ew-tier) 32%, var(--ew-line));
+  border-radius: var(--ew-radius-md);
+  box-shadow: var(--ew-lip);
+}
+
+.unlockText {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.unlockLabel {
+  margin: 0;
+  font-size: var(--ew-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ew-tier);
+}
+
+.unlockName {
+  margin: var(--ew-space-1) 0 0;
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-size-md);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--ew-ink-bright);
+}
+
+.unlockBlurb {
+  margin: 2px 0 0;
+  font-size: var(--ew-size-xs);
+  line-height: 1.4;
+  color: var(--ew-ink-dim);
+}
+
+.unlockApply {
+  composes: btn from '../components/meta/craft.module.css';
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 0 var(--ew-space-4);
+  font-size: var(--ew-size-xs);
+  letter-spacing: 0.13em;
+  text-indent: 0.13em;
+}
+
+@media (max-width: 520px) {
+  .unlock {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--ew-space-3);
+    text-align: center;
+  }
+}
+
 .controls {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

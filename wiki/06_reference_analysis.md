@@ -51,6 +51,13 @@ That last figure is the design working as intended.
 6. **One scarce color.** The reference palette is near-monochrome dark.
    The only real visual reward is the rating badge going grey → gold.
    Rationed, so it means something.
+   *Amended (issue #15).* We diverge from the reference here, knowingly:
+   endings unlock cosmetic themes. The rationing survives because the
+   scarcity was never about "one hue in the build" — it was about the
+   badge being the thing the run pays you. A theme is not paid out by a
+   run, it is chosen between them, and it is forbidden from touching
+   `--ew-tier`. What would break the pillar is a *second rationed reward
+   inside a career*; a wardrobe is not that.
 7. **Flip the motivation late.** Early: chase upside. Late: a stat starts
    eroding and the player is defending what they built. Loss aversion
    outlasts hope, and the reference game delivers both inside three

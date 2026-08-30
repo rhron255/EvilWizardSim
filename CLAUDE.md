@@ -79,8 +79,19 @@ These come from a game that worked at scale. They look arbitrary in isolation.
 2. **The ledger appends and never resets.** The accumulating table is what makes
    abandoning a run expensive. Its Deeds column is the only prose in it — if
    rows start reading alike, the ledger has stopped saying anything.
-3. **One scarce colour.** Near-monochrome warm dark; the Notoriety tier badge is
-   the only chromatic reward. Adding a second accent breaks the pillar.
+3. **One scarce colour, earned inside the run.** Near-monochrome warm dark; the
+   Notoriety tier badge is the only chromatic reward *the game hands you during
+   a career*. Adding a second accent to that vocabulary breaks the pillar.
+   *Amended for themes (issue #15).* Unlocking an ending grants a cosmetic
+   theme, and the player may wear one. That is not a second accent, because it
+   is not a reward the run pays out: it is chosen between runs, applies to the
+   whole room rather than to one object, and cannot make the badge less
+   special because **no theme may define `--ew-tier` or `--ew-tier-glow`** —
+   held by the type system in `src/theme/themes.ts` and swept in
+   `themes.test.ts`. A theme is a hue rotation of the same warm-dark
+   structure, near-monochrome within itself, and it clears the default
+   palette's ink-on-panel contrast. The distinction to keep: **the game
+   colours what you did; the player colours the room.**
 4. **Comedy in the text, never in the numbers.**
 5. **No fail state, and no doom meter.** Every ending is a biography. The decline
    works because a number quietly goes the wrong way. Note this bans *announcing

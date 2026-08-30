@@ -702,6 +702,9 @@ export const demoCollection: Collection = {
   tutorialSeen: true,
   lastWizardName: 'Malvorn Ashgrave',
   bestNotoriety: 88,
+  // Wearing one of the three it has actually earned, so the selector fixture
+  // shows a real mix: some unlocked, some still redacted.
+  selectedThemeId: 'retired_to_swamp',
 };
 
 /** Run one: nothing found yet. The gap is the point. */
@@ -713,6 +716,7 @@ export const demoEmptyCollection: Collection = {
   tutorialSeen: false,
   lastWizardName: '',
   bestNotoriety: 0,
+  selectedThemeId: 'default',
 };
 
 export const demoProphecyText =

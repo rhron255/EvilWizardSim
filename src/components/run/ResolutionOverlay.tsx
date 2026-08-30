@@ -243,7 +243,21 @@ export function ResolutionOverlay({
             pull quote IS the deed line. The ledger row underneath is where it
             belongs permanently. */}
         <div className={styles.foot}>
-          <button type="button" className={styles.continue} onClick={onContinue} ref={continueRef}>
+          {/* `stopPropagation`, because the scrim above also dismisses on
+              click. Without it one tap on Continue called `onContinue` TWICE —
+              once here, once on the way up — and the reducer's ending branch
+              was not idempotent, so every finished career was recorded twice.
+              The scrim keeps dismiss-anywhere; this stops it counting the
+              button press as a second dismissal. */}
+          <button
+            type="button"
+            className={styles.continue}
+            onClick={(event) => {
+              event.stopPropagation();
+              onContinue();
+            }}
+            ref={continueRef}
+          >
             Continue
             <span className={styles.key} aria-hidden="true">
               ↵

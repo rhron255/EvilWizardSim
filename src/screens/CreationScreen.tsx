@@ -11,9 +11,9 @@
  */
 
 import { useEffect, useId, useRef, useState } from 'react';
-import type { Artifact, Faction, Origin } from '../types';
+import type { Artifact, Faction, Origin, ThemeId } from '../types';
 import { MAX_NAME_LENGTH } from '../engine';
-import { formatEffect, isNegative, Sigil, tierVars } from '../components/meta';
+import { formatEffect, isNegative, Sigil, themeAttr, tierVars } from '../components/meta';
 import styles from './CreationScreen.module.css';
 
 export type CreationScreenProps = {
@@ -29,6 +29,8 @@ export type CreationScreenProps = {
   factions: Faction[];
   onCreate(name: string, epithet: string, originId: string, eraCount: number): void;
   onBack(): void;
+  /** The cosmetic theme the player is wearing. */
+  themeId: ThemeId;
 };
 
 /**
@@ -67,6 +69,7 @@ export function CreationScreen({
   defaultName = '',
   onCreate,
   onBack,
+  themeId,
 }: CreationScreenProps) {
   const [name, setName] = useState(defaultName);
   const [epithet, setEpithet] = useState(epithetChoices[0] ?? '');
@@ -97,7 +100,7 @@ export function CreationScreen({
   }
 
   return (
-    <main className={styles.screen} style={tierVars(0)}>
+    <main className={styles.screen} style={tierVars(0)} {...themeAttr(themeId)}>
       <form className={styles.form} onSubmit={submit} noValidate>
         <header className={styles.top}>
           <button type="button" className={styles.back} onClick={onBack}>

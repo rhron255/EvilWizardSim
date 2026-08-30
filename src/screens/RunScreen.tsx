@@ -7,10 +7,11 @@
  * single voice (wiki/06_reference_analysis.md, principle 6).
  */
 
-import type { Artifact, Faction, Lair, Offer, RunState } from '../types';
+import type { Artifact, Faction, Lair, Offer, RunState, ThemeId } from '../types';
 import type { Resolution } from '../components/run/resolution';
 import type { DefenseReadout } from '../engine';
 import { Ledger, OfferPanel, ResolutionOverlay, WizardHeader } from '../components/run';
+import { themeAttr } from '../components/meta';
 import { tierColor, tierFor, tierGlow } from '../theme/tokens';
 import styles from './RunScreen.module.css';
 
@@ -29,6 +30,8 @@ export type RunScreenProps = {
    * wards readout and its breakdown.
    */
   defense?: DefenseReadout | null;
+  /** The cosmetic theme the player is wearing. */
+  themeId: ThemeId;
 };
 
 export function RunScreen({
@@ -41,15 +44,25 @@ export function RunScreen({
   onChoose,
   onContinue,
   defense,
+  themeId,
 }: RunScreenProps) {
   const tier = tierFor(run.notoriety);
+
+  /**
+   * Undeath outranks the wardrobe.
+   *
+   * Cold Room is a theme now, but a lich wears it whether or not they chose
+   * it: the cold is a STATE CHANGE the screen is reporting, not a cosmetic —
+   * it was the whole answer to "a state this large was missing a visible
+   * signal". Leaving the player's own theme up would mean paying for the rite
+   * and having nothing change.
+   */
+  const effectiveTheme: ThemeId = run.isLich ? 'lichdom' : themeId;
 
   return (
     <div
       className={styles.screen}
-      /* Undeath cools the whole screen. See `.screen[data-lich]` in the
-         stylesheet for what it shifts and why it is surfaces only. */
-      data-lich={run.isLich ? 'true' : undefined}
+      {...themeAttr(effectiveTheme)}
       style={
         {
           '--ew-tier': tierColor[tier.id],

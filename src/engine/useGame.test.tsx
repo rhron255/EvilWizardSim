@@ -168,3 +168,71 @@ describe('collection v1 -> v2', () => {
     expect(migrateCollection(JSON.parse(localStorage.getItem(COLLECTION_KEY)!))).toEqual(written);
   });
 });
+
+describe('collection v2 -> v3 · the theme pointer', () => {
+  it('dresses an older save in the default rather than nothing', () => {
+    const v2 = {
+      version: 2,
+      discoveredArtifactIds: ['a'],
+      endingsSeen: ['lichdom'],
+      runsCompleted: 3,
+      bestNotoriety: 71,
+      tutorialSeen: true,
+      lastWizardName: 'Malvorn',
+    };
+    const migrated = migrateCollection(v2);
+    expect(migrated.selectedThemeId).toBe('default');
+    // And nothing else was lost on the way through.
+    expect(migrated.runsCompleted).toBe(3);
+    expect(migrated.endingsSeen).toEqual(['lichdom']);
+    expect(migrated.lastWizardName).toBe('Malvorn');
+    expect(migrated.tutorialSeen).toBe(true);
+  });
+
+  it('keeps a theme the build still defines', () => {
+    expect(migrateCollection({ version: 3, selectedThemeId: 'ascension' }).selectedThemeId).toBe(
+      'ascension',
+    );
+  });
+
+  it('falls back for a theme this build has never heard of', () => {
+    // The failure this prevents is specific: `data-theme="cold_room_v2"`
+    // matches no CSS block, so the page renders with NO theme rather than with
+    // the default one — an unstyled screen from a one-word typo in storage.
+    for (const junk of ['cold_room_v2', '', 'DEFAULT', 42, null, {}, []]) {
+      expect(migrateCollection({ version: 3, selectedThemeId: junk }).selectedThemeId).toBe(
+        'default',
+      );
+    }
+  });
+
+  it('does not care whether the theme is unlocked — that is derived at use', () => {
+    // Storing an id whose ending was never reached is not a corruption, and
+    // "repairing" it here would be a second opinion about unlocks that can
+    // disagree with `endingsSeen`. The selector and the reducer both gate on
+    // the derivation instead.
+    const migrated = migrateCollection({
+      version: 3,
+      endingsSeen: [],
+      selectedThemeId: 'ascension',
+    });
+    expect(migrated.selectedThemeId).toBe('ascension');
+  });
+
+  it('leaves what the player is wearing alone when a run is recorded', () => {
+    const c = { ...emptyCollection(), selectedThemeId: 'lichdom' as const };
+    const run = { heldArtifactIds: [], eras: [], ending: 'ascension', notoriety: 10 };
+    // Finishing a career unlocks a theme; it does not put it on. The ending
+    // card offers it and the player taps.
+    expect(recordRun(c, run as never, content).selectedThemeId).toBe('lichdom');
+  });
+
+  it('reads a v3 save back exactly as written', () => {
+    const written = { ...emptyCollection(), selectedThemeId: 'peat_not_a_theme' };
+    localStorage.setItem(COLLECTION_KEY, JSON.stringify(written));
+    expect(migrateCollection(JSON.parse(localStorage.getItem(COLLECTION_KEY)!))).toEqual({
+      ...written,
+      selectedThemeId: 'default',
+    });
+  });
+});
