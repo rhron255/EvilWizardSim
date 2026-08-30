@@ -40,6 +40,18 @@ export type EndingId =
   | 'consumed_by_pact'
   | 'ascension';
 
+/**
+ * A cosmetic palette the player has unlocked and may select.
+ *
+ * DERIVED from `EndingId` rather than declared beside it: every ending grants
+ * exactly one theme, so the two id spaces are the same id space. A separate
+ * union — or a `Collection.unlockedThemes` array — would be a second list to
+ * keep in step with `endingsSeen`, which is the shape that drifts.
+ *
+ * `default` is the shipped warm dark. It is never locked and never earned.
+ */
+export type ThemeId = 'default' | EndingId;
+
 export type Rarity = 'common' | 'rare' | 'legendary';
 
 export type Phase = 'ascent' | 'decline';
@@ -348,6 +360,17 @@ export type Collection = {
    * wizard's story anyway. Empty string until a first career is named.
    */
   lastWizardName: string;
+  /**
+   * The cosmetic theme the player is currently wearing.
+   *
+   * The only genuinely new field themes needed. What is UNLOCKED is derived
+   * from `endingsSeen` — see `ThemeId` — so this is a pointer into that
+   * derivation, not a parallel record of it. An id here that is not unlocked
+   * (a hand-edited save, or a theme whose ending was never reached) falls back
+   * to `default` at the migration boundary rather than rendering an unthemed
+   * page.
+   */
+  selectedThemeId: ThemeId;
 };
 
 // ---------------------------------------------------------------------------
@@ -371,4 +394,11 @@ export type Tier = {
 // Screen routing
 // ---------------------------------------------------------------------------
 
-export type Screen = 'title' | 'creation' | 'run' | 'prophecy' | 'ending' | 'collection';
+export type Screen =
+  | 'title'
+  | 'creation'
+  | 'run'
+  | 'prophecy'
+  | 'ending'
+  | 'collection'
+  | 'themes';

@@ -23,41 +23,56 @@
 }
 
 /* --------------------------------------------------------------------------
-   Undeath, as a temperature.
+   The key light moves with the room.
 
-   The palette is a WARM dark — every surface has R > G > B, and the ink is
-   parchment rather than white. A lich has stopped being warm, so the whole
-   screen shifts cold: blue lifted above green in every surface token, red left
-   alone. The result is a violet cast you feel before you read anything.
+   Every theme's surface TOKENS live in `src/theme/tokens.css` under
+   `[data-theme='…']`, because custom properties cascade and every screen wants
+   them. What cannot live there is the background gradient below: it is a
+   `.screen` rule in a CSS Module, and each screen lights itself.
 
-   SURFACES ONLY. Not the ink, not `--ew-tier`, not the delta pair, not
-   `--ew-danger`. The Notoriety badge is still the only chromatic reward on the
-   screen (rule 3) and a red number still reads as a red number — what changed
-   is the room they are sitting in, which is exactly the amount of signal a
-   state change is worth.
+   Leaving the warm key light over violet surfaces reads as a rendering mistake
+   rather than as a mood — the light and the surfaces have to move together or
+   neither should.
 
-   It is also NOT the Kingdom-Level tier violet (#9B6BE8). That hue means a
-   rank, and undeath is not a rank; these are desaturated near-blacks that
-   never come close to reading as an accent.
-
-   Costs no layout, no vertical space, and nothing to a run that never took the
-   rite — which is the "minor UI tweak" a state this large was missing.
+   This used to be `.screen[data-lich]`, declared THREE times: once at top
+   level and once inside each of the two media queries below, although a custom
+   property override does not vary by viewport. Promoting the lich palette to a
+   named theme is what collapsed the copies.
    -------------------------------------------------------------------------- */
-.screen[data-lich] {
-  --ew-void: #0a0910;
-  --ew-panel: #12111c;
-  --ew-raised: #191725;
-  --ew-hover: #211e30;
-  --ew-line: #272235;
-  --ew-line-strong: #3a344d;
-}
 
-/* The light from above cools with the room. Leaving the warm key light over
-   violet surfaces reads as a rendering mistake rather than as a mood — the two
-   have to move together or neither should. */
-.screen[data-lich] {
+/* Cold Room — the light goes blue-white as the room cools. */
+.screen[data-theme='lichdom'] {
   background:
     radial-gradient(90% 55% at 50% -10%, rgba(214, 224, 255, 0.05), transparent 68%),
+    var(--ew-void);
+}
+
+/* Amethyst — two offset sources, refracted through the stone. */
+.screen[data-theme='sealed_in_gem'] {
+  background:
+    radial-gradient(60% 40% at 28% -8%, rgba(216, 198, 255, 0.055), transparent 66%),
+    radial-gradient(52% 38% at 74% -4%, rgba(178, 156, 224, 0.04), transparent 62%),
+    var(--ew-void);
+}
+
+/* Settled Account — a flat, evenly lit filing room. No mood lighting; the
+   absence of ornament is the joke. */
+.screen[data-theme='consumed_by_pact'] {
+  background: var(--ew-void);
+}
+
+/* Peat — no gradient at all, a flat wash. Nothing dramatic is happening and
+   the light should not imply otherwise. */
+.screen[data-theme='retired_to_swamp'] {
+  background: var(--ew-void);
+}
+
+/* Wrong Colour — the one theme allowed a second source, sitting ABOVE the
+   frame at high spread. The light is arriving from outside the room. */
+.screen[data-theme='ascension'] {
+  background:
+    radial-gradient(120% 70% at 50% -22%, rgba(180, 255, 236, 0.07), transparent 74%),
+    radial-gradient(80% 50% at 50% 104%, rgba(120, 220, 200, 0.035), transparent 70%),
     var(--ew-void);
 }
 
@@ -91,46 +106,7 @@
    §3), so the choice cards can only be pulled up the page by the three things
    above them costing less. This file owns two of the gaps. */
 @media (max-width: 700px) {
-  /* --------------------------------------------------------------------------
-   Undeath, as a temperature.
-
-   The palette is a WARM dark — every surface has R > G > B, and the ink is
-   parchment rather than white. A lich has stopped being warm, so the whole
-   screen shifts cold: blue lifted above green in every surface token, red left
-   alone. The result is a violet cast you feel before you read anything.
-
-   SURFACES ONLY. Not the ink, not `--ew-tier`, not the delta pair, not
-   `--ew-danger`. The Notoriety badge is still the only chromatic reward on the
-   screen (rule 3) and a red number still reads as a red number — what changed
-   is the room they are sitting in, which is exactly the amount of signal a
-   state change is worth.
-
-   It is also NOT the Kingdom-Level tier violet (#9B6BE8). That hue means a
-   rank, and undeath is not a rank; these are desaturated near-blacks that
-   never come close to reading as an accent.
-
-   Costs no layout, no vertical space, and nothing to a run that never took the
-   rite — which is the "minor UI tweak" a state this large was missing.
-   -------------------------------------------------------------------------- */
-.screen[data-lich] {
-  --ew-void: #0a0910;
-  --ew-panel: #12111c;
-  --ew-raised: #191725;
-  --ew-hover: #211e30;
-  --ew-line: #272235;
-  --ew-line-strong: #3a344d;
-}
-
-/* The light from above cools with the room. Leaving the warm key light over
-   violet surfaces reads as a rendering mistake rather than as a mood — the two
-   have to move together or neither should. */
-.screen[data-lich] {
-  background:
-    radial-gradient(90% 55% at 50% -10%, rgba(214, 224, 255, 0.05), transparent 68%),
-    var(--ew-void);
-}
-
-.column {
+  .column {
     gap: var(--ew-space-3);
     padding: var(--ew-space-4) var(--ew-space-4) var(--ew-space-7);
   }
@@ -141,46 +117,7 @@
 }
 
 @media (max-width: 420px) {
-  /* --------------------------------------------------------------------------
-   Undeath, as a temperature.
-
-   The palette is a WARM dark — every surface has R > G > B, and the ink is
-   parchment rather than white. A lich has stopped being warm, so the whole
-   screen shifts cold: blue lifted above green in every surface token, red left
-   alone. The result is a violet cast you feel before you read anything.
-
-   SURFACES ONLY. Not the ink, not `--ew-tier`, not the delta pair, not
-   `--ew-danger`. The Notoriety badge is still the only chromatic reward on the
-   screen (rule 3) and a red number still reads as a red number — what changed
-   is the room they are sitting in, which is exactly the amount of signal a
-   state change is worth.
-
-   It is also NOT the Kingdom-Level tier violet (#9B6BE8). That hue means a
-   rank, and undeath is not a rank; these are desaturated near-blacks that
-   never come close to reading as an accent.
-
-   Costs no layout, no vertical space, and nothing to a run that never took the
-   rite — which is the "minor UI tweak" a state this large was missing.
-   -------------------------------------------------------------------------- */
-.screen[data-lich] {
-  --ew-void: #0a0910;
-  --ew-panel: #12111c;
-  --ew-raised: #191725;
-  --ew-hover: #211e30;
-  --ew-line: #272235;
-  --ew-line-strong: #3a344d;
-}
-
-/* The light from above cools with the room. Leaving the warm key light over
-   violet surfaces reads as a rendering mistake rather than as a mood — the two
-   have to move together or neither should. */
-.screen[data-lich] {
-  background:
-    radial-gradient(90% 55% at 50% -10%, rgba(214, 224, 255, 0.05), transparent 68%),
-    var(--ew-void);
-}
-
-.column {
+  .column {
     /* Top padding goes to zero: the header's own first line is an eyebrow in
        small caps, which reads as breathing room on its own. On the reference
        device every pixel above the fold is competing with the choice cards. */

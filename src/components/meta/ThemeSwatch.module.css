@@ -1,0 +1,111 @@
+.swatch {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-3);
+  padding: var(--ew-space-3);
+  text-align: left;
+  background: var(--ew-panel);
+  border: 1px solid var(--ew-line);
+  border-radius: var(--ew-radius-md);
+  box-shadow: var(--ew-lip);
+  transition:
+    border-color var(--ew-base) var(--ew-ease),
+    background var(--ew-base) var(--ew-ease);
+}
+
+.unlocked:hover {
+  border-color: var(--ew-line-strong);
+  background: var(--ew-raised);
+}
+
+/* --- the palette ----------------------------------------------------------- */
+
+.bands {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  height: 46px;
+  overflow: hidden;
+  border: 1px solid var(--ew-line);
+  border-radius: var(--ew-radius-sm);
+}
+
+.band {
+  display: block;
+  height: 100%;
+}
+
+/* --- text ------------------------------------------------------------------ */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-1);
+  min-width: 0;
+}
+
+.name {
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-size-md);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--ew-ink-bright);
+}
+
+.blurb {
+  font-size: var(--ew-size-xs);
+  line-height: 1.4;
+  color: var(--ew-ink-dim);
+}
+
+.blurb[data-hint] {
+  font-style: italic;
+  color: var(--ew-ink-faint);
+}
+
+/* --- locked ---------------------------------------------------------------- */
+
+.locked {
+  border-style: dashed;
+  box-shadow: none;
+  cursor: default;
+}
+
+/* The palette is dimmed rather than hidden — the visual equivalent of the
+   ending slot's ghosted glyph. What a locked theme withholds is its NAME and
+   the ending behind it, not the fact that it is a colour. */
+.locked .bands {
+  opacity: 0.4;
+  border-style: dashed;
+}
+
+.redaction {
+  display: block;
+  width: 60%;
+  min-width: 90px;
+  height: 0.95em;
+  border-radius: 1px;
+  opacity: 0.6;
+  background: repeating-linear-gradient(-45deg, var(--ew-ink-ghost) 0 1px, transparent 1px 5px);
+}
+
+/* --- the one being worn ---------------------------------------------------- */
+
+.selected {
+  border-color: color-mix(in srgb, var(--ew-tier) 45%, var(--ew-line));
+  background: color-mix(in srgb, var(--ew-tier) 4%, var(--ew-panel));
+}
+
+.worn {
+  position: absolute;
+  top: var(--ew-space-2);
+  right: var(--ew-space-2);
+  padding: 2px var(--ew-space-2);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ew-void);
+  background: var(--ew-tier);
+  border-radius: var(--ew-radius-pill);
+}

@@ -29,6 +29,7 @@ const show = (collection: Collection) => {
       factions={factions}
       endings={endings}
       onBack={onBack}
+      onViewThemes={vi.fn()}
     />,
   );
   return { onBack, container: view.container };

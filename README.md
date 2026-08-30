@@ -41,10 +41,12 @@ they come from analysis of a game that worked at scale, recorded in
 - **The ledger appends, never resets.** By the late run you are looking at a
   table with fifteen eras in it, and that is what makes quitting expensive.
 - **One scarce color.** The palette is a near-monochrome warm dark. The only
-  chromatic *reward* is the Notoriety tier badge. Two semantic accents exist
-  and are spent nowhere else: the red/green pair an offer card already uses for
-  `+8` and `-12`, which the faction standing bars now inherit rather than
-  inventing a vocabulary of their own.
+  chromatic *reward a run pays out* is the Notoriety tier badge. Two semantic
+  accents exist and are spent nowhere else: the red/green pair an offer card
+  already uses for `+8` and `-12`, which the faction standing bars now inherit
+  rather than inventing a vocabulary of their own. Endings additionally unlock
+  cosmetic **themes** — chosen by the player between runs, never handed out
+  mid-career, and forbidden from touching the tier colour.
 - **Comedy in the text, never in the numbers.** Flavor text is funny; stat
   changes are straight-faced.
 - **No doom meter.** The decline works because a number is quietly going the

@@ -62,8 +62,15 @@ non-obvious constraints in this design come from there.
 4. **Two motivational halves.** Early run: chase upside. After the
    prophecy triggers: defend what you built. Loss aversion carries the
    back half.
-5. **One scarce color.** Visual reward is rationed to the Notoriety
-   badge's tier color. Nothing else in the UI competes with it.
+5. **One scarce color, inside the run.** Visual reward *earned during a
+   career* is rationed to the Notoriety badge's tier color. Nothing the
+   game hands out mid-run competes with it.
+   *Amended (issue #15):* endings also grant cosmetic **themes**, which
+   the player chooses between runs. These do not compete with the badge
+   and are not allowed to: no theme may set `--ew-tier`, each is
+   near-monochrome within itself, and each meets the default palette's
+   ink contrast. The badge is what the game says about you; a theme is
+   what you say about the room.
 6. **Comedy in the text, never in the numbers.** Flavor text is funny;
    stat changes are straight-faced. If the mechanics wink too, nothing
    feels earned.

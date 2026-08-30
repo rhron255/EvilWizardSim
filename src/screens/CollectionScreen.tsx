@@ -20,6 +20,7 @@ import {
   EndingSlot,
   FactionGlyph,
   StatBlock,
+  themeAttr,
   tierOf,
   tierVars,
 } from '../components/meta';
@@ -31,6 +32,7 @@ export type CollectionScreenProps = {
   factions: Faction[];
   endings: Ending[];
   onBack(): void;
+  onViewThemes(): void;
 };
 
 type Filter = FactionId | 'all';
@@ -41,6 +43,7 @@ export function CollectionScreen({
   factions,
   endings,
   onBack,
+  onViewThemes,
 }: CollectionScreenProps) {
   const [filter, setFilter] = useState<Filter>('all');
 
@@ -68,7 +71,11 @@ export function CollectionScreen({
   const foundTotal = artifacts.filter((a) => discovered.has(a.id)).length;
 
   return (
-    <main className={styles.screen} style={tierVars(collection.bestNotoriety)}>
+    <main
+      className={styles.screen}
+      style={tierVars(collection.bestNotoriety)}
+      {...themeAttr(collection.selectedThemeId)}
+    >
       <div className={styles.inner}>
         <header className={styles.top}>
           <button type="button" className={styles.back} onClick={onBack}>
@@ -194,6 +201,17 @@ export function CollectionScreen({
               <EndingSlot key={ending.id} ending={ending} seen={seenEndings.has(ending.id)} />
             ))}
           </div>
+
+          {/* Each of those slots also granted a palette. The link sits here
+              rather than in the header because this is the section that makes
+              it mean something — the themes ARE the endings, seen from the
+              other side. */}
+          <p className={styles.endingsNote}>
+            Every ending leaves its colours behind.{' '}
+            <button type="button" className={styles.inlineLink} onClick={onViewThemes}>
+              Choose a theme
+            </button>
+          </p>
         </section>
 
         <footer className={styles.bottom}>

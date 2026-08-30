@@ -21,7 +21,8 @@
  */
 
 import { useCallback, useEffect, useMemo, useReducer } from 'react';
-import type { Collection, Offer, RunState, Screen } from '../types';
+import type { Collection, Offer, RunState, Screen, ThemeId } from '../types';
+import { isThemeUnlocked } from '../theme/themes';
 import type { ContentBundle } from './content-port';
 import type { Resolution } from './resolution';
 import { createRun, resolveChoice } from './run';
@@ -50,7 +51,17 @@ export type Game = {
   acknowledgeProphecy(): void;
   playAgain(): void;
   viewCollection(): void;
+  viewThemes(): void;
   backToTitle(): void;
+  /**
+   * The theme this run just unlocked, or null.
+   *
+   * Set at the moment the run is recorded and cleared on the way out of the
+   * ending screen, so the banner fires once for a first discovery and never
+   * for a repeat.
+   */
+  unlockedTheme: ThemeId | null;
+  selectTheme(id: ThemeId): void;
   hasResumableRun: boolean;
   resume(): void;
   /**
@@ -72,6 +83,17 @@ type GameState = {
   prophecyPending: boolean;
   /** A saved unfinished run, from storage at mount or set aside on exit. */
   resumable: RunState | null;
+  /**
+   * A theme unlocked by the run that just finished, for the ending banner.
+   *
+   * Computed in `continue`, which is the ONLY moment it can be: `recordRun`
+   * folds the ending into `endingsSeen` in that same return, so anything
+   * reading the collection afterwards sees the ending as already-seen and the
+   * unlock as already-owned. Asking "was this new?" after the fact always
+   * answers no. (CLAUDE.md failure mode 2's shape: the check has to happen
+   * where the information still exists.)
+   */
+  unlockedTheme: ThemeId | null;
 };
 
 type Action =
@@ -90,6 +112,8 @@ type Action =
   | { type: 'acknowledgeProphecy'; content: ContentBundle }
   | { type: 'playAgain' }
   | { type: 'viewCollection' }
+  | { type: 'viewThemes' }
+  | { type: 'selectTheme'; id: ThemeId }
   | { type: 'backToTitle' }
   | { type: 'resume'; content: ContentBundle }
   | { type: 'dismissGuide' };
@@ -103,6 +127,7 @@ function initialState(): GameState {
     collection: loadCollection(),
     prophecyPending: false,
     resumable: loadInProgressRun(),
+    unlockedTheme: null,
   };
 }
 
@@ -164,12 +189,32 @@ export function gameReducer(state: GameState, action: Action): GameState {
       if (!state.run || !state.resolution) return state;
 
       if (state.run.ending) {
+        // BEFORE `recordRun`, which is what makes this answerable at all —
+        // see `unlockedTheme` on `GameState`. Theme ids and ending ids are the
+        // same id space, so the ending IS the theme it grants.
+        const firstTime = !state.collection.endingsSeen.includes(state.run.ending);
         return {
           ...state,
           screen: 'ending',
           offer: null,
+          /**
+           * CLEARED, so a second `continue` cannot fold the same career in
+           * twice.
+           *
+           * The other two branches below have always nulled this; the ending
+           * branch did not, and `recordRun` is the one arm that is NOT
+           * idempotent — `runsCompleted` increments every call. The overlay
+           * dismisses on the scrim AND on the button inside it, so one click
+           * on Continue dispatched this twice: every finished career counted
+           * as two, and the theme unlock computed on the second pass saw its
+           * own ending already in `endingsSeen` and reported "not new". The
+           * banner never appeared once in a browser while every unit test
+           * passed.
+           */
+          resolution: null,
           collection: recordRun(state.collection, state.run, action.content),
           resumable: null,
+          unlockedTheme: firstTime ? state.run.ending : null,
         };
       }
 
@@ -199,10 +244,30 @@ export function gameReducer(state: GameState, action: Action): GameState {
     }
 
     case 'playAgain':
-      return { ...state, screen: 'creation', run: null, offer: null, resolution: null };
+      return {
+        ...state,
+        screen: 'creation',
+        run: null,
+        offer: null,
+        resolution: null,
+        unlockedTheme: null,
+      };
 
     case 'viewCollection':
-      return { ...state, screen: 'collection' };
+      return { ...state, screen: 'collection', unlockedTheme: null };
+
+    case 'viewThemes':
+      return { ...state, screen: 'themes', unlockedTheme: null };
+
+    case 'selectTheme': {
+      // Re-checked here even though the selector never offers a locked card.
+      // The reducer is the only thing that writes the collection, so it is the
+      // only place the guarantee can actually hold — a stale save, a second
+      // tab, or a future caller all arrive through here.
+      if (!isThemeUnlocked(action.id, state.collection.endingsSeen)) return state;
+      if (state.collection.selectedThemeId === action.id) return state;
+      return { ...state, collection: { ...state.collection, selectedThemeId: action.id } };
+    }
 
     case 'backToTitle': {
       // Leaving mid-run does not destroy it — it goes back in the drawer, and
@@ -216,6 +281,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         resolution: null,
         prophecyPending: false,
         resumable: stashed,
+        unlockedTheme: null,
       };
     }
 
@@ -292,6 +358,8 @@ export function useGame(content: ContentBundle): Game {
 
   const playAgain = useCallback(() => dispatch({ type: 'playAgain' }), []);
   const viewCollection = useCallback(() => dispatch({ type: 'viewCollection' }), []);
+  const viewThemes = useCallback(() => dispatch({ type: 'viewThemes' }), []);
+  const selectTheme = useCallback((id: ThemeId) => dispatch({ type: 'selectTheme', id }), []);
   const backToTitle = useCallback(() => dispatch({ type: 'backToTitle' }), []);
   const resume = useCallback(() => dispatch({ type: 'resume', content }), [content]);
   const dismissFirstRunGuide = useCallback(() => dispatch({ type: 'dismissGuide' }), []);
@@ -311,7 +379,17 @@ export function useGame(content: ContentBundle): Game {
       acknowledgeProphecy,
       playAgain,
       viewCollection,
+      viewThemes,
       backToTitle,
+      // Never offer a theme the collection has not earned. The reducer guards
+      // this too; this stops the ending banner from advertising one in the
+      // first place if the two ever disagree.
+      unlockedTheme:
+        state.unlockedTheme &&
+        isThemeUnlocked(state.unlockedTheme, state.collection.endingsSeen)
+          ? state.unlockedTheme
+          : null,
+      selectTheme,
       hasResumableRun: state.resumable !== null,
       resume,
       showFirstRunGuide:
@@ -328,6 +406,7 @@ export function useGame(content: ContentBundle): Game {
       state.resolution,
       state.collection,
       state.resumable,
+      state.unlockedTheme,
       content,
       begin,
       create,
@@ -336,6 +415,8 @@ export function useGame(content: ContentBundle): Game {
       acknowledgeProphecy,
       playAgain,
       viewCollection,
+      viewThemes,
+      selectTheme,
       backToTitle,
       resume,
       dismissFirstRunGuide,

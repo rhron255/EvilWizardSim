@@ -12,7 +12,8 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { Artifact, Ending, Faction, Lair, RunState } from '../types';
+import type { Artifact, Ending, Faction, Lair, RunState, ThemeId } from '../types';
+import { themeFor } from '../theme/themes';
 import {
   ArtifactGrid,
   ATTRIBUTION_LABEL,
@@ -28,6 +29,7 @@ import {
   peakNotoriety,
   preloadShareFonts,
   shareEndingImage,
+  themeAttr,
   tierOf,
   tierVars,
 } from '../components/meta';
@@ -53,6 +55,17 @@ export type EndingScreenProps = {
    * swapping in the "screenshot this" affordance.
    */
   onShare(): void;
+  /** The cosmetic theme the player is wearing. */
+  themeId: ThemeId;
+  /**
+   * The theme this run just unlocked, or null for a repeat ending.
+   *
+   * Decided by the reducer BEFORE the run is folded into the collection —
+   * afterwards the ending is already in `endingsSeen` and the answer is always
+   * "not new". This screen only renders what it is told.
+   */
+  unlockedTheme: ThemeId | null;
+  onApplyTheme(id: ThemeId): void;
 };
 
 type ShareState = 'idle' | 'working' | 'done' | 'fallback';
@@ -91,9 +104,13 @@ export function EndingScreen({
   onPlayAgain,
   onViewCollection,
   onShare,
+  themeId,
+  unlockedTheme,
+  onApplyTheme,
 }: EndingScreenProps) {
   const [stage, setStage] = useState(0);
   const [share, setShare] = useState<ShareState>('idle');
+  const [applied, setApplied] = useState(false);
 
   const peak = peakNotoriety(run.eras, run.notoriety);
   const tier = tierOf(peak);
@@ -198,7 +215,14 @@ export function EndingScreen({
           : 'Share image';
 
   return (
-    <main className={styles.screen} style={tierVars(peak)}>
+    <main
+      className={styles.screen}
+      style={tierVars(peak)}
+      // Applying the new theme swaps the card's own palette under the player,
+      // which is the point — it is the only preview of it they get before
+      // choosing to keep it.
+      {...themeAttr(applied && unlockedTheme ? unlockedTheme : themeId)}
+    >
       <article className={`${styles.card} ${at(1)}`} aria-label={`The life of ${run.wizardName}`}>
         <CornerMarks className={styles.corner} inset={9} length={16} />
 
@@ -375,6 +399,34 @@ export function EndingScreen({
           </p>
         </footer>
       </article>
+
+      {/* --- what the career left behind ------------------------------------
+          OUTSIDE the card, with the controls, for the same reason the buttons
+          are: the card is the shareable artefact and a "you unlocked a thing"
+          banner is not part of the biography. It is also why this cannot be a
+          reveal stage — it must not be in the screenshot.
+
+          Absent entirely for a repeat ending, which is most runs. */}
+      {unlockedTheme ? (
+        <aside className={`${styles.unlock} ${at(6)}`} aria-live="polite">
+          <div className={styles.unlockText}>
+            <p className={styles.unlockLabel}>New visual theme unlocked</p>
+            <p className={styles.unlockName}>{themeFor(unlockedTheme).name}</p>
+            <p className={styles.unlockBlurb}>{themeFor(unlockedTheme).blurb}</p>
+          </div>
+          <button
+            type="button"
+            className={styles.unlockApply}
+            disabled={applied}
+            onClick={() => {
+              onApplyTheme(unlockedTheme);
+              setApplied(true);
+            }}
+          >
+            {applied ? 'Wearing it' : 'Wear it'}
+          </button>
+        </aside>
+      ) : null}
 
       {/* --- controls, deliberately outside the card ------------------------
           Play again leads: this is a replay game, and the run that just ended

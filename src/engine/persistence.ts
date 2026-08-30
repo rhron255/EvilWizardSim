@@ -19,6 +19,16 @@ import type { ContentBundle } from './content-port';
 import { indexOf } from './content-port';
 import { COLLECTION_KEY, COLLECTION_VERSION, RUN_KEY, RUN_SAVE_VERSION } from './constants';
 import { peakNotoriety } from './systems';
+/**
+ * The one thing the engine reads from `src/theme/`.
+ *
+ * This is NOT the boundary that matters — "the engine never imports
+ * `src/content/`" exists so the balance harness can hold content constant, and
+ * theme data carries no balance semantics whatsoever. What is needed here is
+ * the id list, so a save naming a theme this build does not define falls back
+ * rather than rendering an unthemed page.
+ */
+import { DEFAULT_THEME_ID, isThemeId, isThemeUnlocked } from '../theme/themes';
 
 // ---------------------------------------------------------------------------
 // Storage access, defensively
@@ -84,6 +94,7 @@ export function emptyCollection(): Collection {
     bestNotoriety: 0,
     tutorialSeen: false,
     lastWizardName: '',
+    selectedThemeId: DEFAULT_THEME_ID,
   };
 }
 
@@ -110,6 +121,14 @@ function finiteNumber(value: unknown, fallback: number): number {
  * v1 -> v2 added `tutorialSeen`. A returning player who has already finished a
  * career is not a first-time player, so their save migrates to `true` — the
  * guide explains the ledger they have already filled in once.
+ *
+ * v2 -> v3 added `selectedThemeId`. Absent means "never chose one", which is
+ * the default theme; an id this build does not define — a hand-edited save, or
+ * a theme removed since — also becomes the default, because the alternative is
+ * a `data-theme` attribute matching no CSS block, i.e. an unthemed page. Note
+ * an id whose ending has not been earned is likewise reset. Persisted data is
+ * an input boundary: accepting a locked but known id here would let a
+ * hand-edited save bypass the selector and wear a theme it has not unlocked.
  */
 export function migrateCollection(raw: unknown): Collection {
   if (!raw || typeof raw !== 'object') return emptyCollection();
@@ -133,6 +152,10 @@ export function migrateCollection(raw: unknown): Collection {
     // Added alongside `tutorialSeen` in the same unreleased v2, so no save in
     // the wild has ever been without it; absence just means "never named one".
     lastWizardName: typeof data.lastWizardName === 'string' ? data.lastWizardName.slice(0, 40) : '',
+    selectedThemeId:
+      isThemeId(data.selectedThemeId) && isThemeUnlocked(data.selectedThemeId, endings)
+        ? data.selectedThemeId
+        : DEFAULT_THEME_ID,
   };
 }
 
@@ -177,6 +200,11 @@ export function recordRun(c: Collection, run: RunState, content: ContentBundle):
     // A finished career re-confirms the name, so the next creation screen
     // opens on the wizard the player actually played.
     lastWizardName: run.wizardName || c.lastWizardName,
+    // Finishing a run never changes what the player is WEARING. The ending
+    // card offers the newly unlocked theme and the player taps to apply it —
+    // swapping it out from under them here would be the game imposing a
+    // cosmetic, which is the distinction the amended rule 3 turns on.
+    selectedThemeId: c.selectedThemeId,
   };
 }
 

@@ -109,6 +109,7 @@ export function Harness() {
       offer={offer}
       resolution={resolution}
       lairs={demoLairs}
+      themeId="default"
       artifacts={demoArtifacts}
       factions={demoFactions}
       onChoose={choose}

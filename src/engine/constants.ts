@@ -302,6 +302,6 @@ export const ASCENSION_LEGENDARIES = 1;
 export const COLLECTION_KEY = 'evil-wizard-sim:collection';
 export const RUN_KEY = 'evil-wizard-sim:run';
 /** Bump when `Collection`'s shape changes, and extend `migrateCollection`. */
-export const COLLECTION_VERSION = 2;
+export const COLLECTION_VERSION = 3;
 /** Bump when `RunState`'s shape changes; stale in-progress runs are dropped. */
 export const RUN_SAVE_VERSION = 1;

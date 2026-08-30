@@ -9,8 +9,9 @@
  */
 
 import type { Collection } from '../types';
-import { Sigil, tierOf, tierVars } from '../components/meta';
+import { Sigil, themeAttr, tierOf, tierVars } from '../components/meta';
 import { Flourish } from '../components/meta';
+import { themeFor } from '../theme/themes';
 import styles from './TitleScreen.module.css';
 
 export type TitleScreenProps = {
@@ -21,6 +22,7 @@ export type TitleScreenProps = {
   onBegin(): void;
   onResume(): void;
   onViewCollection(): void;
+  onViewThemes(): void;
 };
 
 export function TitleScreen({
@@ -30,13 +32,18 @@ export function TitleScreen({
   onBegin,
   onResume,
   onViewCollection,
+  onViewThemes,
 }: TitleScreenProps) {
   const found = collection.discoveredArtifactIds.length;
   const tier = tierOf(collection.bestNotoriety);
   const veteran = collection.runsCompleted > 0;
 
   return (
-    <main className={styles.screen} style={tierVars(collection.bestNotoriety)}>
+    <main
+      className={styles.screen}
+      style={tierVars(collection.bestNotoriety)}
+      {...themeAttr(collection.selectedThemeId)}
+    >
       <div className={styles.backdrop} aria-hidden>
         <Sigil name="the evil wizard simulator" size={780} spin className={styles.watermark} />
       </div>
@@ -80,6 +87,15 @@ export function TitleScreen({
               <span className={styles.slash}>/</span>
               <span className={styles.num}>{artifactCount}</span> relics
             </span>
+          </button>
+
+          {/* Shown from run one, like the collection door and for the same
+              reason: a door to a room you have barely furnished is an argument
+              for another run. `themes` names what is worn, not how many are
+              locked — the count belongs on the screen itself. */}
+          <button type="button" className={styles.door} onClick={onViewThemes}>
+            <span>Themes</span>
+            <span className={styles.doorNote}>{themeFor(collection.selectedThemeId).name}</span>
           </button>
         </nav>
 

@@ -92,6 +92,184 @@
 }
 
 /* --------------------------------------------------------------------------
+   Themes — one per ending, chosen by the player, earned across runs.
+
+   Each block below MIRRORS an entry in `themes.ts`, which is the JS source of
+   truth; `themes.test.ts` parses this file and fails if the two disagree about
+   any token, so neither half can drift.
+
+   TWO RULES, both enforced by that test:
+
+     1. No block here may define `--ew-tier` or `--ew-tier-glow`. Those are set
+        at runtime from the Notoriety tier by `tierVars()`, and a theme
+        touching them would compete with the one reward it is not allowed to
+        compete with.
+     2. No block here may define `--ew-legendary`. It is pinned to the Legend
+        gold for the reason its comment above gives, in every theme.
+
+   `default` has no block: it IS `:root`. Selecting it removes the attribute
+   rather than overriding anything back to where it started.
+   -------------------------------------------------------------------------- */
+
+/* The Sword — a red-brown room with an edge in it. The hero's own
+   `--ew-danger` is promoted, unmuted, to the strong rule. */
+[data-theme='slain_by_chosen_one'] {
+  --ew-void: #1a0f0d;
+  --ew-panel: #2b1915;
+  --ew-raised: #38211c;
+  --ew-hover: #462823;
+  --ew-line: #55312a;
+  --ew-line-strong: #b4453c;
+
+  --ew-ink-bright: #f8f7f7;
+  --ew-ink: #efece9;
+  --ew-ink-dim: #a6988c;
+  --ew-ink-faint: #786a5e;
+  --ew-ink-ghost: #4f4740;
+}
+
+/* Amethyst — the Academy's violet, seen from inside the stone. The most
+   saturated `--ew-line-strong` of any theme: every edge is a facet. */
+[data-theme='sealed_in_gem'] {
+  --ew-void: #170c1a;
+  --ew-panel: #26142c;
+  --ew-raised: #321a3a;
+  --ew-hover: #3e2048;
+  --ew-line: #4c2858;
+  --ew-line-strong: #78338f;
+
+  --ew-ink-bright: #f8f7f8;
+  --ew-ink: #eeebf0;
+  --ew-ink-dim: #9f8ca6;
+  --ew-ink-faint: #715e78;
+  --ew-ink-ghost: #4b404f;
+}
+
+/* New Management — the same tower under someone else's hand. The same warm
+   neutral room, a desaturated `--ew-danger` at the strong rule, and the
+   headings dropped from the display serif to the UI sans. The FONT is what
+   carries this one, which is why it is the least saturated of the seven and
+   is allowed to be. */
+[data-theme='betrayed_by_apprentice'] {
+  --ew-void: #17120f;
+  --ew-panel: #261e1a;
+  --ew-raised: #322822;
+  --ew-hover: #3f312a;
+  --ew-line: #4d3c33;
+  --ew-line-strong: #8a4f45;
+
+  --ew-ink-bright: #f8f7f7;
+  --ew-ink: #f0edeb;
+  --ew-ink-dim: #a69b8c;
+  --ew-ink-faint: #786d5e;
+  --ew-ink-ghost: #4f4840;
+
+  --ew-font-display: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/* --------------------------------------------------------------------------
+   Cold Room — undeath, as a temperature.
+
+   The default palette is a WARM dark: every surface has R > G > B. A lich has
+   stopped being warm, so blue lifts above green throughout and the room takes
+   a violet cast you feel before you read anything.
+
+   Not `--ew-tier`, not the delta pair, not `--ew-danger`. A red number still
+   reads as a red number — what changed is the room they sit in.
+
+   It is also NOT the Kingdom-Level tier violet (#9B6BE8). That hue means a
+   rank, and undeath is not a rank.
+
+   Promoted here from `.screen[data-lich]` in `RunScreen.module.css`, where the
+   same six declarations were pasted three times over — once at top level and
+   once inside each of two media queries, though custom properties do not vary
+   by viewport.
+
+   The VALUES are not that block's. Those were tuned to be noticed
+   subliminally, mid-run, on a screen the player was already looking at; a
+   theme also has to be picked out of a grid of eight swatches, and at the old
+   near-black these were reported as hard to tell apart from the default. The
+   whole ramp is lifted and saturated, and the ink lifted with it — at the
+   default ink the shipped panel sat exactly on the contrast floor, so there
+   was no headroom to brighten a surface without brightening its text too.
+   -------------------------------------------------------------------------- */
+[data-theme='lichdom'] {
+  --ew-void: #0f0b1b;
+  --ew-panel: #18132d;
+  --ew-raised: #20193b;
+  --ew-hover: #281f49;
+  --ew-line: #302659;
+  --ew-line-strong: #3f3078;
+
+  --ew-ink-bright: #f7f7f8;
+  --ew-ink: #eae9ef;
+  --ew-ink-dim: #908ca6;
+  --ew-ink-faint: #635e78;
+  --ew-ink-ghost: #42404f;
+}
+
+/* Peat — the warmest theme, and the softest. Deep brown surfaces and every
+   radius one step rounder. Its ornament is an absence: no background gradient
+   anywhere, just a flat wash. Nothing dramatic is happening, which is the
+   ending. */
+[data-theme='retired_to_swamp'] {
+  --ew-void: #160e08;
+  --ew-panel: #25180e;
+  --ew-raised: #322013;
+  --ew-hover: #3f2917;
+  --ew-line: #4e321d;
+  --ew-line-strong: #6f4520;
+
+  --ew-ink-bright: #f7f6f5;
+  --ew-ink: #eceae6;
+  --ew-ink-dim: #a69a8c;
+  --ew-ink-faint: #786c5e;
+  --ew-ink-ghost: #4f4840;
+
+  --ew-radius-sm: 5px;
+  --ew-radius-md: 8px;
+  --ew-radius-lg: 12px;
+}
+
+/* Settled Account — Covenant ash, but ORDERED. The one theme that raises
+   contrast rather than lowering it: every rule at full strength, ink at bright
+   throughout. Bureaucratically legible. No ornament at all — the absence is
+   the joke. */
+[data-theme='consumed_by_pact'] {
+  --ew-void: #151513;
+  --ew-panel: #242321;
+  --ew-raised: #302f2c;
+  --ew-hover: #3c3a37;
+  --ew-line: #484641;
+  --ew-line-strong: #6c6860;
+
+  --ew-ink-bright: #f8f8f7;
+  --ew-ink: #f5f4f2;
+  --ew-ink-dim: #a69d8c;
+  --ew-ink-faint: #786f5e;
+  --ew-ink-ghost: #4f4a40;
+}
+
+/* Wrong Colour — a green that is not on any chart. The void goes deep
+   wrong-green/teal and the ink near-white. The only theme permitted a second
+   light source: its gradient sits ABOVE the frame at high spread, light
+   arriving from outside the room. Still may not touch `--ew-tier`. */
+[data-theme='ascension'] {
+  --ew-void: #081614;
+  --ew-panel: #0e2521;
+  --ew-raised: #13322d;
+  --ew-hover: #183f38;
+  --ew-line: #1d4e46;
+  --ew-line-strong: #22705f;
+
+  --ew-ink-bright: #f7f8f8;
+  --ew-ink: #eef2f1;
+  --ew-ink-dim: #8ca6a1;
+  --ew-ink-faint: #5e7873;
+  --ew-ink-ghost: #404f4c;
+}
+
+/* --------------------------------------------------------------------------
    Reset & base
    -------------------------------------------------------------------------- */
 
