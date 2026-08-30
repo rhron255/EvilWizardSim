@@ -101,12 +101,23 @@ export const THEMES: ThemeDef[] = [
     name: 'The Sword',
     endingId: 'slain_by_chosen_one',
     blurb: 'The warm dark, with an edge in it.',
-    // Default warm dark untouched except at the strong rule, where `danger`
-    // is promoted wholesale. The hero's colour was always in the palette; this
-    // theme just lets it draw the borders.
+    // A red-brown room with the hero's own `--ew-danger` promoted, unmuted,
+    // to the strong rule. That colour was always in the palette; this theme
+    // just lets it draw the borders.
     surface: {
-      ...surface,
-      lineStrong: '#B4453C',
+      void: '#1a0f0d',
+      panel: '#2b1915',
+      raised: '#38211c',
+      hover: '#462823',
+      line: '#55312a',
+      lineStrong: '#b4453c',
+    },
+    ink: {
+      bright: '#f8f7f7',
+      base: '#efece9',
+      dim: '#a6988c',
+      faint: '#786a5e',
+      ghost: '#4f4740',
     },
   },
 
@@ -116,28 +127,28 @@ export const THEMES: ThemeDef[] = [
     endingId: 'sealed_in_gem',
     blurb: 'The Academy’s violet, seen from inside the stone.',
     /**
-     * The highest `lineStrong` contrast of any theme — every edge is a facet.
+     * The most saturated `lineStrong` of any theme — every edge is a facet.
      *
-     * The issue asked for ink "slightly lower contrast — read through stone",
-     * which collides head-on with constraint 5. The constraint wins, because
-     * it is the testable one and it is what keeps the palette readable: this
-     * ink sits AT the floor rather than below it, so Amethyst is the
-     * lowest-contrast theme in the set without being an unreadable one.
+     * The issue asked for ink at "slightly lower contrast — read through
+     * stone", which collides head-on with constraint 5. The constraint wins,
+     * because it is the testable one: the ink stays above the floor and the
+     * "seen through stone" reading is carried by the violet cast of the
+     * surfaces instead, which is where it belongs anyway.
      */
     surface: {
-      void: '#0c0912',
-      panel: '#17121f',
-      raised: '#201829',
-      hover: '#291f34',
-      line: '#322540',
-      lineStrong: '#6b5486',
+      void: '#170c1a',
+      panel: '#26142c',
+      raised: '#321a3a',
+      hover: '#3e2048',
+      line: '#4c2858',
+      lineStrong: '#78338f',
     },
     ink: {
-      bright: '#efebf7',
-      base: '#e6e1f0',
-      dim: '#9d95ad',
-      faint: '#6e6880',
-      ghost: '#4a4459',
+      bright: '#f8f7f8',
+      base: '#eeebf0',
+      dim: '#9f8ca6',
+      faint: '#715e78',
+      ghost: '#4b404f',
     },
   },
 
@@ -146,12 +157,25 @@ export const THEMES: ThemeDef[] = [
     name: 'New Management',
     endingId: 'betrayed_by_apprentice',
     blurb: 'The same tower, under someone else’s hand.',
-    // Two changes and no more, which is the joke: a desaturated `danger` at
-    // the strong rule, and the headings drop the display serif for the UI
-    // sans. Nothing else moves, because nothing else had to.
+    // The joke is that almost nothing has changed: the same warm neutral
+    // room, a desaturated `danger` at the strong rule, and the headings
+    // dropped from the display serif to the UI sans. The FONT is what carries
+    // this theme — it is the one whose identity is not a hue, which is why it
+    // is the least saturated of the seven and allowed to be.
     surface: {
-      ...surface,
-      lineStrong: '#6e4440',
+      void: '#17120f',
+      panel: '#261e1a',
+      raised: '#322822',
+      hover: '#3f312a',
+      line: '#4d3c33',
+      lineStrong: '#8a4f45',
+    },
+    ink: {
+      bright: '#f8f7f7',
+      base: '#f0edeb',
+      dim: '#a69b8c',
+      faint: '#786d5e',
+      ghost: '#4f4840',
     },
     font: {
       display: "'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif",
@@ -173,18 +197,32 @@ export const THEMES: ThemeDef[] = [
      * read anything. It is NOT the Kingdom-Level tier violet (#9B6BE8): that
      * hue means a rank, and undeath is not a rank.
      *
-     * `panel` is the one value that is not the shipped lich block verbatim.
-     * The original #12111c missed the contrast floor by 0.75% — it predates
-     * the floor — so green drops 17 → 15 with red and blue untouched. The cast
-     * is unchanged at near-black; the measurement is not.
+     * NOT the shipped `data-lich` values. That block was authored as a tint
+     * you were meant to notice only subliminally, mid-run, on a screen you
+     * were already looking at. As a THEME it has a second job — being picked
+     * out of a grid of eight swatches — and at its original near-black it
+     * failed that badly enough to be reported: the themes were "hard to tell
+     * apart from the regular one". So the whole ramp is lifted and saturated,
+     * roughly 1.5x the old panel luminance.
+     *
+     * The ink moved with it, and had to: at the default ink the shipped panel
+     * sat EXACTLY on the contrast floor, so there was no headroom to brighten
+     * a surface without brightening what sits on it. See `themes.test.ts`.
      */
     surface: {
-      void: '#0a0910',
-      panel: '#120f1c',
-      raised: '#191725',
-      hover: '#211e30',
-      line: '#272235',
-      lineStrong: '#3a344d',
+      void: '#0f0b1b',
+      panel: '#18132d',
+      raised: '#20193b',
+      hover: '#281f49',
+      line: '#302659',
+      lineStrong: '#3f3078',
+    },
+    ink: {
+      bright: '#f7f7f8',
+      base: '#eae9ef',
+      dim: '#908ca6',
+      faint: '#635e78',
+      ghost: '#42404f',
     },
   },
 
@@ -193,24 +231,23 @@ export const THEMES: ThemeDef[] = [
     name: 'Peat',
     endingId: 'retired_to_swamp',
     blurb: 'Nothing dramatic is happening. That was the point.',
-    // The warmest theme, and the softest. Brown-black surfaces, ink left at
-    // `base` rather than lifted to `bright`, and every radius one step rounder.
-    // Its ornament is an absence: no background gradient at all, just a flat
-    // wash — see `RunScreen.module.css` / `EndingScreen.module.css`.
+    // The warmest theme, and the softest. Deep brown surfaces and every radius
+    // one step rounder. Its ornament is an absence: no background gradient at
+    // all, just a flat wash — see `RunScreen.module.css`.
     surface: {
-      void: '#0d0a07',
-      panel: '#160f08',
-      raised: '#1f170e',
-      hover: '#271d13',
-      line: '#2d2317',
-      lineStrong: '#453722',
+      void: '#160e08',
+      panel: '#25180e',
+      raised: '#322013',
+      hover: '#3f2917',
+      line: '#4e321d',
+      lineStrong: '#6f4520',
     },
     ink: {
-      bright: '#e4dcc9',
-      base: '#e4dcc9',
-      dim: '#9a8f7c',
-      faint: '#6a6153',
-      ghost: '#453f35',
+      bright: '#f7f6f5',
+      base: '#eceae6',
+      dim: '#a69a8c',
+      faint: '#786c5e',
+      ghost: '#4f4840',
     },
     radius: {
       sm: '5px',
@@ -228,19 +265,19 @@ export const THEMES: ThemeDef[] = [
     // than lowering it: every rule at full strength, ink at `bright`
     // throughout, and no ornament whatsoever — the absence is the joke.
     surface: {
-      void: '#0a0a09',
-      panel: '#141413',
-      raised: '#1c1c1a',
-      hover: '#242422',
-      line: '#35342f',
-      lineStrong: '#5a5850',
+      void: '#151513',
+      panel: '#242321',
+      raised: '#302f2c',
+      hover: '#3c3a37',
+      line: '#484641',
+      lineStrong: '#6c6860',
     },
     ink: {
-      bright: '#f4f3ee',
-      base: '#f0efea',
-      dim: '#a6a49b',
-      faint: '#75736b',
-      ghost: '#4d4b45',
+      bright: '#f8f8f7',
+      base: '#f5f4f2',
+      dim: '#a69d8c',
+      faint: '#786f5e',
+      ghost: '#4f4a40',
     },
   },
 
@@ -254,19 +291,19 @@ export const THEMES: ThemeDef[] = [
     // frame at high spread, light arriving from outside the room. Still may
     // not touch `--ew-tier`, and does not.
     surface: {
-      void: '#04100e',
-      panel: '#0a1a17',
-      raised: '#10231f',
-      hover: '#162c27',
-      line: '#1c3630',
-      lineStrong: '#2f5a50',
+      void: '#081614',
+      panel: '#0e2521',
+      raised: '#13322d',
+      hover: '#183f38',
+      line: '#1d4e46',
+      lineStrong: '#22705f',
     },
     ink: {
-      bright: '#f4fbf9',
-      base: '#eef7f4',
-      dim: '#8fa8a2',
-      faint: '#647a75',
-      ghost: '#42534f',
+      bright: '#f7f8f8',
+      base: '#eef2f1',
+      dim: '#8ca6a1',
+      faint: '#5e7873',
+      ghost: '#404f4c',
     },
   },
 ];
