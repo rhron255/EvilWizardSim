@@ -28,7 +28,7 @@ import { peakNotoriety } from './systems';
  * the id list, so a save naming a theme this build does not define falls back
  * rather than rendering an unthemed page.
  */
-import { DEFAULT_THEME_ID, isThemeId } from '../theme/themes';
+import { DEFAULT_THEME_ID, isThemeId, isThemeUnlocked } from '../theme/themes';
 
 // ---------------------------------------------------------------------------
 // Storage access, defensively
@@ -126,9 +126,9 @@ function finiteNumber(value: unknown, fallback: number): number {
  * the default theme; an id this build does not define — a hand-edited save, or
  * a theme removed since — also becomes the default, because the alternative is
  * a `data-theme` attribute matching no CSS block, i.e. an unthemed page. Note
- * this deliberately does NOT check whether the theme is unlocked: that is
- * derived from `endingsSeen` at the point of use, and a save is not the place
- * to re-litigate it.
+ * an id whose ending has not been earned is likewise reset. Persisted data is
+ * an input boundary: accepting a locked but known id here would let a
+ * hand-edited save bypass the selector and wear a theme it has not unlocked.
  */
 export function migrateCollection(raw: unknown): Collection {
   if (!raw || typeof raw !== 'object') return emptyCollection();
@@ -152,7 +152,10 @@ export function migrateCollection(raw: unknown): Collection {
     // Added alongside `tutorialSeen` in the same unreleased v2, so no save in
     // the wild has ever been without it; absence just means "never named one".
     lastWizardName: typeof data.lastWizardName === 'string' ? data.lastWizardName.slice(0, 40) : '',
-    selectedThemeId: isThemeId(data.selectedThemeId) ? data.selectedThemeId : DEFAULT_THEME_ID,
+    selectedThemeId:
+      isThemeId(data.selectedThemeId) && isThemeUnlocked(data.selectedThemeId, endings)
+        ? data.selectedThemeId
+        : DEFAULT_THEME_ID,
   };
 }
 

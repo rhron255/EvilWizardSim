@@ -189,10 +189,11 @@ describe('collection v2 -> v3 · the theme pointer', () => {
     expect(migrated.tutorialSeen).toBe(true);
   });
 
-  it('keeps a theme the build still defines', () => {
-    expect(migrateCollection({ version: 3, selectedThemeId: 'ascension' }).selectedThemeId).toBe(
-      'ascension',
-    );
+  it('keeps a theme the collection has unlocked', () => {
+    expect(
+      migrateCollection({ version: 3, endingsSeen: ['ascension'], selectedThemeId: 'ascension' })
+        .selectedThemeId,
+    ).toBe('ascension');
   });
 
   it('falls back for a theme this build has never heard of', () => {
@@ -206,17 +207,15 @@ describe('collection v2 -> v3 · the theme pointer', () => {
     }
   });
 
-  it('does not care whether the theme is unlocked — that is derived at use', () => {
-    // Storing an id whose ending was never reached is not a corruption, and
-    // "repairing" it here would be a second opinion about unlocks that can
-    // disagree with `endingsSeen`. The selector and the reducer both gate on
-    // the derivation instead.
+  it('rejects a defined theme whose ending has not been reached', () => {
+    // Migration is an input boundary too: otherwise a hand-edited save bypasses
+    // the selector's guard and applies a locked theme throughout the app.
     const migrated = migrateCollection({
       version: 3,
       endingsSeen: [],
       selectedThemeId: 'ascension',
     });
-    expect(migrated.selectedThemeId).toBe('ascension');
+    expect(migrated.selectedThemeId).toBe('default');
   });
 
   it('leaves what the player is wearing alone when a run is recorded', () => {
