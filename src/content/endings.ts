@@ -16,7 +16,7 @@ export const endings: Ending[] = [
     summary: 'A sword, a teenager, and a bounty paid in three instalments.',
     hint: 'for a name the hero can find',
     narration:
-      'The Chosen One was nineteen, carried a sword his grandmother had kept oiled for precisely this, and said nothing clever before or after. It was quick, and competent, and there is no version of the account where you get a line. The Crownlands paid the bounty in three instalments and lost the paperwork on the third. Somebody has already set it to music, in a key that makes you taller. You had a long and frightening life; the person who ended it will be introduced, for the rest of theirs, as the one who did it.',
+      'The Chosen One was nineteen, carried a sword his grandmother had kept oiled for precisely this, and said nothing clever before or after. It was quick, and competent, and there is no version of the account where you get a line. The Crownlands paid the bounty in three instalments and lost the paperwork on the third. Somebody has already set it to music, in a key that makes you taller. You had a long life; the one who ended it gets introduced, for the rest of theirs, as the one who did.',
     codaMode: 'tiered',
     coda: {
       unknown: 'The hero had to explain who you were twice before anyone would fund the trip.',
@@ -67,7 +67,7 @@ export const endings: Ending[] = [
     summary: 'You paid everything you were keeping and stopped needing any of it.',
     hint: 'for one who declines to stop',
     narration:
-      'The rite is not difficult. The price is everything you had been keeping: the followers left within the week, politely, the way staff leave a business that changed hands; the artifacts went back into the ground they came from. You did it in a cold room, door shut, no one watching, and no part of it was ceremonial. What remains does not sleep, does not decay, and has no use for a name, though it keeps yours out of habit. The slow forgetting that comes for everybody else turned out, in your case, not to apply.',
+      'The rite is not difficult. The price is everything you had been keeping: the followers left within the week, politely, the way staff leave a business that changed hands; the artifacts went back into the ground they came from. You did it in a cold room, door shut, no one watching. What remains does not sleep, does not decay, and has no use for a name, though it keeps yours out of habit. The forgetting that comes for everybody else turned out, in your case, not to apply.',
     codaMode: 'tiered',
     coda: {
       unknown: 'Nobody is watching the hill. That was never a precaution, it is simply how it went.',
@@ -84,7 +84,7 @@ export const endings: Ending[] = [
     summary: 'Two hundred years, a bog, and nobody left to explain yourself to.',
     hint: 'for a long life and a quiet one',
     narration:
-      'You did not retire so much as stop being findable. The bog took you in without ceremony, and within a decade the maps agreed you were a feature of the landscape rather than a person standing in it. You kept bees that had no business existing, and brokered a truce between two heron colonies that held longer than anything the Crownlands ever signed. Three heroes came looking over the years, found an old wizard boiling roots, and left satisfied they had the wrong valley — each was correct, because by then you were. You died warm, in a chair you had made yourself.',
+      'You did not retire so much as stop being findable. The bog took you in without ceremony, and within a decade the maps agreed you were a feature of the landscape, not a person standing in it. You kept bees that had no business existing, and brokered a heron truce that outlasted anything the Crownlands signed. Three heroes came looking, found an old wizard boiling roots, and left satisfied they had the wrong valley — each was right, because by then you were. You died warm, in a chair you made.',
     codaMode: 'tiered',
     coda: {
       unknown: 'Nobody was ever looking, so the bog was not a hiding place. It was where you lived.',
@@ -118,7 +118,7 @@ export const endings: Ending[] = [
     summary: 'You held one of the four, and the room did not survive what you did with it.',
     hint: 'for the greatest name and a relic to match',
     narration:
-      'The four were never four things; they were one thing, broken on purpose by people who understood exactly what it would do whole — any shard works, if the hand holding it is famous enough. Yours was. You did it in a room built for nothing else, and the room did not survive the moment, and in any useful sense neither did you. The Crownlands struck your name from the tax rolls, as near as that office comes to conceding the supernatural. You are not dead. On certain nights the sky above the old province is the wrong colour, and the people under it stopped remarking on it long ago.',
+      'The four were never four things; they were one thing, broken on purpose — any shard works, if the hand holding it is famous enough. Yours was. You did it in a room built for nothing else, and the room did not survive the moment, and in any useful sense neither did you. The Crownlands struck your name from the tax rolls, as near as it comes to conceding the supernatural. You are not dead. On certain nights the old province’s sky is the wrong colour, and nobody under it remarks on it any more.',
     codaMode: 'tiered',
     coda: {
       unknown: 'The province has a sky the wrong colour and no story to attach to it. It was yours.',
