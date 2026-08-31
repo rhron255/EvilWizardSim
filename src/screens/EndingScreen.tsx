@@ -12,7 +12,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { Artifact, Ending, Faction, Lair, RunState, ThemeId } from '../types';
+import type { Artifact, Ending, Faction, Lair, RunState, ThemeId, TierId } from '../types';
 import { themeFor } from '../theme/themes';
 import {
   ArtifactGrid,
@@ -93,6 +93,20 @@ function prefersReducedMotion(): boolean {
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches
   );
+}
+
+/** Exhaustive over `EndingCoda` so a third `codaMode` is a compile error. */
+function codaFor(ending: Ending, tierId: TierId): string {
+  switch (ending.codaMode) {
+    case 'tiered':
+      return ending.coda[tierId];
+    case 'fixed':
+      return ending.coda;
+    default: {
+      const unhandled: never = ending;
+      return unhandled;
+    }
+  }
 }
 
 export function EndingScreen({
@@ -280,8 +294,10 @@ export function EndingScreen({
           {/* How much the world noticed. The one prose element on this card
               that carries the tier colour — a Local Menace lich and a
               Kingdom-Level lich used to read identically, on a card whose
-              whole spine is Notoriety. */}
-          <p className={styles.coda}>{ending.coda[tier.id]}</p>
+              whole spine is Notoriety. A `fixed` coda has already settled
+              that question some other way (a faction relationship, a debt),
+              so it renders unchanged across every tier by design. */}
+          <p className={styles.coda}>{codaFor(ending, tier.id)}</p>
 
           {/* Who remembers you. Standing had six bars on this card and not one
               word; during a run its only visible payoffs are a locked

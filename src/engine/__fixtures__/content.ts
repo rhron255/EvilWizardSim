@@ -215,6 +215,7 @@ export const fixtureEndings: Ending[] = [
     narration:
       'A farmhand with a prophecy and a borrowed sword ended a long career in an afternoon.',
     summary: 'Killed by a teenager with narrative momentum.',
+    codaMode: 'tiered',
     coda: {
       unknown: 'Fixture coda · slain_by_chosen_one · unknown.',
       local_menace: 'Fixture coda · slain_by_chosen_one · local_menace.',
@@ -230,6 +231,7 @@ export const fixtureEndings: Ending[] = [
     name: 'Sealed in a Gem',
     narration: 'The Academy voted. The vote was to put you in a stone and change the subject.',
     summary: 'Filed away by your alma mater.',
+    codaMode: 'tiered',
     coda: {
       unknown: 'Fixture coda · sealed_in_gem · unknown.',
       local_menace: 'Fixture coda · sealed_in_gem · local_menace.',
@@ -245,6 +247,7 @@ export const fixtureEndings: Ending[] = [
     name: 'Betrayed by an Apprentice',
     narration: 'You taught them everything. They took notes on the parts about your weaknesses.',
     summary: 'Undone by your own curriculum.',
+    codaMode: 'tiered',
     coda: {
       unknown: 'Fixture coda · betrayed_by_apprentice · unknown.',
       local_menace: 'Fixture coda · betrayed_by_apprentice · local_menace.',
@@ -260,6 +263,7 @@ export const fixtureEndings: Ending[] = [
     name: 'Lichdom',
     narration: 'You gave up everything you owned and everyone who followed you, and kept going.',
     summary: 'Traded a life for an afterlife.',
+    codaMode: 'tiered',
     coda: {
       unknown: 'Fixture coda · lichdom · unknown.',
       local_menace: 'Fixture coda · lichdom · local_menace.',
@@ -275,6 +279,7 @@ export const fixtureEndings: Ending[] = [
     name: 'Retired to a Swamp',
     narration: 'You stopped. The swamp is quiet. Nobody writes.',
     summary: 'Made it to the end. Nothing tried to stop you.',
+    codaMode: 'tiered',
     coda: {
       unknown: 'Fixture coda · retired_to_swamp · unknown.',
       local_menace: 'Fixture coda · retired_to_swamp · local_menace.',
@@ -290,6 +295,7 @@ export const fixtureEndings: Ending[] = [
     name: 'Consumed by the Pact',
     narration: 'The instalments came due all at once, as instalments do.',
     summary: 'The bill arrived.',
+    codaMode: 'tiered',
     coda: {
       unknown: 'Fixture coda · consumed_by_pact · unknown.',
       local_menace: 'Fixture coda · consumed_by_pact · local_menace.',
@@ -305,6 +311,7 @@ export const fixtureEndings: Ending[] = [
     name: 'Ascension',
     narration: 'You stepped out of the story before it could finish you.',
     summary: 'Left the world by the front door.',
+    codaMode: 'tiered',
     coda: {
       unknown: 'Fixture coda · ascension · unknown.',
       local_menace: 'Fixture coda · ascension · local_menace.',
