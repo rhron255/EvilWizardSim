@@ -331,8 +331,12 @@ for (const e of endings) {
   checkAscensionPrice(`ending "${e.id}"`, e.summary);
   checkAscensionPrice(`ending "${e.id}"`, e.narration);
   checkAscensionPrice(`ending "${e.id}"`, e.hint);
-  for (const [tier, line] of Object.entries(e.coda)) {
-    checkAscensionPrice(`ending "${e.id}" coda.${tier}`, line);
+  if (e.codaMode === 'tiered') {
+    for (const [tier, line] of Object.entries(e.coda)) {
+      checkAscensionPrice(`ending "${e.id}" coda.${tier}`, line);
+    }
+  } else {
+    checkAscensionPrice(`ending "${e.id}" coda`, e.coda);
   }
 }
 
@@ -348,13 +352,16 @@ for (const e of endings) {
  * to withhold.
  */
 /**
- * Every tier gets a coda, and every coda fits the card.
+ * Every coda fits the card, whichever `codaMode` authored it.
  *
- * `coda` is a full `Record<TierId, string>` so the compiler already catches a
- * missing KEY. What it cannot catch is an empty string, a duplicate pasted
- * across two tiers, or one that has grown past what the ending card can hold —
- * and the point of the field is that a Local Menace career reads differently
- * from a Kingdom-Level one, which a duplicate silently undoes.
+ * A `tiered` coda is a full `Record<TierId, string>` so the compiler already
+ * catches a missing KEY. What it cannot catch is an empty string, a duplicate
+ * pasted across two tiers, or one that has grown past what the ending card
+ * can hold — and the point of the field is that a Local Menace career reads
+ * differently from a Kingdom-Level one, which a duplicate silently undoes.
+ * A `fixed` coda has no tiers to duplicate across, but the length and
+ * non-empty rules bind it exactly as hard — a `fixed` coda escaping the cap
+ * is the bug the union exists to prevent.
  *
  * 110 is the authoring budget, not a layout measurement: the coda sits under a
  * ~500-character narration on a 393px phone, and the card is already 3.4
@@ -363,6 +370,14 @@ for (const e of endings) {
 const CODA_MAX = 110;
 
 for (const e of endings) {
+  if (e.codaMode === 'fixed') {
+    if (!e.coda || !e.coda.trim()) {
+      fail('endings', `ending "${e.id}" has an empty fixed coda`);
+    } else if (e.coda.length > CODA_MAX) {
+      fail('endings', `ending "${e.id}" coda is ${e.coda.length} chars, over the ${CODA_MAX} budget`);
+    }
+    continue;
+  }
   const seen = new Map<string, string>();
   for (const [tier, line] of Object.entries(e.coda)) {
     if (!line || !line.trim()) {
@@ -383,6 +398,26 @@ for (const e of endings) {
       );
     }
     seen.set(line, tier);
+  }
+}
+
+/**
+ * The narration fits the card too.
+ *
+ * 600 is measured, not invented: the seven original narrations were tightened
+ * for issue #13 (a prerequisite for the eleven-ending expansion) and now run
+ * 446–583 characters. 600 is that measured ceiling with a small margin, not a
+ * round number chased backward into the prose — see `CLAUDE.md` failure mode
+ * 12. Re-measure and move this if the catalog's authored range shifts.
+ */
+const NARRATION_MAX = 600;
+
+for (const e of endings) {
+  if (e.narration.length > NARRATION_MAX) {
+    fail(
+      'endings',
+      `ending "${e.id}" narration is ${e.narration.length} chars, over the ${NARRATION_MAX} budget`,
+    );
   }
 }
 

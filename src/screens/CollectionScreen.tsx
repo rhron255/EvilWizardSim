@@ -26,6 +26,22 @@ import {
 } from '../components/meta';
 import styles from './CollectionScreen.module.css';
 
+/**
+ * Spells out small counts for prose ("Seven ways…"). The catalog is on its
+ * way to eighteen endings (issue #14), so this covers up to twenty rather
+ * than hardcoding the seven it happens to be today.
+ */
+const COUNT_WORDS = [
+  'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+  'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen',
+  'nineteen', 'twenty',
+];
+
+function countWord(n: number): string {
+  const word = COUNT_WORDS[n];
+  return word ? word.charAt(0).toUpperCase() + word.slice(1) : String(n);
+}
+
 export type CollectionScreenProps = {
   collection: Collection;
   artifacts: Artifact[];
@@ -178,7 +194,8 @@ export function CollectionScreen({
             <div className={styles.groupText}>
               <h2 className={styles.groupName}>Endings seen</h2>
               <p className={styles.groupDemands}>
-                Seven ways a career of this kind concludes. None of them is a loss.
+                {countWord(endings.length)} ways a career of this kind concludes. None of them is
+                a loss.
               </p>
             </div>
             <div className={styles.groupProgress}>
