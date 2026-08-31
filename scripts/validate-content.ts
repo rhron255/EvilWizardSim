@@ -404,13 +404,14 @@ for (const e of endings) {
 /**
  * The narration fits the card too.
  *
- * 600 is measured, not invented: the seven original narrations were tightened
+ * 500 is measured, not invented: the seven original narrations were tightened
  * for issue #13 (a prerequisite for the eleven-ending expansion) and now run
- * 446–583 characters. 600 is that measured ceiling with a small margin, not a
- * round number chased backward into the prose — see `CLAUDE.md` failure mode
- * 12. Re-measure and move this if the catalog's authored range shifts.
+ * 446–496 characters. 500 is that measured ceiling with a few characters of
+ * margin, not a round number chased backward into the prose — see
+ * `CLAUDE.md` failure mode 12. Re-measure and move this if the catalog's
+ * authored range shifts.
  */
-const NARRATION_MAX = 600;
+const NARRATION_MAX = 500;
 
 for (const e of endings) {
   if (e.narration.length > NARRATION_MAX) {
