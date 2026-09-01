@@ -1,13 +1,21 @@
 import type { Ending } from '../types';
 
 /**
- * The seven endings.
+ * The endings: the original seven, then the six faction reprisals — of which
+ * `sealed_in_gem` was always one and did not know it.
  *
  * THE RULE: there is no fail state. Every narration below is a biography, not
  * a verdict — see `wiki/06_reference_analysis.md` principle 8. The game does
  * not grade the run, it narrates it. Nothing here may read as "you lost,"
  * least of all the swamp, which is the anticlimax ending and therefore the one
  * that has to work hardest.
+ *
+ * The five reprisals added by issue #14 all use `codaMode: 'fixed'`, and they
+ * are the first content in the game to do so. A reprisal is FACTION-shaped
+ * rather than fame-shaped: what the Choir does with the ground reads the same
+ * whether three hamlets noticed or four kingdoms did, and five paraphrases of
+ * that thought would be filler. The original seven stay `tiered` because how
+ * much the world noticed IS their subject. See `EndingCoda` in `types.ts`.
  */
 export const endings: Ending[] = [
   {
@@ -128,5 +136,66 @@ export const endings: Ending[] = [
       legend: 'The name outlived the man, the province, and the office that kept misspelling it.',
     },
     rarity: 'legendary',
+  },
+
+  // -------------------------------------------------------------------------
+  // Faction reprisals. Same trigger, six different ideas of what to do about
+  // you — see `REPRISAL_BY_FACTION` in `src/engine/endings.ts`.
+  // -------------------------------------------------------------------------
+
+  {
+    id: 'eternally_repurposed',
+    name: 'Eternally Repurposed',
+    summary: 'The Covenant found a use for you. The use has no end date.',
+    hint: 'for a name the Covenant would rather spend than argue with',
+    narration:
+      'The Ashen Covenant does not execute anyone. It reassigns. You were reviewed, valued, and entered into the inventory under a heading you would have found insulting had anyone thought to consult you. Some part of you is a ward on a door in the west range. Some part is heat. The rest is held in reserve against a need that has not yet arisen, and the Covenant is patient about needs. There is no end date on the arrangement, because nobody drafting it could think of a reason to put one in.',
+    codaMode: 'fixed',
+    coda: 'The inventory is reviewed each spring. Your line has never once needed amending.',
+    rarity: 'rare',
+  },
+  {
+    id: 'liquidated',
+    name: 'Liquidated',
+    summary: 'Assessed, itemised, and sold in lots. The books balance.',
+    hint: 'for an expensive enemy of the Gilded Hand',
+    narration:
+      'The Gilded Hand did not send anyone to kill you. It sent three clerks, a valuer, and a cart. The tower was assessed, the relics catalogued at prices you would have disputed at length, and your followers offered continued employment on slightly worse terms, which most of them took. You were the final item, and the valuation was the honest part: modest, defensible, and arrived at without any malice whatsoever. The Hand does not keep grudges. It keeps books, and the books balance.',
+    codaMode: 'fixed',
+    coda: 'Your lot number outlived the tower, the relics, and the man who signed for all three.',
+    rarity: 'rare',
+  },
+  {
+    id: 'turned_to_fertilizer',
+    name: 'Turned to Fertilizer',
+    summary: 'The Choir took the ground back, and the yield that year was remarkable.',
+    hint: 'for a famous enemy of the Choir, and good ground',
+    narration:
+      'The Verdant Choir held no trial, because the Choir does not hold trials. It waited, which it is considerably better at than you were, and then it took the ground back with you still standing on it. The roots came up through the floor of a tower you had reinforced against armies. By every measure the Choir recognises you are doing well: the yield in that valley is remarkable, the orchard came in early two years running, and there is a pear that did not exist before you were under it.',
+    codaMode: 'fixed',
+    coda: 'The pear is not named after you. It is, however, named.',
+    rarity: 'rare',
+  },
+  {
+    id: 'exiled_and_overrun',
+    name: 'Exiled and Overrun',
+    summary: 'Escorted to the border by a clerk. What was past it did not read the writ.',
+    hint: 'for a nuisance the Crownlands stopped negotiating with',
+    narration:
+      'The Crownlands are not dramatic people. They drew up a writ, had it read at the border by a clerk who mispronounced your name twice, and escorted you across with a party large enough to make the point and small enough to clear the budget. What was on the far side had not read the writ and was not impressed by the seal. The file closes with a note that the sentence was carried out by parties unknown, and a second note, in another hand, that this was foreseeable.',
+    codaMode: 'fixed',
+    coda: 'The border moved outward twice in the century after. Nobody went looking on the way.',
+    rarity: 'rare',
+  },
+  {
+    id: 'consumed',
+    name: 'Consumed',
+    summary: 'You were always on the schedule. All your work did was move the date.',
+    hint: 'for a name moved to the top of a very old list',
+    narration:
+      'The Worm Below holds no opinions and takes no offence, which is the part everyone gets wrong about it. You were on the schedule from the first day you went down there — everybody is — and all your later work did was move the date up. There was no confrontation and nothing was said. The hill was where the hill had always been, and then the ground under it was somewhere you had been standing. It is not personal. It is simply that the Worm is under everything, and in the end under you.',
+    codaMode: 'fixed',
+    coda: 'It has never once been late. It has never once been early either.',
+    rarity: 'rare',
   },
 ];

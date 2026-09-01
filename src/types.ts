@@ -31,6 +31,17 @@ export type FactionId =
   | 'crownlands'
   | 'worm_below';
 
+/**
+ * Every biography the game can write.
+ *
+ * The first seven are wiki/01 § 7's original set. The five below them are the
+ * FACTION REPRISALS added by issue #14: standing is the most-touched system in
+ * the game and reached exactly one ending, so `sealed_in_gem` was generalised —
+ * each faction now resolves the matter permanently once you are far enough
+ * under it and famous enough to be worth the trouble. `sealed_in_gem` is the
+ * Pale Academy's member of that set, not a special case; see
+ * `REPRISAL_BY_FACTION` in `src/engine/endings.ts`.
+ */
 export type EndingId =
   | 'slain_by_chosen_one'
   | 'sealed_in_gem'
@@ -38,7 +49,13 @@ export type EndingId =
   | 'lichdom'
   | 'retired_to_swamp'
   | 'consumed_by_pact'
-  | 'ascension';
+  | 'ascension'
+  // --- faction reprisals (issue #14) ---------------------------------------
+  | 'eternally_repurposed'
+  | 'liquidated'
+  | 'turned_to_fertilizer'
+  | 'exiled_and_overrun'
+  | 'consumed';
 
 /**
  * A cosmetic palette the player has unlocked and may select.

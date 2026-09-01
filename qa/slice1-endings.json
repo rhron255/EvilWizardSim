@@ -1,0 +1,21 @@
+﻿{
+  "runs": 2000,
+  "endings": {
+    "slain_by_chosen_one": 943,
+    "retired_to_swamp": 192,
+    "sealed_in_gem": 352,
+    "betrayed_by_apprentice": 12,
+    "consumed_by_pact": 36,
+    "lichdom": 11,
+    "ascension": 20,
+    "eternally_repurposed": 3,
+    "liquidated": 6,
+    "turned_to_fertilizer": 99,
+    "exiled_and_overrun": 324,
+    "consumed": 2
+  },
+  "ascensionRate": 0.01,
+  "ageLimitRate": 0.2155,
+  "meanEras": 12.6805,
+  "meanFinalNotoriety": 50.7415
+}

@@ -25,9 +25,15 @@ device, not a breakpoint to degrade toward.
 
 - Full run: title → creation → ~15 eras → prophecy → ending → collection. Clean
   playthrough at 393×852 and 1440×1000, no console errors.
-- 129 offers, 30 artifacts (all 30 reachable), 6 factions, 10 lairs, 7 endings.
-- All seven endings reachable. Ascension ~2%. `slain_by_chosen_one` is ABOVE
-  45% and is the open question below.
+- 136 offers, 30 artifacts (all 30 reachable), 6 factions, 10 lairs, 12 endings.
+- All twelve endings reachable, including the five faction reprisals added by
+  issue #14 — measured by a 200-run cohort probe per faction, not by the
+  population, where each pariah cohort is ~40 runs. `liquidated` is the
+  weakest at 1% of its cohort and the reason is the hostility graph, not the
+  card (see `src/content/offers/grievances.ts`). Ascension 1.0-1.2%, at the
+  bottom of its wiki-authored 1-4% band: the reprisals end careers that would
+  otherwise have had two more eras to reach 84 Notoriety. `slain_by_chosen_one`
+  is 47%, still ABOVE the 45% target but down from 63% before the reprisals.
   Lichdom went 0.25% -> 0.80% by raising the rite offer's weight: a dedicated
   seeker met its standing gate in 61% of careers but was shown the card in only
   19.9% of those, so the branch was a lottery rather than the "live decision"

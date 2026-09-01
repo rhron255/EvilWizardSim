@@ -272,7 +272,18 @@ export const BETRAYAL_MAX_LOYALTY = 15;
 export const LOYALTY_DRIFT_BASE = 2;
 export const LOYALTY_DRIFT_MIN_APPRENTICES = 2;
 
-/** Sealed in a Gem: the Pale Academy files dangerous alumni away. */
+/**
+ * A faction reprisal: standing this far under, and famous enough to be worth
+ * the trouble. Six outcomes, one condition — `REPRISAL_BY_FACTION` in
+ * `endings.ts` maps each faction to what it does about you.
+ *
+ * The names are historical: this was `sealed_in_gem`'s trigger and nothing
+ * else's, so the constants are still called SEAL_*. `SEAL_FACTION` is no
+ * longer "the faction that can end a run" — all six can. It is now the one
+ * faction whose reprisal is live in EVERY phase, which is what keeps the
+ * Academy's rate where it was measured while the five added beside it stay
+ * decline-only (`reprisalLiveFor`).
+ */
 export const SEAL_FACTION = 'pale_academy' as const;
 export const SEAL_MAX_STANDING = -55;
 export const SEAL_MIN_NOTORIETY = 55;

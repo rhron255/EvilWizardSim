@@ -15,10 +15,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildOfferPool,
+  checkEndings,
   createRun,
   decayFor,
   defenseOf,
   emptyCollection,
+  FACTION_ORDER,
   migrateCollection,
   nextOffer,
   pactRoleOf,
@@ -27,7 +29,10 @@ import {
   PACT_RELIEF_MAX,
   PACT_TEMPT_MAX,
   QUIET_ERA_OFFER,
+  REPRISAL_BY_FACTION,
   resolveChoice,
+  SEAL_MAX_STANDING,
+  SEAL_MIN_NOTORIETY,
   tierCrossing,
 } from './index';
 import type { ContentBundle } from './index';
@@ -36,7 +41,7 @@ import { applyStanding } from './effects';
 import { indexOf } from './content-port';
 import { fixtureContent } from './__fixtures__/content';
 import * as C from '../content';
-import type { Collection, Effect, RunState } from '../types';
+import type { Collection, Effect, FactionId, RunState } from '../types';
 
 const real: ContentBundle = {
   factions: C.factions,
@@ -390,6 +395,82 @@ describe('endings', () => {
     const done = states.at(-1)!;
     const { next } = resolveChoice(done, nextOffer(done, real), 0, real);
     expect(next).toBe(done);
+  });
+});
+
+/**
+ * The six reprisals, and the rule that decides between them.
+ *
+ * `sealed_in_gem` was the only ending faction standing could reach, so the
+ * check read one faction and nothing else. Six factions carrying the same
+ * condition need an ORDER, because contagion routinely puts two of them under
+ * the line in the same era — courting the Covenant drives the Academy and the
+ * Crownlands down together. "Whichever the object literal happens to list
+ * first" is a nondeterminism bug that no single playthrough would show.
+ */
+describe('faction reprisals', () => {
+  /** A run under the line with one faction, deep in the decline. */
+  const at = (
+    standing: Partial<Record<FactionId, number>>,
+    over: Partial<RunState> = {},
+  ): RunState => ({
+    ...start(),
+    phase: 'decline',
+    notoriety: SEAL_MIN_NOTORIETY,
+    eraIndex: 8,
+    eraCount: 16,
+    factionStanding: { ...start().factionStanding, ...standing },
+    ...over,
+  });
+
+  it('gives every faction its own ending, not the Academy’s', () => {
+    for (const [factionId, endingId] of Object.entries(REPRISAL_BY_FACTION)) {
+      const run = at({ [factionId as FactionId]: SEAL_MAX_STANDING });
+      expect(checkEndings(run, fixtureContent), factionId).toBe(endingId);
+    }
+  });
+
+  it('needs BOTH halves, exactly as the seal did', () => {
+    // Deep enough, not famous enough.
+    expect(
+      checkEndings(at({ crownlands: SEAL_MAX_STANDING - 40 }, { notoriety: SEAL_MIN_NOTORIETY - 1 }), fixtureContent),
+    ).toBeUndefined();
+    // Famous enough, one point short.
+    expect(
+      checkEndings(at({ crownlands: SEAL_MAX_STANDING + 1 }), fixtureContent),
+    ).toBeUndefined();
+  });
+
+  it('fires the LOWEST standing when two factions are under at once', () => {
+    const run = at({ gilded_hand: SEAL_MAX_STANDING - 2, worm_below: SEAL_MAX_STANDING - 30 });
+    expect(checkEndings(run, fixtureContent)).toBe(REPRISAL_BY_FACTION.worm_below);
+  });
+
+  it('breaks an exact tie by FACTION_ORDER, the same way every time', () => {
+    const [first, second] = [FACTION_ORDER[4], FACTION_ORDER[1]];
+    const run = at({ [first]: SEAL_MAX_STANDING - 7, [second]: SEAL_MAX_STANDING - 7 });
+    // `second` is earlier in FACTION_ORDER, so it wins the tie regardless of
+    // which order the two were written into `factionStanding` above.
+    expect(checkEndings(run, fixtureContent)).toBe(REPRISAL_BY_FACTION[second]);
+    expect(FACTION_ORDER.indexOf(second)).toBeLessThan(FACTION_ORDER.indexOf(first));
+  });
+
+  it('keeps the five new ones out of the ascent, and the Academy in it', () => {
+    const ascent = { phase: 'ascent' as const };
+    expect(
+      checkEndings(at({ verdant_choir: SEAL_MAX_STANDING - 30 }, ascent), fixtureContent),
+    ).toBeUndefined();
+    expect(checkEndings(at({ pale_academy: SEAL_MAX_STANDING }, ascent), fixtureContent)).toBe(
+      'sealed_in_gem',
+    );
+  });
+
+  it('does not outrank the blade', () => {
+    // Precedence is unchanged from the seal's: the hero lands first. Pinned
+    // because generalising the branch moved it, and a reordering here would
+    // silently redistribute two endings' rates.
+    const run = at({ pale_academy: SEAL_MAX_STANDING }, { heroThreat: 9999 });
+    expect(checkEndings(run, fixtureContent)).toBe('slain_by_chosen_one');
   });
 });
 

@@ -22,16 +22,29 @@
  *   - The decline reads as erosion, not a cliff
  */
 
-import type { Effect, EndingId, Offer, OfferOption, RunState, TierId } from '../src/types';
+import type {
+  Effect,
+  EndingId,
+  FactionId,
+  Offer,
+  OfferOption,
+  RunState,
+  TierId,
+} from '../src/types';
 import type { ContentBundle } from '../src/engine';
 import { TIERS, tierFor } from '../src/theme/tokens';
 import { ascensionReady, createRun, defenseOf, nextOffer, resolveChoice } from '../src/engine';
 import {
   ASCENSION_LEGENDARIES,
   ASCENSION_MIN_NOTORIETY,
+  CONTAGION_GAIN,
+  CONTAGION_LOSS,
   PACT_LIMIT,
   RUN_LENGTHS,
+  SEAL_MAX_STANDING,
+  SEAL_MIN_NOTORIETY,
 } from '../src/engine/constants';
+import { REPRISAL_BY_FACTION } from '../src/engine/endings';
 import { fixtureContent } from '../src/engine/__fixtures__/content';
 import {
   artifacts,
@@ -64,6 +77,38 @@ const contentLabel = USE_FIXTURES ? 'FIXTURE content bundle' : 'real content bun
 // Player policies
 // ---------------------------------------------------------------------------
 
+/**
+ * The five factions a simulated player deliberately antagonises.
+ *
+ * Not the Academy: its reprisal is the one that has always been reachable by
+ * ordinary play (15-18% of runs, through contagion nobody aimed), so a cohort
+ * for it would measure a policy rather than the game. The other five needed
+ * one — every existing policy either courts a faction or ignores it, and none
+ * drives one to −55 on purpose, so all five reprisals read 0.00% in a
+ * population that has never met a player who wanted them.
+ */
+const PARIAH_TARGETS = [
+  'ashen_covenant',
+  'gilded_hand',
+  'verdant_choir',
+  'crownlands',
+  'worm_below',
+] as const satisfies readonly FactionId[];
+
+type PariahTarget = (typeof PARIAH_TARGETS)[number];
+type PariahPolicy = `pariah_${PariahTarget}`;
+
+const PARIAH_POLICIES: PariahPolicy[] = PARIAH_TARGETS.map((f) => `pariah_${f}` as PariahPolicy);
+
+/** A type predicate, so the exhaustive `switch` in `modeFor` stays exhaustive. */
+function isPariah(policy: Policy): policy is PariahPolicy {
+  return policy.startsWith('pariah_');
+}
+
+function pariahTarget(policy: PariahPolicy): PariahTarget {
+  return policy.slice('pariah_'.length) as PariahTarget;
+}
+
 type Policy =
   | 'random'
   | 'safe'
@@ -72,7 +117,8 @@ type Policy =
   | 'courtier'
   | 'lich'
   | 'ascendant'
-  | 'reckless';
+  | 'reckless'
+  | PariahPolicy;
 
 /**
  * Population mix — an attempt at a realistic spread of how people actually
@@ -88,16 +134,26 @@ type Policy =
  * `consumed_by_pact` at 1.20% while a player who simply keeps saying yes hits
  * 9.67%. A population made entirely of optimisers cannot measure an ending
  * that exists to punish not paying attention.
+ *
+ * The five `pariah_*` cohorts are the mirror of `courtier`, and they are here
+ * for the reason `reckless` is: a reprisal ending measured across a population
+ * that never antagonises anybody is a measurement of the population, not of
+ * the ending. They take 2% each — a tenth of the sample between them, which is
+ * enough to answer "is this reachable, and how often for someone trying"
+ * without pretending a fifth of players spend a career making one enemy.
+ * Everything else is scaled by 0.9 to make room, so the RELATIVE mix of the
+ * eight original policies is unchanged.
  */
 const POPULATION: Array<[Policy, number]> = [
-  ['random', 0.12],
-  ['safe', 0.16],
-  ['greedy', 0.14],
-  ['adaptive', 0.2],
-  ['courtier', 0.11],
-  ['lich', 0.06],
-  ['ascendant', 0.11],
-  ['reckless', 0.1],
+  ['random', 0.108],
+  ['safe', 0.144],
+  ['greedy', 0.126],
+  ['adaptive', 0.18],
+  ['courtier', 0.099],
+  ['lich', 0.054],
+  ['ascendant', 0.099],
+  ['reckless', 0.09],
+  ...PARIAH_POLICIES.map((p) => [p, 0.02] as [Policy, number]),
 ];
 
 type Mode = 'notoriety' | 'defense' | 'standing' | 'ascendant' | 'reckless';
@@ -341,6 +397,14 @@ function optionScore(
 }
 
 function modeFor(policy: Policy, run: RunState, threatRatio: number): Mode {
+  // A pariah still has to LIVE to the decline and be famous enough to be worth
+  // acting on — the reprisal needs notoriety ≥ SEAL_MIN_NOTORIETY and, for
+  // five of the six factions, the decline phase. So the base play is
+  // `adaptive`; the spite rides on top of it rather than replacing it.
+  if (isPariah(policy)) {
+    if (run.phase === 'ascent') return 'notoriety';
+    return threatRatio > 0.55 ? 'defense' : 'notoriety';
+  }
   switch (policy) {
     case 'reckless':
       return 'reckless';
@@ -387,17 +451,88 @@ const LICH_DEVOTION = Number(process.env.LICH_DEVOTION ?? 5);
  * the rite -- devotion 3 transformed 0.45% of the time and devotion 8 managed
  * 0.10%. Weighting by odds is what a player actually does.
  */
-function wormOf(effects: readonly Effect[]): number {
+function standingOf(effects: readonly Effect[], factionId: FactionId): number {
   return effects
     .filter((e): e is Extract<Effect, { t: 'standing' }> => e.t === 'standing')
-    .filter((e) => e.factionId === 'worm_below')
+    .filter((e) => e.factionId === factionId)
     .reduce((a, e) => a + e.v, 0);
 }
 
-function wormAffinity(option: OfferOption): number {
-  if (option.kind === 'certain') return wormOf(option.effects);
-  return option.odds * wormOf(option.onSuccess) + (1 - option.odds) * wormOf(option.onFailure);
+/** Odds-weighted, for the same reason `wormOf` is. */
+function evOf(option: OfferOption, of: (effects: readonly Effect[]) => number): number {
+  if (option.kind === 'certain') return of(option.effects);
+  return option.odds * of(option.onSuccess) + (1 - option.odds) * of(option.onFailure);
 }
+
+function wormAffinity(option: OfferOption): number {
+  return evOf(option, (fx) => standingOf(fx, 'worm_below'));
+}
+
+/**
+ * Who is hostile to whom, read from content rather than restated.
+ *
+ * A pariah needs both routes down, because the direct one is not enough on its
+ * own: cards offering a large negative on one named faction are rare, while
+ * cards offering a large POSITIVE to that faction's enemy are everywhere, and
+ * `applyStanding` spills `CONTAGION_GAIN` of every gain onto the enemies of
+ * whoever gained. Courting the Covenant is how most players reach the gem
+ * without ever choosing to; it is also how a pariah gets there on purpose.
+ */
+const HOSTILE_TOWARD = new Map<FactionId, FactionId[]>(
+  content.factions.map((f) => [
+    f.id,
+    content.factions.filter((g) => g.hostileTo.includes(f.id)).map((g) => g.id),
+  ]),
+);
+
+/**
+ * EXPECTED standing damage to one faction — the sign-flipped mirror of
+ * `wormAffinity`, with the contagion route added.
+ *
+ * A gain for a faction hostile to the target costs the target
+ * `CONTAGION_GAIN` of it; a LOSS for that faction hands the target
+ * `CONTAGION_LOSS` back. Both rates come from `constants.ts`, so a change to
+ * the contagion model moves the policy with it instead of leaving a bot
+ * playing the old game.
+ */
+function spiteOf(effects: readonly Effect[], target: FactionId): number {
+  let total = -standingOf(effects, target);
+  for (const enemy of HOSTILE_TOWARD.get(target) ?? []) {
+    const v = standingOf(effects, enemy);
+    total += v * (v > 0 ? CONTAGION_GAIN : CONTAGION_LOSS);
+  }
+  return total;
+}
+
+/**
+ * What the damage is WORTH, given where the target already stands.
+ *
+ * Priced through a remaining-distance potential for the same reason pact debt
+ * is priced through a convex one: a flat per-point value describes a bot, not a
+ * player. Two things fall out of it, and both were bugs before it existed.
+ *
+ * Damage past `SEAL_MAX_STANDING` is worth nothing, so a pariah whose enemy is
+ * already deep enough stops feuding and spends the rest of the career doing
+ * what the OTHER half of the trigger needs — getting famous. Without that the
+ * cohort drove its target under the line in 16% of runs and converted 19% of
+ * those, because it was still picking spite over fame at 30 Notoriety with
+ * three eras left, in a game that will not act on an obscure wizard.
+ *
+ * And a card that would overshoot is priced only for the part that counts, so
+ * the policy prefers the cheap route to the line over the spectacular one.
+ */
+function spiteAffinity(option: OfferOption, target: FactionId, standing: number): number {
+  const remaining = Math.max(0, standing - SEAL_MAX_STANDING);
+  if (remaining === 0) return 0;
+  const damage = evOf(option, (fx) => spiteOf(fx, target));
+  return Math.min(damage, remaining);
+}
+
+/**
+ * How hard a pariah commits to being hated. Tuned the way `LICH_DEVOTION` was:
+ * the cohort readout below is what it was fitted against, not a guess.
+ */
+const PARIAH_SPITE = Number(process.env.PARIAH_SPITE ?? 5);
 
 function chooseOption(policy: Policy, run: RunState, offer: Offer, roll: number): number {
   if (policy === 'random') return Math.floor(roll * offer.options.length);
@@ -422,6 +557,11 @@ function chooseOption(policy: Policy, run: RunState, offer: Offer, roll: number)
     // single-faction run that wiki/06 identifies as real player behaviour,
     // not a player who merely likes the Worm slightly more than average.
     if (policy === 'lich') score += wormAffinity(option) * LICH_DEVOTION;
+    // The mirror of the line above: one faction, hard, in the other direction.
+    if (isPariah(policy)) {
+      const target = pariahTarget(policy);
+      score += spiteAffinity(option, target, run.factionStanding[target] ?? 0) * PARIAH_SPITE;
+    }
     if (score > best) {
       best = score;
       bestIndex = i;
@@ -486,6 +626,27 @@ type RunResult = {
    * it, so this is held-at-end UNION everything gained along the way.
    */
   discoveredIds: string[];
+  /**
+   * The lowest each faction's standing ever went.
+   *
+   * A reprisal rate on its own cannot tell "the cohort never got anyone angry
+   * enough" apart from "it did, and something else ended the run first", and
+   * those two want opposite fixes — the same reason the pact ladder is printed
+   * as a chain rather than a rate.
+   */
+  /**
+   * The feud ladder, per run: which grievance cards this career was shown, and
+   * which rungs it actually took.
+   *
+   * Per-CARD rather than a count, because the counts were misleading in the
+   * exact way CLAUDE.md warns about — a pariah takes grievance cards aimed at
+   * other factions too (declining one costs its proposer standing), so a bare
+   * "grievances taken" number said the ladder was being climbed when it was
+   * not.
+   */
+  grievancesSeen: string[];
+  grievancesTaken: string[];
+  minStanding: Record<FactionId, number>;
   /** Distinct lairs occupied across the run — the ending card's trophy grid. */
   lairsHeld: number;
   peakLairTier: number;
@@ -527,6 +688,7 @@ function playRun(
   let everAscensionReady = false;
   let becameLich = false;
   const declineDeltas: number[] = [];
+  const minStanding = { ...run.factionStanding };
 
   // Hard stop: a run can never legally exceed its era count, but a harness
   // that can hang is a harness nobody runs.
@@ -558,6 +720,9 @@ function playRun(
     if (ascensionReady(run, content)) everAscensionReady = true;
     peakPactDebt = Math.max(peakPactDebt, run.pactDebt);
     if (run.pactDebt > 0) erasCarryingDebt++;
+    for (const [id, v] of Object.entries(run.factionStanding) as [FactionId, number][]) {
+      if (v < minStanding[id]) minStanding[id] = v;
+    }
   }
 
   let peak = run.notoriety;
@@ -604,6 +769,16 @@ function playRun(
     everAscensionReady,
     declineDeltas,
     discoveredIds: Array.from(discovered),
+    grievancesSeen: run.seenOfferIds.filter((id) => id.startsWith('grievance_')),
+    grievancesTaken: run.eras
+      .filter((e) => {
+        if (!e.offerId.startsWith('grievance_')) return false;
+        // The first option is always the act; the second is walking away.
+        const offer = content.offers.find((o) => o.id === e.offerId);
+        return offer?.options[0].label === e.optionLabel;
+      })
+      .map((e) => e.offerId),
+    minStanding,
     lairsHeld: lairIds.size,
     peakLairTier,
     becameLich,
@@ -658,6 +833,34 @@ function pickEraCount(roll: number): number {
     if (roll < acc) return RUN_LENGTHS[i];
   }
   return RUN_LENGTHS[RUN_LENGTHS.length - 1];
+}
+
+/**
+ * Reachability, measured on a sample big enough to mean something.
+ *
+ * The pariah cohorts inside the population are ~40 runs each, where one career
+ * either way moves the rate by two and a half points — so a floor checked
+ * against them would be checking noise. Rule 6 is not a rate target, it is
+ * "every ending must be reachable", and the honest way to answer it is to play
+ * a proper sample of the player who wants each one.
+ *
+ * Deliberately separate from the headline population: these runs are NOT mixed
+ * into the distribution above, because a population made of people all chasing
+ * the same rare ending is not a population (CLAUDE.md failure mode 5).
+ */
+const PROBE_RUNS = 200;
+
+function reprisalProbe(baseSeed: number): Map<FactionId, RunResult[]> {
+  const out = new Map<FactionId, RunResult[]>();
+  for (const faction of PARIAH_TARGETS) {
+    const rng = mulberry32((baseSeed ^ 0x9e3779b9) + faction.length);
+    const runs: RunResult[] = [];
+    for (let i = 0; i < PROBE_RUNS; i++) {
+      runs.push(playRun(baseSeed + 104_729 + i * 7919, pickEraCount(rng()), `pariah_${faction}`));
+    }
+    out.set(faction, runs);
+  }
+  return out;
 }
 
 function pickPolicy(roll: number): Policy {
@@ -744,6 +947,12 @@ const ENDING_ORDER: EndingId[] = [
   'consumed_by_pact',
   'lichdom',
   'ascension',
+  // The five reprisals that joined the seal, in faction order.
+  'eternally_repurposed',
+  'liquidated',
+  'turned_to_fertilizer',
+  'exiled_and_overrun',
+  'consumed',
 ];
 
 const ALL_ENDING_IDS: EndingId[] = content.endings.map((e) => e.id);
@@ -858,6 +1067,8 @@ function main(): void {
   // Sequential careers, folded into one persistent grid. Smaller populations
   // than the run sample because each "player" is up to `cap` whole runs.
   const curve = collectionCurve(baseSeed ^ 0x51ede5, 120, 60);
+  // Reachability, measured apart from the population it must not distort.
+  const probe = reprisalProbe(baseSeed);
   const byEnding = new Map<EndingId, number>();
   for (const r of results) byEnding.set(r.ending, (byEnding.get(r.ending) ?? 0) + 1);
 
@@ -1049,6 +1260,59 @@ function main(): void {
   row('mean peak lair tier', mean(results.map((r) => r.peakLairTier)).toFixed(2));
   row('runs holding a single lair', pct(results.filter((r) => r.lairsHeld <= 1).length, total));
   row('runs holding 3+ lairs', pct(results.filter((r) => r.lairsHeld >= 3).length, total));
+  // --- the faction reprisals ----------------------------------------------
+  //
+  // Printed as a CHAIN and per cohort, for the two reasons the pact ladder is:
+  // a bare rate cannot separate "nobody ever made that enemy" from "they did
+  // and something else killed them first", and a cohort-level effect measured
+  // population-wide mostly measures the population mix. The population column
+  // is printed WITHOUT a target beside it, deliberately.
+  //
+  // `card` is how many of that faction's grievance cards the career was shown,
+  // and how many it took. It is the one column that says whether the route
+  // exists as opposed to whether the odds were kind — the first build of those
+  // cards was seen by a fifth of the cohort that wanted it.
+  console.log(rule());
+  console.log(
+    `  FACTION REPRISALS  (${PROBE_RUNS}-run cohort probes, then the population)`,
+  );
+  console.log(
+    `${pad('  faction', 20)}${padLeft('cohort', 8)}${padLeft('low', 7)}${padLeft(`<=${SEAL_MAX_STANDING}`, 9)}${padLeft('+fame', 8)}${padLeft('card', 12)}${padLeft('reprisal', 10)}${padLeft('pop', 8)}`,
+  );
+  for (const [factionId, endingId] of Object.entries(REPRISAL_BY_FACTION) as [
+    FactionId,
+    EndingId,
+  ][]) {
+    const cohort = probe.get(factionId) ?? [];
+    const deep = cohort.filter((r) => r.minStanding[factionId] <= SEAL_MAX_STANDING);
+    const drove = deep.length;
+    // Both halves, in the order a career meets them. A cohort that gets its
+    // enemy deep enough and stays too obscure to be worth acting on is a
+    // different problem from one that never makes the enemy.
+    const famous = deep.filter((r) => r.peakNotoriety >= SEAL_MIN_NOTORIETY).length;
+    const reached = cohort.filter((r) => r.ending === endingId).length;
+    console.log(
+      pad(`  ${factionId}`, 20) +
+        padLeft(cohort.length ? String(cohort.length) : '-', 8) +
+        padLeft(
+          cohort.length ? mean(cohort.map((r) => r.minStanding[factionId])).toFixed(0) : '-',
+          7,
+        ) +
+        padLeft(cohort.length ? pct(drove, cohort.length) : '-', 9) +
+        padLeft(drove ? pct(famous, drove) : '-', 8) +
+        padLeft(
+          cohort.length
+            ? `${mean(cohort.map((r) => r.grievancesSeen.filter((id) => id.includes(factionId)).length)).toFixed(2)}/${mean(
+                cohort.map((r) => r.grievancesTaken.filter((id) => id.includes(factionId)).length),
+              ).toFixed(2)}`
+            : '-',
+          12,
+        ) +
+        padLeft(cohort.length ? pct(reached, cohort.length) : '-', 10) +
+        padLeft(pct(byEnding.get(endingId) ?? 0, total), 8),
+    );
+  }
+
   console.log(rule());
   row('became a lich (transformation)', pct(results.filter((r) => r.becameLich).length, total));
   row('LICHDOM ending', pct(byEnding.get('lichdom') ?? 0, total));
@@ -1258,6 +1522,56 @@ function main(): void {
       'Lichdom reachable by a lich-seeker (2-15% of that cohort)',
       lichSeekerLichdomRate >= 0.02 && lichSeekerLichdomRate <= 0.15,
       pct(lichSeekerLichdoms, lichSeekerRuns),
+    ],
+    [
+      /*
+       * PROVENANCE: none. The wiki predates the reprisals entirely — issue #14
+       * sets no rate for them and this file will not invent one, because the
+       * lichdom band was invented and then chased twice (CLAUDE.md failure
+       * mode 6). What IS load-bearing is rule 6: every ending must be
+       * reachable, and reachable by someone who wants it rather than by a
+       * fluke in one run out of two thousand. So this is a FLOOR and has no
+       * ceiling: 1% of a 200-run cohort probe. It is measured against the PROBE
+       * and not against the ~40 pariah runs inside the population, where one
+       * career moves the rate by two and a half points and the check would be
+       * grading noise.
+       *
+       * ONE PER CENT is deliberately low, and it is set by the weakest case
+       * rather than the typical one. Four of the five sit between 3% and 45%;
+       * `liquidated` sits at 1%, because the Gilded Hand has a single enemy on
+       * the hostility graph and 11 offers to the Covenant's 23, so a career
+       * rarely arrives at the decline with the Hand low enough for its card to
+       * be eligible at all (see `src/content/offers/grievances.ts`). Raising
+       * this floor without fixing THAT would only mean pushing a bigger number
+       * through a narrower door — exactly the shape of the lichdom band that
+       * was invented and then chased twice. The cohort rates are printed above
+       * so the next slice can move them honestly.
+       *
+       * The Academy is measured in the same cohort-shaped way as the other
+       * five by asking the population instead, since it is the one reprisal
+       * ordinary play already reaches — see the readout above, where its
+       * cohort column reads `-`.
+       */
+      'Every faction reprisal reachable by the cohort that wants it (1%+)',
+      (Object.entries(REPRISAL_BY_FACTION) as [FactionId, EndingId][]).every(
+        ([factionId, endingId]) => {
+          const cohort = probe.get(factionId) ?? [];
+          if (cohort.length === 0) {
+            // No cohort: the population carries it, as it always has for the
+            // Academy, whose reprisal ordinary play reaches without aiming.
+            return (byEnding.get(endingId) ?? 0) / total >= 0.01;
+          }
+          return cohort.filter((r) => r.ending === endingId).length / cohort.length >= 0.01;
+        },
+      ),
+      (Object.entries(REPRISAL_BY_FACTION) as [FactionId, EndingId][])
+        .map(([factionId, endingId]) => {
+          const cohort = probe.get(factionId) ?? [];
+          return cohort.length
+            ? pct(cohort.filter((r) => r.ending === endingId).length, cohort.length)
+            : pct(byEnding.get(endingId) ?? 0, total);
+        })
+        .join(' '),
     ],
     [
       // PROVENANCE: wiki/01 § 8 specifies "a grid of lairs held, one card

@@ -16,11 +16,21 @@
  * |---------------------------|--------------------------------------|
  * | `slain_by_chosen_one`     | the named hero for this run's seed   |
  * | `sealed_in_gem`           | the Pale Academy                     |
+ * | `eternally_repurposed`    | the Ashen Covenant                   |
+ * | `liquidated`              | the Gilded Hand                      |
+ * | `turned_to_fertilizer`    | the Verdant Choir                    |
+ * | `exiled_and_overrun`      | the Crownlands                       |
+ * | `consumed`                | the Worm Below                       |
  * | `consumed_by_pact`        | the Ashen Covenant                   |
  * | `betrayed_by_apprentice`  | an apprentice                        |
  * | `lichdom`                 | **nobody**                           |
  * | `retired_to_swamp`        | **nobody**                           |
  * | `ascension`               | **nobody**                           |
+ *
+ * The five faction reprisals are the least ambiguous entries in the table: a
+ * reprisal is the faction acting, which is the whole of what it is. They are
+ * attributed through `REPRISAL_BY_FACTION` rather than by five more literals,
+ * so the card can never credit a faction other than the one the engine used.
  *
  * Those last three are SELF-DETERMINED: they are things the wizard did, not
  * things done to the wizard. Inventing an agent for them would be a lie, and a
@@ -34,7 +44,22 @@
  * faction that is absent yields `null` rather than a broken half-sentence.
  */
 
+import { REPRISAL_BY_FACTION } from '../../engine';
 import type { EndingId, Faction, FactionId } from '../../types';
+
+/**
+ * Reprisal ending -> the faction that carried it out.
+ *
+ * Inverted from the engine's own table so there is exactly one place that
+ * decides which faction owns which reprisal. A hand-written second copy here
+ * would typecheck perfectly while naming the wrong faction on the card.
+ */
+const REPRISAL_AGENT = new Map<EndingId, FactionId>(
+  (Object.entries(REPRISAL_BY_FACTION) as [FactionId, EndingId][]).map(([factionId, endingId]) => [
+    endingId,
+    factionId,
+  ]),
+);
 
 /** What the screen needs to resolve an attribution. */
 export type AttributionContext = {
@@ -72,8 +97,16 @@ export function attributionFor(endingId: EndingId, ctx: AttributionContext): str
       // rather than a label with a blank after it.
       return ctx.heroName.trim() || null;
 
+    // --- faction reprisals: the faction IS the ending ------------------------
     case 'sealed_in_gem':
-      return nameOf(ctx.factions, 'pale_academy');
+    case 'eternally_repurposed':
+    case 'liquidated':
+    case 'turned_to_fertilizer':
+    case 'exiled_and_overrun':
+    case 'consumed': {
+      const factionId = REPRISAL_AGENT.get(endingId);
+      return factionId ? nameOf(ctx.factions, factionId) : null;
+    }
 
     case 'consumed_by_pact':
       return nameOf(ctx.factions, 'ashen_covenant');

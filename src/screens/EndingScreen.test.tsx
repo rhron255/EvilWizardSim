@@ -25,6 +25,7 @@ import { endings } from '../content/endings';
 import { factions } from '../content/factions';
 import { heroNameFor } from '../content/heroes';
 import { ATTRIBUTION_LABEL, attributionFor } from '../components/meta';
+import { REPRISAL_BY_FACTION } from '../engine';
 import {
   demoArtifacts,
   demoLairs,
@@ -63,6 +64,11 @@ const ENDING_IDS: EndingId[] = [
   'retired_to_swamp',
   'consumed_by_pact',
   'ascension',
+  'eternally_repurposed',
+  'liquidated',
+  'turned_to_fertilizer',
+  'exiled_and_overrun',
+  'consumed',
 ];
 
 /** Every id in the frozen union is covered — no ending gets to go unchecked. */
@@ -72,6 +78,14 @@ const ATTRIBUTED: EndingId[] = [
   'sealed_in_gem',
   'betrayed_by_apprentice',
   'consumed_by_pact',
+  // The five faction reprisals. A reprisal with no agent would be the one
+  // case where "nobody ended you" is flatly untrue — the faction is the
+  // ending.
+  'eternally_repurposed',
+  'liquidated',
+  'turned_to_fertilizer',
+  'exiled_and_overrun',
+  'consumed',
 ];
 
 function show(
@@ -144,6 +158,24 @@ describe('EndingScreen attribution', () => {
     const { container } = show('consumed_by_pact');
     expect(attributionOnScreen(container)).toBe('The Ashen Covenant');
   });
+
+  /**
+   * Each reprisal credits the faction that carried it out — and specifically
+   * NOT the faction next door.
+   *
+   * The pairs are read from the engine's own `REPRISAL_BY_FACTION`, which is
+   * what `attributionFor` inverts. A hand-written table here would agree with
+   * a hand-written table there and both could be wrong together; this fails
+   * the moment the card names a faction the engine did not use.
+   */
+  it.each(Object.entries(REPRISAL_BY_FACTION))(
+    'credits %s for its own reprisal',
+    (factionId, endingId) => {
+      const { container } = show(endingId);
+      const expected = factions.find((f) => f.id === factionId)!.name;
+      expect(attributionOnScreen(container)).toBe(expected);
+    },
+  );
 
   it('credits an unnamed apprentice for betrayed_by_apprentice', () => {
     const { container } = show('betrayed_by_apprentice');

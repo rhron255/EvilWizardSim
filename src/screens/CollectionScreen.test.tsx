@@ -74,7 +74,12 @@ describe('CollectionScreen · the seven endings', () => {
     show(demoEmptyCollection);
     const doors = screen.getAllByLabelText(/^An ending you have not reached/);
     expect(doors).toHaveLength(endings.length);
-    expect(endings.length).toBe(7);
+    // A floor, not the count. Pinning the exact number made this fail on the
+    // day content was ADDED, which is the one day the grid is most worth
+    // checking — while `toHaveLength(endings.length)` above already fails if a
+    // slot goes missing. Twelve is the seven of wiki/01 § 7 plus the five
+    // faction reprisals of issue #14.
+    expect(endings.length).toBeGreaterThanOrEqual(12);
   });
 
   it('withholds the name of an ending not yet reached', () => {

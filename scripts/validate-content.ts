@@ -85,7 +85,9 @@ for (const faction of factions) {
   }
 }
 
-// wiki/01 § 7 names seven endings and the collection screen shows seven slots.
+// wiki/01 § 7 names the first seven; issue #14 adds the five faction reprisals
+// beside `sealed_in_gem`, which was always one of that set. The collection
+// screen shows a slot for each.
 const REQUIRED_ENDINGS = [
   'slain_by_chosen_one',
   'sealed_in_gem',
@@ -94,6 +96,11 @@ const REQUIRED_ENDINGS = [
   'retired_to_swamp',
   'consumed_by_pact',
   'ascension',
+  'eternally_repurposed',
+  'liquidated',
+  'turned_to_fertilizer',
+  'exiled_and_overrun',
+  'consumed',
 ];
 for (const id of REQUIRED_ENDINGS) {
   if (!endings.some((e) => e.id === id)) fail('endings', `missing "${id}"`);
@@ -273,6 +280,72 @@ for (const offer of offers.filter((o) => o.id.startsWith('concordat_'))) {
       `devotion gate is ${gate.v} but DEVOTION_STANDING is ${DEVOTION_STANDING} — ` +
         'the reliquary and the draw upgrade must agree on what "devoted" means',
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The grievance cards must point AWAY from the faction they belong to
+// ---------------------------------------------------------------------------
+
+/**
+ * The mirror of the concordat rule, guarding the property the grievances exist
+ * for rather than a number.
+ *
+ * A `grievance_*` card is the one deliberate route to a faction reprisal, and
+ * it works only because it is affiliated with an ENEMY of its target: an offer
+ * belonging to a faction you have already alienated is one `standingWeight`
+ * has already stopped showing you, so a grievance filed under its own target
+ * would be a route that closes exactly as you start to need it. That is a
+ * silent failure — the card still exists, still validates, and simply never
+ * appears — so it is asserted here.
+ *
+ * Three things are pinned: the gate is a single `maxStanding` on one faction
+ * at a negative value (a grievance requires an existing grievance), the offer
+ * belongs to a faction that `factions.ts` marks hostile to that one, and some
+ * option actually does the target real damage. The MAGNITUDES are content's to
+ * tune; the direction is not.
+ */
+const GRIEVANCE_MIN_DAMAGE = 20;
+
+for (const offer of offers.filter((o) => o.id.startsWith('grievance_'))) {
+  const where = `offer "${offer.id}"`;
+
+  // The target is read from what the card DOES, not from its id or its gate.
+  // The gate moved once already — the first rung stopped gating on standing
+  // when that turned out to be a door locked with its own key — and a rule
+  // anchored to the gate would have gone quiet at exactly that moment.
+  const damages = offer.options.flatMap((option) =>
+    (option.kind === 'certain' ? option.effects : option.onSuccess).filter(
+      (e): e is Extract<Effect, { t: 'standing' }> =>
+        e.t === 'standing' && e.v <= -GRIEVANCE_MIN_DAMAGE,
+    ),
+  );
+  if (damages.length === 0) {
+    fail(where, `a grievance must cost some faction at least ${GRIEVANCE_MIN_DAMAGE} standing`);
+    continue;
+  }
+  const target = damages[0].factionId;
+
+  if (target === offer.factionId) {
+    fail(where, 'a grievance is filed by an ENEMY of its target, never by the target itself');
+  } else if (!factions.find((f) => f.id === offer.factionId)?.hostileTo.includes(target)) {
+    fail(
+      where,
+      `"${offer.factionId}" is not hostile to "${target}", so this card has no reason to exist ` +
+        'and no reliable way to surface',
+    );
+  }
+
+  // If it gates on standing at all, it gates on the faction it ruins, in the
+  // direction that makes it a consequence: the second rung is the first one's
+  // aftermath, never an independent lottery.
+  for (const c of offer.requires ?? []) {
+    if (c.c !== 'maxStanding') continue;
+    if (c.factionId !== target) {
+      fail(where, `gates on "${c.factionId}" standing but ruins "${target}"`);
+    } else if (c.v > 0) {
+      fail(where, `standing gate is ${c.v} — this rung is meant to follow an existing grievance`);
+    }
   }
 }
 

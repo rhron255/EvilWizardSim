@@ -64,6 +64,14 @@ const NEMESIS: Record<FactionId, string> = {
  * A patron who is also the ending's faction needs no variant: the regard and
  * the procedure are genuinely separate things, and the collision reads as irony
  * rather than contradiction.
+ *
+ * The five reprisals added with the seal's generalisation each need one for the
+ * same reason the seal did, and more urgently: a reprisal is CAUSED by that
+ * faction's standing, so the faction that ended the run is very often the
+ * nemesis the card is about to name. Every one of the generic lines describes a
+ * grievance still running — "still lists you", "is taking the ground back", "has
+ * moved you up the schedule" — under a card whose whole subject is that the
+ * matter finished. Each variant moves from the act to the aftermath.
  */
 const NEMESIS_BY_ENDING: Partial<Record<EndingId, Partial<Record<FactionId, string>>>> = {
   consumed_by_pact: {
@@ -71,6 +79,21 @@ const NEMESIS_BY_ENDING: Partial<Record<EndingId, Partial<Record<FactionId, stri
   },
   sealed_in_gem: {
     pale_academy: 'The Pale Academy considers the matter closed and checks the cabinet anyway.',
+  },
+  eternally_repurposed: {
+    ashen_covenant: 'The Ashen Covenant made no threat and offered no terms. It raised a requisition.',
+  },
+  liquidated: {
+    gilded_hand: 'The Gilded Hand lists you under assets realised, the only heading that ever closes.',
+  },
+  turned_to_fertilizer: {
+    verdant_choir: 'The Verdant Choir took the ground back and has since stopped thinking about it.',
+  },
+  exiled_and_overrun: {
+    crownlands: 'The Crownlands closed the file, then reopened it once, to note it was foreseeable.',
+  },
+  consumed: {
+    worm_below: 'The Worm Below holds no grudge and no appetite now. The schedule simply ran out.',
   },
 };
 

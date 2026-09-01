@@ -96,9 +96,17 @@ These come from a game that worked at scale. They look arbitrary in isolation.
 5. **No fail state, and no doom meter.** Every ending is a biography. The decline
    works because a number quietly goes the wrong way. Note this bans *announcing
    a losing phase* — it does not ban explaining what a mechanic does.
-6. **Every ending must be reachable.** The collection shows seven slots and the
-   header shows an empty Ascension trophy from era one. `npm run sim` checks
-   this; three endings were once unreachable and the run felt hollow.
+6. **Every ending must be reachable.** The collection shows a slot for each of
+   the twelve — the original seven plus the five faction reprisals of issue
+   #14 — and the header shows an empty Ascension trophy from era one.
+   `npm run sim` checks this; three endings were once unreachable and the run
+   felt hollow, and three of the reprisals arrived unreachable for exactly the
+   same reason (the catalog let you court a faction on purpose and only offend
+   one by accident — see `src/content/offers/grievances.ts`).
+   *Reachable by whom is part of the check.* Five of the six reprisals are
+   cohort-shaped, so the harness plays a dedicated 200-run probe per faction
+   rather than reading ~40 runs out of the population, where one career moves
+   a rate by two and a half points.
 
 ## Failure modes this repo has actually produced
 

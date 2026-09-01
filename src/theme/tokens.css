@@ -270,6 +270,97 @@
 }
 
 /* --------------------------------------------------------------------------
+   The five faction reprisals (issue #14).
+
+   Each takes the hue of the faction that ended the career, run through the
+   same warm-dark structure as everything above: one hue family per theme, the
+   ramp spaced as the others are, and the ink lifted to clear the contrast
+   floor `themes.test.ts` computes from the default palette. Every block below
+   is the machine-generated twin of its `ThemeDef` in `themes.ts`, and the test
+   diffs the two token for token.
+   -------------------------------------------------------------------------- */
+
+/* Requisition — ash and old brass. Stock, correctly filed. */
+[data-theme='eternally_repurposed'] {
+  --ew-void: #111209;
+  --ew-panel: #212311;
+  --ew-raised: #2e3118;
+  --ew-hover: #3b3f1f;
+  --ew-line: #484c26;
+  --ew-line-strong: #6b7326;
+
+  --ew-ink-bright: #f8f8f8;
+  --ew-ink: #eeefec;
+  --ew-ink-dim: #a2a48e;
+  --ew-ink-faint: #75775f;
+  --ew-ink-ghost: #4d4e41;
+}
+
+/* Assets Realised — counting-house blue, under a valuer's lamp. */
+[data-theme='liquidated'] {
+  --ew-void: #0a1218;
+  --ew-panel: #111f2a;
+  --ew-raised: #172a38;
+  --ew-hover: #1d3547;
+  --ew-line: #234055;
+  --ew-line-strong: #225477;
+
+  --ew-ink-bright: #f8f8f8;
+  --ew-ink: #ecedef;
+  --ew-ink-dim: #8e9ba4;
+  --ew-ink-faint: #5f6d77;
+  --ew-ink-ghost: #41484e;
+}
+
+/* Good Ground — the darkest green the ink will sit on. Everything is growing. */
+[data-theme='turned_to_fertilizer'] {
+  --ew-void: #091208;
+  --ew-panel: #132410;
+  --ew-raised: #1a3216;
+  --ew-hover: #21401d;
+  --ew-line: #294e23;
+  --ew-line-strong: #2e6a25;
+
+  --ew-ink-bright: #f8f8f8;
+  --ew-ink: #ecefec;
+  --ew-ink-dim: #91a48e;
+  --ew-ink-faint: #62775f;
+  --ew-ink-ghost: #434e41;
+}
+
+/* Past the Border — a bruised rose. Warm, and not on your side of the line. */
+[data-theme='exiled_and_overrun'] {
+  --ew-void: #170b0f;
+  --ew-panel: #28131b;
+  --ew-raised: #361924;
+  --ew-hover: #44202d;
+  --ew-line: #512636;
+  --ew-line-strong: #702943;
+
+  --ew-ink-bright: #f8f8f8;
+  --ew-ink: #efeced;
+  --ew-ink-dim: #a48e96;
+  --ew-ink-faint: #775f68;
+  --ew-ink-ghost: #4e4146;
+}
+
+/* Underneath — wet stone, no weather. The least saturated of the five. */
+[data-theme='consumed'] {
+  --ew-void: #0b1314;
+  --ew-panel: #132224;
+  --ew-raised: #1b2f31;
+  --ew-hover: #223c3f;
+  --ew-line: #29484c;
+  --ew-line-strong: #2b5e64;
+
+  --ew-ink-bright: #f8f8f8;
+  --ew-ink: #eceeef;
+  --ew-ink-dim: #8ea2a4;
+  --ew-ink-faint: #5f7577;
+  --ew-ink-ghost: #414d4e;
+}
+
+/* --------------------------------------------------------------------------
    Reset & base
    -------------------------------------------------------------------------- */
 

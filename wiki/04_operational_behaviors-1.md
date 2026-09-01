@@ -120,6 +120,14 @@ back would be the same lie the old one told, pointing the other way.
 The same distinction covers the seal: `sealed_in_gem` takes Pale Academy
 standing **and** notoriety, so the run screen names both numbers.
 
+Since issue #14 that condition belongs to all six factions, and the disclosure
+generalised with it rather than after it: every bar carries the threshold as a
+tick, any faction whose reprisal is live and close reads as lethal, and the
+header's one sentence names whichever faction would actually act — picked by
+the engine's own rule, not by a second implementation of it. Five reprisals
+with a warning for one of them would have been the ceiling-with-no-distance
+bug five times over.
+
 #### Paying it down has to cost something
 
 An exit that trades stock — followers, an apprentice, a relic — for a fixed

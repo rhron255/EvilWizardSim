@@ -306,6 +306,135 @@ export const THEMES: ThemeDef[] = [
       ghost: '#404f4c',
     },
   },
+
+  // ---------------------------------------------------------------------------
+  // The five faction reprisals (issue #14).
+  //
+  // Adding an ending adds a theme — `ThemeId` is `'default' | EndingId` and
+  // `themes.test.ts` fails the moment an ending has none, which is the whole
+  // reason the two id spaces were collapsed into one. Each takes the hue of the
+  // faction that ended the career; none may name `--ew-tier`, and none does,
+  // because the token objects these are keyed off have no tier key.
+  //
+  // The ramps are generated rather than eyeballed: one hue per theme at the
+  // same lightness steps, then the panel darkened by a point or two where the
+  // ink did not clear the default palette's 13.80:1. Doing it by eye is how the
+  // shipped themes came to be "hard to tell apart from the regular one" —
+  // measure the ratio, then look at it.
+  // ---------------------------------------------------------------------------
+
+  {
+    id: 'eternally_repurposed',
+    name: 'Requisition',
+    endingId: 'eternally_repurposed',
+    blurb: 'Ash and old brass. Stock, correctly filed.',
+    surface: {
+      void: '#111209',
+      panel: '#212311',
+      raised: '#2e3118',
+      hover: '#3b3f1f',
+      line: '#484c26',
+      lineStrong: '#6b7326',
+    },
+    ink: {
+      bright: '#f8f8f8',
+      base: '#eeefec',
+      dim: '#a2a48e',
+      faint: '#75775f',
+      ghost: '#4d4e41',
+    },
+  },
+
+  {
+    id: 'liquidated',
+    name: 'Assets Realised',
+    endingId: 'liquidated',
+    blurb: 'Counting-house blue, under a valuer’s lamp.',
+    surface: {
+      void: '#0a1218',
+      panel: '#111f2a',
+      raised: '#172a38',
+      hover: '#1d3547',
+      line: '#234055',
+      lineStrong: '#225477',
+    },
+    ink: {
+      bright: '#f8f8f8',
+      base: '#ecedef',
+      dim: '#8e9ba4',
+      faint: '#5f6d77',
+      ghost: '#41484e',
+    },
+  },
+
+  {
+    id: 'turned_to_fertilizer',
+    name: 'Good Ground',
+    endingId: 'turned_to_fertilizer',
+    blurb: 'Everything in this room is growing. Some of it is you.',
+    // The darkest panel of the twelve: green sits high in the luminance
+    // formula, so the same lightness step that reads as a room in blue reads
+    // as a lawn here, and the ink loses its floor.
+    surface: {
+      void: '#091208',
+      panel: '#132410',
+      raised: '#1a3216',
+      hover: '#21401d',
+      line: '#294e23',
+      lineStrong: '#2e6a25',
+    },
+    ink: {
+      bright: '#f8f8f8',
+      base: '#ecefec',
+      dim: '#91a48e',
+      faint: '#62775f',
+      ghost: '#434e41',
+    },
+  },
+
+  {
+    id: 'exiled_and_overrun',
+    name: 'Past the Border',
+    endingId: 'exiled_and_overrun',
+    blurb: 'Warm, and not on your side of the line.',
+    surface: {
+      void: '#170b0f',
+      panel: '#28131b',
+      raised: '#361924',
+      hover: '#44202d',
+      line: '#512636',
+      lineStrong: '#702943',
+    },
+    ink: {
+      bright: '#f8f8f8',
+      base: '#efeced',
+      dim: '#a48e96',
+      faint: '#775f68',
+      ghost: '#4e4146',
+    },
+  },
+
+  {
+    id: 'consumed',
+    name: 'Underneath',
+    endingId: 'consumed',
+    blurb: 'Wet stone, no weather, and something patient below it.',
+    surface: {
+      void: '#0b1314',
+      panel: '#132224',
+      raised: '#1b2f31',
+      hover: '#223c3f',
+      line: '#29484c',
+      lineStrong: '#2b5e64',
+    },
+    ink: {
+      bright: '#f8f8f8',
+      base: '#eceeef',
+      dim: '#8ea2a4',
+      faint: '#5f7577',
+      ghost: '#414d4e',
+    },
+  },
 ];
 
 export const DEFAULT_THEME_ID: ThemeId = 'default';

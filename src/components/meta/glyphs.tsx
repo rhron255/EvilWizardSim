@@ -277,6 +277,45 @@ const ENDING_PATHS: Record<EndingId, string[]> = {
     'M2 11.4H.4',
     'M22 11.4h1.6',
   ],
+  // A crate with a flame in it: stock, not a person.
+  eternally_repurposed: [
+    'M4.4 8.8h15.2v11.6H4.4z',
+    'M4.4 12.4h15.2',
+    'M9.2 8.8V6.4a2.8 2.8 0 015.6 0v2.4',
+    'M12 19a2.1 2.1 0 002.1-2.1c0-1.7-2.1-2.4-2.1-4.5 0 2.1-2.1 2.8-2.1 4.5A2.1 2.1 0 0012 19z',
+  ],
+  // An auctioneer's hammer, and the last coin off the table.
+  liquidated: [
+    'M13.6 2.8l7.4 7.4-2.9 2.9-7.4-7.4z',
+    'M11.5 9.5L3.4 17.6',
+    'M2 21.4h9.8',
+    'M17.6 20.4a2.7 2.7 0 100-5.4 2.7 2.7 0 000 5.4z',
+  ],
+  // A sprout out of a mound, and the furrows either side of it.
+  turned_to_fertilizer: [
+    'M2.6 17.6h18.8',
+    'M5.2 17.6c0-3.5 3-6.2 6.8-6.2s6.8 2.7 6.8 6.2',
+    'M12 11.4V4.4',
+    'M12 8.4c0-1.9 1.5-3.3 3.5-3.5-.2 2-1.6 3.5-3.5 3.5z',
+    'M12 10c0-1.9-1.5-3.3-3.5-3.5.2 2 1.6 3.5 3.5 3.5z',
+    'M4.8 20.8h3.6',
+    'M10.2 20.8h3.6',
+    'M15.6 20.8h3.6',
+  ],
+  // A border post pointing outward, and the briar on the far side of it.
+  exiled_and_overrun: [
+    'M2.6 20.6h18.8',
+    'M6.4 20.6V6.6',
+    'M6.4 8.6h7.6l2.4 2.2-2.4 2.2H6.4',
+    'M16.8 20.6c0-3.6 1.6-6 4.4-7',
+    'M19.6 16.4c-1.7-.7-2.5-2-2.4-3.7 1.9.3 2.9 1.4 3.1 3.3z',
+  ],
+  // A funnel of ground, seen from directly above.
+  consumed: [
+    'M12 21.4c-5 0-9-3.8-9-8.6S7 3.6 12.4 3.6s8.8 3.4 8.8 7.6-3 6.6-6.4 6.6-5.4-2.2-5.4-4.6 1.9-4 3.8-4 3 1.3 3 2.8',
+    'M1.6 9.6l-1.4-1',
+    'M22.6 15l1.4-1',
+  ],
 };
 
 export function EndingGlyph({ id, size = 30, className, locked }: GlyphProps & { id: EndingId }) {

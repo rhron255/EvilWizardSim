@@ -119,6 +119,29 @@ set:
 | Consumed by the Pact | Demon-pact debt unpaid | High-variance play punished. |
 | Ascension | Rare; requires the run's top prize | The near-miss target. Should be genuinely uncommon. |
 
+**Amended by issue #14 — the seal was one of six.** "Sealed in a Gem" reads
+above as a *specific* faction outcome, and that was the problem: faction
+standing is the most-touched system in the game and reached exactly one
+ending, so five of the six factions were a shop rather than a life. The same
+trigger — standing at or under `SEAL_MAX_STANDING`, notoriety at or over
+`SEAL_MIN_NOTORIETY` — now reads against all six, and each faction has its own
+idea of what to do about you.
+
+| Faction | Reprisal |
+|---|---|
+| Ashen Covenant | Eternally Repurposed |
+| Gilded Hand | Liquidated |
+| Pale Academy | Sealed in a Gem *(unchanged)* |
+| Verdant Choir | Turned to Fertilizer |
+| Crownlands | Exiled and Overrun |
+| Worm Below | Consumed |
+
+The trigger itself was deliberately **not** retuned in the same change. Only
+the Academy's fires in any phase, as it always has; the other five are decline
+only, so an ascent dip cannot end a career before the prophecy the arc rests
+on. The leadership half of the same issue — devotion, rather than enmity — is
+still to come.
+
 **Lichdom is an ending, not a prize.** It is the branch that cheats the
 decline phase — the lich's Notoriety does not decay. The cost must be
 real and mechanical, not flavor: proposal is that the lich forfeits all

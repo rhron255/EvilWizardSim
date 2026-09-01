@@ -35,7 +35,16 @@ export {
 } from './systems';
 export type { DefenseReadout, DefenseTerm, HeroBand } from './systems';
 export { projectedEpithet } from './epithets';
-export { checkEndings, ascensionReady, legendariesHeld } from './endings';
+export {
+  checkEndings,
+  ascensionReady,
+  legendariesHeld,
+  FACTION_ORDER,
+  REPRISAL_BY_FACTION,
+  nearestReprisalFaction,
+  reprisalEnding,
+  reprisalLiveFor,
+} from './endings';
 export { conditionMet, conditionsMet } from './conditions';
 export { projectEffects } from './effects';
 
