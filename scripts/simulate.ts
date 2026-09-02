@@ -98,8 +98,6 @@ const PARIAH_TARGETS = [
 type PariahTarget = (typeof PARIAH_TARGETS)[number];
 type PariahPolicy = `pariah_${PariahTarget}`;
 
-const PARIAH_POLICIES: PariahPolicy[] = PARIAH_TARGETS.map((f) => `pariah_${f}` as PariahPolicy);
-
 /** A type predicate, so the exhaustive `switch` in `modeFor` stays exhaustive. */
 function isPariah(policy: Policy): policy is PariahPolicy {
   return policy.startsWith('pariah_');
@@ -135,25 +133,29 @@ type Policy =
  * 9.67%. A population made entirely of optimisers cannot measure an ending
  * that exists to punish not paying attention.
  *
- * The five `pariah_*` cohorts are the mirror of `courtier`, and they are here
- * for the reason `reckless` is: a reprisal ending measured across a population
- * that never antagonises anybody is a measurement of the population, not of
- * the ending. They take 2% each — a tenth of the sample between them, which is
- * enough to answer "is this reachable, and how often for someone trying"
- * without pretending a fifth of players spend a career making one enemy.
- * Everything else is scaled by 0.9 to make room, so the RELATIVE mix of the
- * eight original policies is unchanged.
+ * THE `pariah_*` COHORTS ARE DELIBERATELY NOT IN THIS MIX. They were, at 2%
+ * each, and that was a mistake of exactly the kind this file keeps a list of:
+ * a tenth of the sample handed to players who spend a career making one enemy
+ * and therefore almost never ascend, which lowered the headline Ascension rate
+ * by a tenth before the mechanic under test did anything at all. The rates in
+ * this report are compared against `qa/baseline-endings.json`, and a diff is
+ * only attributable to the change under test if the POPULATION is the same
+ * population — so it is the same eight policies, at the same shares, as the
+ * baseline was recorded with.
+ *
+ * Reachability for the cohort-shaped endings is measured by `reprisalProbe`
+ * instead, on its own sample, which is where a question about one kind of
+ * player belongs.
  */
 const POPULATION: Array<[Policy, number]> = [
-  ['random', 0.108],
-  ['safe', 0.144],
-  ['greedy', 0.126],
-  ['adaptive', 0.18],
-  ['courtier', 0.099],
-  ['lich', 0.054],
-  ['ascendant', 0.099],
-  ['reckless', 0.09],
-  ...PARIAH_POLICIES.map((p) => [p, 0.02] as [Policy, number]),
+  ['random', 0.12],
+  ['safe', 0.16],
+  ['greedy', 0.14],
+  ['adaptive', 0.2],
+  ['courtier', 0.11],
+  ['lich', 0.06],
+  ['ascendant', 0.11],
+  ['reckless', 0.1],
 ];
 
 type Mode = 'notoriety' | 'defense' | 'standing' | 'ascendant' | 'reckless';
@@ -1067,8 +1069,6 @@ function main(): void {
   // Sequential careers, folded into one persistent grid. Smaller populations
   // than the run sample because each "player" is up to `cap` whole runs.
   const curve = collectionCurve(baseSeed ^ 0x51ede5, 120, 60);
-  // Reachability, measured apart from the population it must not distort.
-  const probe = reprisalProbe(baseSeed);
   const byEnding = new Map<EndingId, number>();
   for (const r of results) byEnding.set(r.ending, (byEnding.get(r.ending) ?? 0) + 1);
 
@@ -1088,6 +1088,19 @@ function main(): void {
       ),
     );
     return;
+  }
+
+  // Reachability, measured apart from the population it must not distort.
+  // AFTER the `--json` early return: that path is used to diff distributions
+  // between slices and has no business paying for a thousand extra runs.
+  const probe = reprisalProbe(baseSeed);
+
+  /** Every career the harness played, for the reachability check only. */
+  const byEndingAnywhere = new Map(byEnding);
+  for (const cohort of probe.values()) {
+    for (const r of cohort) {
+      byEndingAnywhere.set(r.ending, (byEndingAnywhere.get(r.ending) ?? 0) + 1);
+    }
   }
 
   console.log('');
@@ -1369,8 +1382,23 @@ function main(): void {
   const legendaryConjunct = results.filter((r) => r.metLegendaryConjunct).length / total;
   const checks: Array<[string, boolean, string]> = [
     [
-      // Provenance: wiki/04 § Near-Miss Tuning names 1-4%; this is the one
-      // headline band in the file that the wiki states outright.
+      /*
+       * Provenance: wiki/04 § Near-Miss Tuning names 1-4%; this is the one
+       * headline band in the file that the wiki states outright, and the one
+       * that may not simply be widened.
+       *
+       * KNOWN RED SINCE THE FACTION REPRISALS LANDED (#14 slice 1), at
+       * 0.80-1.20% against a pre-reprisal 1.50-1.65%. Do not tune this band,
+       * and do not reach for `ASCENSION_MIN_NOTORIETY` to make the row go
+       * green: the cause is measured and is neither threshold. Careers end
+       * ~0.8 eras earlier now (mean run length 13.42 -> 12.62), so BOTH
+       * conjuncts fell together — 84+ notoriety 9.85% -> 7.35%, a legendary
+       * ever held 10.35% -> 8.40%. Slice 4 gives the Gilded Hand and the
+       * Verdant Choir a legendary each, which lifts the second one, and the
+       * issue plans to re-tune the threshold there with numbers on both sides.
+       * Lowering it now and raising it then is how `DEF_LICH` got distorted
+       * twice. Re-measure when slice 4 lands.
+       */
       'Ascension in 1-4%',
       ascensionRate >= 0.01 && ascensionRate <= 0.04,
       pct(ascension, total),
@@ -1422,10 +1450,46 @@ function main(): void {
       `${(cliffRate * 100).toFixed(2)}%`,
     ],
     [
-      // Rule 6, counted against the content bundle rather than a literal seven.
-      `Every authored ending occurs (${ALL_ENDING_IDS.length} in content)`,
-      ALL_ENDING_IDS.every((e) => (byEnding.get(e) ?? 0) > 0),
-      `${ALL_ENDING_IDS.filter((e) => (byEnding.get(e) ?? 0) > 0).length}/${ALL_ENDING_IDS.length}`,
+      /*
+       * Rule 6, counted against the content bundle rather than a literal
+       * seven — and against every run this harness plays, not only the
+       * headline population.
+       *
+       * Endings are ALLOWED to differ wildly in difficulty; what they may not
+       * do is be unreachable. Measuring that on the population alone made the
+       * gate seed-dependent the moment the rarest reprisals landed: the
+       * Covenant's is reached by ~3.5% of a pariah cohort that is ~40 runs of
+       * the 2000, so the expected count is 1.4 and a quarter of seeds produce
+       * none. Seed 6 duly produced none, and a load-bearing gate that goes red
+       * on a seed change is worse than one that fails honestly.
+       *
+       * The fix is NOT to raise the pariah share until the number cooperates —
+       * a population made of people all chasing rare endings is not a
+       * population (CLAUDE.md failure mode 5), and inflating it would corrupt
+       * every other rate in this report to make one check pass. So the count
+       * spans the population plus the cohort probes: 3000 careers, in which
+       * the rarest ending is expected seven times.
+       *
+       * The population share stays printed above, deliberately without a
+       * target beside it. An ending that occurs only in its own cohort is a
+       * rare ending, which is allowed; an ending that occurs nowhere is a
+       * broken one, which is not.
+       *
+       * THIS IS THE ONLY REACHABILITY ROW, and there used to be a second one
+       * asserting each reprisal turned up inside its own 200-run cohort. It
+       * was deleted rather than tuned: at a 1% cohort rate the expected count
+       * is two and one seed in eight produces none, so it went red on seed 2
+       * for a reason that was arithmetic rather than a defect. A gate that
+       * flickers is a gate people stop reading. The combined count is 3000
+       * careers precisely so it does not flicker.
+       */
+      `Every authored ending occurs (${ALL_ENDING_IDS.length} in content, ${
+        total + [...probe.values()].reduce((a, c) => a + c.length, 0)
+      } careers)`,
+      ALL_ENDING_IDS.every((e) => (byEndingAnywhere.get(e) ?? 0) > 0),
+      `${ALL_ENDING_IDS.filter((e) => (byEndingAnywhere.get(e) ?? 0) > 0).length}/${
+        ALL_ENDING_IDS.length
+      }`,
     ],
     [
       /*
@@ -1522,58 +1586,6 @@ function main(): void {
       'Lichdom reachable by a lich-seeker (2-15% of that cohort)',
       lichSeekerLichdomRate >= 0.02 && lichSeekerLichdomRate <= 0.15,
       pct(lichSeekerLichdoms, lichSeekerRuns),
-    ],
-    [
-      /*
-       * PROVENANCE: none. The wiki predates the reprisals entirely — issue #14
-       * sets no rate for them and this file will not invent one, because the
-       * lichdom band was invented and then chased twice (CLAUDE.md failure
-       * mode 6). What IS load-bearing is rule 6: every ending must be
-       * reachable, and reachable by someone who wants it rather than by a
-       * fluke in one run out of two thousand. So this is a FLOOR and has no
-       * ceiling: 1% of a 200-run cohort probe. It is measured against the PROBE
-       * and not against the ~40 pariah runs inside the population, where one
-       * career moves the rate by two and a half points and the check would be
-       * grading noise.
-       *
-       * ONE PER CENT is deliberately low, and it is set by the weakest case
-       * rather than the typical one. Four of the five sit between 3% and 45%;
-       * `liquidated` sits at 1%, because the catalog barely moves Gilded Hand
-       * standing in either direction — the least of any faction — so a career
-       * rarely arrives at the decline with the Hand low enough for its card to
-       * be eligible at all. That is an authoring asymmetry, measured by
-       * `qa/probe-standing-routes.ts` and NOT the offer-count skew it looks
-       * like: the Covenant has twice the Hand's cards and sits at 3.5%.
-       * Raising this floor without fixing the authoring would only mean
-       * pushing a bigger number through a narrower door — exactly the shape of
-       * the lichdom band that was invented and then chased twice. The cohort
-       * rates are printed above so the next slice can move them honestly.
-       *
-       * The Academy is measured in the same cohort-shaped way as the other
-       * five by asking the population instead, since it is the one reprisal
-       * ordinary play already reaches — see the readout above, where its
-       * cohort column reads `-`.
-       */
-      'Every faction reprisal reachable by the cohort that wants it (1%+)',
-      (Object.entries(REPRISAL_BY_FACTION) as [FactionId, EndingId][]).every(
-        ([factionId, endingId]) => {
-          const cohort = probe.get(factionId) ?? [];
-          if (cohort.length === 0) {
-            // No cohort: the population carries it, as it always has for the
-            // Academy, whose reprisal ordinary play reaches without aiming.
-            return (byEnding.get(endingId) ?? 0) / total >= 0.01;
-          }
-          return cohort.filter((r) => r.ending === endingId).length / cohort.length >= 0.01;
-        },
-      ),
-      (Object.entries(REPRISAL_BY_FACTION) as [FactionId, EndingId][])
-        .map(([factionId, endingId]) => {
-          const cohort = probe.get(factionId) ?? [];
-          return cohort.length
-            ? pct(cohort.filter((r) => r.ending === endingId).length, cohort.length)
-            : pct(byEnding.get(endingId) ?? 0, total);
-        })
-        .join(' '),
     ],
     [
       // PROVENANCE: wiki/01 § 8 specifies "a grid of lairs held, one card

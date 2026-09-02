@@ -1,0 +1,172 @@
+
+EVIL WIZARD SIMULATOR - balance report
+2000 runs | base seed 2 | real content bundle (src/content)
+------------------------------------------------------------------
+
+ENDING DISTRIBUTION
+ending                       n    share  distribution
+slain_by_chosen_one        880   44.00%  ############................
+retired_to_swamp           193    9.65%  ###.........................
+sealed_in_gem              378   18.90%  #####.......................
+betrayed_by_apprentice      19    0.95%  ............................
+consumed_by_pact            35    1.75%  ............................
+lichdom                     14    0.70%  ............................
+ascension                   18    0.90%  ............................
+eternally_repurposed         0    0.00%  ............................
+liquidated                   4    0.20%  ............................
+turned_to_fertilizer       116    5.80%  ##..........................
+exiled_and_overrun         343   17.15%  #####.......................
+consumed                     0    0.00%  ............................
+
+FINAL NOTORIETY
+0-9     Unknown            103    5.15%  #...........................
+10-19   Unknown            101    5.05%  #...........................
+20-29   Unknown            176    8.80%  ##..........................
+30-39   Unknown            198    9.90%  ###.........................
+40-49   Local Menace       187    9.35%  ###.........................
+50-59   Local Menace       403   20.15%  ######......................
+60-69   Named Threat       376   18.80%  #####.......................
+70-79   Kingdom-Level      262   13.10%  ####........................
+80-89   Kingdom-Level      144    7.20%  ##..........................
+90-99   Legend              50    2.50%  #...........................
+
+PEAK NOTORIETY REACHED
+0-9          1    0.05%  ............................
+10-19       19    0.95%  ............................
+20-29       62    3.10%  #...........................
+30-39      132    6.60%  ##..........................
+40-49      246   12.30%  ###.........................
+50-59      554   27.70%  ########....................
+60-69      441   22.05%  ######......................
+70-79      311   15.55%  ####........................
+80-89      175    8.75%  ##..........................
+90-99       59    2.95%  #...........................
+
+LAIRS HELD PER RUN
+1 lair          62    3.10%  #...........................
+2 lairs        165    8.25%  ##..........................
+3 lairs        224   11.20%  ###.........................
+4 lairs        320   16.00%  ####........................
+5 lairs        483   24.15%  #######.....................
+6 lairs        418   20.90%  ######......................
+7 lairs        215   10.75%  ###.........................
+8 lairs         79    3.95%  #...........................
+9 lairs         32    1.60%  ............................
+10 lairs         2    0.10%  ............................
+
+HEADLINE
+------------------------------------------------------------------
+runs                                      2000
+mean run length (eras)                   12.62
+mean final age                            83.1
+mean final notoriety                      52.1
+mean peak notoriety                       59.9
+mean artifacts held at end                1.37
+mean legendaries held at end             0.064
+------------------------------------------------------------------
+ASCENSION rate  (target 1-4%)            0.90%
+age-limit survival (uncommon)           21.25%
+slain by chosen one                     44.00%
+near-miss (peak 75+, no ascend)         17.80%
+ending screen shows the grey badge      10.70%
+------------------------------------------------------------------
+  ascension is the AND of two rare things:
+  ...notoriety 84+ in decline            6.95%
+  ...ever held 1+ legendary              6.85%
+  ...both at once (engine ascensionReady)       0.90%
+------------------------------------------------------------------
+mean notoriety at prophecy                51.7
+mean notoriety delta / decline era       -0.32
+worst single decline era                   -29
+decline eras with delta <= -10           5.30%
+------------------------------------------------------------------
+  notoriety tier REACHED at peak (the rationed color):
+  ...Local Menace (40+)                 89.30%
+  ...Named Threat (60+)                 49.30%
+  ...Kingdom-Level (75+, violet)        18.70%
+  ...Legend (90+, gold)                  2.95%
+  the tier the ENDING SCREEN actually shows (tierOf peak):
+  ...Unknown                            10.70%
+  ...Local Menace                       40.00%
+  ...Named Threat                       30.60%
+  ...Kingdom-Level                      15.75%
+  ...Legend                              2.95%
+------------------------------------------------------------------
+runs that ever carried pact debt        76.60%
+mean peak pact debt                       2.32
+...among runs that took any               3.02
+runs reaching 2+ pact debt              61.85%
+runs reaching 4+ pact debt              26.90%
+runs reaching 6+ pact debt               7.45%
+mean eras spent carrying debt              9.1
+CONSUMED, population-wide                1.75%
+CONSUMED, among the reckless cohort       8.13%
+CONSUMED, among runs reaching 4+         6.51%
+------------------------------------------------------------------
+mean relics discovered per run            1.42
+runs discovering nothing at all         23.10%
+------------------------------------------------------------------
+mean lairs held per run                   4.86
+mean peak lair tier                       4.78
+runs holding a single lair               3.10%
+runs holding 3+ lairs                   88.65%
+------------------------------------------------------------------
+  FACTION REPRISALS  (200-run cohort probes, then the population)
+  faction             cohort    low    <=-55   +fame        card  reprisal     pop
+  ashen_covenant         200    -27   19.50%  20.51%   0.17/0.16     2.00%   0.00%
+  gilded_hand            200    -14    4.00%  25.00%   0.04/0.04     0.00%   0.20%
+  pale_academy             -      -        -       -           -         -  18.90%
+  verdant_choir          200    -25   17.50%  88.57%   0.12/0.12    12.50%   5.80%
+  crownlands             200    -61   68.50%  79.56%   0.09/0.06    46.00%  17.15%
+  worm_below             200    -36   30.00%  33.33%   0.27/0.27     4.50%   0.00%
+------------------------------------------------------------------
+became a lich (transformation)           2.15%
+LICHDOM ending                           0.70%
+------------------------------------------------------------------
+distinct deed lines / run                1.000
+consecutive repeat deed lines            0.00%
+distinct deed lines, all runs              418
+
+BY PLAYER POLICY
+policy           n   ascend  survive    slain    peak   final
+random         243    0.00%   32.51%   69.96%    39.9    28.9
+greedy         289    2.42%    9.00%   29.07%    69.5    68.4
+reckless       209    1.91%    8.13%   21.53%    68.3    67.6
+courtier       221    0.00%   44.34%   66.97%    46.7    26.3
+adaptive       407    1.23%   12.78%   34.64%    68.3    64.4
+lich            93    0.00%   18.28%   27.96%    60.4    57.5
+safe           319    0.31%   31.35%   51.10%    56.9    41.3
+ascendant      219    0.46%   16.44%   47.03%    63.5    58.5
+
+THE COLLECTION  (120 players, 30 slots, cap 60 runs)
+------------------------------------------------------------------
+mean slots filled after 1 run         1.5 / 30
+mean slots filled after 3 runs        4.1 / 30
+mean slots filled after 5 runs        5.9 / 30
+mean slots filled after 10 runs       8.9 / 30
+mean slots filled after 20 runs      13.0 / 30
+mean slots filled after 40 runs      17.2 / 30
+------------------------------------------------------------------
+median runs to half the grid                24
+median runs to the full grid               >60
+runs that add nothing new                75.6%
+
+TARGET CHECKS
+------------------------------------------------------------------
+[FAIL] Ascension in 1-4%                                    0.90%
+[PASS] Instrument: ascension conjuncts reconcile       0.90% vs 0.90%
+[PASS] Age-limit survival uncommon (8-35%)                 21.25%
+[PASS] Decline is erosion, not a cliff (<12% of eras <= -12)     3.00%
+[PASS] Every authored ending occurs (12 in content, 3000 careers)     12/12
+[PASS] Consumed by the pact, among the reckless (8-18%)     8.13%
+[PASS] No single ending above 45%                      slain_by_chosen_one 44.00%
+[PASS] Local Menace (40+) reached in 70-95% of runs        89.30%
+[PASS] Named Threat (60+) reached in 35-75% of runs        49.30%
+[PASS] Kingdom-Level (75+) reached in 12-40% of runs       18.70%
+[PASS] Legend (90+) stays rare (1-12%)                      2.95%
+[PASS] Lichdom reachable by a lich-seeker (2-15% of that cohort)     7.53%
+[PASS] Trophy case: mean lairs held 3-5                      4.86
+[PASS] Ledger: <2% of deed lines repeat consecutively       0.00%
+------------------------------------------------------------------
+One or more balance targets missed.
+

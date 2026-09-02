@@ -1,21 +1,21 @@
-﻿{
+{
   "runs": 2000,
   "endings": {
-    "slain_by_chosen_one": 943,
-    "retired_to_swamp": 192,
-    "sealed_in_gem": 352,
-    "betrayed_by_apprentice": 12,
-    "consumed_by_pact": 36,
-    "lichdom": 11,
-    "ascension": 20,
-    "eternally_repurposed": 3,
-    "liquidated": 6,
-    "turned_to_fertilizer": 99,
-    "exiled_and_overrun": 324,
-    "consumed": 2
+    "slain_by_chosen_one": 909,
+    "retired_to_swamp": 182,
+    "sealed_in_gem": 372,
+    "betrayed_by_apprentice": 7,
+    "consumed_by_pact": 45,
+    "lichdom": 22,
+    "ascension": 24,
+    "eternally_repurposed": 0,
+    "liquidated": 5,
+    "turned_to_fertilizer": 96,
+    "exiled_and_overrun": 338,
+    "consumed": 0
   },
-  "ascensionRate": 0.01,
-  "ageLimitRate": 0.2155,
-  "meanEras": 12.6805,
-  "meanFinalNotoriety": 50.7415
+  "ascensionRate": 0.012,
+  "ageLimitRate": 0.215,
+  "meanEras": 12.62,
+  "meanFinalNotoriety": 51.9455
 }

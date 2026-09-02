@@ -33,10 +33,21 @@ device, not a breakpoint to degrade toward.
   offer-count skew: the catalog moves Gilded Hand standing less than any other
   faction's, in either direction, while the Covenant has twice the cards and
   is nearly as unreachable because its cards push its standing UP. Measured by
-  `qa/probe-standing-routes.ts` — run it after any faction-content slice. Ascension 1.0-1.2%, at the
-  bottom of its wiki-authored 1-4% band: the reprisals end careers that would
-  otherwise have had two more eras to reach 84 Notoriety. `slain_by_chosen_one`
-  is 47%, still ABOVE the 45% target but down from 63% before the reprisals.
+  `qa/probe-standing-routes.ts` — run it after any faction-content slice.
+- **Ascension is BELOW its band and that is a known, deferred state.** 0.80-1.20%
+  across seeds 1/2/6/7 against a wiki-authored 1-4%, where the baseline was a
+  stable 1.50-1.65%. It is the mechanic, not the new content and not the
+  population mix: reprisals end careers ~0.8 eras earlier (mean run length
+  13.42 -> 12.62, age-limit survival 27.35% -> 21.50%) and BOTH conjuncts fell
+  with it — notoriety 84+ 9.85% -> 7.35%, ever-held-a-legendary 10.35% ->
+  8.40%. `ASCENSION_MIN_NOTORIETY` was deliberately NOT lowered to paper over
+  it: slice 4 adds legendaries for the Hand and the Choir, which lifts the
+  conjunct that fell, and the issue already plans to re-tune that constant
+  there with before/after numbers. Moving it down now and back up then is the
+  twice-chased constant that distorted `DEF_LICH`. **Re-measure at slice 4 and
+  close this out.**
+- `slain_by_chosen_one` is 45-47%, still ABOVE the 45% target on some seeds but
+  down from 63% before the reprisals.
   Lichdom went 0.25% -> 0.80% by raising the rite offer's weight: a dedicated
   seeker met its standing gate in 61% of careers but was shown the card in only
   19.9% of those, so the branch was a lottery rather than the "live decision"
