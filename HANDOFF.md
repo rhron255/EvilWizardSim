@@ -29,8 +29,11 @@ device, not a breakpoint to degrade toward.
 - All twelve endings reachable, including the five faction reprisals added by
   issue #14 — measured by a 200-run cohort probe per faction, not by the
   population, where each pariah cohort is ~40 runs. `liquidated` is the
-  weakest at 1% of its cohort and the reason is the hostility graph, not the
-  card (see `src/content/offers/grievances.ts`). Ascension 1.0-1.2%, at the
+  weakest at 1% of its cohort, and the reason is not the card and not the
+  offer-count skew: the catalog moves Gilded Hand standing less than any other
+  faction's, in either direction, while the Covenant has twice the cards and
+  is nearly as unreachable because its cards push its standing UP. Measured by
+  `qa/probe-standing-routes.ts` — run it after any faction-content slice. Ascension 1.0-1.2%, at the
   bottom of its wiki-authored 1-4% band: the reprisals end careers that would
   otherwise have had two more eras to reach 84 Notoriety. `slain_by_chosen_one`
   is 47%, still ABOVE the 45% target but down from 63% before the reprisals.

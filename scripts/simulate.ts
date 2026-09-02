@@ -1538,14 +1538,16 @@ function main(): void {
        *
        * ONE PER CENT is deliberately low, and it is set by the weakest case
        * rather than the typical one. Four of the five sit between 3% and 45%;
-       * `liquidated` sits at 1%, because the Gilded Hand has a single enemy on
-       * the hostility graph and 11 offers to the Covenant's 23, so a career
+       * `liquidated` sits at 1%, because the catalog barely moves Gilded Hand
+       * standing in either direction — the least of any faction — so a career
        * rarely arrives at the decline with the Hand low enough for its card to
-       * be eligible at all (see `src/content/offers/grievances.ts`). Raising
-       * this floor without fixing THAT would only mean pushing a bigger number
-       * through a narrower door — exactly the shape of the lichdom band that
-       * was invented and then chased twice. The cohort rates are printed above
-       * so the next slice can move them honestly.
+       * be eligible at all. That is an authoring asymmetry, measured by
+       * `qa/probe-standing-routes.ts` and NOT the offer-count skew it looks
+       * like: the Covenant has twice the Hand's cards and sits at 3.5%.
+       * Raising this floor without fixing the authoring would only mean
+       * pushing a bigger number through a narrower door — exactly the shape of
+       * the lichdom band that was invented and then chased twice. The cohort
+       * rates are printed above so the next slice can move them honestly.
        *
        * The Academy is measured in the same cohort-shaped way as the other
        * five by asking the population instead, since it is the one reprisal

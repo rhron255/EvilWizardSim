@@ -59,17 +59,34 @@ import type { FactionId, Offer } from '../../types';
  * every era it can antagonising the Gilded Hand reaches it about once in a
  * hundred careers, against three to ten for the others. The card is not the
  * problem — when it is eligible it takes 18% of the draw, the loudest card in
- * the pool. It is rarely ELIGIBLE, because the Hand is hostile to one faction
- * on a graph where everyone else has two or three, so nothing else in a career
- * moves its standing and the run reaches the decline with the Hand at nearly
- * zero.
+ * the pool. It is rarely ELIGIBLE, because a career arrives at the decline
+ * with the Hand still near zero.
  *
- * That is a fact about `factions.ts` and about a catalog with 11 Gilded offers
- * to the Covenant's 23 — the skew issue #14 lists on its own watch list. It is
- * not fixable from this file without either a per-faction exception (tried: it
- * moved the rate by nothing) or a card big enough to be a button. Slice 2 adds
- * per-faction content and Slice 4 gives the Hand a legendary; this is the
- * measurement they should be checked against.
+ * The obvious explanation is wrong and was written here before it was counted.
+ * It is NOT the offer skew issue #14 lists on its watch list: the Ashen
+ * Covenant has twice the Hand's cards and is nearly as unreachable (3.5%),
+ * while the Choir has the same single hater and about the same card count and
+ * is ten times more reachable. `qa/probe-standing-routes.ts` measures what
+ * actually differs — the DIRECTION of the authored standing effects:
+ *
+ *   faction         down     up   up/down   reprisal reached
+ *   crownlands       874    315      0.36   46%
+ *   verdant_choir    381    288      0.75   10.5%
+ *   ashen_covenant   503    602      1.20   3.5%
+ *   gilded_hand      269    254      0.94   1.0%
+ *
+ * The Covenant's cards push its standing UP — the pact economy pays in
+ * Covenant goodwill — and the Hand simply has the least standing movement of
+ * any faction in the catalog, in either direction. Since −55 is a tail event,
+ * a thirty per cent shortfall in available pressure becomes a tenfold
+ * difference in rate.
+ *
+ * That is not fixable from this file: not by a per-faction gate (tried, moved
+ * the rate by nothing) and not by a card big enough to be a button. It is
+ * fixable by authoring, and the fix is directional rather than numerical —
+ * Gilded cards that can cost you the Hand, and Covenant cards that are not
+ * another way to earn its goodwill. Slice 2 adds per-faction content and
+ * slice 4 gives the Hand a legendary; run the probe again then.
  */
 
 type Rung = {
