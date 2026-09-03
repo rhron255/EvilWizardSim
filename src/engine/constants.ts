@@ -134,6 +134,43 @@ export const DEF_LAIR = 8;
  */
 export const DEF_LICH = 60;
 
+/**
+ * How many relics the rite demands — and consumes — before the Worm Below
+ * will take you.
+ *
+ * PROVENANCE: none. No wiki line prices lichdom in relics; this is CLAUDE.md
+ * failure mode 6's invented number, arriving labelled rather than chased
+ * quietly. The band the design CAN defend: high enough that the rite costs a
+ * real collection, not the single legendary a devoted courtier already gets
+ * for free from `concordat_worm` at the same `DEVOTION_STANDING` gate; low
+ * enough that Lich is not strictly harder to reach than the other five
+ * leadership crowns, which ask for standing alone.
+ *
+ * The requirement and the rite's cost are deliberately the SAME relics — the
+ * rite already forfeits every relic held (`becomeLich`) — so this gates the
+ * stock it spends rather than promising a fixed benefit an empty vault could
+ * still collect (CLAUDE.md failure mode 14). `scripts/validate-content.ts`
+ * holds `scripted_the_long_arrangement`'s `minArtifacts` gate to this value
+ * the same way it holds `concordat_`/`oath_` gates to `DEVOTION_STANDING`,
+ * since content stays a pure data bundle and cannot import this constant.
+ *
+ * MEASURED (issue #21), `lich` sim policy, `npm run sim -- --seed 1|2`: at 3
+ * the rite's own DEVOTION_STANDING gate plus a triple-relic hold together
+ * pushed the lich-seeker cohort to 2.31% / 1.08% — the second seed missed the
+ * 2-15% reachability band outright. At 2, the same cohort measured 2.31% /
+ * 5.38%, both comfortably inside the band, at the SAME `weight: 6` the rite
+ * already carried (raising weight instead of lowering this was tried first;
+ * it moved seed 1 from 2.31% to only 2.31% again, because the harder gate is
+ * a reachability problem the draw weight cannot fix — a seeker who cannot
+ * assemble three relics before the age limit is never offered the card at
+ * any weight). 2 is also reachable through the SAME `concordat_worm` grant a
+ * devoted courtier already collects at this standing, plus just one more
+ * relic from anywhere in the run — a real collection, but not a
+ * purpose-built vault, which is the "not strictly harder than the other five
+ * crowns" half of the band this constant cannot otherwise prove.
+ */
+export const LICH_RELIC_REQUIREMENT = 2;
+
 // ---------------------------------------------------------------------------
 // Faction standing — wiki/04 § Faction Standing
 // ---------------------------------------------------------------------------

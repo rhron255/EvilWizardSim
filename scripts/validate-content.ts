@@ -21,7 +21,7 @@
 
 import type { Artifact, Condition, Effect, OfferOption, Rarity } from '../src/types';
 import * as content from '../src/content';
-import { DEVOTION_STANDING, PACT_LIMIT } from '../src/engine/constants';
+import { DEVOTION_STANDING, LICH_RELIC_REQUIREMENT, PACT_LIMIT } from '../src/engine/constants';
 import { pactRoleOf } from '../src/engine/content-port';
 
 const problems: string[] = [];
@@ -312,6 +312,54 @@ for (const offer of offers.filter((o) => o.id.startsWith('oath_'))) {
       `devotion gate is ${gate.v} but DEVOTION_STANDING is ${DEVOTION_STANDING} — ` +
         'the oath and the reliquary must agree on what "devoted" means',
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The lich rite's gates must track DEVOTION_STANDING and LICH_RELIC_REQUIREMENT
+// ---------------------------------------------------------------------------
+
+/**
+ * `scripted_the_long_arrangement` is lichdom's rite (issue #21, #14 slice 3):
+ * lichdom is the Worm Below's leadership ending, so "devoted enough" has to
+ * mean the same standing the reliquary, the oath and the draw upgrade already
+ * use, and the relic price has to match the constant it was tuned against —
+ * the same drift the concordat and oath rules above already guard against,
+ * for the same reason (content is pure data and cannot import the engine
+ * constant it must agree with).
+ */
+{
+  const rite = offers.find((o) => o.id === 'scripted_the_long_arrangement');
+  if (!rite) {
+    fail('offer "scripted_the_long_arrangement"', 'the lich rite is missing from the catalog');
+  } else {
+    const where = `offer "${rite.id}"`;
+    const standingGate = (rite.requires ?? []).find(
+      (c): c is Extract<Condition, { c: 'minStanding' }> =>
+        c.c === 'minStanding' && c.factionId === 'worm_below',
+    );
+    if (!standingGate) {
+      fail(where, 'the lich rite must gate on minStanding for worm_below');
+    } else if (standingGate.v !== DEVOTION_STANDING) {
+      fail(
+        where,
+        `devotion gate is ${standingGate.v} but DEVOTION_STANDING is ${DEVOTION_STANDING} — ` +
+          'lichdom is a leadership ending and must require the same devotion the others do',
+      );
+    }
+
+    const relicGate = (rite.requires ?? []).find(
+      (c): c is Extract<Condition, { c: 'minArtifacts' }> => c.c === 'minArtifacts',
+    );
+    if (!relicGate) {
+      fail(where, 'the lich rite must gate on minArtifacts — it consumes every relic it grants access to');
+    } else if (relicGate.v !== LICH_RELIC_REQUIREMENT) {
+      fail(
+        where,
+        `relic gate is ${relicGate.v} but LICH_RELIC_REQUIREMENT is ${LICH_RELIC_REQUIREMENT} — ` +
+          'the requirement and the rite\'s cost must be the same relics',
+      );
+    }
   }
 }
 

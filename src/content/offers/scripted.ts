@@ -74,11 +74,25 @@ export const scriptedOffers: Offer[] = [
   {
     id: 'scripted_the_long_arrangement',
     title: 'The Long Arrangement',
-    body: 'The Worm Below offers the only thing it has ever offered anyone: an end to endings. It will take the relics, because they were always borrowed, and the followers, because they are alive.',
+    body: 'The Worm Below offers the only thing it has ever offered anyone: not an ending, but an exemption from one. It will take the relics, because they were always borrowed, and the followers, because they are alive. You go on living out the decline — you simply stop being able to die of it.',
     phase: 'decline',
     factionId: 'worm_below',
     scripted: true,
-    requires: [{ c: 'minStanding', factionId: 'worm_below', v: 20 }],
+    /**
+     * Both gates track the leadership route now that lichdom IS the Worm's
+     * crown (issue #21, #14 slice 3): `minStanding` at `DEVOTION_STANDING`
+     * (50, literal here — content stays a pure data bundle and does not
+     * import the engine constant; `validate-content.ts` holds the two in
+     * step the same way it does for `concordat_` and `oath_`) is what
+     * "devoted enough to lead" already means everywhere else. `minArtifacts`
+     * at `LICH_RELIC_REQUIREMENT` is the rite's own price gate — the rite
+     * already consumes every relic held, so the requirement and the cost are
+     * the same relics (CLAUDE.md failure mode 14).
+     */
+    requires: [
+      { c: 'minStanding', factionId: 'worm_below', v: 50 },
+      { c: 'minArtifacts', v: 2 },
+    ],
     /**
      * The whole lichdom branch is this one option, so its weight is an
      * availability decision, not a texture one.
@@ -93,9 +107,10 @@ export const scriptedOffers: Offer[] = [
      * five while actively pursuing it is a lottery, and rule 6 wants all seven
      * collection slots reachable.
      *
-     * Availability to a dedicated seeker, measured: 19.9% at w1, 59.6% at w6,
-     * 73.3% at w12, 78.0% at w20 — the ceiling past w12 is the gate being met
-     * late in the decline, not the draw.
+     * Availability to a dedicated seeker, measured (at the OLD gate,
+     * `minStanding worm_below 20`, no relic requirement): 19.9% at w1, 59.6%
+     * at w6, 73.3% at w12, 78.0% at w20 — the ceiling past w12 is the gate
+     * being met late in the decline, not the draw.
      *
      * SIX, not twelve, because the weight is not free. This card is eligible
      * only in the decline, where the pool is small, so a heavy thumb crowds
@@ -104,6 +119,16 @@ export const scriptedOffers: Offer[] = [
      * which stay in band but neither of which is worth buying more of a
      * second branch with. w6 turns the lottery into a decision and stops.
      *
+     * STILL SIX (issue #21) after the gate moved to `DEVOTION_STANDING` (50,
+     * up from 20) plus `minArtifacts`. Raising the weight further was tried
+     * against the harder gate and did nothing — a seeker who cannot assemble
+     * the relic count before the age limit is never offered the card no
+     * matter how heavily it is drawn, so the reachability the tighter gate
+     * cost had to be bought back on the relic count instead
+     * (`LICH_RELIC_REQUIREMENT`'s doc comment in `constants.ts` has the
+     * cohort numbers). w6 still turns the lottery into a decision without
+     * paying rent against the relic-granting cards a second time.
+     *
      * It cannot leak to anyone who has not earned it: the `requires` gate, the
      * decline phase and the seen-once rule all still apply.
      */
@@ -111,7 +136,7 @@ export const scriptedOffers: Offer[] = [
     options: [
       {
         kind: 'certain',
-        label: 'Accept. Become the thing under the hill.',
+        label: 'Accept. The decline still has to be survived.',
         // `becomeLich` IS the price: the engine forfeits every relic and every
         // follower and freezes decay. This was six stacked `loseArtifact`
         // entries and a `followers: -999` sentinel — an author hand-rolling a

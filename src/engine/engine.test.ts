@@ -595,6 +595,24 @@ describe('faction leadership', () => {
     expect(checkEndings(run, crowned)).toBe('lichdom');
   });
 
+  /**
+   * Issue #21's real bug, not just its disclosure gap. `LEADERSHIP_BY_FACTION`
+   * maps `worm_below` to `lichdom` for attribution's sake, and
+   * `patronFaction` reads standing alone — so a wizard who courted the Worm
+   * to a dominant standing but never took the rite used to reach this branch
+   * with `isLich: false` and still get mapped through to `lichdom`,
+   * narrating a transformation, a forfeited vault and a frozen decay that
+   * never happened. The Worm's crown is earned by the rite ONLY
+   * (`content/standing.ts`'s `PATRON_BY_ENDING` comment says the same thing
+   * from the flavor side); a standing-only wizard retires like anyone else
+   * who committed to nothing that pays off.
+   */
+  it('does not crown a standing-only devotee of the Worm Below', () => {
+    const run = retiring({ worm_below: DEVOTION_STANDING + PATRON_MARGIN });
+    expect(run.isLich).toBe(false);
+    expect(checkEndings(run, crowned)).toBe('retired_to_swamp');
+  });
+
   it('never returns an ending the content bundle does not define', () => {
     // The guard that makes this branch safe for any pack — and for this repo
     // today, where the ids exist and the prose does not. Same run, same

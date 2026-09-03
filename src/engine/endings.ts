@@ -230,6 +230,20 @@ export function patronFaction(run: RunState): FactionId | undefined {
 export function leadershipEnding(run: RunState, content: ContentBundle): EndingId | undefined {
   const patron = patronFaction(run);
   if (patron === undefined) return undefined;
+  // The Worm Below has no standing-only crown. `checkEndings` already routes a
+  // rite-taker to `lichdom` via `run.isLich`, BEFORE this function is ever
+  // called (issue #21) — that branch is what the comment on
+  // `LEADERSHIP_BY_FACTION` means by "the lich branch stays first". But
+  // `patronFaction` reads standing alone, so a wizard who merely devoted to
+  // the Worm without ever taking the rite reaches this line with
+  // `patron === 'worm_below'` and `run.isLich === false`, and mapping that
+  // through `LEADERSHIP_BY_FACTION` would crown them Lich for a transformation
+  // that never happened — narrating forfeited relics and frozen decay on a
+  // career that kept both. Falling through to `retired_to_swamp` for that
+  // wizard is correct: their crown was never a standing total to begin with
+  // (`content/standing.ts`'s `PATRON_BY_ENDING` comment on `lichdom` says the
+  // same thing from the flavor-text side).
+  if (patron === 'worm_below') return undefined;
   const ending = LEADERSHIP_BY_FACTION[patron];
 
   /*

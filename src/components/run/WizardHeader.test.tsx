@@ -247,10 +247,21 @@ describe('WizardHeader · the lich says so', () => {
  */
 describe('the lichdom bill', () => {
   it('names all four consequences', () => {
-    expect(LICH_LINE).toMatch(/forfeit every relic/i);
+    expect(LICH_LINE).toMatch(/forfeit all relics/i);
     expect(LICH_LINE).toMatch(/Followers/);
     expect(LICH_LINE).toMatch(/decay ends/i);
     expect(LICH_LINE).toContain(`+${DEF_LICH} Wards`);
+  });
+
+  /**
+   * Issue #21: the rite TRANSFORMS rather than terminates — a lich still has
+   * to survive to the age limit to land on the `lichdom` ending — and the
+   * card's own label ("Accept. Become the thing under the hill.") never said
+   * so. This is the one line every player reads before committing, so it is
+   * where the fact has to survive even if every other surface goes quiet.
+   */
+  it('says plainly that this is not the ending', () => {
+    expect(LICH_LINE).toMatch(/not the end/i);
   });
 
   it('tracks the constant, so prose cannot drift from the rule', () => {
