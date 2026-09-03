@@ -7,6 +7,7 @@ import { concordatOffers } from './concordats';
 import { grievanceOffers } from './grievances';
 import { favorOffers } from './favors';
 import { pactOffers } from './pacts';
+import { oathOffers } from './oaths';
 
 export {
   ascentOffers,
@@ -17,9 +18,10 @@ export {
   grievanceOffers,
   favorOffers,
   pactOffers,
+  oathOffers,
 };
 
-/** The whole choice-card catalog. Ids are unique across all eight files. */
+/** The whole choice-card catalog. Ids are unique across all nine files. */
 export const offers: Offer[] = [
   ...ascentOffers,
   ...declineOffers,
@@ -29,4 +31,5 @@ export const offers: Offer[] = [
   ...grievanceOffers,
   ...favorOffers,
   ...pactOffers,
+  ...oathOffers,
 ];

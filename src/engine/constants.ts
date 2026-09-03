@@ -309,11 +309,32 @@ export const SEAL_MIN_NOTORIETY = 55;
  * clears this becomes a leadership ending instead, so the margin is the only
  * dial standing between "the anticlimactic ending the wiki asks for" and a
  * residue nobody reaches. Its baseline share is 11.65% of runs (233/2000 in
- * `qa/baseline-endings.json`, measured before this slice), and that figure is
- * what the value is fitted against — not an aesthetic judgement about 20.
+ * `qa/baseline-endings.json`, measured before ANY faction ending existed —
+ * reprisal or leadership). That figure is what the value was fitted against.
  *
- * So: fitted by measurement, `npm run sim` is the instrument, and the number
- * below is the starting point of that fit rather than its result.
+ * MEASURED (issue #14 slice 2b), not merely asserted: swamp sits at
+ * 8.25-8.55% of the population now (seeds 1-2, `npm run sim`), and the number
+ * DOES NOT MOVE this constant. It was swept from 5 to 25 and the population
+ * share stayed within 0.3 points across the whole range — because the
+ * population's eight policies (`POPULATION` in `scripts/simulate.ts`) do not
+ * concentrate standing in one faction whether the bar is easy or hard; only a
+ * dedicated `courtier_<faction>` does that, and those cohorts are deliberately
+ * NOT in the population for the same reason the pariahs are not (see the
+ * comment on `POPULATION`). So the gap from 11.65% to ~8.4% is real, but it
+ * is downstream of the reprisals and the leadership endings EXISTING at all
+ * — six and then five more ways for an age-limit run to avoid the swamp
+ * outside of standing-margin play — not of where this margin sits. Chasing it
+ * by moving `PATRON_MARGIN` would be CLAUDE.md failure mode 6 in reverse: a
+ * target the constant does not actually control.
+ *
+ * What 20 IS fitted against is the thing it actually governs: whether a
+ * player who commits to ONE faction reaches its crown. Every one of the five
+ * standing-earned crowns (`courtier_<faction>`, 200-run cohorts) lands
+ * between 1.5% and 8.5% at this value, seeds 1-2 — reachable, per faction,
+ * without a single cohort reading zero. `npm run sim` is still the
+ * instrument for that half of the fit; the value stays 20 because raising it
+ * buys nothing on `retired_to_swamp` and only makes the weaker cohorts
+ * (`crownlands`, `ashen_covenant`) harder to clear.
  */
 export const PATRON_MARGIN = 20;
 

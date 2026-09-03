@@ -289,6 +289,33 @@ for (const offer of offers.filter((o) => o.id.startsWith('concordat_'))) {
 }
 
 // ---------------------------------------------------------------------------
+// The oath gate must track DEVOTION_STANDING
+// ---------------------------------------------------------------------------
+
+/**
+ * The mirror of the concordat rule above, for the leadership route
+ * (`oath_*`, issue #14 slice 2b): "devoted enough to swear an oath" must mean
+ * the same standing the reliquary and the draw upgrade already use. A literal
+ * copy of `DEVOTION_STANDING` here would drift exactly the way the concordat
+ * gate did when the constant moved from 55 to 50.
+ */
+for (const offer of offers.filter((o) => o.id.startsWith('oath_'))) {
+  const gate = (offer.requires ?? []).find(
+    (c): c is Extract<Condition, { c: 'minStanding' }> =>
+      c.c === 'minStanding' && c.factionId === offer.factionId,
+  );
+  if (!gate) {
+    fail(`offer "${offer.id}"`, 'an oath must gate on minStanding for its own faction');
+  } else if (gate.v !== DEVOTION_STANDING) {
+    fail(
+      `offer "${offer.id}"`,
+      `devotion gate is ${gate.v} but DEVOTION_STANDING is ${DEVOTION_STANDING} — ` +
+        'the oath and the reliquary must agree on what "devoted" means',
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The grievance cards must point AWAY from the faction they belong to
 // ---------------------------------------------------------------------------
 
