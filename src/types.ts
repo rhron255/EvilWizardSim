@@ -200,7 +200,8 @@ export type Condition =
   | { c: 'minLairTier'; v: number }
   | { c: 'minEraIndex'; v: number }
   | { c: 'hasArtifact'; artifactId: string }
-  | { c: 'holdsAnyArtifact' };
+  | { c: 'holdsAnyArtifact' }
+  | { c: 'minArtifacts'; v: number };
 
 export type Offer = {
   id: string;

@@ -38,6 +38,8 @@ export function conditionMet(run: RunState, condition: Condition, content: Conte
       return run.heldArtifactIds.includes(condition.artifactId);
     case 'holdsAnyArtifact':
       return run.heldArtifactIds.length > 0;
+    case 'minArtifacts':
+      return run.heldArtifactIds.length >= condition.v;
     default:
       return false;
   }
