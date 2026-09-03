@@ -77,9 +77,10 @@ describe('CollectionScreen · the seven endings', () => {
     // A floor, not the count. Pinning the exact number made this fail on the
     // day content was ADDED, which is the one day the grid is most worth
     // checking — while `toHaveLength(endings.length)` above already fails if a
-    // slot goes missing. Twelve is the seven of wiki/01 § 7 plus the five
-    // faction reprisals of issue #14.
-    expect(endings.length).toBeGreaterThanOrEqual(12);
+    // slot goes missing. Seventeen is the seven of wiki/01 § 7, the five
+    // faction reprisals of issue #14 slice 1, and the five faction leadership
+    // endings of slice 2 (`lichdom` already counted among the original seven).
+    expect(endings.length).toBeGreaterThanOrEqual(17);
   });
 
   it('withholds the name of an ending not yet reached', () => {

@@ -101,6 +101,11 @@ const REQUIRED_ENDINGS = [
   'turned_to_fertilizer',
   'exiled_and_overrun',
   'consumed',
+  'contract_writer',
+  'grand_arbiter',
+  'archmage',
+  'archdruid',
+  'overthrown_the_kingdom',
 ];
 for (const id of REQUIRED_ENDINGS) {
   if (!endings.some((e) => e.id === id)) fail('endings', `missing "${id}"`);

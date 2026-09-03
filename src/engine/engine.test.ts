@@ -490,11 +490,11 @@ describe('faction leadership', () => {
   /**
    * A bundle that DEFINES the leadership endings.
    *
-   * The fixture bundle does not, and neither does `src/content` yet — the ids
-   * are in the frozen contract and their prose is still to be authored. The
-   * engine takes a `ContentBundle`, so the honest way to test the branch is to
-   * hand it one that declares them; the last test in this block covers the
-   * other case, where the bundle does not.
+   * `src/content` now defines them too (issue #14 slice 2), but this suite
+   * stays fixture-driven on purpose: the engine takes a `ContentBundle`, and a
+   * test that only worked against the real one would say nothing about a pack
+   * that ships different — or no — leadership prose. The last test in this
+   * block covers that other case, where the bundle declares none.
    */
   const crowned: ContentBundle = {
     ...fixtureContent,

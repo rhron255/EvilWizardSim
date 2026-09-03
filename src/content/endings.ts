@@ -2,7 +2,9 @@ import type { Ending } from '../types';
 
 /**
  * The endings: the original seven, then the six faction reprisals — of which
- * `sealed_in_gem` was always one and did not know it.
+ * `sealed_in_gem` was always one and did not know it — then five faction
+ * leadership endings. `lichdom`, above, is the Worm Below's sixth; see
+ * `LEADERSHIP_BY_FACTION` in `src/engine/endings.ts`.
  *
  * THE RULE: there is no fail state. Every narration below is a biography, not
  * a verdict — see `wiki/06_reference_analysis.md` principle 8. The game does
@@ -16,6 +18,10 @@ import type { Ending } from '../types';
  * whether three hamlets noticed or four kingdoms did, and five paraphrases of
  * that thought would be filler. The original seven stay `tiered` because how
  * much the world noticed IS their subject. See `EndingCoda` in `types.ts`.
+ *
+ * The five leadership endings that follow the reprisals below are `fixed` for
+ * the identical reason: a crown is faction-shaped, not fame-shaped, and "the
+ * Academy made you its Archmage" does not vary with how many hamlets noticed.
  */
 export const endings: Ending[] = [
   {
@@ -196,6 +202,68 @@ export const endings: Ending[] = [
       'The Worm Below holds no opinions and takes no offence, which is the part everyone gets wrong about it. You were on the schedule from the first day you went down there — everybody is — and all your later work did was move the date up. There was no confrontation and nothing was said. The hill was where the hill had always been, and then the ground under it was somewhere you had been standing. It is not personal. It is simply that the Worm is under everything, and in the end under you.',
     codaMode: 'fixed',
     coda: 'It has never once been late. It has never once been early either.',
+    rarity: 'rare',
+  },
+
+  // -------------------------------------------------------------------------
+  // Faction leadership (issue #14, slice 2). `lichdom` above is the Worm
+  // Below's member of this set — see `LEADERSHIP_BY_FACTION` in
+  // `src/engine/endings.ts`.
+  // -------------------------------------------------------------------------
+
+  {
+    id: 'contract_writer',
+    name: 'Pact Master',
+    summary: 'You stopped signing the Covenant’s contracts and started drafting them.',
+    hint: 'for the Covenant’s only client left standing',
+    narration:
+      'The Ashen Covenant does not promote from within, as a rule; it made an exception, filed under exceptional circumstances, and declined to elaborate further. You do not sign the pacts any longer. You draft them, adjust the clauses, and decide whose name goes where the ash goes afterward. Other clients still call it a contract. You have started calling it correspondence, and nobody has pointed out the difference, which the Covenant considers the surest sign it appointed correctly.',
+    codaMode: 'fixed',
+    coda: 'The clauses you wrote outlived the hand that wrote them, which was always the intention.',
+    rarity: 'rare',
+  },
+  {
+    id: 'grand_arbiter',
+    name: 'Grand Arbiter',
+    summary: 'The Gilded Hand stopped billing you and started asking your opinion.',
+    hint: 'for an account the Hand consults rather than invoices',
+    narration:
+      'The Gilded Hand settles its disputes by arbitration, and for the back half of your career you were the arbitration. Two merchants present a claim, you name a number, and the number is final, because the alternative is you naming a larger one next time. You have never once ruled against the Hand itself, a fact its accountants have noticed and never once raised with you directly. The seat carries no term limit. Nobody has yet found the nerve to check whether one was intended.',
+    codaMode: 'fixed',
+    coda: 'The ledger records the seat, not the name in it. Yours is the one still in the ink.',
+    rarity: 'rare',
+  },
+  {
+    id: 'archmage',
+    name: 'Archmage',
+    summary: 'The Pale Academy dropped the disclaimer and gave you the chair instead.',
+    hint: 'for a name the Academy stopped footnoting',
+    narration:
+      'The Pale Academy spent decades citing you as a cautionary appendix, then quietly promoted you to the faculty that writes the appendix. You lecture twice a term, to a full hall every time, and mark essays about wizards not unlike yourself with a rigour the position seems to demand. The disclaimer is gone from your entry, replaced with a title. Three professors who voted against the appointment now open their own lectures by citing you. None of them enjoy it. All of them are correct to.',
+    codaMode: 'fixed',
+    coda: 'The chair is tenured. So, as far as the Academy can determine, are you.',
+    rarity: 'rare',
+  },
+  {
+    id: 'archdruid',
+    name: 'Archdruid',
+    summary: 'The Verdant Choir stopped treating you as weather and started treating you as root.',
+    hint: 'for a wizard the grove stopped weeding out',
+    narration:
+      'The Verdant Choir does not vote and does not appoint; it simply stops treating you as weather and starts treating you as root. That took eleven years, during which the grove got no smaller and you got no more welcome, until one spring the eldest oak leaned your way and the matter was considered settled. You speak first at the equinox now, which nobody remembers deciding and nobody has since revisited. Every hamlet nearby adjusted its planting calendar to yours, correctly, without asking why.',
+    codaMode: 'fixed',
+    coda: 'The Choir has never called it a promotion. The grove no longer has anyone above you.',
+    rarity: 'rare',
+  },
+  {
+    id: 'overthrown_the_kingdom',
+    name: 'King',
+    summary: 'The Crownlands did not fall. They changed management, and kept you on top.',
+    hint: 'for a throne the Crownlands stopped defending',
+    narration:
+      'The Crownlands did not fall so much as change management. You did not raze the palace; you kept the staff, the treasury, and most of the paperwork, which turned out to be the actual seat of power all along. The old dynasty survives as a line in the historical record and, twice yearly, a strongly worded letter from an exiled cousin who cannot afford postage for a third. The coronation was small, correct, and legally sound, because you had the clerks draft it that way on purpose.',
+    codaMode: 'fixed',
+    coda: 'The crown fits. The clerks confirmed it would, on paper, well before it did.',
     rarity: 'rare',
   },
 ];

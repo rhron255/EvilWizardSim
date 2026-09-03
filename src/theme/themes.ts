@@ -435,6 +435,130 @@ export const THEMES: ThemeDef[] = [
       ghost: '#414d4e',
     },
   },
+
+  // ---------------------------------------------------------------------------
+  // The five faction leadership endings (issue #14, slice 2). `lichdom` above
+  // is the Worm Below's sixth and already has its theme, "Cold Room".
+  //
+  // Same generation recipe as the reprisals: one hue per theme, held at a
+  // fixed lightness ladder, panel darkened where the ink did not clear the
+  // default palette's 13.80:1 on the nose. Hues are picked at least ~25° off
+  // the twelve already in use where a gap that wide existed; `grand_arbiter`
+  // sits in the one gap that was only ~26° wide to begin with (between the
+  // reprisals' olive and this set's own gold-green), so it leans on a much
+  // higher saturation than its neighbours to stay legible as a different
+  // colour rather than a paler version of one of them.
+  // ---------------------------------------------------------------------------
+
+  {
+    id: 'contract_writer',
+    name: 'Correspondence',
+    endingId: 'contract_writer',
+    blurb: 'The Covenant’s olive, gone brassy where the ink is fresh.',
+    surface: {
+      void: '#0c1007',
+      panel: '#19210f',
+      raised: '#233015',
+      hover: '#2d3e1c',
+      line: '#384c22',
+      lineStrong: '#476824',
+    },
+    ink: {
+      bright: '#f8f8f8',
+      base: '#edefec',
+      dim: '#99a48e',
+      faint: '#6b775f',
+      ghost: '#484e41',
+    },
+  },
+
+  {
+    id: 'grand_arbiter',
+    name: 'The Final Number',
+    endingId: 'grand_arbiter',
+    blurb: 'Gold, at the exact saturation of a figure nobody argues with.',
+    surface: {
+      void: '#100f07',
+      panel: '#22200e',
+      raised: '#312e14',
+      hover: '#3f3b1a',
+      line: '#4e4820',
+      lineStrong: '#72671b',
+    },
+    ink: {
+      bright: '#f8f8f8',
+      base: '#efefec',
+      dim: '#a4a18e',
+      faint: '#77745f',
+      ghost: '#4e4c41',
+    },
+  },
+
+  {
+    id: 'archmage',
+    name: 'The Chair',
+    endingId: 'archmage',
+    blurb: 'A pale, cold blue. The disclaimer used to live here.',
+    surface: {
+      void: '#090c15',
+      panel: '#111527',
+      raised: '#171d36',
+      hover: '#1d2544',
+      line: '#232d52',
+      lineStrong: '#25346f',
+    },
+    ink: {
+      bright: '#f8f8f8',
+      base: '#ececef',
+      dim: '#8e92a4',
+      faint: '#5f6477',
+      ghost: '#41444e',
+    },
+  },
+
+  {
+    id: 'archdruid',
+    name: 'The Eldest Oak',
+    endingId: 'archdruid',
+    blurb: 'Gold-green, the colour of a grove that voted without meeting.',
+    surface: {
+      void: '#07100a',
+      panel: '#0f2215',
+      raised: '#15301d',
+      hover: '#1b3e26',
+      line: '#214d2f',
+      lineStrong: '#236939',
+    },
+    ink: {
+      bright: '#f8f8f8',
+      base: '#ecefed',
+      dim: '#8ea495',
+      faint: '#5f7767',
+      ghost: '#414e45',
+    },
+  },
+
+  {
+    id: 'overthrown_the_kingdom',
+    name: 'The Crown',
+    endingId: 'overthrown_the_kingdom',
+    blurb: 'Royal purple, kept by someone the Crownlands did not choose.',
+    surface: {
+      void: '#150913',
+      panel: '#271123',
+      raised: '#35182f',
+      hover: '#431e3c',
+      line: '#512449',
+      lineStrong: '#6d2660',
+    },
+    ink: {
+      bright: '#f8f8f8',
+      base: '#efecee',
+      dim: '#a48ea0',
+      faint: '#775f73',
+      ghost: '#4e414c',
+    },
+  },
 ];
 
 export const DEFAULT_THEME_ID: ThemeId = 'default';

@@ -955,6 +955,13 @@ const ENDING_ORDER: EndingId[] = [
   'turned_to_fertilizer',
   'exiled_and_overrun',
   'consumed',
+  // The five faction leadership endings, in the same faction order. `lichdom`
+  // is the Worm Below's and is already listed above, among the original seven.
+  'contract_writer',
+  'grand_arbiter',
+  'archmage',
+  'archdruid',
+  'overthrown_the_kingdom',
 ];
 
 const ALL_ENDING_IDS: EndingId[] = content.endings.map((e) => e.id);

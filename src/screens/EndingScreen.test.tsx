@@ -25,7 +25,7 @@ import { endings } from '../content/endings';
 import { factions } from '../content/factions';
 import { heroNameFor } from '../content/heroes';
 import { ATTRIBUTION_LABEL, attributionFor } from '../components/meta';
-import { REPRISAL_BY_FACTION } from '../engine';
+import { LEADERSHIP_BY_FACTION, REPRISAL_BY_FACTION } from '../engine';
 import {
   demoArtifacts,
   demoLairs,
@@ -69,6 +69,11 @@ const ENDING_IDS: EndingId[] = [
   'turned_to_fertilizer',
   'exiled_and_overrun',
   'consumed',
+  'contract_writer',
+  'grand_arbiter',
+  'archmage',
+  'archdruid',
+  'overthrown_the_kingdom',
 ];
 
 /** Every id in the frozen union is covered — no ending gets to go unchecked. */
@@ -86,6 +91,15 @@ const ATTRIBUTED: EndingId[] = [
   'turned_to_fertilizer',
   'exiled_and_overrun',
   'consumed',
+  // The five faction leadership endings. The agent is the faction the wizard
+  // led rather than one that acted on them, but `attributionFor` still owes
+  // it a name — see `attributionLabelFor`, which is what keeps the caption
+  // from reading as "at the hands of" a faction the wizard was running.
+  'contract_writer',
+  'grand_arbiter',
+  'archmage',
+  'archdruid',
+  'overthrown_the_kingdom',
 ];
 
 function show(
@@ -176,6 +190,23 @@ describe('EndingScreen attribution', () => {
       expect(attributionOnScreen(container)).toBe(expected);
     },
   );
+
+  /**
+   * The mirror of the reprisal loop above: each leadership ending credits the
+   * faction the wizard led. `lichdom` is excluded — it is `LEADERSHIP_BY_FACTION`'s
+   * entry for the Worm Below, but it is self-determined (see `SELF_DETERMINED`
+   * above) and covered by its own tests.
+   */
+  it.each(
+    Object.entries(LEADERSHIP_BY_FACTION).filter(([, endingId]) => endingId !== 'lichdom'),
+  )('credits %s for its own leadership ending, "at the head of" it', (factionId, endingId) => {
+    const { container } = show(endingId);
+    const expected = factions.find((f) => f.id === factionId)!.name;
+    const node = container.querySelector('[data-attribution]');
+    expect((node?.textContent ?? '').replace('At the head of', '').trim()).toBe(expected);
+    expect(screen.getByText('At the head of')).toBeInTheDocument();
+    expect(screen.queryByText(ATTRIBUTION_LABEL)).not.toBeInTheDocument();
+  });
 
   it('credits an unnamed apprentice for betrayed_by_apprentice', () => {
     const { container } = show('betrayed_by_apprentice');

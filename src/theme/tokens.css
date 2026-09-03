@@ -360,6 +360,86 @@
   --ew-ink-ghost: #414d4e;
 }
 
+/* Correspondence — the Covenant's olive, gone brassy where the ink is fresh. */
+[data-theme='contract_writer'] {
+  --ew-void: #0c1007;
+  --ew-panel: #19210f;
+  --ew-raised: #233015;
+  --ew-hover: #2d3e1c;
+  --ew-line: #384c22;
+  --ew-line-strong: #476824;
+
+  --ew-ink-bright: #f8f8f8;
+  --ew-ink: #edefec;
+  --ew-ink-dim: #99a48e;
+  --ew-ink-faint: #6b775f;
+  --ew-ink-ghost: #484e41;
+}
+
+/* The Final Number — gold, at the exact saturation of a figure nobody argues with. */
+[data-theme='grand_arbiter'] {
+  --ew-void: #100f07;
+  --ew-panel: #22200e;
+  --ew-raised: #312e14;
+  --ew-hover: #3f3b1a;
+  --ew-line: #4e4820;
+  --ew-line-strong: #72671b;
+
+  --ew-ink-bright: #f8f8f8;
+  --ew-ink: #efefec;
+  --ew-ink-dim: #a4a18e;
+  --ew-ink-faint: #77745f;
+  --ew-ink-ghost: #4e4c41;
+}
+
+/* The Chair — a pale, cold blue. The disclaimer used to live here. */
+[data-theme='archmage'] {
+  --ew-void: #090c15;
+  --ew-panel: #111527;
+  --ew-raised: #171d36;
+  --ew-hover: #1d2544;
+  --ew-line: #232d52;
+  --ew-line-strong: #25346f;
+
+  --ew-ink-bright: #f8f8f8;
+  --ew-ink: #ececef;
+  --ew-ink-dim: #8e92a4;
+  --ew-ink-faint: #5f6477;
+  --ew-ink-ghost: #41444e;
+}
+
+/* The Eldest Oak — gold-green, the colour of a grove that voted without meeting. */
+[data-theme='archdruid'] {
+  --ew-void: #07100a;
+  --ew-panel: #0f2215;
+  --ew-raised: #15301d;
+  --ew-hover: #1b3e26;
+  --ew-line: #214d2f;
+  --ew-line-strong: #236939;
+
+  --ew-ink-bright: #f8f8f8;
+  --ew-ink: #ecefed;
+  --ew-ink-dim: #8ea495;
+  --ew-ink-faint: #5f7767;
+  --ew-ink-ghost: #414e45;
+}
+
+/* The Crown — royal purple, kept by someone the Crownlands did not choose. */
+[data-theme='overthrown_the_kingdom'] {
+  --ew-void: #150913;
+  --ew-panel: #271123;
+  --ew-raised: #35182f;
+  --ew-hover: #431e3c;
+  --ew-line: #512449;
+  --ew-line-strong: #6d2660;
+
+  --ew-ink-bright: #f8f8f8;
+  --ew-ink: #efecee;
+  --ew-ink-dim: #a48ea0;
+  --ew-ink-faint: #775f73;
+  --ew-ink-ghost: #4e414c;
+}
+
 /* --------------------------------------------------------------------------
    Reset & base
    -------------------------------------------------------------------------- */

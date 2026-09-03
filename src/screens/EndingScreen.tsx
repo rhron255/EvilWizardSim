@@ -308,7 +308,7 @@ export function EndingScreen({
               usual one for a quiet retirement. */}
           {(bonds.patron || bonds.nemesis) && (
             <p className={styles.bonds}>
-              {bonds.patron && <span>{patronLineFor(bonds.patron.factionId)}</span>}{' '}
+              {bonds.patron && <span>{patronLineFor(bonds.patron.factionId, ending.id)}</span>}{' '}
               {bonds.nemesis && <span>{nemesisLineFor(bonds.nemesis.factionId, ending.id)}</span>}
             </p>
           )}
