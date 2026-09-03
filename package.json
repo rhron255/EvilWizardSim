@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "lint": "eslint . --max-warnings 0",
     "validate:content": "tsx scripts/validate-content.ts",
-    "sim": "tsx scripts/simulate.ts"
+    "sim": "tsx scripts/simulate.ts",
+    "gate": "node scripts/gate.mjs"
   },
   "overrides": {
     "vite": "$vite"

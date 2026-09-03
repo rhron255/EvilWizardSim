@@ -289,6 +289,35 @@ export const SEAL_MAX_STANDING = -55;
 export const SEAL_MIN_NOTORIETY = 55;
 
 /**
+ * How far ahead your best faction must be over your second-best before it
+ * hands you its leadership at the age limit.
+ *
+ * PROVENANCE: none. No wiki line authorises this number — wiki/01 § 7 names no
+ * leadership endings at all, and the only standing threshold the design states
+ * is `DEVOTION_STANDING`. CLAUDE.md failure mode 6 is precisely about a number
+ * invented in a task brief and then chased, so this one arrives labelled.
+ *
+ * What the design CAN defend is the shape, and this constant is the whole of
+ * it. Devotion alone is not leadership: `DEVOTION_STANDING` is the reliquary
+ * threshold, and a wizard who traded favours widely can sit over it with three
+ * factions at once. Being crowned by a faction has to mean you chose ONE and
+ * paid for it in the others — the margin is what makes that choice legible in
+ * a single number, and it is why the check is a gap rather than a second
+ * absolute threshold.
+ *
+ * The second thing it protects is `retired_to_swamp`. Every age-limit run that
+ * clears this becomes a leadership ending instead, so the margin is the only
+ * dial standing between "the anticlimactic ending the wiki asks for" and a
+ * residue nobody reaches. Its baseline share is 11.65% of runs (233/2000 in
+ * `qa/baseline-endings.json`, measured before this slice), and that figure is
+ * what the value is fitted against — not an aesthetic judgement about 20.
+ *
+ * So: fitted by measurement, `npm run sim` is the instrument, and the number
+ * below is the starting point of that fit rather than its result.
+ */
+export const PATRON_MARGIN = 20;
+
+/**
  * Ascension: the visible unattainable prize.
  *
  * ONE legendary, not two. The four legendaries sit in the most mutually

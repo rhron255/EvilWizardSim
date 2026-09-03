@@ -20,7 +20,10 @@ import {
   decayFor,
   defenseOf,
   emptyCollection,
+  DEVOTION_STANDING,
   FACTION_ORDER,
+  LEADERSHIP_BY_FACTION,
+  PATRON_MARGIN,
   migrateCollection,
   nextOffer,
   pactRoleOf,
@@ -471,6 +474,135 @@ describe('faction reprisals', () => {
     // silently redistribute two endings' rates.
     const run = at({ pale_academy: SEAL_MAX_STANDING }, { heroThreat: 9999 });
     expect(checkEndings(run, fixtureContent)).toBe('slain_by_chosen_one');
+  });
+});
+
+/**
+ * The other end of the same relationship: what a faction does about a wizard
+ * who spent a career at the TOP of its standing.
+ *
+ * Leadership is read at the AGE LIMIT only, so every run below has run out of
+ * eras. That is the asymmetry with the reprisals and it is deliberate: a
+ * reprisal is something done to you and may cut a career short, a crown is
+ * what is left to say about one that lasted.
+ */
+describe('faction leadership', () => {
+  /**
+   * A bundle that DEFINES the leadership endings.
+   *
+   * The fixture bundle does not, and neither does `src/content` yet — the ids
+   * are in the frozen contract and their prose is still to be authored. The
+   * engine takes a `ContentBundle`, so the honest way to test the branch is to
+   * hand it one that declares them; the last test in this block covers the
+   * other case, where the bundle does not.
+   */
+  const crowned: ContentBundle = {
+    ...fixtureContent,
+    endings: [
+      ...fixtureContent.endings,
+      ...Object.values(LEADERSHIP_BY_FACTION).map((id) => ({
+        id,
+        name: `Fixture ${id}`,
+        summary: 'Fixture summary.',
+        hint: 'for a fixture',
+        narration: 'Fixture narration.',
+        rarity: 'rare' as const,
+        codaMode: 'fixed' as const,
+        coda: 'Fixture coda.',
+      })),
+    ],
+  };
+
+  /** A career that reached the age limit, with the given standings. */
+  const retiring = (
+    standing: Partial<Record<FactionId, number>>,
+    over: Partial<RunState> = {},
+  ): RunState => ({
+    ...start(),
+    phase: 'decline',
+    eraIndex: 16,
+    eraCount: 16,
+    factionStanding: { ...start().factionStanding, ...standing },
+    ...over,
+  });
+
+  it('gives every faction its own crown', () => {
+    for (const [factionId, endingId] of Object.entries(LEADERSHIP_BY_FACTION)) {
+      // `lichdom` is the Worm's and is earned by the rite, not by standing —
+      // it is covered on its own below.
+      if (endingId === 'lichdom') continue;
+      const run = retiring({ [factionId as FactionId]: DEVOTION_STANDING + PATRON_MARGIN });
+      expect(checkEndings(run, crowned), factionId).toBe(endingId);
+    }
+  });
+
+  it('retires the wizard who was liked by three factions and led by none', () => {
+    // The whole reason `PATRON_MARGIN` exists: devotion has to be a
+    // commitment, not the top of a flat spread.
+    const run = retiring({
+      ashen_covenant: DEVOTION_STANDING + 6,
+      pale_academy: DEVOTION_STANDING + 4,
+      crownlands: DEVOTION_STANDING,
+    });
+    expect(checkEndings(run, crowned)).toBe('retired_to_swamp');
+  });
+
+  it('needs the margin, at the boundary in both directions', () => {
+    const dominant = retiring({
+      verdant_choir: DEVOTION_STANDING + PATRON_MARGIN,
+      gilded_hand: DEVOTION_STANDING,
+    });
+    expect(checkEndings(dominant, crowned)).toBe(LEADERSHIP_BY_FACTION.verdant_choir);
+
+    const oneShort = retiring({
+      verdant_choir: DEVOTION_STANDING + PATRON_MARGIN - 1,
+      gilded_hand: DEVOTION_STANDING,
+    });
+    expect(checkEndings(oneShort, crowned)).toBe('retired_to_swamp');
+  });
+
+  it('needs devotion, at the boundary in both directions', () => {
+    // Borrowed, never invented: `DEVOTION_STANDING` is the same threshold that
+    // opens a reliquary, so leadership is not a second number to learn.
+    expect(checkEndings(retiring({ crownlands: DEVOTION_STANDING }), crowned)).toBe(
+      LEADERSHIP_BY_FACTION.crownlands,
+    );
+    expect(checkEndings(retiring({ crownlands: DEVOTION_STANDING - 1 }), crowned)).toBe(
+      'retired_to_swamp',
+    );
+  });
+
+  it('breaks an exact tie by FACTION_ORDER, the same way every time', () => {
+    // Two factions at the same top standing cannot both crown you, and which
+    // one does may not depend on object key order.
+    const [first, second] = [FACTION_ORDER[4], FACTION_ORDER[1]];
+    const run = retiring({
+      [first]: DEVOTION_STANDING + PATRON_MARGIN,
+      [second]: DEVOTION_STANDING + PATRON_MARGIN,
+    });
+    // A tie means no margin over the runner-up, so nobody is crowned at all.
+    expect(checkEndings(run, crowned)).toBe('retired_to_swamp');
+    expect(FACTION_ORDER.indexOf(second)).toBeLessThan(FACTION_ORDER.indexOf(first));
+  });
+
+  it('leaves a lich a lich, whatever the standings say', () => {
+    // `lichdom` is the Worm's leadership ending and the rite already charged
+    // for it. A Covenant devotee who took the rite must not die a Pact Master.
+    const run = retiring(
+      { ashen_covenant: DEVOTION_STANDING + PATRON_MARGIN },
+      { isLich: true },
+    );
+    expect(checkEndings(run, crowned)).toBe('lichdom');
+  });
+
+  it('never returns an ending the content bundle does not define', () => {
+    // The guard that makes this branch safe for any pack — and for this repo
+    // today, where the ids exist and the prose does not. Same run, same
+    // standings, a bundle that declares no crowns: the career retires instead
+    // of ending on a card that cannot be rendered.
+    const run = retiring({ ashen_covenant: DEVOTION_STANDING + PATRON_MARGIN });
+    expect(checkEndings(run, crowned)).toBe(LEADERSHIP_BY_FACTION.ashen_covenant);
+    expect(checkEndings(run, fixtureContent)).toBe('retired_to_swamp');
   });
 });
 

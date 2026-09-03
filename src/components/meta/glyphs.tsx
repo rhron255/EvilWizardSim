@@ -310,6 +310,51 @@ const ENDING_PATHS: Record<EndingId, string[]> = {
     'M16.8 20.6c0-3.6 1.6-6 4.4-7',
     'M19.6 16.4c-1.7-.7-2.5-2-2.4-3.7 1.9.3 2.9 1.4 3.1 3.3z',
   ],
+  // A quill over a folded contract: the terms, and the hand that writes them.
+  contract_writer: [
+    'M4.2 19.8h15.6',
+    'M6.6 16.8V5.2h8.2l3 2.9v8.7z',
+    'M9.2 8.4h5.4',
+    'M9.2 11.4h5.4',
+    'M17.6 3.4c-2 3.9-4.3 6.4-7 7.6l1.7 1.8c2.8-1.1 4.9-3.9 5.3-9.4z',
+  ],
+  // A balance at rest, with the beam locked level.
+  grand_arbiter: [
+    'M12 3.6v16.8',
+    'M6.8 20.4h10.4',
+    'M4 8.6h16',
+    'M4 8.6L1.8 13.8a2.6 2.6 0 004.4 0z',
+    'M20 8.6l2.2 5.2a2.6 2.6 0 01-4.4 0z',
+    'M9 5.8h6',
+  ],
+  // A star held above an open book — the Academy's own mark, granted rather
+  // than withheld.
+  archmage: [
+    'M3.2 12.4h7.2c.8 0 1.2.5 1.2 1.1v7.4c0-.6-.4-1.1-1.2-1.1H3.2z',
+    'M20.8 12.4h-7.2c-.8 0-1.2.5-1.2 1.1v7.4c0-.6.4-1.1 1.2-1.1h7.2z',
+    'M12 2.2l1.5 3.3 3.5.4-2.6 2.5.7 3.5L12 10.2 8.9 11.9l.7-3.5L7 5.9l3.5-.4z',
+  ],
+  // Antlers crowned with a leaf: the Choir's shape, worn.
+  archdruid: [
+    'M12 21.6V12.4',
+    'M12 12.4L7.6 8',
+    'M7.6 8L4.4 9.2',
+    'M7.6 8L6.6 4.6',
+    'M12 12.4L16.4 8',
+    'M16.4 8l3.2 1.2',
+    'M16.4 8l1-3.4',
+    'M12 6.4c0-2.1 1.7-3.7 4-3.9-.2 2.3-1.9 3.9-4 3.9z',
+    'M9.4 16.4l-3 1.2',
+    'M14.6 16.4l3 1.2',
+  ],
+  // A crown resting on a toppled throne.
+  overthrown_the_kingdom: [
+    'M2.6 20.6h18.8',
+    'M6.4 20.6l1.6-8.4h7.4l1.6 8.4',
+    'M8.4 12.2V6.6',
+    'M15.4 12.2V6.6',
+    'M5.6 5.2l-1-3.6 3 2 2.4-3 2.4 3 3-2-1 3.6z',
+  ],
   // A funnel of ground, seen from directly above.
   consumed: [
     'M12 21.4c-5 0-9-3.8-9-8.6S7 3.6 12.4 3.6s8.8 3.4 8.8 7.6-3 6.6-6.4 6.6-5.4-2.2-5.4-4.6 1.9-4 3.8-4 3 1.3 3 2.8',

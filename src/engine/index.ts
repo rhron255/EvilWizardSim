@@ -44,6 +44,9 @@ export {
   nearestReprisalFaction,
   reprisalEnding,
   reprisalLiveFor,
+  LEADERSHIP_BY_FACTION,
+  patronFaction,
+  leadershipEnding,
 } from './endings';
 export { conditionMet, conditionsMet } from './conditions';
 export { projectEffects } from './effects';
@@ -85,6 +88,7 @@ export {
   SEAL_FACTION,
   ARTIFACT_LOCKOUT_STANDING,
   DEVOTION_STANDING,
+  PATRON_MARGIN,
   ASCENSION_LEGENDARIES,
   ASCENSION_MIN_NOTORIETY,
 } from './constants';

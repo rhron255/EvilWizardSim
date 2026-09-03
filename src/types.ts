@@ -41,6 +41,14 @@ export type FactionId =
  * under it and famous enough to be worth the trouble. `sealed_in_gem` is the
  * Pale Academy's member of that set, not a special case; see
  * `REPRISAL_BY_FACTION` in `src/engine/endings.ts`.
+ *
+ * The last block is the same generalisation pointing the other way: what a
+ * faction does about a wizard who spent a career at the TOP of its standing
+ * rather than the bottom. Only five ids are added for six factions, because
+ * `lichdom` is the Worm Below's member of that set — the Worm already crowns
+ * its devotees, and it does so through a rite the player accepted rather than
+ * through a standing total, so the set is six and the additions are five. See
+ * `LEADERSHIP_BY_FACTION` in `src/engine/endings.ts`.
  */
 export type EndingId =
   | 'slain_by_chosen_one'
@@ -55,7 +63,13 @@ export type EndingId =
   | 'liquidated'
   | 'turned_to_fertilizer'
   | 'exiled_and_overrun'
-  | 'consumed';
+  | 'consumed'
+  // --- faction leadership (issue #14) — plus `lichdom`, the Worm's ---------
+  | 'contract_writer'
+  | 'grand_arbiter'
+  | 'archmage'
+  | 'archdruid'
+  | 'overthrown_the_kingdom';
 
 /**
  * A cosmetic palette the player has unlocked and may select.

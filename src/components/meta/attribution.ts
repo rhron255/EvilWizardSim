@@ -44,7 +44,7 @@
  * faction that is absent yields `null` rather than a broken half-sentence.
  */
 
-import { REPRISAL_BY_FACTION } from '../../engine';
+import { LEADERSHIP_BY_FACTION, REPRISAL_BY_FACTION } from '../../engine';
 import type { EndingId, Faction, FactionId } from '../../types';
 
 /**
@@ -59,6 +59,13 @@ const REPRISAL_AGENT = new Map<EndingId, FactionId>(
     endingId,
     factionId,
   ]),
+);
+
+/** The same inversion for the other end of the relationship. */
+const LEADERSHIP_AGENT = new Map<EndingId, FactionId>(
+  (Object.entries(LEADERSHIP_BY_FACTION) as [FactionId, EndingId][]).map(
+    ([factionId, endingId]) => [endingId, factionId],
+  ),
 );
 
 /** What the screen needs to resolve an attribution. */
@@ -108,6 +115,23 @@ export function attributionFor(endingId: EndingId, ctx: AttributionContext): str
       return factionId ? nameOf(ctx.factions, factionId) : null;
     }
 
+    // --- faction leadership: the faction is who you did it FOR ---------------
+    //
+    // Patron-determined, not self-determined. A wizard does not become Archmage
+    // alone in a room — there is an institution doing the crowning, and it is
+    // the same fixed cast the reprisals are drawn from, which is the whole
+    // point of a recurring six (wiki/06 § What Does Not Transfer). Leaving
+    // these in the `null` branch below would print the biggest name in the
+    // career and then decline to say whose name it was.
+    case 'contract_writer':
+    case 'grand_arbiter':
+    case 'archmage':
+    case 'archdruid':
+    case 'overthrown_the_kingdom': {
+      const factionId = LEADERSHIP_AGENT.get(endingId);
+      return factionId ? nameOf(ctx.factions, factionId) : null;
+    }
+
     case 'consumed_by_pact':
       return nameOf(ctx.factions, 'ashen_covenant');
 
@@ -135,3 +159,22 @@ export function attributionFor(endingId: EndingId, ctx: AttributionContext): str
  * this card is always in the narration, never in the caption (rule 4).
  */
 export const ATTRIBUTION_LABEL = 'At the hands of';
+
+/**
+ * ...except when the faction did not do it TO you.
+ *
+ * "At the hands of The Pale Academy" is the right caption for a wizard filed
+ * away in a gem and exactly the wrong one for a wizard who ended the career as
+ * its Archmage. Every attributed ending until now was something done to the
+ * player, so one phrase carried them all; leadership is the first agent on
+ * this card the wizard was working WITH.
+ *
+ * Derived from `LEADERSHIP_AGENT` — the same map the switch above answers from
+ * — rather than written as a second switch over the same ids. A parallel list
+ * of "which endings are leadership" is the shape that drifts (failure mode 3:
+ * never mirror a fact across a seam), and the drift here would print a crown
+ * as an execution.
+ */
+export function attributionLabelFor(endingId: EndingId): string {
+  return LEADERSHIP_AGENT.has(endingId) ? 'At the head of' : ATTRIBUTION_LABEL;
+}

@@ -1,5 +1,6 @@
 /**
- * Terminal-state evaluation — all seven endings from wiki/01 § 7.
+ * Terminal-state evaluation — wiki/01 § 7's seven endings and the two faction
+ * sets built out of them.
  *
  * wiki/03 § Event Flow: "The ending check runs **after** every era, not only
  * at the age limit — hero threat and pact debt can terminate a run mid-arc."
@@ -14,8 +15,11 @@
  *   3. A FACTION REPRISAL — one of six, the Academy's gem among them.
  *   4. `betrayed_by_apprentice` — a full tower and an empty well of loyalty.
  *   5. `consumed_by_pact` — the debt comes due.
- *   6. Age limit → `lichdom` if the wizard already paid for it, else
+ *   6. Age limit → `lichdom` if the wizard already paid for it; else a FACTION
+ *      LEADERSHIP if one faction stands both high and alone; else
  *      `retired_to_swamp`, which is the catch-all so no state is undefined.
+ *      A crown is not a way to die, so this set is reachable here and nowhere
+ *      earlier — see `leadershipEnding`.
  *
  * Nothing here reads as "you lost" (wiki/06 principle 8). The engine decides
  * WHICH biography; content decides how it reads.
@@ -29,7 +33,9 @@ import {
   ASCENSION_MIN_NOTORIETY,
   BETRAYAL_MAX_LOYALTY,
   BETRAYAL_MIN_APPRENTICES,
+  DEVOTION_STANDING,
   PACT_LIMIT,
+  PATRON_MARGIN,
   SEAL_FACTION,
   SEAL_MAX_STANDING,
   SEAL_MIN_NOTORIETY,
@@ -71,6 +77,30 @@ export const REPRISAL_BY_FACTION: Record<FactionId, EndingId> = {
   verdant_choir: 'turned_to_fertilizer',
   crownlands: 'exiled_and_overrun',
   worm_below: 'consumed',
+};
+
+/**
+ * What each faction makes of you, once you have spent a career at the top of
+ * its standing and lived to the age limit.
+ *
+ * The exact mirror of `REPRISAL_BY_FACTION`: same six factions, same system,
+ * read from the other end. Standing could end a run six ways and reward it
+ * none, so a wizard who committed to one faction for sixteen eras retired to
+ * the same swamp as one who committed to nothing.
+ *
+ * Five ids, six factions. The Worm Below's leadership ending is `lichdom`,
+ * which already exists and is already EARNED — by the rite, a card the player
+ * accepted, not by a standing total. Giving the Worm a second crown would mean
+ * two ways to be its favourite, and the wrong one would win at the age limit
+ * (see `checkEndings`, where the lich branch stays first).
+ */
+export const LEADERSHIP_BY_FACTION: Record<FactionId, EndingId> = {
+  ashen_covenant: 'contract_writer',
+  gilded_hand: 'grand_arbiter',
+  pale_academy: 'archmage',
+  verdant_choir: 'archdruid',
+  crownlands: 'overthrown_the_kingdom',
+  worm_below: 'lichdom',
 };
 
 /**
@@ -137,6 +167,95 @@ export function reprisalEnding(run: RunState): EndingId | undefined {
   return REPRISAL_BY_FACTION[faction];
 }
 
+/**
+ * The faction that would crown this wizard — HIGHEST STANDING WINS, ties broken
+ * by `FACTION_ORDER`, and `undefined` unless it is far enough ahead to mean it.
+ *
+ * The determinism argument is `nearestReprisalFaction`'s, unchanged: contagion
+ * moves standing in pairs, so equal totals are common rather than exotic, and
+ * "whichever faction the `Record` happens to list first" is a seed-dependent
+ * outcome that no single playthrough would reveal. The candidate is therefore
+ * replaced only on STRICTLY GREATER standing while walking `FACTION_ORDER`,
+ * which makes the tie-break a stated rule the UI can import instead of a
+ * property of object key order.
+ *
+ * Two conditions, and they say different things. `DEVOTION_STANDING` is the
+ * absolute bar — the same threshold that opens a faction's reliquary, so
+ * leadership is not a new number the player has to learn. `PATRON_MARGIN` is
+ * the exclusivity bar, and it is the one doing the work: devotion to three
+ * factions at once is reachable by trading favours widely, and a crown handed
+ * to a wizard who never chose would say nothing about the career. Read its
+ * comment in `constants.ts` before moving it — it is also the only thing
+ * keeping `retired_to_swamp` from becoming a residue.
+ *
+ * Kept separate from the reprisal scan rather than shared with it. A single
+ * parameterised walk would need a direction, a phase filter used by one caller
+ * only, and a runner-up slot meaningless to the other — three arguments of
+ * conditional behaviour to save nine lines, and the reprisal path is the one
+ * that would get harder to read.
+ *
+ * Exported for the same reason `nearestReprisalFaction` is: the screen naming
+ * your patron must resolve a tie the way the engine does, and a second copy of
+ * the rule is how the two drift apart.
+ */
+export function patronFaction(run: RunState): FactionId | undefined {
+  let candidate: FactionId | undefined;
+  let best = -Infinity;
+  let runnerUp = -Infinity;
+  for (const factionId of FACTION_ORDER) {
+    const standing = run.factionStanding[factionId] ?? 0;
+    if (standing > best) {
+      runnerUp = best;
+      candidate = factionId;
+      best = standing;
+    } else if (standing > runnerUp) {
+      runnerUp = standing;
+    }
+  }
+  if (candidate === undefined) return undefined;
+  if (best < DEVOTION_STANDING) return undefined;
+  if (best - runnerUp < PATRON_MARGIN) return undefined;
+  return candidate;
+}
+
+/**
+ * The leadership a career has earned, if any — consulted at the AGE LIMIT only.
+ *
+ * `reprisalEnding`'s mirror, and deliberately not its equal in reach: a
+ * reprisal is something a faction does TO you and can cut a run short, while a
+ * crown is what is left to say about a life that ran its full length. Calling
+ * this from anywhere earlier would end careers at their high point, which is
+ * the same amputation of the arc that keeps `ascension` out of the ascent.
+ */
+export function leadershipEnding(run: RunState, content: ContentBundle): EndingId | undefined {
+  const patron = patronFaction(run);
+  if (patron === undefined) return undefined;
+  const ending = LEADERSHIP_BY_FACTION[patron];
+
+  /*
+   * The bundle has the last word on whether this ending exists.
+   *
+   * The engine takes a `ContentBundle` and must never hand back an id that
+   * bundle does not define — the ending screen looks the id up to get a name,
+   * a narration and a glyph, and an id with no entry is a blank card at the
+   * one moment the whole run is paying off. Two live reasons, not one
+   * hypothetical:
+   *
+   *   1. A content pack is a different argument, not a different engine. One
+   *      that ships no leadership endings is a legitimate pack, and its
+   *      wizards should retire to the swamp rather than crash.
+   *   2. THIS repo, right now. The five leadership ids are in the frozen
+   *      contract and their prose is not written yet, so without this guard
+   *      the very next full playthrough would end on an ending that does not
+   *      exist. `checkEndings` falls through to `retired_to_swamp`, which is
+   *      exactly what a career with nothing else to say about it should get.
+   *
+   * When the prose lands this line stops doing anything, and it should stay:
+   * it is what makes the branch safe for any bundle rather than for ours.
+   */
+  return indexOf(content).endingById.has(ending) ? ending : undefined;
+}
+
 export function legendariesHeld(run: RunState, content: ContentBundle): number {
   const index = indexOf(content);
   let n = 0;
@@ -177,7 +296,13 @@ export function checkEndings(run: RunState, content: ContentBundle): EndingId | 
   if (run.pactDebt >= PACT_LIMIT) return 'consumed_by_pact';
 
   if (run.eraIndex >= run.eraCount) {
-    return run.isLich ? 'lichdom' : 'retired_to_swamp';
+    // The lich branch stays FIRST and untouched. `lichdom` is the Worm Below's
+    // leadership ending, and it was already earned — by the rite the player
+    // accepted, at the price the rite charges. Letting the standing comparison
+    // below run first would let a Covenant devotee who took the rite die a
+    // Pact Master, second-guessing a decision the game already resolved.
+    if (run.isLich) return 'lichdom';
+    return leadershipEnding(run, content) ?? 'retired_to_swamp';
   }
 
   return undefined;
