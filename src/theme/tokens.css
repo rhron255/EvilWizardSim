@@ -440,6 +440,21 @@
   --ew-ink-ghost: #4e414c;
 }
 
+[data-theme='good_wizard'] {
+  --ew-void: #fbf4df;
+  --ew-panel: #f3e7c4;
+  --ew-raised: #ecdba8;
+  --ew-hover: #e4cd8a;
+  --ew-line: #d6b667;
+  --ew-line-strong: #b98b2e;
+
+  --ew-ink-bright: #1c1300;
+  --ew-ink: #241a05;
+  --ew-ink-dim: #4a3814;
+  --ew-ink-faint: #6b5726;
+  --ew-ink-ghost: #8f7b4a;
+}
+
 /* --------------------------------------------------------------------------
    Reset & base
    -------------------------------------------------------------------------- */

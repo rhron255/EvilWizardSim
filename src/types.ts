@@ -69,7 +69,15 @@ export type EndingId =
   | 'grand_arbiter'
   | 'archmage'
   | 'archdruid'
-  | 'overthrown_the_kingdom';
+  | 'overthrown_the_kingdom'
+  /**
+   * The Good Wizard (issue #14 slice 5, issue #23) — an obscure route open to
+   * a consistently constructive career, age-limit-only, checked ahead of
+   * `lichdom`. An ordinary ending: no `Ending` field marks it out, and the
+   * collection's locked-slot redaction hides it exactly like the other
+   * twelve until it is reached.
+   */
+  | 'good_wizard';
 
 /**
  * A cosmetic palette the player has unlocked and may select.
@@ -143,6 +151,36 @@ export type Effect =
    * pile of `loseArtifact` entries and a negative-followers sentinel.
    */
   | { t: 'becomeLich' }
+  /**
+   * A constructive or destructive act, counted toward the Good Wizard route
+   * (issue #23) — hidden `RunState` counters `goodActs`/`illActs`.
+   *
+   * THE ONE DELIBERATE EXCEPTION TO THIS FILE'S OWN RULE: the doc comment two
+   * lines up says an effect exists so nothing is ever smuggled into prose
+   * undisclosed, and `applyEffects` in `src/engine/effects.ts` is written to
+   * violate that on purpose for exactly these two variants — they never reach
+   * `EffectApplication.applied`, so no card, ledger row or resolution ever
+   * prints one. CLAUDE.md records why: this route can only ever ADD an
+   * ending, never end a run early, never close a door, never move any other
+   * threshold. `conditionMet`'s `minGoodActs`/`maxIllActs` cases are the ONLY
+   * other place either counter is read.
+   *
+   * **If a future change makes these gate anything else — a defense term, an
+   * offer weight, any condition besides the two above — this exception is
+   * void and the counters must be disclosed like every other stat.** See
+   * `src/engine/goodWizard.test.ts`, which is the test that would catch it.
+   */
+  | { t: 'goodAct'; v: number }
+  | { t: 'illAct'; v: number }
+  /**
+   * The Good Wizard resolution's own commitment (issue #23) — mirrors
+   * `becomeLich` exactly: it does NOT terminate the run. It sets
+   * `RunState.goodWizardVowed`, which `checkEndings` reads at the age limit,
+   * ahead of the lich branch. Unlike `goodAct`/`illAct` above, this one is
+   * fully disclosed — by the resolution card, the player is knowingly
+   * committing, the same way a lich knowingly takes the rite.
+   */
+  | { t: 'vowGoodWizard' }
   /** Terminate the run immediately with this ending. */
   | { t: 'ending'; endingId: EndingId };
 
@@ -201,7 +239,14 @@ export type Condition =
   | { c: 'minEraIndex'; v: number }
   | { c: 'hasArtifact'; artifactId: string }
   | { c: 'holdsAnyArtifact' }
-  | { c: 'minArtifacts'; v: number };
+  | { c: 'minArtifacts'; v: number }
+  /**
+   * The Good Wizard route's gates (issue #23). Reads `RunState.goodActs` /
+   * `illActs` — the ONLY conditions permitted to. See the doc comment on
+   * `Effect`'s `goodAct`/`illAct` variants for why that restriction matters.
+   */
+  | { c: 'minGoodActs'; v: number }
+  | { c: 'maxIllActs'; v: number };
 
 export type Offer = {
   id: string;
@@ -373,6 +418,15 @@ export type RunState = {
   heroThreat: number;
   /** True after the lichdom branch — freezes notoriety decay. */
   isLich: boolean;
+  /**
+   * Hidden counters for the Good Wizard route (issue #23). Never rendered —
+   * see the doc comment on `Effect`'s `goodAct`/`illAct` variants for the
+   * rule-1 exception this is, and its one condition.
+   */
+  goodActs: number;
+  illActs: number;
+  /** True after the Good Wizard resolution's `vowGoodWizard` — see `Effect`. */
+  goodWizardVowed: boolean;
   /** Append-only. Never removed, never rewritten. */
   eras: EraRecord[];
   seenOfferIds: string[];

@@ -44,6 +44,9 @@ const run = (over: Partial<RunState> = {}): RunState =>
     pactDebt: 0,
     heroThreat: 0,
     isLich: false,
+    goodActs: 0,
+    illActs: 0,
+    goodWizardVowed: false,
     eras: [],
     seenOfferIds: [],
     ...over,
@@ -229,5 +232,40 @@ describe('the wards caption names what is carrying you', () => {
     expect(siege.terms[0].label).toBe('Undeath');
     // Zero terms are noise — a wizard with no relics needs no row saying so.
     expect(siege.terms.map((t) => t.label)).not.toContain('Relics');
+  });
+});
+
+/**
+ * The Good Wizard route's rule-1 exception (issue #23) — per the issue's own
+ * checklist: extend this file to assert ABSENCE. `goodActs`/`illActs` never
+ * feed `stakesFor` or `siegeFor` today — neither function reads them — so
+ * this pins that against regression rather than merely observing it once.
+ */
+describe('the Good Wizard counters never surface in the header', () => {
+  const MENTION = /good act|ill act|virtue|goodwizard|good wizard/i;
+
+  it('stakesFor never mentions them, at any goodActs/illActs', () => {
+    for (const goodActs of [0, 1, 4, 8, 50]) {
+      for (const illActs of [0, 1, 3, 20]) {
+        const stakes = stakesFor(run({ goodActs, illActs } as Partial<RunState>));
+        for (const stake of stakes) {
+          expect(stake.label).not.toMatch(MENTION);
+          expect(stake.caption).not.toMatch(MENTION);
+        }
+      }
+    }
+  });
+
+  it('siegeFor never mentions them, at any goodActs/illActs', () => {
+    const wards: DefenseReadout = { total: 60, terms: [{ label: 'Lair', value: 60, earned: true }] };
+    for (const goodActs of [0, 1, 4, 8, 50]) {
+      for (const illActs of [0, 1, 3, 20]) {
+        const siege = siegeFor(
+          run({ phase: 'decline', heroThreat: 30, goodActs, illActs } as Partial<RunState>),
+          wards,
+        );
+        expect(siege!.sentence).not.toMatch(MENTION);
+      }
+    }
   });
 });

@@ -40,6 +40,9 @@ import {
   CONTAGION_GAIN,
   CONTAGION_LOSS,
   DEVOTION_STANDING,
+  GOOD_WIZARD_ILL_CAP,
+  GOOD_WIZARD_REPUTATION_GOOD,
+  GOOD_WIZARD_RESOLUTION_GOOD,
   PACT_LIMIT,
   PATRON_MARGIN,
   RUN_LENGTHS,
@@ -155,6 +158,7 @@ type Policy =
   | 'lich'
   | 'ascendant'
   | 'reckless'
+  | 'saint'
   | PariahPolicy
   | CourtierPolicy;
 
@@ -201,7 +205,7 @@ const POPULATION: Array<[Policy, number]> = [
   ['reckless', 0.1],
 ];
 
-type Mode = 'notoriety' | 'defense' | 'standing' | 'ascendant' | 'reckless';
+type Mode = 'notoriety' | 'defense' | 'standing' | 'ascendant' | 'reckless' | 'saint';
 
 type Weights = {
   notoriety: number;
@@ -229,6 +233,13 @@ type Weights = {
   pactCeilingAware: boolean;
   heroThreat: number;
   lairTier: number;
+  /**
+   * The Good Wizard route's two hidden counters (issue #23). Zero for every
+   * mode except `saint`, which is the one policy that pursues this route on
+   * purpose — see the doc comment on `WEIGHTS.saint`.
+   */
+  goodAct: number;
+  illAct: number;
 };
 
 const WEIGHTS: Record<Mode, Weights> = {
@@ -244,6 +255,8 @@ const WEIGHTS: Record<Mode, Weights> = {
     pactCeilingAware: true,
     heroThreat: -0.18,
     lairTier: 3,
+    goodAct: 0,
+    illAct: 0,
   },
   defense: {
     notoriety: 0.22,
@@ -257,6 +270,8 @@ const WEIGHTS: Record<Mode, Weights> = {
     pactCeilingAware: true,
     heroThreat: -1,
     lairTier: 4.5,
+    goodAct: 0,
+    illAct: 0,
   },
   standing: {
     notoriety: 0.45,
@@ -270,6 +285,8 @@ const WEIGHTS: Record<Mode, Weights> = {
     pactCeilingAware: true,
     heroThreat: -0.3,
     lairTier: 3,
+    goodAct: 0,
+    illAct: 0,
   },
   /**
    * The player who is not counting.
@@ -292,6 +309,8 @@ const WEIGHTS: Record<Mode, Weights> = {
     pactCeilingAware: false,
     heroThreat: -0.12,
     lairTier: 3.2,
+    goodAct: 0,
+    illAct: 0,
   },
   /** The informed player: fame AND routing, because Ascension needs both. */
   ascendant: {
@@ -306,6 +325,38 @@ const WEIGHTS: Record<Mode, Weights> = {
     pactCeilingAware: true,
     heroThreat: -0.35,
     lairTier: 4,
+    goodAct: 0,
+    illAct: 0,
+  },
+  /**
+   * The player who is deliberately routing toward the Good Wizard ending
+   * (issue #23) — the mirror of `ascendant`, chasing goodActs instead of
+   * legendaries. `goodAct`/`illAct` carry almost all the weight; the rest are
+   * ordinary survival numbers so this policy still lives long enough to reach
+   * the age limit, which the route requires.
+   */
+  saint: {
+    notoriety: 0.35,
+    followers: 0.15,
+    standing: 0.08,
+    // Close to `ascendant`'s survival numbers, not `notoriety`'s: a wizard
+    // who vows and then dies to the chosen one before the age limit never
+    // reaches `good_wizard` (the vow only resolves there), so this policy has
+    // to actually survive, not merely accumulate goodActs. Measured (issue
+    // #23): at the earlier, lower defensive weights the cohort vowed in 25%
+    // of runs but only 1% of the WHOLE cohort ended as `good_wizard` — almost
+    // every vow was followed by a death. See `GOOD_WIZARD_RESOLUTION_GOOD`'s
+    // doc comment in `constants.ts` for the after number.
+    artifact: 4,
+    loseArtifact: -5,
+    apprentices: 0.3,
+    loyalty: 0.08,
+    pactDebt: -1.6,
+    pactCeilingAware: true,
+    heroThreat: -0.7,
+    lairTier: 4,
+    goodAct: 20,
+    illAct: -25,
   },
 };
 
@@ -360,6 +411,7 @@ function scoreEffects(
   w: Weights,
   takesLichdom: boolean,
   debt: number,
+  takesGoodWizard: boolean,
 ): number {
   let total = 0;
   // Debt accumulates WITHIN a branch: a card that adds 2 and then 2 again has
@@ -419,6 +471,20 @@ function scoreEffects(
       case 'ending':
         total += e.endingId === 'lichdom' && takesLichdom ? 40 : ENDING_SCORE;
         break;
+      case 'goodAct':
+        total += e.v * w.goodAct;
+        break;
+      case 'illAct':
+        total += e.v * w.illAct;
+        break;
+      case 'vowGoodWizard':
+        // Not an ending — a transformation, exactly like `becomeLich` above,
+        // and costless (no forfeiture), so it is only worth pursuing for the
+        // policy actually routing toward it. Everyone else is mildly averse:
+        // vowing forecloses the run's OTHER age-limit outcomes (leadership,
+        // the swamp), which a non-saint policy has no reason to give up.
+        total += takesGoodWizard ? 60 : -10;
+        break;
     }
   }
   return total;
@@ -429,15 +495,18 @@ function optionScore(
   w: Weights,
   takesLichdom: boolean,
   debt: number,
+  takesGoodWizard: boolean,
 ): number {
-  if (option.kind === 'certain') return scoreEffects(option.effects, w, takesLichdom, debt);
+  if (option.kind === 'certain') {
+    return scoreEffects(option.effects, w, takesLichdom, debt, takesGoodWizard);
+  }
   // Both branches are priced from the SAME starting debt, which is what makes
   // a two-way gamble legible to a policy: at 5/7 the failure branch crosses
   // the ceiling and is scored as the ending it is, so the expected value
   // collapses exactly where a player would feel it collapse.
   return (
-    option.odds * scoreEffects(option.onSuccess, w, takesLichdom, debt) +
-    (1 - option.odds) * scoreEffects(option.onFailure, w, takesLichdom, debt)
+    option.odds * scoreEffects(option.onSuccess, w, takesLichdom, debt, takesGoodWizard) +
+    (1 - option.odds) * scoreEffects(option.onFailure, w, takesLichdom, debt, takesGoodWizard)
   );
 }
 
@@ -482,6 +551,14 @@ function modeFor(policy: Policy, run: RunState, threatRatio: number): Mode {
       // threatened, because a run that plays safe never reaches Legend.
       if (run.phase === 'ascent') return 'ascendant';
       return threatRatio > 0.75 ? 'defense' : 'ascendant';
+    case 'saint':
+      // Chases goodActs in both phases — unlike the standing-based routes,
+      // there is no ascent/decline split to make here, because the counters
+      // move on ordinary catalog offers in either phase. Defends earlier than
+      // `ascendant` does (0.55, not 0.75): the vow only resolves at the age
+      // limit, so surviving to it matters more here than reaching a peak does
+      // for a fame-chaser — see the doc comment on `WEIGHTS.saint`.
+      return threatRatio > 0.55 ? 'defense' : 'saint';
     case 'random':
       return 'notoriety';
   }
@@ -632,6 +709,7 @@ function chooseOption(policy: Policy, run: RunState, offer: Offer, roll: number)
   const threatRatio = defense > 0 ? run.heroThreat / defense : 0;
   const w = WEIGHTS[modeFor(policy, run, threatRatio)];
   const takesLichdom = policy === 'lich' && run.phase === 'decline';
+  const takesGoodWizard = policy === 'saint' && run.phase === 'decline';
 
   let best = -Infinity;
   let bestIndex = 0;
@@ -639,7 +717,7 @@ function chooseOption(policy: Policy, run: RunState, offer: Offer, roll: number)
     // The "safe" player never gambles — the certain-option guarantee is what
     // makes that a playable strategy at all.
     if (policy === 'safe' && option.kind === 'gamble') return;
-    let score = optionScore(option, w, takesLichdom, run.pactDebt);
+    let score = optionScore(option, w, takesLichdom, run.pactDebt, takesGoodWizard);
     // A lich-seeker courts ONE faction, hard, because only the Worm Below
     // offers the rite and its gate is `minStanding worm_below 20`. Generic
     // standing-chasing spread the gain across all six and never opened it,
@@ -751,6 +829,18 @@ type RunResult = {
    */
   oathsSeen: string[];
   oathsTaken: string[];
+  /**
+   * The Good Wizard ladder's mirror of `oathsSeen`/`oathsTaken` (issue #23) —
+   * which `virtue_reputation_*`/`virtue_resolution_*` cards this career was
+   * shown, and whether it took the constructive branch (always option 0,
+   * same convention the oath/grievance readers use). The counters
+   * themselves at run end, for the same reason `peakPactDebt` is printed
+   * rather than just a rate.
+   */
+  virtueSeen: string[];
+  virtueTaken: string[];
+  finalGoodActs: number;
+  finalIllActs: number;
   minStanding: Record<FactionId, number>;
   /** The highest each faction's standing ever reached — `minStanding`'s mirror. */
   peakStanding: Record<FactionId, number>;
@@ -896,6 +986,18 @@ function playRun(
         return offer?.options[0].label === e.optionLabel;
       })
       .map((e) => e.offerId),
+    virtueSeen: run.seenOfferIds.filter((id) => id.startsWith('virtue_')),
+    virtueTaken: run.eras
+      .filter((e) => {
+        if (!e.offerId.startsWith('virtue_')) return false;
+        // The first option is always the constructive one on every card in
+        // `virtue.ts` — see the file for why.
+        const offer = content.offers.find((o) => o.id === e.offerId);
+        return offer?.options[0].label === e.optionLabel;
+      })
+      .map((e) => e.offerId),
+    finalGoodActs: run.goodActs,
+    finalIllActs: run.illActs,
     minStanding,
     peakStanding,
     lairsHeld: lairIds.size,
@@ -1003,6 +1105,22 @@ function leadershipProbe(baseSeed: number): Map<FactionId, RunResult[]> {
   return out;
 }
 
+/**
+ * The Good Wizard's own 200-run cohort probe (issue #23) — the mirror of
+ * `reprisalProbe`/`leadershipProbe` for the same reason: one obscure route,
+ * measured on a sample built of the player who actually wants it, kept OUT of
+ * `POPULATION` so it cannot distort the headline numbers the way the pariah
+ * and courtier cohorts were found to.
+ */
+function saintProbe(baseSeed: number): RunResult[] {
+  const rng = mulberry32((baseSeed ^ 0x600d1dea) + 1);
+  const runs: RunResult[] = [];
+  for (let i = 0; i < PROBE_RUNS; i++) {
+    runs.push(playRun(baseSeed + 583_637 + i * 5303, pickEraCount(rng()), 'saint'));
+  }
+  return runs;
+}
+
 function pickPolicy(roll: number): Policy {
   let acc = 0;
   for (const [name, share] of POPULATION) {
@@ -1100,6 +1218,8 @@ const ENDING_ORDER: EndingId[] = [
   'archmage',
   'archdruid',
   'overthrown_the_kingdom',
+  // Age-limit-only, like the leadership set above (issue #23).
+  'good_wizard',
 ];
 
 const ALL_ENDING_IDS: EndingId[] = content.endings.map((e) => e.id);
@@ -1240,6 +1360,7 @@ function main(): void {
   // between slices and has no business paying for a thousand extra runs.
   const probe = reprisalProbe(baseSeed);
   const leadership = leadershipProbe(baseSeed);
+  const saint = saintProbe(baseSeed);
 
   /** Every career the harness played, for the reachability check only. */
   const byEndingAnywhere = new Map(byEnding);
@@ -1252,6 +1373,9 @@ function main(): void {
     for (const r of cohort) {
       byEndingAnywhere.set(r.ending, (byEndingAnywhere.get(r.ending) ?? 0) + 1);
     }
+  }
+  for (const r of saint) {
+    byEndingAnywhere.set(r.ending, (byEndingAnywhere.get(r.ending) ?? 0) + 1);
   }
 
   console.log('');
@@ -1520,6 +1644,45 @@ function main(): void {
         ) +
         padLeft(cohort.length ? pct(reached, cohort.length) : '-', 10) +
         padLeft(pct(byEnding.get(endingId) ?? 0, total), 8),
+    );
+  }
+
+  // --- the Good Wizard route ----------------------------------------------
+  //
+  // Same shape as the reprisal/leadership tables: a dedicated cohort probe,
+  // printed as a CHAIN (gate cleared -> card seen/taken -> ending reached)
+  // rather than a bare rate, plus the untargeted population rate beside it
+  // WITHOUT a target — this route has no wiki-authored band, only the
+  // reachability rule 6 asks for (issue #23).
+  console.log(rule());
+  console.log(`  GOOD WIZARD  (${PROBE_RUNS}-run cohort probe, then the population)`);
+  console.log(
+    `${pad('  ', 20)}${padLeft('cohort', 8)}${padLeft('good', 7)}${padLeft('ill', 6)}${padLeft(`>=rep(${GOOD_WIZARD_REPUTATION_GOOD})`, 12)}${padLeft(`>=res(${GOOD_WIZARD_RESOLUTION_GOOD})`, 12)}${padLeft('resolution', 12)}${padLeft('ending', 9)}${padLeft('pop', 8)}`,
+  );
+  {
+    const clearedRep = saint.filter(
+      (r) => r.finalGoodActs >= GOOD_WIZARD_REPUTATION_GOOD && r.finalIllActs <= GOOD_WIZARD_ILL_CAP,
+    ).length;
+    const clearedRes = saint.filter(
+      (r) => r.finalGoodActs >= GOOD_WIZARD_RESOLUTION_GOOD && r.finalIllActs <= GOOD_WIZARD_ILL_CAP,
+    ).length;
+    const resolutionSeen = saint.filter((r) =>
+      r.virtueSeen.some((id) => id.startsWith('virtue_resolution_')),
+    ).length;
+    const resolutionTaken = saint.filter((r) =>
+      r.virtueTaken.some((id) => id.startsWith('virtue_resolution_')),
+    ).length;
+    const reached = saint.filter((r) => r.ending === 'good_wizard').length;
+    console.log(
+      pad('  saint', 20) +
+        padLeft(String(saint.length), 8) +
+        padLeft(mean(saint.map((r) => r.finalGoodActs)).toFixed(1), 7) +
+        padLeft(mean(saint.map((r) => r.finalIllActs)).toFixed(1), 6) +
+        padLeft(pct(clearedRep, saint.length), 12) +
+        padLeft(pct(clearedRes, saint.length), 12) +
+        padLeft(`${pct(resolutionSeen, saint.length)}/${pct(resolutionTaken, saint.length)}`, 12) +
+        padLeft(pct(reached, saint.length), 9) +
+        padLeft(pct(byEnding.get('good_wizard') ?? 0, total), 8),
     );
   }
 

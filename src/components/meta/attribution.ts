@@ -139,9 +139,14 @@ export function attributionFor(endingId: EndingId, ctx: AttributionContext): str
       return APPRENTICE;
 
     // --- self-determined: no agent exists, so none is named -----------------
+    //
+    // `good_wizard` belongs here too (issue #23): it is chosen, not inflicted
+    // or bestowed, so no faction crowns it and nothing did it to the wizard —
+    // it sits beside `retired_to_swamp`, not beside the leadership set above.
     case 'lichdom':
     case 'retired_to_swamp':
     case 'ascension':
+    case 'good_wizard':
       return null;
 
     default: {

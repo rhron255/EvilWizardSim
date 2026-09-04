@@ -207,6 +207,26 @@ export function describeEffect(
     case 'becomeLich':
       return { text: LICH_LINE, tone: 'grave' };
 
+    /**
+     * Dead code by construction (issue #23's rule-1 exception). `goodAct`/
+     * `illAct` never reach a renderer: `applyEffects` never pushes either to
+     * `EffectApplication.applied`, and `projectEffects` routes them through
+     * that same function via `PROJECTABLE` rather than passing them through
+     * raw — so neither the resolution card nor the pre-commit offer card
+     * ever calls this with one. The case exists only so the exhaustive
+     * switch below still compiles. See the doc comment on `Effect` in
+     * `types.ts` before assuming this is reachable.
+     */
+    case 'goodAct':
+    case 'illAct':
+      return { text: '', tone: 'neutral' };
+
+    case 'vowGoodWizard':
+      return {
+        text: 'A quiet life, held to the end · the run continues',
+        tone: 'up',
+      };
+
     case 'ending':
       return { text: `The run ends · ${endingName(effect.endingId)}`, tone: 'grave' };
 

@@ -176,6 +176,33 @@ export function applyEffects(
         break;
       }
 
+      /**
+       * The rule-1 exception (issue #23) — see the doc comment on these two
+       * variants in `types.ts`. Every other numeric case above pushes to
+       * `out.applied` only `if (delta !== 0)`; these two never push at all,
+       * unconditionally. That is what makes disclosure structural rather
+       * than a UI-layer filter: `appliedEffects` (the ledger, the resolution
+       * card) reads this array directly, and `projectEffects` below reads it
+       * too (via `PROJECTABLE`), so both leak points close from one place.
+       */
+      case 'goodAct': {
+        draft.goodActs = Math.max(0, draft.goodActs + effect.v);
+        break;
+      }
+
+      case 'illAct': {
+        draft.illActs = Math.max(0, draft.illActs + effect.v);
+        break;
+      }
+
+      case 'vowGoodWizard': {
+        draft.goodWizardVowed = true;
+        // Fully disclosed, unlike the case above — see the doc comment on
+        // `Effect`'s `vowGoodWizard` member.
+        out.applied.push({ t: 'vowGoodWizard' });
+        break;
+      }
+
       case 'ending': {
         if (!out.endingRequested) out.endingRequested = effect.endingId;
         out.applied.push({ t: 'ending', endingId: effect.endingId });
@@ -387,6 +414,18 @@ const PROJECTABLE: ReadonlySet<Effect['t']> = new Set([
   'heroThreat',
   'standing',
   'lairTier',
+  /**
+   * `goodAct`/`illAct` are projectable for the opposite of the usual reason:
+   * not to correct the authored number, but to make it vanish. Routing them
+   * through `applyEffects` (which never pushes either to `out.applied`, see
+   * the case above) means the pre-commit offer card gets the same silence
+   * the post-commit resolution card does, from the same mechanism — see the
+   * rule-1 exception on `Effect` in `types.ts`. Leaving them OUT of this set
+   * would send them down the "pass through raw" branch below instead, which
+   * is exactly the leak this exists to close.
+   */
+  'goodAct',
+  'illAct',
 ]);
 
 /** Never reached: no projectable effect draws from the rng. */

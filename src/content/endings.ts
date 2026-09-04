@@ -266,4 +266,31 @@ export const endings: Ending[] = [
     coda: 'The crown fits. The clerks confirmed it would, on paper, well before it did.',
     rarity: 'rare',
   },
+
+  // -------------------------------------------------------------------------
+  // The Good Wizard (issue #14 slice 5, issue #23). An obscure route, open to
+  // a career that was consistently constructive rather than devoted to any
+  // one faction — reached at the age limit, ahead of lichdom. `codaMode:
+  // 'tiered'`, not `fixed`: the whole point of this ending is the contrast
+  // between fame and the quiet, unglamorous shape of the life underneath it,
+  // and that contrast is exactly what notoriety measures.
+  // -------------------------------------------------------------------------
+
+  {
+    id: 'good_wizard',
+    name: 'The Good Wizard',
+    summary: 'It turns out the mill, the fever, the fence line, the ghost — it was all the same wizard.',
+    hint: 'for a life that kept adding up quietly',
+    narration:
+      'Nobody wrote a ballad, because nobody could agree on which story to put in it. There was a mill, once, and a fever, and a fence line, and a ghost that only wanted a name carved somewhere — none of it dramatic enough for a hero to hear about, all the same wizard, over and over, for years nobody was counting. The tower never fell. Nobody stormed it. You are old now, and the valley’s memory of you is a long list of small Tuesdays that went slightly better than they would have otherwise.',
+    codaMode: 'tiered',
+    coda: {
+      unknown: 'Nobody outside three valleys ever heard your name, which was never really the point.',
+      local_menace: 'Three hamlets could each tell you a different small thing you once fixed for them.',
+      named_threat: 'The file on you is thin, out of date, and describes a threat nobody ever felt.',
+      kingdom: 'The Crownlands keep a file that says dangerous and a populace that would tell them otherwise.',
+      legend: 'The songs got the fame right and the reason for it wrong, in the same direction as always.',
+    },
+    rarity: 'legendary',
+  },
 ];

@@ -361,6 +361,15 @@ const ENDING_PATHS: Record<EndingId, string[]> = {
     'M1.6 9.6l-1.4-1',
     'M22.6 15l1.4-1',
   ],
+  // A sprouting seed cupped in an open hand: a small act, held out plainly.
+  good_wizard: [
+    'M4 15.4c0-3.4 2-6.6 5-8.2',
+    'M20 15.4c0-3.4-2-6.6-5-8.2',
+    'M4 15.4c1.6 4 4.6 6 8 6s6.4-2 8-6',
+    'M12 15.4V9.6',
+    'M12 9.6c0-2.4 1.9-4.2 4.2-4.4-.2 2.3-2 4.2-4.2 4.4z',
+    'M12 9.6c0-2.4-1.9-4.2-4.2-4.4.2 2.3 2 4.2 4.2 4.4z',
+  ],
 };
 
 export function EndingGlyph({ id, size = 30, className, locked }: GlyphProps & { id: EndingId }) {

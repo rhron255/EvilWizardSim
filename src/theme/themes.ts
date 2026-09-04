@@ -559,6 +559,41 @@ export const THEMES: ThemeDef[] = [
       ghost: '#4e414c',
     },
   },
+
+  // ---------------------------------------------------------------------------
+  // The Good Wizard (issue #14 slice 5, issue #23).
+  //
+  // The one deliberate register break in the set: every theme above is a hue
+  // rotation of the same warm-DARK structure, and this one is light — cream
+  // and gold, daylight rather than tower-at-night. Constraint 2 (near-
+  // monochrome within a theme) and constraint 5 (the ink floor) are still
+  // measured, not waived: `ink` simply inverts direction here, dark warm
+  // brown-black read against a pale cream ramp rather than pale parchment
+  // read against a warm black one. Neither token object has a tier key, so
+  // constraint 1 holds the same way it does for every other theme.
+  // ---------------------------------------------------------------------------
+
+  {
+    id: 'good_wizard',
+    name: 'Ordinary Weather',
+    endingId: 'good_wizard',
+    blurb: 'Cream and gold. The one room in the tower that gets any daylight.',
+    surface: {
+      void: '#fbf4df',
+      panel: '#f3e7c4',
+      raised: '#ecdba8',
+      hover: '#e4cd8a',
+      line: '#d6b667',
+      lineStrong: '#b98b2e',
+    },
+    ink: {
+      bright: '#1c1300',
+      base: '#241a05',
+      dim: '#4a3814',
+      faint: '#6b5726',
+      ghost: '#8f7b4a',
+    },
+  },
 ];
 
 export const DEFAULT_THEME_ID: ThemeId = 'default';

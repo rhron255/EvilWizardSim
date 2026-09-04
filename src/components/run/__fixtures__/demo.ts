@@ -375,6 +375,9 @@ export const demoRun: RunState = {
   pactDebt: 2,
   heroThreat: 34,
   isLich: false,
+  goodActs: 0,
+  illActs: 0,
+  goodWizardVowed: false,
   eras: demoEras,
   seenOfferIds: demoEras.map((e) => e.offerId),
 };

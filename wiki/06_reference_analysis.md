@@ -44,6 +44,13 @@ That last figure is the design working as intended.
 4. **Show the odds before the commit.** The load-bearing agency
    mechanism. Randomness with printed probabilities feels like a
    decision.
+   *Amended (issue #14 slice 5 / issue #23).* The Good Wizard route's two
+   hidden counters (`goodActs`/`illActs`) are the one deliberate exception,
+   narrower than principle 6's theme exception below: never disclosed
+   anywhere, on the ground that the route they gate can only ever ADD an
+   ending and can never end a run early, close a door, or move any other
+   threshold. See CLAUDE.md's amendment to failure mode 1 for what enforces
+   that ground rather than merely asserting it.
 5. **Append, never reset.** A slot machine resets each pull; this appends.
    By the late run the player is looking at a table with fifteen seasons
    in it, and *that* is what makes quitting expensive — not any single

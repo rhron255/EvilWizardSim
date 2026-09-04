@@ -21,7 +21,14 @@
 
 import type { Artifact, Condition, Effect, OfferOption, Rarity } from '../src/types';
 import * as content from '../src/content';
-import { DEVOTION_STANDING, LICH_RELIC_REQUIREMENT, PACT_LIMIT } from '../src/engine/constants';
+import {
+  DEVOTION_STANDING,
+  GOOD_WIZARD_ILL_CAP,
+  GOOD_WIZARD_REPUTATION_GOOD,
+  GOOD_WIZARD_RESOLUTION_GOOD,
+  LICH_RELIC_REQUIREMENT,
+  PACT_LIMIT,
+} from '../src/engine/constants';
 import { pactRoleOf } from '../src/engine/content-port';
 
 const problems: string[] = [];
@@ -106,6 +113,7 @@ const REQUIRED_ENDINGS = [
   'archmage',
   'archdruid',
   'overthrown_the_kingdom',
+  'good_wizard',
 ];
 for (const id of REQUIRED_ENDINGS) {
   if (!endings.some((e) => e.id === id)) fail('endings', `missing "${id}"`);
@@ -184,6 +192,14 @@ function checkEffects(where: string, effects: readonly Effect[]) {
         break;
       case 'lairTier':
         if (Math.abs(e.v) > 3) warn(where, `lairTier ${e.v} moves more than three rungs at once`);
+        break;
+      case 'goodAct':
+      case 'illAct':
+        // These move a HIDDEN counter (issue #23's rule-1 exception) — a
+        // large magnitude on one card would let a single choice leap the
+        // whole route, which is the opposite of "consistently constructive
+        // across a career."
+        if (Math.abs(e.v) > 1) warn(where, `${e.t} ${e.v} moves the hidden counter by more than one`);
         break;
       default:
         break;
@@ -361,6 +377,45 @@ for (const offer of offers.filter((o) => o.id.startsWith('oath_'))) {
       );
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// The Good Wizard gates must track GOOD_WIZARD_REPUTATION_GOOD /
+// GOOD_WIZARD_RESOLUTION_GOOD / GOOD_WIZARD_ILL_CAP
+// ---------------------------------------------------------------------------
+
+/**
+ * The mirror of the concordat/oath/lich-rite rules above, for the Good
+ * Wizard route (issue #23): content is a pure data bundle and cannot import
+ * the engine constants its gates must agree with, so the two are held in
+ * step here instead of by a shared import — the same drift the other three
+ * rules already guard against.
+ */
+function checkGoodActsGate(where: string, requires: Condition[] | undefined, expectGood: number) {
+  const goodGate = (requires ?? []).find(
+    (c): c is Extract<Condition, { c: 'minGoodActs' }> => c.c === 'minGoodActs',
+  );
+  if (!goodGate) {
+    fail(where, 'must gate on minGoodActs');
+  } else if (goodGate.v !== expectGood) {
+    fail(where, `minGoodActs gate is ${goodGate.v} but the constant is ${expectGood}`);
+  }
+
+  const illGate = (requires ?? []).find(
+    (c): c is Extract<Condition, { c: 'maxIllActs' }> => c.c === 'maxIllActs',
+  );
+  if (!illGate) {
+    fail(where, 'must gate on maxIllActs');
+  } else if (illGate.v !== GOOD_WIZARD_ILL_CAP) {
+    fail(where, `maxIllActs gate is ${illGate.v} but GOOD_WIZARD_ILL_CAP is ${GOOD_WIZARD_ILL_CAP}`);
+  }
+}
+
+for (const offer of offers.filter((o) => o.id.startsWith('virtue_reputation_'))) {
+  checkGoodActsGate(`offer "${offer.id}"`, offer.requires, GOOD_WIZARD_REPUTATION_GOOD);
+}
+for (const offer of offers.filter((o) => o.id.startsWith('virtue_resolution_'))) {
+  checkGoodActsGate(`offer "${offer.id}"`, offer.requires, GOOD_WIZARD_RESOLUTION_GOOD);
 }
 
 // ---------------------------------------------------------------------------

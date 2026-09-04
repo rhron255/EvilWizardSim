@@ -40,6 +40,9 @@ const run = (heldArtifactIds: string[]): RunState =>
     pactDebt: 0,
     heroThreat: 0,
     isLich: false,
+    goodActs: 0,
+    illActs: 0,
+    goodWizardVowed: false,
     eras: [],
     seenOfferIds: [],
   }) as RunState;

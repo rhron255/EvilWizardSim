@@ -130,6 +130,9 @@ export function createRun(opts: CreateRunOptions, content: ContentBundle): RunSt
     pactDebt: 0,
     heroThreat: 0,
     isLich: false,
+    goodActs: 0,
+    illActs: 0,
+    goodWizardVowed: false,
     eras: [],
     seenOfferIds: [],
   };

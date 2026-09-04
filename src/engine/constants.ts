@@ -405,6 +405,45 @@ export const PATRON_MARGIN = 20;
 export const ASCENSION_MIN_NOTORIETY = 80;
 export const ASCENSION_LEGENDARIES = 1;
 
+/**
+ * The Good Wizard route (issue #14 slice 5, issue #23).
+ *
+ * PROVENANCE: none — CLAUDE.md failure mode 6's invented number, arriving
+ * labelled rather than chased quietly. No wiki line prices this route; the
+ * only thing the design can defend is the SHAPE (a phase-2 reputation gate
+ * lower than the phase-3 resolution gate, a small shared `illActs` cap that
+ * does not demand perfection) and that it must be reachable by a dedicated
+ * `saint` sim policy, per `scripts/simulate.ts`'s cohort probe.
+ *
+ * `GOOD_WIZARD_ILL_CAP` is shared by both gates rather than tightening
+ * further at the resolution: the cap exists so an early lapse cannot
+ * permanently close the route (which would break the "can only ever ADD an
+ * ending" guarantee the whole exception rests on — see the doc comment on
+ * `Effect`'s `goodAct`/`illAct` in `types.ts`), not so the route demands a
+ * perfect run.
+ *
+ * MEASURED (issue #23), `saint` sim policy, `npm run sim -- --seed 1|2`, at
+ * these values: `good_wizard` reached in 1.50% of the 200-run cohort at both
+ * seeds — comparable to the other cohort-shaped endings' rates (`lichdom`
+ * 2.31%, `consumed` ~1%) and reproducible across seeds, which is the bar
+ * rule 6 sets.
+ *
+ * TRIED FIRST AND REVERTED: marking the ungated `virtue_obscure_*` offers
+ * `scripted: true` at weight 6 to raise this further. Unlike the gated
+ * `virtue_reputation_*`/`virtue_resolution_*` cards, an ungated offer's
+ * weight competes in EVERY run's pool, not only a qualifying one —
+ * `buildOfferPool` filters on `requires` before the scripted bonus applies,
+ * so a gated card's weight is invisible to a run that has not earned it, but
+ * an ungated card's is not. At that setting the obscure cards crowded out
+ * enough of the shared pool to crash Ascension from 1.25% to 0.10% and push
+ * `slain_by_chosen_one` from 47.70% to 63.30% — population-wide, for a
+ * mechanic that measures only a 200-run cohort. Reverted to ordinary weight;
+ * see the doc comment on `VIRTUE_OBSCURE` in `src/content/offers/virtue.ts`.
+ */
+export const GOOD_WIZARD_REPUTATION_GOOD = 2;
+export const GOOD_WIZARD_RESOLUTION_GOOD = 3;
+export const GOOD_WIZARD_ILL_CAP = 1;
+
 // ---------------------------------------------------------------------------
 // Persistence
 // ---------------------------------------------------------------------------
@@ -413,5 +452,9 @@ export const COLLECTION_KEY = 'evil-wizard-sim:collection';
 export const RUN_KEY = 'evil-wizard-sim:run';
 /** Bump when `Collection`'s shape changes, and extend `migrateCollection`. */
 export const COLLECTION_VERSION = 3;
-/** Bump when `RunState`'s shape changes; stale in-progress runs are dropped. */
-export const RUN_SAVE_VERSION = 1;
+/**
+ * Bump when `RunState`'s shape changes; stale in-progress runs are dropped.
+ *
+ * 1 -> 2 (issue #23): added `goodActs`, `illActs`, `goodWizardVowed`.
+ */
+export const RUN_SAVE_VERSION = 2;

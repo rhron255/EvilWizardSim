@@ -148,6 +148,20 @@ real and mechanical, not flavor: proposal is that the lich forfeits all
 held artifacts and all followers desert. This makes it a live decision
 rather than a strict upgrade.
 
+**Amended by issue #14 slice 5 / issue #23 — a thirteenth, obscure ending.**
+The Good Wizard is reached by a career of consistently constructive choices
+— blessing a harvest, fixing a mill, resolving a haunting by talking to the
+ghost instead of binding it — counted by two hidden run-scoped counters
+(`goodActs`/`illActs`) that are never shown on screen, the one deliberate
+exception to this document's odds-disclosure rule (see CLAUDE.md's amendment
+to failure mode 1). The exception holds only because the route is purely
+additive: it can add this ending at the age limit, ahead of Lichdom, and
+cannot end a run early, close off any other ending, or move any other
+threshold. Like Lichdom, it is player-chosen rather than triggered by a
+faction or a stat crossing a threshold — three phases of offers (constructive
+choices scattered through the catalog, then a reputation shift once enough
+have accumulated, then a closing card that commits to it) rather than one.
+
 ### 8. Ending Card & Collection
 
 The terminal screen must be screenshot-worthy without prompting:

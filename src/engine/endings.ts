@@ -15,11 +15,12 @@
  *   3. A FACTION REPRISAL — one of six, the Academy's gem among them.
  *   4. `betrayed_by_apprentice` — a full tower and an empty well of loyalty.
  *   5. `consumed_by_pact` — the debt comes due.
- *   6. Age limit → `lichdom` if the wizard already paid for it; else a FACTION
- *      LEADERSHIP if one faction stands both high and alone; else
- *      `retired_to_swamp`, which is the catch-all so no state is undefined.
- *      A crown is not a way to die, so this set is reachable here and nowhere
- *      earlier — see `leadershipEnding`.
+ *   6. Age limit → `good_wizard` if the wizard vowed it (issue #23); else
+ *      `lichdom` if the wizard already paid for it; else a FACTION LEADERSHIP
+ *      if one faction stands both high and alone; else `retired_to_swamp`,
+ *      which is the catch-all so no state is undefined. A crown — and the
+ *      Good Wizard vow — is not a way to die, so this set is reachable here
+ *      and nowhere earlier — see `leadershipEnding`.
  *
  * Nothing here reads as "you lost" (wiki/06 principle 8). The engine decides
  * WHICH biography; content decides how it reads.
@@ -310,11 +311,22 @@ export function checkEndings(run: RunState, content: ContentBundle): EndingId | 
   if (run.pactDebt >= PACT_LIMIT) return 'consumed_by_pact';
 
   if (run.eraIndex >= run.eraCount) {
-    // The lich branch stays FIRST and untouched. `lichdom` is the Worm Below's
-    // leadership ending, and it was already earned — by the rite the player
-    // accepted, at the price the rite charges. Letting the standing comparison
-    // below run first would let a Covenant devotee who took the rite die a
-    // Pact Master, second-guessing a decision the game already resolved.
+    // `good_wizard` stays FIRST of the age-limit checks (issue #23). It is
+    // earned the same way lichdom is below it — by a card the player
+    // accepted (`vowGoodWizard`), not by a standing total — and it is the
+    // only one of the four age-limit outcomes that was chosen this
+    // deliberately, across a whole career, rather than arrived at by the
+    // accumulated shape of a run. Letting the lich check or the standing
+    // comparison run first would let a wizard who vowed the Good Wizard
+    // resolution be overridden by a state they no longer control the
+    // meaning of.
+    if (run.goodWizardVowed) return 'good_wizard';
+    // The lich branch stays SECOND and otherwise untouched. `lichdom` is the
+    // Worm Below's leadership ending, and it was already earned — by the
+    // rite the player accepted, at the price the rite charges. Letting the
+    // standing comparison below run first would let a Covenant devotee who
+    // took the rite die a Pact Master, second-guessing a decision the game
+    // already resolved.
     if (run.isLich) return 'lichdom';
     return leadershipEnding(run, content) ?? 'retired_to_swamp';
   }
