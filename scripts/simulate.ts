@@ -1121,6 +1121,33 @@ function saintProbe(baseSeed: number): RunResult[] {
   return runs;
 }
 
+/**
+ * `lichdom`'s own dedicated cohort probe — `saintProbe`'s mirror, one
+ * iteration later, for the same reason.
+ *
+ * `lich` has always been a `POPULATION` policy rather than a probe-only one
+ * (its headline ascend/survive/slain stats belong in the BY PLAYER POLICY
+ * table), so before this existed `lichdom` reachability was read off
+ * whatever the population's ~6% `lich` share happened to contain — about
+ * 110-130 runs of 2000. At a ~2.3% rite-completion rate that is an expected
+ * count of ~2.8, and `npm run sim --seed 4` duly rolled zero: both "Every
+ * authored ending occurs" and "Lichdom reachable by a lich-seeker" failed
+ * together, for the same arithmetic reason CLAUDE.md's reprisal-cohort note
+ * already names (small expected count, not a broken game). A dedicated
+ * `PROBE_RUNS` cohort, kept OUT of `POPULATION` exactly like the other
+ * probes so it cannot distort the headline mix, raises the expected count to
+ * ~4.6 — not immune to a zero roll, but an order of magnitude less likely to
+ * produce one on an arbitrary seed.
+ */
+function lichProbe(baseSeed: number): RunResult[] {
+  const rng = mulberry32((baseSeed ^ 0xdeadbeef) + 1);
+  const runs: RunResult[] = [];
+  for (let i = 0; i < PROBE_RUNS; i++) {
+    runs.push(playRun(baseSeed + 917_293 + i * 4519, pickEraCount(rng()), 'lich'));
+  }
+  return runs;
+}
+
 function pickPolicy(roll: number): Policy {
   let acc = 0;
   for (const [name, share] of POPULATION) {
@@ -1361,6 +1388,7 @@ function main(): void {
   const probe = reprisalProbe(baseSeed);
   const leadership = leadershipProbe(baseSeed);
   const saint = saintProbe(baseSeed);
+  const lich = lichProbe(baseSeed);
 
   /** Every career the harness played, for the reachability check only. */
   const byEndingAnywhere = new Map(byEnding);
@@ -1375,6 +1403,9 @@ function main(): void {
     }
   }
   for (const r of saint) {
+    byEndingAnywhere.set(r.ending, (byEndingAnywhere.get(r.ending) ?? 0) + 1);
+  }
+  for (const r of lich) {
     byEndingAnywhere.set(r.ending, (byEndingAnywhere.get(r.ending) ?? 0) + 1);
   }
 
@@ -1827,9 +1858,13 @@ function main(): void {
        * a population made of people all chasing rare endings is not a
        * population (CLAUDE.md failure mode 5), and inflating it would corrupt
        * every other rate in this report to make one check pass. So the count
-       * spans the population plus BOTH cohort probes: 4000 careers (slice 2b
-       * added `leadershipProbe`'s 1000 alongside `reprisalProbe`'s), in which
-       * the rarest ending is expected several times over.
+       * spans the population plus every dedicated cohort probe: `reprisalProbe`
+       * and `leadershipProbe` (slice 2b), then `saintProbe` (issue #23) and
+       * `lichProbe` (issue #24's flicker fix — `lichdom` used to be read off
+       * only the population's ~120-run `lich` slice, which is exactly the same
+       * small-expected-count problem this comment already describes for the
+       * reprisals, and seed 4 duly produced a zero), in which the rarest
+       * ending is expected several times over.
        *
        * The population share stays printed above, deliberately without a
        * target beside it. An ending that occurs only in its own cohort is a
@@ -1847,7 +1882,9 @@ function main(): void {
       `Every authored ending occurs (${ALL_ENDING_IDS.length} in content, ${
         total +
         [...probe.values()].reduce((a, c) => a + c.length, 0) +
-        [...leadership.values()].reduce((a, c) => a + c.length, 0)
+        [...leadership.values()].reduce((a, c) => a + c.length, 0) +
+        saint.length +
+        lich.length
       } careers)`,
       ALL_ENDING_IDS.every((e) => (byEndingAnywhere.get(e) ?? 0) > 0),
       `${ALL_ENDING_IDS.filter((e) => (byEndingAnywhere.get(e) ?? 0) > 0).length}/${
@@ -1935,7 +1972,16 @@ function main(): void {
     [
       // Measured WITHIN the cohort that seeks it, not across the population:
       // only ~6% of simulated players take the lich policy at all, so a
-      // population-wide figure mostly measures the population mix.
+      // population-wide figure mostly measures the population mix. Still read
+      // off the population's ~110-130-run `lich` slice rather than
+      // `lichProbe` — this is a READING, not a gate (see `gate.mjs`'s header
+      // comment), so it is allowed to be noisier than the ending's actual
+      // reachability requires. `lichProbe`'s larger, dedicated 200-run cohort
+      // is what now backs "Every authored ending occurs" below, which is the
+      // check rule 6 actually needs to hold; the population's own slice was
+      // small enough to roll zero rite completions on an ordinary seed
+      // (issue #24), which is what made THAT check flicker, not this one's
+      // band being wrong.
       //
       // The band is 2-15%, and it is deliberately low. The wiki sets no target
       // rate for lichdom; earlier numbers here were invented and then chased,
