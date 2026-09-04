@@ -378,19 +378,31 @@ export const PATRON_MARGIN = 20;
 /**
  * Ascension: the visible unattainable prize.
  *
- * ONE legendary, not two. The four legendaries sit in the most mutually
- * hostile corner of the faction web, and hostility is contagious, so requiring
- * two meant courting two factions that spend the whole run cancelling each
- * other out — 2000 runs produced 0.05%. That is not a near-miss, it is a
- * closed door, and the empty Ascension slot in the header would have been a
- * promise the game could not keep.
+ * ONE legendary, not two. The original four legendaries sat in the most
+ * mutually hostile corner of the faction web, and hostility is contagious, so
+ * requiring two meant courting two factions that spend the whole run
+ * cancelling each other out — 2000 runs produced 0.05%. That is not a
+ * near-miss, it is a closed door, and the empty Ascension slot in the header
+ * would have been a promise the game could not keep.
  *
  * One legendary plus Legend-adjacent fame is still the hardest thing in the
  * game, and it stays LEGIBLE: devotion buys the relic, fame buys the threshold,
  * and the two pull against each other. Missing it reads as unfinished business
  * rather than as a bug, which is the whole point of wiki/04 § Near-Miss Tuning.
+ *
+ * `ASCENSION_MIN_NOTORIETY` moved 84 -> 80 in #22, alongside the Hand and the
+ * Choir each gaining a legendary (see `src/content/artifacts.ts`). The two
+ * new legendaries barely moved the rate on their own — seeds 1/2/6/7 went
+ * 1.25/0.75/0.80/0.70% to 1.40/0.75/0.80/0.75%, still under the 1-4% band —
+ * because `ascensionReady`'s notoriety conjunct (~6.5%, seed 2) was tighter
+ * than its legendary conjunct (~9.8%, seed 2): most players who reach
+ * Legend-adjacent fame never sat on a legendary, wherever it came from.
+ * Lowering the notoriety side, not adding a fifth or sixth legendary route,
+ * is what widens the intersection. At 80 seeds 1-7 land at 1.15-1.85%, all
+ * inside the band with headroom on both sides — see CLAUDE.md failure mode 6
+ * before moving this again without a fresh measurement.
  */
-export const ASCENSION_MIN_NOTORIETY = 84;
+export const ASCENSION_MIN_NOTORIETY = 80;
 export const ASCENSION_LEGENDARIES = 1;
 
 // ---------------------------------------------------------------------------

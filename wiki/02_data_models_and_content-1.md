@@ -153,7 +153,8 @@ the behavior that produces hundred-run players.
 - The collection grid shows all 30 slots from run one; undiscovered ones
   render as **silhouettes with the name hidden**. The visible gap is the
   point.
-- Rarity mix proposal: 16 common, 10 rare, 4 legendary.
+- Rarity mix proposal: 16 common, 10 rare, 4 legendary. (Now 6 legendary / 32
+  total — see the #22 update below.)
 - Legendary artifacts gate the Ascension ending.
 
 ### How fast the grid actually fills — measured
@@ -205,6 +206,22 @@ uncapped-legendary — the thing that gates Ascension did not move. A second,
 smaller lever came free alongside it: syncing the concordat reliquary gate to
 `DEVOTION_STANDING` (both now 50; the gate had drifted to 55) lifted the share
 of careers that ever hold a legendary from ~7.9% to ~11.8%.
+
+**Update, 2026-09-04 (#22) — the Hand and the Choir, and Ascension restored.**
+The five faction reprisals (#14) end careers earlier on average, which pulled
+Ascension below its band (0.70–1.25% across seeds 1/2/6/7, down from a
+pre-reprisal 1.50–1.65%). The catalog was 30 artifacts and four legendaries
+(Covenant, Academy, Crownlands, Worm), all in the most mutually hostile corner
+of the faction web; the Gilded Hand and Verdant Choir owned none. Both got one
+(32 artifacts now: 16 common / 10 rare / 6 legendary) plus a paired concordat.
+
+Measured alone, the two new legendaries barely moved the rate (seeds 1/2/6/7:
+1.40/0.75/0.80/0.75%) — `ascensionReady`'s notoriety conjunct was the tighter
+of the two (~6.5% vs. ~9.8% for the legendary conjunct on seed 2), so most
+players reaching Legend-adjacent fame were never sitting on a legendary
+regardless of how many routes existed to one. `ASCENSION_MIN_NOTORIETY` moved
+84 → 80 to widen that conjunct instead of adding a further legendary route;
+seeds 1–7 then landed at 1.15–1.85%.
 
 ## Offers & Events
 

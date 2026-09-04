@@ -11,11 +11,18 @@ import type { FactionId, Offer } from '../../types';
  * the header is supposed to be a near-miss, not a lie.
  *
  * The gate is devotion — standing at or above the level where a faction opens
- * its reliquary. That is deliberate and matches the world bible: the four
- * legendaries live in the most mutually hostile corner of the faction web
+ * its reliquary. That is deliberate and matches the world bible: the first
+ * four legendaries live in the most mutually hostile corner of the faction web
  * (Covenant, Academy, Crownlands, Worm), and hostility is contagious, so
  * holding two means brokering a peace nobody else in the province has managed.
  * The rarity is legible rather than arbitrary — you can see why you missed.
+ *
+ * The Hand and the Choir joined in #22 and do not sit in that corner — the
+ * Hand is hostile to nobody but the Choir, and the Choir to it, so courting
+ * either one is comparatively cheap. Measured alone, the two extra routes
+ * barely moved the Ascension rate (the notoriety conjunct was the tighter
+ * one); `ASCENSION_MIN_NOTORIETY` is what actually restored the 1-4% band —
+ * see the comment on that constant.
  *
  * Each is a live decision, never a free relic: the certain branch charges a
  * real price in the currency that faction actually wants.
@@ -113,6 +120,46 @@ const CONCORDATS: Concordat[] = [
     },
     declineLabel: 'Refuse the loan',
     declineText: 'It withdraws without comment. The shelf stays where you can think about it.',
+  },
+  {
+    id: 'concordat_hand',
+    factionId: 'gilded_hand',
+    title: 'The Whole Estate',
+    body: 'The Hand offers you the one item it swore, in writing, it would never sell. The price is not negotiable. It was never going to be negotiable — that was the tell.',
+    takeLabel: 'Buy the Estate',
+    price: {
+      kind: 'certain',
+      label: 'Buy the Estate',
+      effects: [
+        { t: 'artifactFrom', factionId: 'gilded_hand', rarity: 'legendary' },
+        { t: 'followers', v: -45 },
+        { t: 'notoriety', v: 6 },
+      ],
+      resultText:
+        'Forty-five of your household are logged as “liquidated,” a word the Hand spells correctly on purpose.',
+    },
+    declineLabel: 'Let it stay unsold',
+    declineText: 'The Hand records the refusal without visible reaction. It does not take refusals personally, which is somehow worse.',
+  },
+  {
+    id: 'concordat_choir',
+    factionId: 'verdant_choir',
+    title: 'The Standing Grove',
+    body: 'The Choir has voted, at length, to let you take the charter-tree. The vote records no dissent, which the Choir considers a formality rather than a fact.',
+    takeLabel: 'Take the charter-tree',
+    price: {
+      kind: 'certain',
+      label: 'Take the charter-tree',
+      effects: [
+        { t: 'artifactFrom', factionId: 'verdant_choir', rarity: 'legendary' },
+        { t: 'lairTier', v: -1 },
+        { t: 'followers', v: -20 },
+        { t: 'notoriety', v: 6 },
+      ],
+      resultText: 'It is dug out roots and all. What it leaves behind is not level, and never will be again.',
+    },
+    declineLabel: 'Leave the grove standing',
+    declineText: 'The Choir says nothing. It has already begun growing around the space you would have made.',
   },
 ];
 

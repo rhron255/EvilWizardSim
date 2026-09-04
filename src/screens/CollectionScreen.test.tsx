@@ -38,11 +38,11 @@ const show = (collection: Collection) => {
 const filters = () => screen.getByRole('navigation', { name: /filter relics/i });
 
 describe('CollectionScreen · the grid shows everything from run one', () => {
-  it('renders all thirty slots for a player who has found nothing', () => {
+  it('renders all thirty-two slots for a player who has found nothing', () => {
     show(demoEmptyCollection);
     const locked = screen.getAllByLabelText(/^Undiscovered relic of /);
     expect(locked).toHaveLength(artifacts.length);
-    expect(artifacts.length).toBe(30);
+    expect(artifacts.length).toBe(32);
   });
 
   it('does not leak the name of a relic it is withholding', () => {
