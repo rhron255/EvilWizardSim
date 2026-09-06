@@ -3,6 +3,11 @@ import react from '@vitejs/plugin-react';
 
 // https://vite.dev/config/
 export default defineConfig({
+  // GitHub Pages serves this repository at /<repo>/, not at the domain root,
+  // so the built asset URLs need that prefix. The deploy workflow passes it in
+  // as BASE_PATH; `npm run dev` and `npm run build` locally leave it unset and
+  // get the root, which is what the dev server serves from.
+  base: process.env.BASE_PATH ?? '/',
   plugins: [react()],
   test: {
     globals: true,
