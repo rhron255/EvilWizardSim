@@ -77,7 +77,26 @@ export type EndingId =
    * collection's locked-slot redaction hides it exactly like the other
    * twelve until it is reached.
    */
-  | 'good_wizard';
+  | 'good_wizard'
+  /**
+   * The Arch-Lich — the one ending built out of two other routes rather than
+   * out of a state of its own.
+   *
+   * `isLich && goodWizardVowed`, at the age limit. It exists because those two
+   * were silently in conflict: the rite (`scripted_the_long_arrangement`)
+   * charges every relic and every follower and, since #21, does NOT end the
+   * run, so a lich could go on to take the Quiet Ledger and reach the age
+   * limit holding both flags — where `good_wizard` won and the lichdom the
+   * player had already paid for simply evaporated, with no card anywhere
+   * saying it would. Rule 1 does not permit that: a forfeiture the player
+   * accepted, for a named outcome, cannot be quietly voided by a later card
+   * whose own disclosed line says only "the run continues".
+   *
+   * Making the combination its own biography is the fix that keeps both
+   * promises instead of picking one. Nothing is taken away, so the vow's line
+   * stays true for a lich; the rite's `LICH_LINE` stays true too.
+   */
+  | 'arch_lich';
 
 /**
  * A cosmetic palette the player has unlocked and may select.

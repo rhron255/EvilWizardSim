@@ -26,6 +26,16 @@ import type { FactionId, Offer } from '../../types';
  *
  * Each is a live decision, never a free relic: the certain branch charges a
  * real price in the currency that faction actually wants.
+ *
+ * THE PRICES WERE RETUNED WHEN THE STOCK GATES LANDED, and had to be. They
+ * were written as flavour numbers — forty-five followers, thirty, twenty —
+ * against a median holding of SEVEN at the moment devotion is first met, and
+ * they only ever "worked" because `applyEffects` floored the deduction at zero
+ * and handed over the legendary anyway (CLAUDE.md failure mode 14). Gating a
+ * price nobody can pay just closes the card. Each follower price is now inside
+ * what a devoted wizard actually holds, the `resultText` numbers moved with
+ * them, and `concordat_covenant` charges pact debt instead so one route into a
+ * reliquary survives at zero stock — see its comment.
  */
 
 type Concordat = {
@@ -36,6 +46,31 @@ type Concordat = {
   takeLabel: string;
   /** What accepting costs, beyond the relic itself. */
   price: Offer['options'][number];
+  /**
+   * The stock `price` actually spends — CLAUDE.md failure mode 14.
+   *
+   * `applyEffects` floors followers, apprentices and the lair tier at zero, so
+   * a certain option that trades a countable balance for a FIXED benefit hands
+   * the whole benefit to a wizard who cannot pay: the legendary is granted,
+   * the deduction clamps to nothing, and `resultText` narrates a household
+   * being liquidated out of a household of eight. One legendary plus
+   * `ASCENSION_MIN_NOTORIETY` is the whole of `ascensionReady`, so the erased
+   * cost was a direct route to the rarest ending in the game.
+   *
+   * `requires` is an AND and options carry no gates of their own, so a card
+   * charging two payments lists both — the shared devotion gate at the bottom
+   * of this file is concatenated with these.
+   *
+   * The `oath_*` cards carry a `stockGate` for exactly this reason
+   * (`src/content/offers/oaths.ts`); this is the same field on the same
+   * grounds. `scripts/validate-content.ts` asserts every one of these covers
+   * the cost its own `price` spends, reading the option's effects rather than
+   * this field, so a new concordat cannot quietly ship without one.
+   *
+   * An EMPTY array is a real answer, not an omission — see
+   * `concordat_covenant`, which is deliberately payable at any stock level.
+   */
+  stockGate: Offer['requires'];
   declineLabel: string;
   declineText: string;
 };
@@ -52,12 +87,32 @@ const CONCORDATS: Concordat[] = [
       label: 'Take the Testament',
       effects: [
         { t: 'artifactFrom', factionId: 'ashen_covenant', rarity: 'legendary' },
-        { t: 'apprentices', v: -1 },
-        { t: 'pactDebt', v: 1 },
+        { t: 'pactDebt', v: 3 },
         { t: 'notoriety', v: 8 },
       ],
-      resultText: 'One apprentice signs where indicated. You are not told which page.',
+      resultText: 'You sign where indicated. You are not told which page, and it is not the last one.',
     },
+    // THE STOCK-FREE EXIT, and the one concordat that has to have one.
+    //
+    // This card used to charge an apprentice, which is the price the Covenant
+    // would ask for — but an apprentice is a countable balance, and gating it
+    // (as every card spending one now must) closes the reliquary to a wizard
+    // holding none. MEASURED: at the moment devotion is first met a wizard
+    // holds a median of 0 apprentices and 7 followers, and the apprentice gate
+    // alone took Ascension from 1.20% to 0.90% against a wiki-authored 1-4%
+    // band. Six of six reliquaries gated on countable stock leaves a devoted
+    // wizard with nothing left to sell no route to a legendary at all — the
+    // same ladder-walk failure `validate-content.ts` already checks for on the
+    // pact ascent, which is why CLAUDE.md's failure mode 14 says the two rules
+    // "only compose while a stock-free exit survives at every level".
+    //
+    // Pact debt is the fix rather than a smaller number, because it is the one
+    // currency in the game with no floor to clamp against: it only goes up,
+    // `PACT_LIMIT` is disclosed, and the header carries the distance. The
+    // exchange is therefore honest at every stock level and needs no gate to
+    // make it so. It is also the more Covenant-shaped of the two prices —
+    // they deal in what you owe, not in who works for you.
+    stockGate: [],
     declineLabel: 'Leave it on the shelf',
     declineText: 'The Covenant does not argue. It writes the date down.',
   },
@@ -74,10 +129,11 @@ const CONCORDATS: Concordat[] = [
         { t: 'artifactFrom', factionId: 'pale_academy', rarity: 'legendary' },
         { t: 'notoriety', v: -10 },
         { t: 'standing', factionId: 'crownlands', v: 10 },
-        { t: 'followers', v: -12 },
+        { t: 'followers', v: -6 },
       ],
       resultText: 'They give you a key, a shelf, and a form to fill in about the shelf.',
     },
+    stockGate: [{ c: 'minFollowers', v: 6 }],
     declineLabel: 'Decline, in writing, at length',
     declineText: 'Your letter is filed. It will be quoted at your memorial.',
   },
@@ -92,12 +148,13 @@ const CONCORDATS: Concordat[] = [
       label: 'Buy the roll',
       effects: [
         { t: 'artifactFrom', factionId: 'crownlands', rarity: 'legendary' },
-        { t: 'followers', v: -30 },
+        { t: 'followers', v: -12 },
         { t: 'heroThreat', v: 6 },
         { t: 'notoriety', v: 6 },
       ],
       resultText: 'You now know the name of the Chosen One’s grandmother. So does she.',
     },
+    stockGate: [{ c: 'minFollowers', v: 12 }],
     declineLabel: 'Let him keep it',
     declineText: 'He looks relieved, which tells you what it would have cost you.',
   },
@@ -112,12 +169,13 @@ const CONCORDATS: Concordat[] = [
       label: 'Accept the loan',
       effects: [
         { t: 'artifactFrom', factionId: 'worm_below', rarity: 'legendary' },
-        { t: 'followers', v: -20 },
+        { t: 'followers', v: -10 },
         { t: 'pactDebt', v: 2 },
         { t: 'notoriety', v: 10 },
       ],
-      resultText: 'Twenty of your household do not come back up. The ledger calls this interest.',
+      resultText: 'Ten of your household do not come back up. The ledger calls this interest.',
     },
+    stockGate: [{ c: 'minFollowers', v: 10 }],
     declineLabel: 'Refuse the loan',
     declineText: 'It withdraws without comment. The shelf stays where you can think about it.',
   },
@@ -132,12 +190,13 @@ const CONCORDATS: Concordat[] = [
       label: 'Buy the Estate',
       effects: [
         { t: 'artifactFrom', factionId: 'gilded_hand', rarity: 'legendary' },
-        { t: 'followers', v: -45 },
+        { t: 'followers', v: -18 },
         { t: 'notoriety', v: 6 },
       ],
       resultText:
-        'Forty-five of your household are logged as “liquidated,” a word the Hand spells correctly on purpose.',
+        'Eighteen of your household are logged as “liquidated,” a word the Hand spells correctly on purpose.',
     },
+    stockGate: [{ c: 'minFollowers', v: 18 }],
     declineLabel: 'Let it stay unsold',
     declineText: 'The Hand records the refusal without visible reaction. It does not take refusals personally, which is somehow worse.',
   },
@@ -153,11 +212,12 @@ const CONCORDATS: Concordat[] = [
       effects: [
         { t: 'artifactFrom', factionId: 'verdant_choir', rarity: 'legendary' },
         { t: 'lairTier', v: -1 },
-        { t: 'followers', v: -20 },
+        { t: 'followers', v: -10 },
         { t: 'notoriety', v: 6 },
       ],
       resultText: 'It is dug out roots and all. What it leaves behind is not level, and never will be again.',
     },
+    stockGate: [{ c: 'minFollowers', v: 10 }, { c: 'minLairTier', v: 1 }],
     declineLabel: 'Leave the grove standing',
     declineText: 'The Choir says nothing. It has already begun growing around the space you would have made.',
   },
@@ -177,7 +237,9 @@ export const concordatOffers: Offer[] = CONCORDATS.map((c) => ({
   // the content/engine separation, so `scripts/validate-content.ts` asserts the
   // equality instead — a literal copy here would silently drift, as it did when
   // DEVOTION_STANDING moved from 55 to 50.
-  requires: [{ c: 'minStanding', factionId: c.factionId, v: 50 }],
+  // Devotion, AND whatever stock this particular card spends. `requires` is an
+  // AND and options carry no gates of their own, so the two concatenate here.
+  requires: [{ c: 'minStanding', factionId: c.factionId, v: 50 }, ...(c.stockGate ?? [])],
   weight: 3,
   options: [
     c.price,

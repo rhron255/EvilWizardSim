@@ -254,6 +254,20 @@ const ENDING_PATHS: Record<EndingId, string[]> = {
     'M14.6 18.8v2.6',
     'M5.6 7.6L4.8 2.6l3.4 2.2L12 1.4l3.8 3.4 3.4-2.2-.8 5',
   ],
+  // The lich skull, lowered to make room, with `good_wizard`'s sprout where
+  // its crown of points used to sit. Both marks are quoted rather than
+  // redrawn: the ending IS the two routes held together, and a reader who has
+  // seen either slot in the collection should recognise which two.
+  arch_lich: [
+    'M6 15.4a6 6 0 1112 0v2.6a2 2 0 01-2 2H8a2 2 0 01-2-2z',
+    'M9.6 15a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',
+    'M14.4 15a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',
+    'M9.4 20v1.8',
+    'M14.6 20v1.8',
+    'M12 9.4V4.2',
+    'M12 4.2c0-1.9 1.5-3.3 3.4-3.5-.2 1.9-1.6 3.3-3.4 3.5z',
+    'M12 4.2c0-1.9-1.5-3.3-3.4-3.5.2 1.9 1.6 3.3 3.4 3.5z',
+  ],
   retired_to_swamp: [
     'M2.4 17.4c2-1.4 3.4-1.4 5.4 0s3.4 1.4 5.4 0 3.4-1.4 5.4 0c1 .7 1.9 1 2.9.9',
     'M2.4 21c2-1.4 3.4-1.4 5.4 0s3.4 1.4 5.4 0 3.4-1.4 5.4 0c1 .7 1.9 1 2.9.9',

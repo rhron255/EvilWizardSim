@@ -227,6 +227,48 @@ export const THEMES: ThemeDef[] = [
   },
 
   {
+    id: 'arch_lich',
+    name: 'Long Weather',
+    endingId: 'arch_lich',
+    blurb: 'The cold room, with the shutters open. It has been like this for centuries.',
+    /**
+     * Cold Room, weathered.
+     *
+     * `lichdom`'s palette is a warm dark with the warmth taken out of it —
+     * blue lifted above green in every surface, red left alone. This is the
+     * same move made a second time and then softened: green comes back up to
+     * meet the blue, which turns the violet cast to a slate-teal, and every
+     * surface is lifted a step further. Read side by side in the selector, it
+     * is recognisably the lich palette that has had daylight on it for a very
+     * long time — which is the ending. Near-monochrome within itself, one hue
+     * family, exactly like every other theme (constraint 2).
+     *
+     * Deliberately NOT `good_wizard`'s cream: that theme is the other route,
+     * and this ending is not a brighter version of it. The wizard did not stop
+     * being a lich.
+     *
+     * The ink/panel pair measures 13.99:1, just over the default palette's
+     * 13.80 floor — the same headroom problem `lichdom` documents, arrived at
+     * the same way. `themes.test.ts` does the arithmetic.
+     */
+    surface: {
+      void: '#0b1418',
+      panel: '#12222a',
+      raised: '#182d37',
+      hover: '#1f3945',
+      line: '#26454f',
+      lineStrong: '#2f5b68',
+    },
+    ink: {
+      bright: '#f6f9fa',
+      base: '#e7eff1',
+      dim: '#8ba3aa',
+      faint: '#5f767d',
+      ghost: '#40525a',
+    },
+  },
+
+  {
     id: 'retired_to_swamp',
     name: 'Peat',
     endingId: 'retired_to_swamp',

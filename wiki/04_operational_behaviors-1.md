@@ -135,7 +135,21 @@ number of points must be **gated on the stock it spends**. `applyEffects`
 floors those balances at zero, so an ungated exit hands a wizard with nothing
 the full relief for whatever they happen to have, while the result text
 narrates a payment that did not occur. Six cards shipped that way and were
-found in review.
+found in review; the six reliquary concordats shipped the same way and were
+found in review again, one issue later, which is why the rule now has a
+`validate-content.ts` gate reading each card's own effects rather than a
+comment.
+
+The gate is only half the fix. The concordats' prices were flavour numbers —
+forty-five followers, thirty, twenty — written against a median holding of
+**seven** at the moment devotion is first met, and they "worked" only because
+the shortfall was being clamped away. Gating a price nobody can pay does not
+make the trade honest, it just closes the card: the apprentice gate on the
+Covenant's own concordat alone took Ascension from 1.20% to 0.90% against a
+1–4% band. So the prices moved to what a devoted wizard actually holds, the
+result text moved with them, and the Covenant's card was re-priced in **pact
+debt** — the one currency with no floor to clamp against, so it needs no gate
+and one route into a reliquary survives at zero stock.
 
 Options carry no gates of their own, so a card offering two different payments
 requires both. That gating closes the ladder for the destitute, which is why

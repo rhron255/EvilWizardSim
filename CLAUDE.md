@@ -116,8 +116,9 @@ These come from a game that worked at scale. They look arbitrary in isolation.
    works because a number quietly goes the wrong way. Note this bans *announcing
    a losing phase* — it does not ban explaining what a mechanic does.
 6. **Every ending must be reachable.** The collection shows a slot for each of
-   the twelve — the original seven plus the five faction reprisals of issue
-   #14 — and the header shows an empty Ascension trophy from era one.
+   the nineteen — the original seven, the five faction reprisals and five
+   leadership crowns of issue #14, `good_wizard` (#23) and `arch_lich` — and
+   the header shows an empty Ascension trophy from era one.
    `npm run sim` checks this; three endings were once unreachable and the run
    felt hollow, and three of the reprisals arrived unreachable for exactly the
    same reason (the catalog let you court a faction on purpose and only offend
@@ -125,7 +126,11 @@ These come from a game that worked at scale. They look arbitrary in isolation.
    *Reachable by whom is part of the check.* Five of the six reprisals are
    cohort-shaped, so the harness plays a dedicated 200-run probe per faction
    rather than reading ~40 runs out of the population, where one career moves
-   a rate by two and a half points.
+   a rate by two and a half points. `arch_lich` needs a bigger one again —
+   10,000 runs — because it is a CONJUNCTION of two cohort-shaped routes (the
+   lich rite and the Good Wizard vow) and conjunctions of rare things are rare
+   multiplicatively: at 200 runs its expected count is 0.13, which measures
+   nothing.
 
 ## Failure modes this repo has actually produced
 

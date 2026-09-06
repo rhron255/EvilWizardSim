@@ -45,6 +45,7 @@ export {
   reprisalEnding,
   reprisalLiveFor,
   LEADERSHIP_BY_FACTION,
+  STANDING_LEADERSHIP,
   patronFaction,
   leadershipEnding,
 } from './endings';

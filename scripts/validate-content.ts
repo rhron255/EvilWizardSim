@@ -114,6 +114,7 @@ const REQUIRED_ENDINGS = [
   'archdruid',
   'overthrown_the_kingdom',
   'good_wizard',
+  'arch_lich',
 ];
 for (const id of REQUIRED_ENDINGS) {
   if (!endings.some((e) => e.id === id)) fail('endings', `missing "${id}"`);
@@ -301,6 +302,67 @@ for (const offer of offers.filter((o) => o.id.startsWith('concordat_'))) {
       `devotion gate is ${gate.v} but DEVOTION_STANDING is ${DEVOTION_STANDING} — ` +
         'the reliquary and the draw upgrade must agree on what "devoted" means',
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// A fixed benefit may not be bought with a cost the engine clamps to nothing
+// ---------------------------------------------------------------------------
+
+/**
+ * CLAUDE.md failure mode 14, made a gate instead of a code review.
+ *
+ * `applyEffects` floors followers, apprentices and the lair tier at zero, so a
+ * `certain` option that spends a countable balance to buy something FIXED — a
+ * legendary, a block of standing — hands the whole benefit to a wizard who
+ * cannot pay while the deduction clamps to nothing and `resultText` narrates
+ * the payment regardless. Six cards across three files shipped that way, and
+ * the offer card was not what caught it: `projectEffects` prints the clamped
+ * number correctly, so disclosure held while the EXCHANGE did not.
+ *
+ * Scoped to the two families whose whole shape is "a fixed thing, at a price"
+ * — the reliquary concordats and the leadership oaths. An ordinary card
+ * spending followers for an outcome that scales with what it spent is not this
+ * bug, and sweeping the whole catalog would flag it.
+ *
+ * Anchored to the option's own EFFECTS, not to the gate: the rule reads what
+ * the card charges and asks whether `requires` guarantees the wizard has it.
+ * Widening a `stockGate` below what the card spends turns this red.
+ */
+const STOCK_GATE_FOR: Record<string, 'minFollowers' | 'minApprentices' | 'minLairTier'> = {
+  followers: 'minFollowers',
+  apprentices: 'minApprentices',
+  lairTier: 'minLairTier',
+};
+
+for (const offer of offers.filter(
+  (o) => o.id.startsWith('concordat_') || o.id.startsWith('oath_'),
+)) {
+  const where = `offer "${offer.id}"`;
+  for (const option of offer.options) {
+    if (option.kind !== 'certain') continue;
+    for (const effect of option.effects) {
+      const gateName = STOCK_GATE_FOR[effect.t];
+      if (!gateName) continue;
+      const spend = -(effect as { v: number }).v;
+      if (spend <= 0) continue;
+      const gate = (offer.requires ?? []).find(
+        (c): c is Extract<Condition, { v: number }> => c.c === gateName,
+      );
+      if (!gate) {
+        fail(
+          where,
+          `spends ${spend} ${effect.t} for a fixed benefit but has no ${gateName} gate — ` +
+            'the engine floors that balance at zero, so an unstocked wizard gets the benefit free',
+        );
+      } else if (gate.v < spend) {
+        fail(
+          where,
+          `${gateName} gate is ${gate.v} but the card spends ${spend} ${effect.t} — ` +
+            'the shortfall clamps to nothing and the benefit is granted in full anyway',
+        );
+      }
+    }
   }
 }
 

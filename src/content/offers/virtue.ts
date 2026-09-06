@@ -1,9 +1,33 @@
 import type { Offer } from '../../types';
-import {
-  GOOD_WIZARD_ILL_CAP,
-  GOOD_WIZARD_REPUTATION_GOOD,
-  GOOD_WIZARD_RESOLUTION_GOOD,
-} from '../../engine/constants';
+
+/*
+ * THE GATE VALUES ARE LITERALS ON PURPOSE, and must stay literals.
+ *
+ * These three used to be imported from `src/engine/constants.ts`, which broke
+ * the check that guards them in both directions at once. Content is a pure
+ * data bundle — importing the engine couples a pack to the engine it is
+ * supposed to be swappable against — and, worse, it made
+ * `checkGoodActsGate` in `scripts/validate-content.ts` grade its own homework
+ * (CLAUDE.md failure mode 11): the validator compares these values to
+ * `GOOD_WIZARD_REPUTATION_GOOD` / `GOOD_WIZARD_RESOLUTION_GOOD` /
+ * `GOOD_WIZARD_ILL_CAP`, so with the import in place both sides moved
+ * together and the comparison could not fail. Mutation-tested at the time:
+ * changing `GOOD_WIZARD_REPUTATION_GOOD` from 2 to 9 left
+ * `npm run validate:content` printing `content OK` and exiting 0.
+ *
+ * As literals they are a genuine second copy, which is precisely what gives
+ * the validator something to check — the same arrangement the `concordat_`,
+ * `oath_` and `scripted_the_long_arrangement` gates already use, and for the
+ * same stated reason. Change a constant in `constants.ts` and the gate here
+ * has to be changed with it; `npm run validate:content` is what says so.
+ */
+
+/** Must equal `GOOD_WIZARD_REPUTATION_GOOD` in `src/engine/constants.ts`. */
+const REPUTATION_GOOD_ACTS = 2;
+/** Must equal `GOOD_WIZARD_RESOLUTION_GOOD` in `src/engine/constants.ts`. */
+const RESOLUTION_GOOD_ACTS = 3;
+/** Must equal `GOOD_WIZARD_ILL_CAP` in `src/engine/constants.ts`. */
+const ILL_ACT_CAP = 1;
 
 /**
  * THE GOOD WIZARD ROUTE (issue #14 slice 5, issue #23).
@@ -283,8 +307,8 @@ const VIRTUE_REPUTATION: Offer[] = [
     phase: 'any',
     scripted: true,
     requires: [
-      { c: 'minGoodActs', v: GOOD_WIZARD_REPUTATION_GOOD },
-      { c: 'maxIllActs', v: GOOD_WIZARD_ILL_CAP },
+      { c: 'minGoodActs', v: REPUTATION_GOOD_ACTS },
+      { c: 'maxIllActs', v: ILL_ACT_CAP },
     ],
     weight: 3,
     options: [
@@ -317,8 +341,8 @@ const VIRTUE_REPUTATION: Offer[] = [
     phase: 'any',
     scripted: true,
     requires: [
-      { c: 'minGoodActs', v: GOOD_WIZARD_REPUTATION_GOOD },
-      { c: 'maxIllActs', v: GOOD_WIZARD_ILL_CAP },
+      { c: 'minGoodActs', v: REPUTATION_GOOD_ACTS },
+      { c: 'maxIllActs', v: ILL_ACT_CAP },
     ],
     weight: 3,
     options: [
@@ -351,8 +375,8 @@ const VIRTUE_REPUTATION: Offer[] = [
     phase: 'any',
     scripted: true,
     requires: [
-      { c: 'minGoodActs', v: GOOD_WIZARD_REPUTATION_GOOD },
-      { c: 'maxIllActs', v: GOOD_WIZARD_ILL_CAP },
+      { c: 'minGoodActs', v: REPUTATION_GOOD_ACTS },
+      { c: 'maxIllActs', v: ILL_ACT_CAP },
     ],
     weight: 3,
     options: [
@@ -387,8 +411,8 @@ const VIRTUE_RESOLUTION: Offer[] = [
     phase: 'decline',
     scripted: true,
     requires: [
-      { c: 'minGoodActs', v: GOOD_WIZARD_RESOLUTION_GOOD },
-      { c: 'maxIllActs', v: GOOD_WIZARD_ILL_CAP },
+      { c: 'minGoodActs', v: RESOLUTION_GOOD_ACTS },
+      { c: 'maxIllActs', v: ILL_ACT_CAP },
     ],
     // Gated exactly like the lich rite, so the same weight lesson applies:
     // eligible only in the decline, where the pool is small, and a career

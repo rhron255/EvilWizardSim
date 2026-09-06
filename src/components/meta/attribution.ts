@@ -24,6 +24,7 @@
  * | `consumed_by_pact`        | the Ashen Covenant                   |
  * | `betrayed_by_apprentice`  | an apprentice                        |
  * | `lichdom`                 | **nobody**                           |
+ * | `arch_lich`               | **nobody**                           |
  * | `retired_to_swamp`        | **nobody**                           |
  * | `ascension`               | **nobody**                           |
  *
@@ -44,7 +45,7 @@
  * faction that is absent yields `null` rather than a broken half-sentence.
  */
 
-import { LEADERSHIP_BY_FACTION, REPRISAL_BY_FACTION } from '../../engine';
+import { REPRISAL_BY_FACTION, STANDING_LEADERSHIP } from '../../engine';
 import type { EndingId, Faction, FactionId } from '../../types';
 
 /**
@@ -61,11 +62,26 @@ const REPRISAL_AGENT = new Map<EndingId, FactionId>(
   ]),
 );
 
-/** The same inversion for the other end of the relationship. */
+/**
+ * The same inversion for the other end of the relationship.
+ *
+ * Inverted from `STANDING_LEADERSHIP`, NOT from `LEADERSHIP_BY_FACTION`. The
+ * full table maps `worm_below -> lichdom`, and lichdom is self-determined —
+ * it is bought with the rite, not handed down by a patron. Inverting the full
+ * table put `lichdom` in this map, which made `attributionLabelFor('lichdom')`
+ * answer "At the head of" for a transformation nobody crowned. That was
+ * benign only by accident: `attributionFor('lichdom')` returns `null` through
+ * the self-determined branch, so `EndingScreen` never reached the label. Any
+ * caller that asks for the label without checking the agent first — or any
+ * future change that gives `lichdom` an agent — would have printed it.
+ *
+ * `STANDING_LEADERSHIP` is the engine's own five-crown set, the same one
+ * `leadershipEnding` maps through, so "which endings are leadership" is
+ * decided in exactly one place (failure mode 3: never mirror a fact across a
+ * seam).
+ */
 const LEADERSHIP_AGENT = new Map<EndingId, FactionId>(
-  (Object.entries(LEADERSHIP_BY_FACTION) as [FactionId, EndingId][]).map(
-    ([factionId, endingId]) => [endingId, factionId],
-  ),
+  [...STANDING_LEADERSHIP].map(([factionId, endingId]) => [endingId, factionId]),
 );
 
 /** What the screen needs to resolve an attribution. */
@@ -143,10 +159,14 @@ export function attributionFor(endingId: EndingId, ctx: AttributionContext): str
     // `good_wizard` belongs here too (issue #23): it is chosen, not inflicted
     // or bestowed, so no faction crowns it and nothing did it to the wizard —
     // it sits beside `retired_to_swamp`, not beside the leadership set above.
+    // `arch_lich` is both of the self-determined routes at once, so it is
+    // doubly one of these: the rite is a card the wizard accepted and the vow
+    // is another. No faction crowned it and nothing did it to them.
     case 'lichdom':
     case 'retired_to_swamp':
     case 'ascension':
     case 'good_wizard':
+    case 'arch_lich':
       return null;
 
     default: {

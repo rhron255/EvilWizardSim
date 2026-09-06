@@ -159,6 +159,7 @@ type Policy =
   | 'ascendant'
   | 'reckless'
   | 'saint'
+  | 'arch_lich'
   | PariahPolicy
   | CourtierPolicy;
 
@@ -205,7 +206,14 @@ const POPULATION: Array<[Policy, number]> = [
   ['reckless', 0.1],
 ];
 
-type Mode = 'notoriety' | 'defense' | 'standing' | 'ascendant' | 'reckless' | 'saint';
+type Mode =
+  | 'notoriety'
+  | 'defense'
+  | 'standing'
+  | 'ascendant'
+  | 'reckless'
+  | 'saint'
+  | 'arch_lich';
 
 type Weights = {
   notoriety: number;
@@ -347,6 +355,44 @@ const WEIGHTS: Record<Mode, Weights> = {
     // of runs but only 1% of the WHOLE cohort ended as `good_wizard` — almost
     // every vow was followed by a death. See `GOOD_WIZARD_RESOLUTION_GOOD`'s
     // doc comment in `constants.ts` for the after number.
+    artifact: 4,
+    loseArtifact: -5,
+    apprentices: 0.3,
+    loyalty: 0.08,
+    pactDebt: -1.6,
+    pactCeilingAware: true,
+    heroThreat: -0.7,
+    lairTier: 4,
+    goodAct: 20,
+    illAct: -25,
+  },
+  /**
+   * The Arch-Lich seeker — `saint` and `lich` at once, because the ending is.
+   *
+   * A cohort was unavoidable and neither existing policy would do. `lich`
+   * scores every `goodAct` at zero, so it never clears
+   * `GOOD_WIZARD_RESOLUTION_GOOD` and is never offered the Quiet Ledger;
+   * `saint` never courts the Worm Below, so it never clears the rite's
+   * `minStanding` and is never offered the Long Arrangement. Both cards are
+   * decline-only and both are needed, in either order, by one career that then
+   * has to survive to the age limit.
+   *
+   * Built from `saint` rather than from `lich`, because surviving is the
+   * binding constraint: both cards resolve at the age limit or not at all, so
+   * the defensive numbers are `saint`'s unchanged. What is added is
+   * `standing`, lifted to `courtier` territory — the Worm devotion itself
+   * comes from `LICH_DEVOTION` in `chooseOption`, exactly as it does for
+   * `lich`, so this weight only has to stop the policy trading standing away.
+   *
+   * `artifact` is `saint`'s 4 rather than `ascendant`'s 7 and deliberately not
+   * higher: the rite's `minArtifacts: 2` gate has to be MET, but the rite then
+   * forfeits every relic it required, so a policy that hoards past two is
+   * buying nothing this route can spend.
+   */
+  arch_lich: {
+    notoriety: 0.35,
+    followers: 0.15,
+    standing: 5,
     artifact: 4,
     loseArtifact: -5,
     apprentices: 0.3,
@@ -551,6 +597,15 @@ function modeFor(policy: Policy, run: RunState, threatRatio: number): Mode {
       // threatened, because a run that plays safe never reaches Legend.
       if (run.phase === 'ascent') return 'ascendant';
       return threatRatio > 0.75 ? 'defense' : 'ascendant';
+    case 'arch_lich':
+      // One mode in both phases, for `saint`'s reason and one more: the two
+      // cards this cohort needs are BOTH decline-only, so there is no ascent
+      // behaviour to split off — the ascent's whole job is to arrive in the
+      // decline alive, devoted to the Worm, and already carrying the good
+      // acts. Splitting it into a `standing` ascent (as `lich` does) drops
+      // the goodAct weights for the half of the run where they are cheapest
+      // to accumulate.
+      return 'arch_lich';
     case 'saint':
       // Chases goodActs in both phases — unlike the standing-based routes,
       // there is no ascent/decline split to make here, because the counters
@@ -708,8 +763,9 @@ function chooseOption(policy: Policy, run: RunState, offer: Offer, roll: number)
   const defense = defenseOf(run, content);
   const threatRatio = defense > 0 ? run.heroThreat / defense : 0;
   const w = WEIGHTS[modeFor(policy, run, threatRatio)];
-  const takesLichdom = policy === 'lich' && run.phase === 'decline';
-  const takesGoodWizard = policy === 'saint' && run.phase === 'decline';
+  // `arch_lich` wants BOTH, which is the whole of what the ending is.
+  const takesLichdom = (policy === 'lich' || policy === 'arch_lich') && run.phase === 'decline';
+  const takesGoodWizard = (policy === 'saint' || policy === 'arch_lich') && run.phase === 'decline';
 
   let best = -Infinity;
   let bestIndex = 0;
@@ -725,7 +781,9 @@ function chooseOption(policy: Policy, run: RunState, offer: Offer, roll: number)
     // after. The weight is high on purpose: this models the self-imposed
     // single-faction run that wiki/06 identifies as real player behaviour,
     // not a player who merely likes the Worm slightly more than average.
-    if (policy === 'lich') score += wormAffinity(option) * LICH_DEVOTION;
+    if (policy === 'lich' || policy === 'arch_lich') {
+      score += wormAffinity(option) * LICH_DEVOTION;
+    }
     // The mirror of the line above: one faction, hard, in the other direction.
     if (isPariah(policy)) {
       const target = pariahTarget(policy);
@@ -1071,6 +1129,31 @@ function pickEraCount(roll: number): number {
  */
 const PROBE_RUNS = 200;
 
+/**
+ * The Arch-Lich's cohort is fifty times the others, and has to be.
+ *
+ * Every other probe measures ONE route: a pariah driving one faction under,
+ * a courtier driving one faction up, a saint accumulating good acts, a
+ * lich-seeker taking the rite. `arch_lich` is the conjunction of two of them
+ * — the rite AND the vow AND the age limit — and conjunctions of rare things
+ * are rare multiplicatively. MEASURED at this size, seeds 1-5: the cohort
+ * becomes a lich in 4.0-4.3% of careers, vows in 1.0-1.3%, reaches the age
+ * limit in 44%, and lands `arch_lich` 6-12 times — 0.06-0.12%.
+ *
+ * At `PROBE_RUNS` that is an expected count of 0.13, which is not a
+ * reachability measurement, it is a coin that lands zero. This file already
+ * deleted one per-cohort row for flickering at an expected count of TWO
+ * (see the reachability check's comment), so the size is picked to put the
+ * expected count near seven — where a zero is a ~0.1% event rather than a
+ * coin toss, and the combined "every authored ending occurs" row stays a gate
+ * people can read.
+ *
+ * The cost is ~10k extra careers, which is real but bounded: the probes run
+ * after the `--json` early return, so the path used to diff distributions
+ * between slices does not pay it.
+ */
+const ARCH_LICH_PROBE_RUNS = 10_000;
+
 function reprisalProbe(baseSeed: number): Map<FactionId, RunResult[]> {
   const out = new Map<FactionId, RunResult[]>();
   for (const faction of PARIAH_TARGETS) {
@@ -1144,6 +1227,24 @@ function lichProbe(baseSeed: number): RunResult[] {
   const runs: RunResult[] = [];
   for (let i = 0; i < PROBE_RUNS; i++) {
     runs.push(playRun(baseSeed + 917_293 + i * 4519, pickEraCount(rng()), 'lich'));
+  }
+  return runs;
+}
+
+/**
+ * The Arch-Lich's own 200-run cohort probe — `saintProbe`/`lichProbe`'s
+ * mirror, one iteration further along, and the most cohort-shaped of the
+ * three: this ending needs the rite AND the vow AND the age limit, so the
+ * expected count in ANY population slice is essentially zero. Kept out of
+ * `POPULATION` for the reason all the probes are — a policy this specialised
+ * inside the headline mix would move Ascension and the reprisals before the
+ * mechanic under test did anything.
+ */
+function archLichProbe(baseSeed: number): RunResult[] {
+  const rng = mulberry32((baseSeed ^ 0x0a12c11c) + 1);
+  const runs: RunResult[] = [];
+  for (let i = 0; i < ARCH_LICH_PROBE_RUNS; i++) {
+    runs.push(playRun(baseSeed + 641_009 + i * 3907, pickEraCount(rng()), 'arch_lich'));
   }
   return runs;
 }
@@ -1247,6 +1348,7 @@ const ENDING_ORDER: EndingId[] = [
   'overthrown_the_kingdom',
   // Age-limit-only, like the leadership set above (issue #23).
   'good_wizard',
+  'arch_lich',
 ];
 
 const ALL_ENDING_IDS: EndingId[] = content.endings.map((e) => e.id);
@@ -1389,6 +1491,7 @@ function main(): void {
   const leadership = leadershipProbe(baseSeed);
   const saint = saintProbe(baseSeed);
   const lich = lichProbe(baseSeed);
+  const archLich = archLichProbe(baseSeed);
 
   /** Every career the harness played, for the reachability check only. */
   const byEndingAnywhere = new Map(byEnding);
@@ -1406,6 +1509,9 @@ function main(): void {
     byEndingAnywhere.set(r.ending, (byEndingAnywhere.get(r.ending) ?? 0) + 1);
   }
   for (const r of lich) {
+    byEndingAnywhere.set(r.ending, (byEndingAnywhere.get(r.ending) ?? 0) + 1);
+  }
+  for (const r of archLich) {
     byEndingAnywhere.set(r.ending, (byEndingAnywhere.get(r.ending) ?? 0) + 1);
   }
 
@@ -1717,6 +1823,33 @@ function main(): void {
     );
   }
 
+  // The Arch-Lich, on the same shape of chain and for the same reason: the
+  // ending has no authored band either, only rule 6's reachability. Printed as
+  // its two halves BEFORE the conjunction, because the conjunction is the
+  // whole story — a cohort that took the rite in 4% of careers and vowed in 1%
+  // will land the ending in well under either, and a bare 0.08% with nothing
+  // beside it reads as a broken route rather than a rare one.
+  console.log(rule());
+  console.log(`  ARCH-LICH  (${ARCH_LICH_PROBE_RUNS}-run cohort probe, then the population)`);
+  console.log(
+    `${pad('  ', 20)}${padLeft('cohort', 8)}${padLeft('rite', 8)}${padLeft('vow', 8)}${padLeft('age limit', 11)}${padLeft('ending', 14)}${padLeft('pop', 8)}`,
+  );
+  {
+    const rite = archLich.filter((r) => r.becameLich).length;
+    const vowed = archLich.filter((r) => r.ending === 'good_wizard' || r.ending === 'arch_lich').length;
+    const survived = archLich.filter((r) => r.reachedAgeLimit).length;
+    const reached = archLich.filter((r) => r.ending === 'arch_lich').length;
+    console.log(
+      pad('  arch_lich', 20) +
+        padLeft(String(archLich.length), 8) +
+        padLeft(pct(rite, archLich.length), 8) +
+        padLeft(pct(vowed, archLich.length), 8) +
+        padLeft(pct(survived, archLich.length), 11) +
+        padLeft(`${reached} (${pct(reached, archLich.length)})`, 14) +
+        padLeft(pct(byEnding.get('arch_lich') ?? 0, total), 8),
+    );
+  }
+
   console.log(rule());
   row('became a lich (transformation)', pct(results.filter((r) => r.becameLich).length, total));
   row('LICHDOM ending', pct(byEnding.get('lichdom') ?? 0, total));
@@ -1778,17 +1911,28 @@ function main(): void {
        * headline band in the file that the wiki states outright, and the one
        * that may not simply be widened.
        *
-       * KNOWN RED SINCE THE FACTION REPRISALS LANDED (#14 slice 1), at
-       * 0.80-1.20% against a pre-reprisal 1.50-1.65%. Do not tune this band,
-       * and do not reach for `ASCENSION_MIN_NOTORIETY` to make the row go
-       * green: the cause is measured and is neither threshold. Careers end
-       * ~0.8 eras earlier now (mean run length 13.42 -> 12.62), so BOTH
-       * conjuncts fell together — 84+ notoriety 9.85% -> 7.35%, a legendary
-       * ever held 10.35% -> 8.40%. Slice 4 gives the Gilded Hand and the
-       * Verdant Choir a legendary each, which lifts the second one, and the
-       * issue plans to re-tune the threshold there with numbers on both sides.
-       * Lowering it now and raising it then is how `DEF_LICH` got distorted
-       * twice. Re-measure when slice 4 lands.
+       * GREEN AGAIN, AND NARROWLY. This row was red through #14 slice 1 at
+       * 0.80-1.20%, because the reprisals ended careers ~0.8 eras earlier and
+       * both conjuncts fell together. Slice 4 gave the Gilded Hand and the
+       * Verdant Choir a legendary each, which lifted the one that had fallen
+       * furthest, and the rate has sat at 0.95-1.25% across seeds 1/2/3/5
+       * since. `ASCENSION_MIN_NOTORIETY` was never lowered to paper over the
+       * dip and must not be lowered now — that constant, and the band, are
+       * both things earlier sessions chased; `DEF_LICH` was distorted twice
+       * that way.
+       *
+       * The margin over the floor is one or two careers in two thousand, so
+       * treat this row as the first casualty of anything touching a legendary
+       * route. MEASURED, this session: gating the six concordats on the stock
+       * they spend (CLAUDE.md failure mode 14 — the costs were being clamped
+       * to nothing) took it from 1.35% to 0.65% in one step, because a wizard
+       * holding no apprentice was shut out of the reliquary that charges one.
+       * Making `concordat_covenant` charge pact debt instead — the one
+       * currency with no floor to clamp against, so no gate is needed — put it
+       * back to 1.00%. Six of six reliquaries gated on countable stock leaves
+       * a devoted wizard with nothing left to sell no route to a legendary at
+       * all, which is the ladder-walk failure the validator already checks for
+       * on the pact ascent.
        */
       'Ascension in 1-4%',
       ascensionRate >= 0.01 && ascensionRate <= 0.04,
@@ -1860,6 +2004,8 @@ function main(): void {
        * every other rate in this report to make one check pass. So the count
        * spans the population plus every dedicated cohort probe: `reprisalProbe`
        * and `leadershipProbe` (slice 2b), then `saintProbe` (issue #23) and
+       * `archLichProbe` (the rite AND the vow AND the age limit, which no
+       * population slice reaches) and
        * `lichProbe` (issue #24's flicker fix — `lichdom` used to be read off
        * only the population's ~120-run `lich` slice, which is exactly the same
        * small-expected-count problem this comment already describes for the
@@ -1884,7 +2030,8 @@ function main(): void {
         [...probe.values()].reduce((a, c) => a + c.length, 0) +
         [...leadership.values()].reduce((a, c) => a + c.length, 0) +
         saint.length +
-        lich.length
+        lich.length +
+        archLich.length
       } careers)`,
       ALL_ENDING_IDS.every((e) => (byEndingAnywhere.get(e) ?? 0) > 0),
       `${ALL_ENDING_IDS.filter((e) => (byEndingAnywhere.get(e) ?? 0) > 0).length}/${

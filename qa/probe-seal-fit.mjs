@@ -65,8 +65,15 @@ if (out.missing) {
 }
 
 console.log(`column ${out.width}px · shipped line: "${out.shipped}"`);
-const heights = out.rows.map((r) => r.h);
-const single = Math.min(...heights);
+// The baseline is the line the APP rendered, measured before any substitution
+// — not the shortest candidate. Deriving it from `out.rows` would let the
+// probe grade its own homework (CLAUDE.md failure mode 11): if every candidate
+// wrapped, the minimum would BE the two-line height, nothing would exceed it,
+// and the probe would print "every variant fits one line" and exit 0 — the
+// exact regression it exists to catch. Widen one noun until all twelve wrap
+// and this version goes red; the `Math.min` version stayed green.
+const single = out.one;
+console.log(`one rendered line is ${single}px`);
 let wrapped = 0;
 for (const r of out.rows) {
   const flag = r.h > single ? ' WRAPS' : '';

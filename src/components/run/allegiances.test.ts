@@ -35,6 +35,13 @@ const run = (
       ...(typeof standing === 'number' ? { pale_academy: standing } : standing),
     },
     notoriety,
+    // The five non-Academy reprisals go live one era AFTER the prophecy, not
+    // on the phase flip — `resolveChoice` advances `phase` before the
+    // interstitial has played, so 'decline' alone is a whole era too early
+    // (see `reprisalLiveFor`). A decline run here means one that is past that
+    // era, which is what every case below is about; the gap era gets its own
+    // test, which supplies `erasSinceProphecy: 0` explicitly.
+    erasSinceProphecy: phase === 'decline' ? 1 : 0,
   }) as RunState;
 
 const sentence = (standing: number, notoriety: number, phase: Phase = 'decline') =>
@@ -145,6 +152,27 @@ describe('the reprisal warning · all six factions', () => {
     );
     expect(reprisalWarningFor(both)!.factionId).toBe('verdant_choir');
     expect(REPRISAL_BY_FACTION.verdant_choir).toBe('turned_to_fertilizer');
+  });
+
+  it('stays silent through the prophecy era itself, not merely through the ascent', () => {
+    // The gap `reprisalLiveFor` closed: the resolution that carries a wizard
+    // across `prophecyEra` reaches the engine already reading 'decline',
+    // while the interstitial has not played and the pinned prophecy card has
+    // not been drawn. A warning that appears — or an ending that fires — in
+    // that era skips the beat the whole arc is built around, and the header
+    // had been silent right up to it, so it would arrive unwarned.
+    const gap = {
+      ...run({ verdant_choir: SEAL_MAX_STANDING - 20 }, SEAL_MIN_NOTORIETY),
+      erasSinceProphecy: 0,
+    } as RunState;
+    expect(reprisalWarningFor(gap)).toBeNull();
+
+    // The Academy is unaffected, in that era as in every other.
+    const academy = {
+      ...run({ pale_academy: SEAL_MAX_STANDING - 20 }, SEAL_MIN_NOTORIETY),
+      erasSinceProphecy: 0,
+    } as RunState;
+    expect(reprisalWarningFor(academy)!.factionId).toBe('pale_academy');
   });
 
   it('stays silent about a faction whose reprisal cannot fire yet', () => {

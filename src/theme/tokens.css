@@ -455,6 +455,24 @@
   --ew-ink-ghost: #8f7b4a;
 }
 
+/* Long Weather — Cold Room with the shutters open. The lich palette's violet
+   cast, with green brought back up to meet the blue and every surface lifted
+   a step: recognisably the same room, after a few centuries of daylight. */
+[data-theme='arch_lich'] {
+  --ew-void: #0b1418;
+  --ew-panel: #12222a;
+  --ew-raised: #182d37;
+  --ew-hover: #1f3945;
+  --ew-line: #26454f;
+  --ew-line-strong: #2f5b68;
+
+  --ew-ink-bright: #f6f9fa;
+  --ew-ink: #e7eff1;
+  --ew-ink-dim: #8ba3aa;
+  --ew-ink-faint: #5f767d;
+  --ew-ink-ghost: #40525a;
+}
+
 /* --------------------------------------------------------------------------
    Reset & base
    -------------------------------------------------------------------------- */

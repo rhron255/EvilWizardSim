@@ -293,4 +293,43 @@ export const endings: Ending[] = [
     },
     rarity: 'legendary',
   },
+
+  // -------------------------------------------------------------------------
+  // THE ARCH-LICH — the two routes that used to cancel, kept whole.
+  //
+  // `isLich && goodWizardVowed`. Reached by a career that paid the rite's
+  // price and then, still holding the exemption it bought, went on adding up
+  // the same quiet way — see the doc comment on `EndingId` in `src/types.ts`
+  // for why it exists rather than one of the two silently winning.
+  //
+  // The hint is deliberately oblique — the collection's locked slot shows the
+  // hint and nothing else, and this is the one route a player is most likely
+  // to reach by accident before they reach it on purpose. `rarity:
+  // 'legendary'` because the conjunction is: a career has to clear the Worm's
+  // devotion gate AND hold two relics AND keep the ill-act cap AND survive to
+  // the age limit, and the two cards that arm it are both decline-only.
+  //
+  // `codaMode: 'tiered'` on the same grounds as `lichdom`'s and
+  // `good_wizard`'s: the joke this card is telling is the distance between
+  // what the province thinks is under the hill and what is actually doing the
+  // rounds up there, and notoriety is exactly the axis that measures it.
+  // -------------------------------------------------------------------------
+
+  {
+    id: 'arch_lich',
+    name: 'The Arch-Lich',
+    summary: 'Undying, unhurried, and still fixing the mill.',
+    hint: 'for the eternally grateful',
+    narration:
+      'The rite took the relics and the household and gave back the one thing it offers, and then, with nothing left to spend and no particular deadline, you went and looked at the mill again. It has been that way ever since. The fever came back twice and left twice. Four generations of one family have been polite to you at the same gate, and the current one still leaves out a bowl on an anniversary nobody living remembers. Nobody says the word lich. They say he is very old, and they say it fondly.',
+    codaMode: 'tiered',
+    coda: {
+      unknown: 'Two hamlets know. Neither has told anyone, and neither intends to start now.',
+      local_menace: 'The grazing came back to the hill, one field a decade, without anyone deciding it had.',
+      named_threat: 'The file lists you as a standing threat and a reliable source of drainage advice.',
+      kingdom: 'The Crownlands keep the undated entry open and the valley keeps leaving out the bowl.',
+      legend: 'Four kingdoms know what is under the hill. Three of them write to it about their harvests.',
+    },
+    rarity: 'legendary',
+  },
 ];

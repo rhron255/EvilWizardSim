@@ -74,8 +74,27 @@ describe('the rule-1 exception: nothing but good_wizard reads the counters', () 
   });
 
   it('is checked FIRST at the age limit, ahead of lichdom', () => {
-    const run = start({ phase: 'decline', eraIndex: 16, eraCount: 16, isLich: true, goodWizardVowed: true });
+    const run = start({ phase: 'decline', eraIndex: 16, eraCount: 16, goodWizardVowed: true });
+    expect(run.isLich).toBe(false);
     expect(checkEndings(run, content)).toBe('good_wizard');
+  });
+
+  it('does not swallow a lichdom the wizard already paid for', () => {
+    // A lich who then takes the Quiet Ledger holds both flags at the age
+    // limit, and `good_wizard` used to simply win — voiding a forfeiture of
+    // every relic and every follower that the player had accepted for a
+    // named outcome, with no card anywhere saying it would. That is rule 1's
+    // undisclosed consequence, arriving one card late. The combination is its
+    // own biography now, so neither half is discarded and both disclosed
+    // lines stay true.
+    const run = start({
+      phase: 'decline',
+      eraIndex: 16,
+      eraCount: 16,
+      isLich: true,
+      goodWizardVowed: true,
+    });
+    expect(checkEndings(run, content)).toBe('arch_lich');
   });
 
   it('falls through to lichdom when the vow was never taken', () => {

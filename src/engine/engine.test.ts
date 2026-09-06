@@ -412,13 +412,55 @@ describe('endings', () => {
  * first" is a nondeterminism bug that no single playthrough would show.
  */
 describe('faction reprisals', () => {
-  /** A run under the line with one faction, deep in the decline. */
+  /**
+   * A bundle that DEFINES the six reprisal endings.
+   *
+   * The mirror of `crowned` in the leadership block below, and it exists for
+   * the same reason the guard in `reprisalEnding` does: the engine must never
+   * hand back an id its `ContentBundle` does not declare. `fixtureContent`
+   * declares the original seven only, so a suite run against it asserted that
+   * `checkEndings` returns `turned_to_fertilizer` from a bundle with no such
+   * entry — which pinned the missing guard as the intended behaviour and
+   * would have turned red the moment the guard was added.
+   *
+   * Fixture-driven rather than `real`-driven on purpose, exactly as the
+   * leadership block argues: a test that only passed against this repo's own
+   * catalog would say nothing about a pack that ships different reprisals.
+   * The undeclared-bundle case is covered on its own at the end of the block.
+   */
+  const vengeful: ContentBundle = {
+    ...fixtureContent,
+    endings: [
+      ...fixtureContent.endings,
+      ...Object.values(REPRISAL_BY_FACTION)
+        .filter((id) => !fixtureContent.endings.some((e) => e.id === id))
+        .map((id) => ({
+          id,
+          name: `Fixture ${id}`,
+          summary: 'Fixture summary.',
+          hint: 'for a fixture',
+          narration: 'Fixture narration.',
+          rarity: 'rare' as const,
+          codaMode: 'fixed' as const,
+          coda: 'Fixture coda.',
+        })),
+    ],
+  };
+
+  /**
+   * A run under the line with one faction, deep in the decline.
+   *
+   * `erasSinceProphecy: 1` is load-bearing, not scenery: five of the six
+   * reprisals go live one era after the prophecy has actually played, not on
+   * the phase flip (`reprisalLiveFor`). A run at era 8 of 16 is past it.
+   */
   const at = (
     standing: Partial<Record<FactionId, number>>,
     over: Partial<RunState> = {},
   ): RunState => ({
     ...start(),
     phase: 'decline',
+    erasSinceProphecy: 1,
     notoriety: SEAL_MIN_NOTORIETY,
     eraIndex: 8,
     eraCount: 16,
@@ -429,24 +471,24 @@ describe('faction reprisals', () => {
   it('gives every faction its own ending, not the Academy’s', () => {
     for (const [factionId, endingId] of Object.entries(REPRISAL_BY_FACTION)) {
       const run = at({ [factionId as FactionId]: SEAL_MAX_STANDING });
-      expect(checkEndings(run, fixtureContent), factionId).toBe(endingId);
+      expect(checkEndings(run, vengeful), factionId).toBe(endingId);
     }
   });
 
   it('needs BOTH halves, exactly as the seal did', () => {
     // Deep enough, not famous enough.
     expect(
-      checkEndings(at({ crownlands: SEAL_MAX_STANDING - 40 }, { notoriety: SEAL_MIN_NOTORIETY - 1 }), fixtureContent),
+      checkEndings(at({ crownlands: SEAL_MAX_STANDING - 40 }, { notoriety: SEAL_MIN_NOTORIETY - 1 }), vengeful),
     ).toBeUndefined();
     // Famous enough, one point short.
     expect(
-      checkEndings(at({ crownlands: SEAL_MAX_STANDING + 1 }), fixtureContent),
+      checkEndings(at({ crownlands: SEAL_MAX_STANDING + 1 }), vengeful),
     ).toBeUndefined();
   });
 
   it('fires the LOWEST standing when two factions are under at once', () => {
     const run = at({ gilded_hand: SEAL_MAX_STANDING - 2, worm_below: SEAL_MAX_STANDING - 30 });
-    expect(checkEndings(run, fixtureContent)).toBe(REPRISAL_BY_FACTION.worm_below);
+    expect(checkEndings(run, vengeful)).toBe(REPRISAL_BY_FACTION.worm_below);
   });
 
   it('breaks an exact tie by FACTION_ORDER, the same way every time', () => {
@@ -454,16 +496,16 @@ describe('faction reprisals', () => {
     const run = at({ [first]: SEAL_MAX_STANDING - 7, [second]: SEAL_MAX_STANDING - 7 });
     // `second` is earlier in FACTION_ORDER, so it wins the tie regardless of
     // which order the two were written into `factionStanding` above.
-    expect(checkEndings(run, fixtureContent)).toBe(REPRISAL_BY_FACTION[second]);
+    expect(checkEndings(run, vengeful)).toBe(REPRISAL_BY_FACTION[second]);
     expect(FACTION_ORDER.indexOf(second)).toBeLessThan(FACTION_ORDER.indexOf(first));
   });
 
   it('keeps the five new ones out of the ascent, and the Academy in it', () => {
-    const ascent = { phase: 'ascent' as const };
+    const ascent = { phase: 'ascent' as const, erasSinceProphecy: 0 };
     expect(
-      checkEndings(at({ verdant_choir: SEAL_MAX_STANDING - 30 }, ascent), fixtureContent),
+      checkEndings(at({ verdant_choir: SEAL_MAX_STANDING - 30 }, ascent), vengeful),
     ).toBeUndefined();
-    expect(checkEndings(at({ pale_academy: SEAL_MAX_STANDING }, ascent), fixtureContent)).toBe(
+    expect(checkEndings(at({ pale_academy: SEAL_MAX_STANDING }, ascent), vengeful)).toBe(
       'sealed_in_gem',
     );
   });
@@ -473,7 +515,52 @@ describe('faction reprisals', () => {
     // because generalising the branch moved it, and a reordering here would
     // silently redistribute two endings' rates.
     const run = at({ pale_academy: SEAL_MAX_STANDING }, { heroThreat: 9999 });
-    expect(checkEndings(run, fixtureContent)).toBe('slain_by_chosen_one');
+    expect(checkEndings(run, vengeful)).toBe('slain_by_chosen_one');
+  });
+
+  it('holds the five back through the prophecy era itself, not merely the ascent', () => {
+    // `resolveChoice` advances `phase` before it calls `checkEndings`, so the
+    // resolution that carries a wizard across `prophecyEra` arrives at the
+    // ending check already reading 'decline' — one whole era before the
+    // interstitial plays and the pinned prophecy card is drawn. A reprisal
+    // armed by `phase === 'decline'` fired in that gap: the run ended without
+    // the central beat of the arc, and unwarned, because the header had been
+    // suppressing the warning for exactly the same reason right up to it.
+    const gap = at({ verdant_choir: SEAL_MAX_STANDING - 30 }, { erasSinceProphecy: 0 });
+    expect(gap.phase).toBe('decline');
+    expect(checkEndings(gap, vengeful)).toBeUndefined();
+
+    // One era later — the prophecy has been played — and it fires.
+    expect(checkEndings({ ...gap, erasSinceProphecy: 1 }, vengeful)).toBe(
+      REPRISAL_BY_FACTION.verdant_choir,
+    );
+
+    // The Academy's gem was never phase-gated and is not prophecy-gated
+    // either. It is the one reprisal that has always been able to end a run
+    // at any point, and generalising the branch may not quietly change that.
+    expect(
+      checkEndings(at({ pale_academy: SEAL_MAX_STANDING }, { erasSinceProphecy: 0 }), vengeful),
+    ).toBe('sealed_in_gem');
+  });
+
+  it('never returns an ending the content bundle does not define', () => {
+    // `leadershipEnding`'s guard, on the branch that lacked it. A pack that
+    // ships the Academy's gem and none of the five added with it is a
+    // legitimate pack; its wizards must carry on rather than end the run on
+    // an id the ending screen cannot render — `App.tsx` looks the id up in
+    // `endings` and breaks out on a miss, which is a blank screen at the
+    // moment the whole run is paying off.
+    const run = at({ verdant_choir: SEAL_MAX_STANDING - 30 });
+    expect(checkEndings(run, vengeful)).toBe('turned_to_fertilizer');
+    expect(fixtureContent.endings.some((e) => e.id === 'turned_to_fertilizer')).toBe(false);
+    expect(checkEndings(run, fixtureContent)).toBeUndefined();
+
+    // ...and the one the fixture DOES declare still fires against it, so the
+    // assertion above is about the missing entry and not about the guard
+    // swallowing the whole branch.
+    expect(checkEndings(at({ pale_academy: SEAL_MAX_STANDING }), fixtureContent)).toBe(
+      'sealed_in_gem',
+    );
   });
 });
 

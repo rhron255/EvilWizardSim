@@ -6,15 +6,15 @@ touching anything; every one of those patterns cost a real bug.
 
 ## State
 
-**Built and playable.** `main`, 21 commits, nothing pushed. All four gates green:
+**Built and playable.** All four gates green:
 
 ```bash
 npm run typecheck && npm run test && npm run lint && npm run validate:content
 npm run dev        # → localhost:5173
-npm run sim        # 2000-run balance report, 12/14 targets pass — see Outstanding
+npm run sim        # 2000-run balance report + cohort probes — see Outstanding
 ```
 
-259 tests across 20 files. Every one was mutation-checked — broken deliberately
+509 tests across 28 files. Every one was mutation-checked — broken deliberately
 to confirm it goes red — because this repo has shipped a test that passed on
 `0 == 0`, and a *validator rule* that silently checked nothing (see below).
 
@@ -25,29 +25,41 @@ device, not a breakpoint to degrade toward.
 
 - Full run: title → creation → ~15 eras → prophecy → ending → collection. Clean
   playthrough at 393×852 and 1440×1000, no console errors.
-- 136 offers, 30 artifacts (all 30 reachable), 6 factions, 10 lairs, 12 endings.
-- All twelve endings reachable, including the five faction reprisals added by
-  issue #14 — measured by a 200-run cohort probe per faction, not by the
-  population, where each pariah cohort is ~40 runs. `liquidated` is the
+- 153 offers, 32 artifacts, 6 factions, 10 lairs, 19 endings.
+- All nineteen endings reachable, including the five faction reprisals and the
+  five leadership crowns added by issue #14, `good_wizard` (#23) and
+  `arch_lich` — measured by dedicated cohort probes, not by the population,
+  where each pariah cohort is ~40 runs. `arch_lich` needs a 10,000-run cohort
+  rather than the usual 200: it is the conjunction of the rite AND the vow AND
+  the age limit, and lands 6-12 times per cohort (0.06-0.12%). `liquidated` is the
   weakest at 1% of its cohort, and the reason is not the card and not the
   offer-count skew: the catalog moves Gilded Hand standing less than any other
   faction's, in either direction, while the Covenant has twice the cards and
   is nearly as unreachable because its cards push its standing UP. Measured by
   `qa/probe-standing-routes.ts` — run it after any faction-content slice.
-- **Ascension is BELOW its band and that is a known, deferred state.** 0.80-1.20%
-  across seeds 1/2/6/7 against a wiki-authored 1-4%, where the baseline was a
-  stable 1.50-1.65%. It is the mechanic, not the new content and not the
-  population mix: reprisals end careers ~0.8 eras earlier (mean run length
-  13.42 -> 12.62, age-limit survival 27.35% -> 21.50%) and BOTH conjuncts fell
-  with it — notoriety 84+ 9.85% -> 7.35%, ever-held-a-legendary 10.35% ->
-  8.40%. `ASCENSION_MIN_NOTORIETY` was deliberately NOT lowered to paper over
-  it: slice 4 adds legendaries for the Hand and the Choir, which lifts the
-  conjunct that fell, and the issue already plans to re-tune that constant
-  there with before/after numbers. Moving it down now and back up then is the
-  twice-chased constant that distorted `DEF_LICH`. **Re-measure at slice 4 and
-  close this out.**
-- `slain_by_chosen_one` is 45-47%, still ABOVE the 45% target on some seeds but
-  down from 63% before the reprisals.
+- **Ascension is back inside its band and the deferred item is closed.** Slice 4
+  landed the Hand's and the Choir's legendaries as planned, and the rate has
+  been in the wiki-authored 1-4% since: 0.95-1.25% at HEAD across seeds 1/2/3/5.
+  `ASCENSION_MIN_NOTORIETY` was never lowered to paper over the dip, which is
+  why there is nothing to unwind now. The two conjuncts it is a product of —
+  notoriety 84+ and ever-held-a-legendary — are printed beside the rate by the
+  instrument self-check row, so a future slide can be attributed rather than
+  guessed at.
+  *It is a low pass, not a comfortable one.* The concordats' stock gates (the
+  fix for the erased costs of failure mode 14) took it from 1.35% to 0.65%
+  before `concordat_covenant` was made the stock-free route into the
+  reliquaries; anything that gates a sixth legendary route on a countable
+  balance has to be measured against this row, not assumed harmless.
+- `slain_by_chosen_one` is 47-48%, still ABOVE the 45% target on every seed but
+  down from 63% before the reprisals. **Still red, still undecided** — see
+  *Outstanding*.
+- Lichdom's population reading (2-15% of the `lich` slice) FLICKERS and is red
+  on some seeds at HEAD — it reads ~130 runs, so one career moves it by 0.8
+  points. `lichProbe`'s dedicated 200-run cohort is the stable number: 1-6
+  completions per cohort across seeds 1-5, unchanged by the concordats' stock
+  gates (5/6/3/4/1 with them, 4/5/3/4/2 without). The row's own comment already
+  says it is a READING rather than a gate; the band has not been moved to make
+  it green, because that is how `DEF_LICH` got distorted twice.
   Lichdom went 0.25% -> 0.80% by raising the rite offer's weight: a dedicated
   seeker met its standing gate in 61% of careers but was shown the card in only
   19.9% of those, so the branch was a lottery rather than the "live decision"

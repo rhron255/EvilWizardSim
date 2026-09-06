@@ -137,10 +137,16 @@ idea of what to do about you.
 | Worm Below | Consumed |
 
 The trigger itself was deliberately **not** retuned in the same change. Only
-the Academy's fires in any phase, as it always has; the other five are decline
-only, so an ascent dip cannot end a career before the prophecy the arc rests
-on. The leadership half of the same issue — devotion, rather than enmity — is
-still to come.
+the Academy's fires in any phase, as it always has; the other five wait until
+the prophecy era has actually been **played**, so an ascent dip cannot end a
+career before the beat the arc rests on. Note that "the decline phase" is a
+whole era too weak a condition for that: the engine advances the phase before
+it checks the endings, so the resolution that carries a wizard across the
+prophecy era reaches the check already reading `decline` while the
+interstitial has not run and the pinned prophecy card has not been drawn. The
+predicate is `erasSinceProphecy >= 1` for that reason, and the run screen's
+warning imports the same one so it cannot warn about — or stay silent before —
+something the engine would not do.
 
 **Lichdom is an ending, not a prize.** It is the branch that cheats the
 decline phase — the lich's Notoriety does not decay. The cost must be
@@ -161,6 +167,20 @@ threshold. Like Lichdom, it is player-chosen rather than triggered by a
 faction or a stat crossing a threshold — three phases of offers (constructive
 choices scattered through the catalog, then a reputation shift once enough
 have accumulated, then a closing card that commits to it) rather than one.
+
+**Amended again — the Arch-Lich, where the two player-chosen routes meet.**
+The rite and the vow were silently in conflict. The rite charges every relic
+and every follower and, since issue #21, does not end the run — so a lich
+could go on to take the closing virtue card and reach the age limit holding
+both flags, where the Good Wizard simply won and the lichdom the player had
+already paid for evaporated. No card said it would, which makes it an
+undisclosed consequence arriving one card late: precisely what the amendment
+above claims the route can never do. The combination is its own biography now
+(`arch_lich`, *for the eternally grateful*), so neither half is discarded and
+both cards' disclosed lines stay true. It is the rarest ending in the game by
+construction — a conjunction of two cohort-shaped routes plus survival to the
+age limit, about 0.07% of a career spent seeking exactly it — and the balance
+harness plays a 10,000-run cohort rather than the usual 200 to say so.
 
 ### 8. Ending Card & Collection
 

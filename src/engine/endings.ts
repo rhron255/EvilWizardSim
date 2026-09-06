@@ -15,7 +15,8 @@
  *   3. A FACTION REPRISAL — one of six, the Academy's gem among them.
  *   4. `betrayed_by_apprentice` — a full tower and an empty well of loyalty.
  *   5. `consumed_by_pact` — the debt comes due.
- *   6. Age limit → `good_wizard` if the wizard vowed it (issue #23); else
+ *   6. Age limit → `arch_lich` if the wizard both took the rite and vowed;
+ *      else `good_wizard` if the wizard vowed it (issue #23); else
  *      `lichdom` if the wizard already paid for it; else a FACTION LEADERSHIP
  *      if one faction stands both high and alone; else `retired_to_swamp`,
  *      which is the catch-all so no state is undefined. A crown — and the
@@ -105,20 +106,62 @@ export const LEADERSHIP_BY_FACTION: Record<FactionId, EndingId> = {
 };
 
 /**
+ * The faction whose crown is NOT a standing total.
+ *
+ * The Worm Below's leadership ending is `lichdom`, and lichdom is bought with
+ * the rite — a card the player accepted, at the price the rite charges. Named
+ * once, here, so that the two places which have to know it read it from the
+ * same line instead of each carrying a copy.
+ */
+const RITE_EARNED_CROWN: FactionId = 'worm_below';
+
+/**
+ * `LEADERSHIP_BY_FACTION` minus the crown a standing total cannot hand out.
+ *
+ * Two callers need exactly this set and neither may derive it separately.
+ * `leadershipEnding` reads it because `patronFaction` sees standing alone, so
+ * a wizard who courted the Worm without ever taking the rite would otherwise
+ * be crowned Lich for a transformation that never happened. And
+ * `src/components/meta/attribution.ts` inverts it for the ending card's
+ * caption, because `lichdom` is self-determined — "At the head of The Worm
+ * Below" is the wrong label for a wizard who did it alone in a room, and a
+ * map built from `LEADERSHIP_BY_FACTION` wholesale carries `lichdom` into the
+ * leadership set where it does not belong (it is benign only while every
+ * caller checks `attributionFor` first, which is not a property the compiler
+ * holds).
+ */
+export const STANDING_LEADERSHIP: ReadonlyMap<FactionId, EndingId> = new Map(
+  (Object.entries(LEADERSHIP_BY_FACTION) as [FactionId, EndingId][]).filter(
+    ([factionId]) => factionId !== RITE_EARNED_CROWN,
+  ),
+);
+
+/**
  * Whether a faction's reprisal is live at all in this phase.
  *
  * The Academy's is available in any phase, exactly as the seal always was. The
- * five added with it are DECLINE-ONLY until measurement says otherwise: an
- * ascent-phase dip under −55 would otherwise end a career three eras in, before
- * the prophecy the whole arc is built around, and the ascent is where contagion
- * does its steepest work.
+ * five added with it are held back until the PROPHECY ERA HAS BEEN PLAYED:
+ * an ascent-phase dip under −55 would otherwise end a career three eras in,
+ * before the prophecy the whole arc is built around, and the ascent is where
+ * contagion does its steepest work.
+ *
+ * `erasSinceProphecy >= 1`, NOT `phase === 'decline'`, and the difference is a
+ * whole era wide. `resolveChoice` advances `phase` before it calls
+ * `checkEndings`, so the resolution that carries a wizard across `prophecyEra`
+ * arrives here already reading 'decline' — while `useGame` has not yet had a
+ * chance to raise the prophecy interstitial and `nextOffer` has not yet pinned
+ * the prophecy card. A faction sitting under the line at that moment ended the
+ * run in the gap: the central beat of the arc never played, and the header had
+ * been suppressing the warning right up to it because the state was still in
+ * ascent. `erasSinceProphecy` only reaches 1 once the prophecy era itself has
+ * been resolved, which is the state this predicate actually means.
  *
  * Exported because the header's warning has to agree with it — a "lethal" bar
  * for a condition that structurally cannot fire yet is a false alarm, and this
  * is the one predicate that decides.
  */
 export function reprisalLiveFor(factionId: FactionId, run: RunState): boolean {
-  return factionId === SEAL_FACTION || run.phase === 'decline';
+  return factionId === SEAL_FACTION || run.erasSinceProphecy >= 1;
 }
 
 /**
@@ -160,12 +203,25 @@ export function nearestReprisalFaction(
  * they generalise — this made the mechanic symmetric across six factions, and
  * deliberately did not retune it at the same time.
  */
-export function reprisalEnding(run: RunState): EndingId | undefined {
+export function reprisalEnding(run: RunState, content: ContentBundle): EndingId | undefined {
   if (run.notoriety < SEAL_MIN_NOTORIETY) return undefined;
   const faction = nearestReprisalFaction(run, 'live');
   if (faction === undefined) return undefined;
   if ((run.factionStanding[faction] ?? 0) > SEAL_MAX_STANDING) return undefined;
-  return REPRISAL_BY_FACTION[faction];
+  const ending = REPRISAL_BY_FACTION[faction];
+  // The bundle has the last word, for the reason spelled out at length in
+  // `leadershipEnding` below: the engine takes a `ContentBundle` and must
+  // never hand back an id that bundle does not define, because the ending
+  // screen looks the id up for a name, a narration and a glyph and an id with
+  // no entry is a blank card at the moment the run pays off
+  // (`App.tsx`'s `endings.find(...)` then `if (!run || !ending) break`).
+  //
+  // Live here, not hypothetical: a pack that ships the Academy's gem and none
+  // of the five added with it is a legitimate pack, and its wizards should
+  // carry on rather than fall off the end. Falling through to `undefined`
+  // returns them to the rest of `checkEndings`, exactly as
+  // `leadershipEnding` returns its wizards to `retired_to_swamp`.
+  return indexOf(content).endingById.has(ending) ? ending : undefined;
 }
 
 /**
@@ -195,9 +251,24 @@ export function reprisalEnding(run: RunState): EndingId | undefined {
  * conditional behaviour to save nine lines, and the reprisal path is the one
  * that would get harder to read.
  *
- * Exported for the same reason `nearestReprisalFaction` is: the screen naming
- * your patron must resolve a tie the way the engine does, and a second copy of
- * the rule is how the two drift apart.
+ * Exported as part of the engine's public surface (`src/engine/index.ts`) and
+ * for the tests that pin the tie-break. It is NOT what the ending card's
+ * patron line calls: `standingPassageFor`
+ * (`src/components/meta/standing.ts`) walks the run's own cast and applies
+ * `DEVOTION_STANDING` with no `PATRON_MARGIN`, and that is deliberate — it
+ * reports the BOND (the faction you courted hardest, at devotion) where this
+ * reports the CROWN (the faction far enough ahead that the career was about
+ * it). A wizard devoted to two factions has a patron to name and no crown to
+ * award, and the card should still say who remembers them.
+ *
+ * So the tie-break rule genuinely is duplicated between the two, and stating
+ * that plainly is the point of this paragraph — an earlier version of it
+ * asserted a shared implementation that does not exist, which is exactly the
+ * seam CLAUDE.md failure mode 3 is about. They agree on any run that reaches a
+ * crown, because a strict maximum ≥ `PATRON_MARGIN` ahead is the maximum under
+ * either walk, so the divergence is latent rather than live. Anything that
+ * changes THIS function's ordering has to be carried across by hand, or the
+ * card names one faction while the engine crowns another.
  */
 export function patronFaction(run: RunState): FactionId | undefined {
   let candidate: FactionId | undefined;
@@ -239,13 +310,14 @@ export function leadershipEnding(run: RunState, content: ContentBundle): EndingI
   // the Worm without ever taking the rite reaches this line with
   // `patron === 'worm_below'` and `run.isLich === false`, and mapping that
   // through `LEADERSHIP_BY_FACTION` would crown them Lich for a transformation
-  // that never happened — narrating forfeited relics and frozen decay on a
+  // that never happened. `STANDING_LEADERSHIP` is that map with the Worm's
+  // entry already removed, so the miss below is the whole guard — narrating forfeited relics and frozen decay on a
   // career that kept both. Falling through to `retired_to_swamp` for that
   // wizard is correct: their crown was never a standing total to begin with
   // (`content/standing.ts`'s `PATRON_BY_ENDING` comment on `lichdom` says the
   // same thing from the flavor-text side).
-  if (patron === 'worm_below') return undefined;
-  const ending = LEADERSHIP_BY_FACTION[patron];
+  const ending = STANDING_LEADERSHIP.get(patron);
+  if (ending === undefined) return undefined;
 
   /*
    * The bundle has the last word on whether this ending exists.
@@ -298,7 +370,7 @@ export function checkEndings(run: RunState, content: ContentBundle): EndingId | 
 
   if (run.heroThreat > defenseOf(run, content)) return 'slain_by_chosen_one';
 
-  const reprisal = reprisalEnding(run);
+  const reprisal = reprisalEnding(run, content);
   if (reprisal) return reprisal;
 
   if (
@@ -320,7 +392,17 @@ export function checkEndings(run: RunState, content: ContentBundle): EndingId | 
     // comparison run first would let a wizard who vowed the Good Wizard
     // resolution be overridden by a state they no longer control the
     // meaning of.
-    if (run.goodWizardVowed) return 'good_wizard';
+    //
+    // A lich who ALSO vowed takes the combined route (`arch_lich`), not
+    // either half. Both flags are bought — one with the rite's forfeiture of
+    // every relic and follower, one with the vow — and before this branch
+    // existed `good_wizard` simply won and the paid-for lichdom vanished with
+    // nothing on any card to say it would. That is the undisclosed
+    // consequence rule 1 bans, arriving one card late. Neither flag is
+    // discarded now, so both disclosures stay true: `LICH_LINE`'s "a lich,
+    // not the end" and the vow's "the run continues" describe exactly what
+    // happened.
+    if (run.goodWizardVowed) return run.isLich ? 'arch_lich' : 'good_wizard';
     // The lich branch stays SECOND and otherwise untouched. `lichdom` is the
     // Worm Below's leadership ending, and it was already earned — by the
     // rite the player accepted, at the price the rite charges. Letting the
