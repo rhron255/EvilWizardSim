@@ -264,19 +264,27 @@ export function reprisalWarningFor(run: RunState): ReprisalWarning | null {
  * is half a disclosure.
  *
  * Every variant is held to ONE LINE at 393px — measured, not estimated
- * (`qa/probe-seal-fit.mjs`, which now carries a candidate per faction). The
+ * (`qa/probe-seal-fit.mjs`, which carries a candidate per faction). The
  * header sits above the choice cards, so a second line here pushes the first
  * card 19px further down the reference device; the sentence this replaced
  * wrapped whenever the seal was armed, which is exactly when the player most
- * needs the card they are about to tap. That is why the nouns above are short
- * and why the Academy's own wording is unchanged: its length was the budget
- * the line was measured against.
+ * needs the card they are about to tap. That is why the nouns above are
+ * short, and why the not-yet-armed trigger below reads "acts at", not "it
+ * acts at": the six-faction generalization (issue #14) widened the Academy's
+ * own subject and noun (`REPRISAL_SUBJECT`/`REPRISAL_NOUN`) into the six the
+ * budget was never re-measured against, and three of them — the Academy,
+ * the Covenant, the Worm — wrapped at 393px until the probe was fixed to
+ * measure the shipped line's own height instead of the shortest candidate in
+ * its own set (which, once most of them wrapped, was itself a wrapped
+ * height). Dropping "it " is the one uniform trim that clears all three with
+ * room to spare, without reaching for a faction-specific shortening that
+ * would make the six read unevenly.
  */
 export function reprisalSentence(warning: ReprisalWarning): string {
   const distance =
     warning.margin <= 0
       ? REPRISAL_PAST[warning.factionId]
       : `is ${warning.margin} from ${REPRISAL_NOUN[warning.factionId]}`;
-  const trigger = warning.armed ? 'your fame qualifies' : `it acts at ${SEAL_MIN_NOTORIETY} Notoriety`;
+  const trigger = warning.armed ? 'your fame qualifies' : `acts at ${SEAL_MIN_NOTORIETY} Notoriety`;
   return `${REPRISAL_SUBJECT[warning.factionId]} ${distance} · ${trigger}.`;
 }

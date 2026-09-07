@@ -1,4 +1,4 @@
-import type { FactionId, Offer } from '../../types';
+import type { Condition, FactionId, Offer } from '../../types';
 
 /**
  * THE CONCORDATS — the reliquary beat, one per faction that owns a legendary.
@@ -26,6 +26,14 @@ import type { FactionId, Offer } from '../../types';
  *
  * Each is a live decision, never a free relic: the certain branch charges a
  * real price in the currency that faction actually wants.
+ *
+ * `stockGate` exists for the same reason `oaths.ts`'s does (CLAUDE.md failure
+ * mode 14): followers, apprentices and lair tier all floor or refuse to move
+ * past their minimum, so a price naming one of them costs nothing to a wizard
+ * who has none to give, while the fixed legendary still pays out in full. The
+ * Hand's and the Choir's routes (#22) both spend stock this way and are gated;
+ * the original four price the relic in pactDebt, notoriety or hero threat —
+ * currencies with no floor to hide behind — and need no gate.
  */
 
 type Concordat = {
@@ -36,6 +44,8 @@ type Concordat = {
   takeLabel: string;
   /** What accepting costs, beyond the relic itself. */
   price: Offer['options'][number];
+  /** The stock `price` spends beyond the relic, if any — see the note above. */
+  stockGate?: Condition[];
   declineLabel: string;
   declineText: string;
 };
@@ -138,6 +148,7 @@ const CONCORDATS: Concordat[] = [
       resultText:
         'Forty-five of your household are logged as “liquidated,” a word the Hand spells correctly on purpose.',
     },
+    stockGate: [{ c: 'minFollowers', v: 45 }],
     declineLabel: 'Let it stay unsold',
     declineText: 'The Hand records the refusal without visible reaction. It does not take refusals personally, which is somehow worse.',
   },
@@ -158,6 +169,7 @@ const CONCORDATS: Concordat[] = [
       ],
       resultText: 'It is dug out roots and all. What it leaves behind is not level, and never will be again.',
     },
+    stockGate: [{ c: 'minLairTier', v: 1 }, { c: 'minFollowers', v: 20 }],
     declineLabel: 'Leave the grove standing',
     declineText: 'The Choir says nothing. It has already begun growing around the space you would have made.',
   },
@@ -177,7 +189,7 @@ export const concordatOffers: Offer[] = CONCORDATS.map((c) => ({
   // the content/engine separation, so `scripts/validate-content.ts` asserts the
   // equality instead — a literal copy here would silently drift, as it did when
   // DEVOTION_STANDING moved from 55 to 50.
-  requires: [{ c: 'minStanding', factionId: c.factionId, v: 50 }],
+  requires: [{ c: 'minStanding', factionId: c.factionId, v: 50 }, ...(c.stockGate ?? [])],
   weight: 3,
   options: [
     c.price,

@@ -594,6 +594,42 @@ export const THEMES: ThemeDef[] = [
       ghost: '#8f7b4a',
     },
   },
+
+  // ---------------------------------------------------------------------------
+  // Arch-Lich (issue #25).
+  //
+  // Not a rotation of "Cold Room" — a theme keyed to `arch_lich` earns its own
+  // block regardless of how close the two endings sit, the same way `good_
+  // wizard` above earns one distinct from every dark theme it sits beside.
+  // Still the SAME violet-undeath family `lichdom` claims (constraint 2 is
+  // measured per theme, not against a sibling, so there is no rule forcing
+  // distance from it) — this one is simply lit from something `lichdom`
+  // doesn't have: a shade warmer and several steps brighter, a candle in the
+  // cold room rather than the cold room itself. Dark, unlike `good_wizard`;
+  // near-monochrome within itself, unlike nothing — every theme is.
+  // ---------------------------------------------------------------------------
+
+  {
+    id: 'arch_lich',
+    name: 'Kept Vigil',
+    endingId: 'arch_lich',
+    blurb: 'The same cold room. Somebody left a candle burning in it anyway.',
+    surface: {
+      void: '#130e1a',
+      panel: '#20142e',
+      raised: '#2b1c3d',
+      hover: '#35234a',
+      line: '#432c5e',
+      lineStrong: '#573a76',
+    },
+    ink: {
+      bright: '#fbf5ff',
+      base: '#f1e7f8',
+      dim: '#b39dc5',
+      faint: '#8472a1',
+      ghost: '#5d5077',
+    },
+  },
 ];
 
 export const DEFAULT_THEME_ID: ThemeId = 'default';

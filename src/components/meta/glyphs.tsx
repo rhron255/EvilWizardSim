@@ -370,6 +370,17 @@ const ENDING_PATHS: Record<EndingId, string[]> = {
     'M12 9.6c0-2.4 1.9-4.2 4.2-4.4-.2 2.3-2 4.2-4.2 4.4z',
     'M12 9.6c0-2.4-1.9-4.2-4.2-4.4.2 2.3 2 4.2 4.2 4.4z',
   ],
+  // `lichdom`'s hood, eyes and drips, unchanged — same undeath, same
+  // silhouette. Only the circlet above it is different: a kept flame where
+  // the crown was, for the one thing the rite's accounting never touched.
+  arch_lich: [
+    'M6 13.6a6 6 0 1112 0v3.2a2 2 0 01-2 2H8a2 2 0 01-2-2z',
+    'M9.6 13.2a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',
+    'M14.4 13.2a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',
+    'M9.4 18.8v2.6',
+    'M14.6 18.8v2.6',
+    'M12 1.4c1.5 1.7 2.3 3.1 2.3 4.2a2.3 2.3 0 11-4.6 0c0-1.1.8-2.5 2.3-4.2z',
+  ],
 };
 
 export function EndingGlyph({ id, size = 30, className, locked }: GlyphProps & { id: EndingId }) {

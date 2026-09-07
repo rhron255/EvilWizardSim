@@ -26,6 +26,7 @@
  * | `lichdom`                 | **nobody**                           |
  * | `retired_to_swamp`        | **nobody**                           |
  * | `ascension`               | **nobody**                           |
+ * | `arch_lich`               | **nobody**                           |
  *
  * The five faction reprisals are the least ambiguous entries in the table: a
  * reprisal is the faction acting, which is the whole of what it is. They are
@@ -61,11 +62,26 @@ const REPRISAL_AGENT = new Map<EndingId, FactionId>(
   ]),
 );
 
-/** The same inversion for the other end of the relationship. */
+/**
+ * The same inversion for the other end of the relationship — EXCEPT
+ * `worm_below`, whose crown is `lichdom`.
+ *
+ * `lichdom` is SELF-DETERMINED (see the table above): it is earned by the
+ * rite, a card the wizard accepted, not crowned onto them by an institution
+ * they were working WITH — the distinction `attributionLabelFor`'s doc
+ * comment draws below. A wholesale inversion of `LEADERSHIP_BY_FACTION` would
+ * map `lichdom -> worm_below` anyway and make `attributionLabelFor('lichdom')`
+ * answer "At the head of" — wrong, and safe today only because
+ * `attributionFor('lichdom')` returns `null` first and nothing downstream of
+ * it calls `attributionLabelFor` without checking that. The moment `lichdom`
+ * gains an agent, or any other surface calls this map directly, that accident
+ * stops holding. Filtering the one entry out here removes the trap instead of
+ * relying on every future caller to route around it.
+ */
 const LEADERSHIP_AGENT = new Map<EndingId, FactionId>(
-  (Object.entries(LEADERSHIP_BY_FACTION) as [FactionId, EndingId][]).map(
-    ([factionId, endingId]) => [endingId, factionId],
-  ),
+  (Object.entries(LEADERSHIP_BY_FACTION) as [FactionId, EndingId][])
+    .filter(([, endingId]) => endingId !== 'lichdom')
+    .map(([factionId, endingId]) => [endingId, factionId]),
 );
 
 /** What the screen needs to resolve an attribution. */
@@ -143,10 +159,13 @@ export function attributionFor(endingId: EndingId, ctx: AttributionContext): str
     // `good_wizard` belongs here too (issue #23): it is chosen, not inflicted
     // or bestowed, so no faction crowns it and nothing did it to the wizard —
     // it sits beside `retired_to_swamp`, not beside the leadership set above.
+    // `arch_lich` (issue #25) is the same case twice over: both the rite and
+    // the vow it combines are already self-determined on their own.
     case 'lichdom':
     case 'retired_to_swamp':
     case 'ascension':
     case 'good_wizard':
+    case 'arch_lich':
       return null;
 
     default: {

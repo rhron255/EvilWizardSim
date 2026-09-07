@@ -455,6 +455,24 @@
   --ew-ink-ghost: #8f7b4a;
 }
 
+/* Kept Vigil — Arch-Lich (issue #25). The same violet undeath family as Cold
+   Room, lit a shade warmer and several steps brighter: a candle in the cold
+   room, not the cold room itself. */
+[data-theme='arch_lich'] {
+  --ew-void: #130e1a;
+  --ew-panel: #20142e;
+  --ew-raised: #2b1c3d;
+  --ew-hover: #35234a;
+  --ew-line: #432c5e;
+  --ew-line-strong: #573a76;
+
+  --ew-ink-bright: #fbf5ff;
+  --ew-ink: #f1e7f8;
+  --ew-ink-dim: #b39dc5;
+  --ew-ink-faint: #8472a1;
+  --ew-ink-ghost: #5d5077;
+}
+
 /* --------------------------------------------------------------------------
    Reset & base
    -------------------------------------------------------------------------- */

@@ -25,6 +25,12 @@ const run = (
 ): RunState =>
   ({
     phase,
+    // `reprisalLiveFor` now keys on `erasSinceProphecy`, not `phase`, so it
+    // catches the prophecy-crossing era `phase` alone cannot distinguish (see
+    // the comment on `reprisalLiveFor`). This file is about the warning's
+    // faction/threshold logic, not that one-era edge, so callers here get the
+    // same live/not-live reading `phase` used to give directly.
+    erasSinceProphecy: phase === 'decline' ? 1 : 0,
     factionStanding: {
       ashen_covenant: 0,
       gilded_hand: 0,

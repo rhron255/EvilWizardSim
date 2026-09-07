@@ -15,12 +15,14 @@
  *   3. A FACTION REPRISAL — one of six, the Academy's gem among them.
  *   4. `betrayed_by_apprentice` — a full tower and an empty well of loyalty.
  *   5. `consumed_by_pact` — the debt comes due.
- *   6. Age limit → `good_wizard` if the wizard vowed it (issue #23); else
- *      `lichdom` if the wizard already paid for it; else a FACTION LEADERSHIP
- *      if one faction stands both high and alone; else `retired_to_swamp`,
- *      which is the catch-all so no state is undefined. A crown — and the
- *      Good Wizard vow — is not a way to die, so this set is reachable here
- *      and nowhere earlier — see `leadershipEnding`.
+ *   6. Age limit → `arch_lich` if the wizard is BOTH a lich and vowed
+ *      (issue #25) — the true answer for that career, not a tiebreak; else
+ *      `good_wizard` if the wizard vowed it (issue #23); else `lichdom` if the
+ *      wizard already paid for it; else a FACTION LEADERSHIP if one faction
+ *      stands both high and alone; else `retired_to_swamp`, which is the
+ *      catch-all so no state is undefined. A crown — and the Good Wizard vow
+ *      — is not a way to die, so this set is reachable here and nowhere
+ *      earlier — see `leadershipEnding`.
  *
  * Nothing here reads as "you lost" (wiki/06 principle 8). The engine decides
  * WHICH biography; content decides how it reads.
@@ -105,7 +107,7 @@ export const LEADERSHIP_BY_FACTION: Record<FactionId, EndingId> = {
 };
 
 /**
- * Whether a faction's reprisal is live at all in this phase.
+ * Whether a faction's reprisal is live at all, in this era.
  *
  * The Academy's is available in any phase, exactly as the seal always was. The
  * five added with it are DECLINE-ONLY until measurement says otherwise: an
@@ -113,12 +115,25 @@ export const LEADERSHIP_BY_FACTION: Record<FactionId, EndingId> = {
  * the prophecy the whole arc is built around, and the ascent is where contagion
  * does its steepest work.
  *
+ * Gated on `erasSinceProphecy > 0`, not `phase === 'decline'` — the two look
+ * interchangeable but are not, on the ONE era where it matters. `phase` flips
+ * to `'decline'` the instant `eraIndex` reaches `prophecyEra`, and
+ * `checkEndings` runs immediately on that same transition, before the player
+ * has ever been shown the pinned prophecy card for that era (`nextOffer` only
+ * pins it once `eraIndex === prophecyEra`). A reprisal gated on `phase` alone
+ * could therefore end the run on the exact transition that was supposed to
+ * show the prophecy, skipping the beat the whole arc is built around — an
+ * unwarned ending, since the header's tone (below) shares this predicate and
+ * would have called it non-lethal one era earlier. `erasSinceProphecy > 0`
+ * requires one further era to have actually elapsed, i.e. the prophecy card to
+ * have been presented and resolved, before a reprisal can fire.
+ *
  * Exported because the header's warning has to agree with it — a "lethal" bar
  * for a condition that structurally cannot fire yet is a false alarm, and this
  * is the one predicate that decides.
  */
 export function reprisalLiveFor(factionId: FactionId, run: RunState): boolean {
-  return factionId === SEAL_FACTION || run.phase === 'decline';
+  return factionId === SEAL_FACTION || run.erasSinceProphecy > 0;
 }
 
 /**
@@ -159,13 +174,27 @@ export function nearestReprisalFaction(
  * Both halves of the trigger are `constants.ts`'s and unchanged from the seal
  * they generalise — this made the mechanic symmetric across six factions, and
  * deliberately did not retune it at the same time.
+ *
+ * The bundle has the last word on whether the ending exists, for
+ * `leadershipEnding`'s reasons and one of its own. A pack that ships the
+ * Academy's gem and none of the five added beside it is legitimate — the seal
+ * was the only faction ending for the whole of the build — and its wizards
+ * must keep playing rather than land on a card the ending screen cannot
+ * render (`App.tsx` looks the id up and breaks out of the render on a miss,
+ * which is a blank screen at the moment the run pays off).
+ *
+ * An id the pack lacks means NO reprisal this era, never the next-nearest
+ * faction's: the faction closest to acting is the one the header has been
+ * warning about, and quietly promoting the runner-up would end the run in the
+ * name of a faction no warning ever pointed at.
  */
-export function reprisalEnding(run: RunState): EndingId | undefined {
+export function reprisalEnding(run: RunState, content: ContentBundle): EndingId | undefined {
   if (run.notoriety < SEAL_MIN_NOTORIETY) return undefined;
   const faction = nearestReprisalFaction(run, 'live');
   if (faction === undefined) return undefined;
   if ((run.factionStanding[faction] ?? 0) > SEAL_MAX_STANDING) return undefined;
-  return REPRISAL_BY_FACTION[faction];
+  const ending = REPRISAL_BY_FACTION[faction];
+  return indexOf(content).endingById.has(ending) ? ending : undefined;
 }
 
 /**
@@ -196,8 +225,10 @@ export function reprisalEnding(run: RunState): EndingId | undefined {
  * that would get harder to read.
  *
  * Exported for the same reason `nearestReprisalFaction` is: the screen naming
- * your patron must resolve a tie the way the engine does, and a second copy of
- * the rule is how the two drift apart.
+ * your patron (`standingPassageFor` in `src/components/meta/standing.ts`)
+ * must resolve a tie the way the engine does, and a second copy of the rule
+ * is how the two drift apart — which it did, for one run shape, before that
+ * screen called this function instead of re-deriving the same answer.
  */
 export function patronFaction(run: RunState): FactionId | undefined {
   let candidate: FactionId | undefined;
@@ -298,7 +329,7 @@ export function checkEndings(run: RunState, content: ContentBundle): EndingId | 
 
   if (run.heroThreat > defenseOf(run, content)) return 'slain_by_chosen_one';
 
-  const reprisal = reprisalEnding(run);
+  const reprisal = reprisalEnding(run, content);
   if (reprisal) return reprisal;
 
   if (
@@ -311,17 +342,27 @@ export function checkEndings(run: RunState, content: ContentBundle): EndingId | 
   if (run.pactDebt >= PACT_LIMIT) return 'consumed_by_pact';
 
   if (run.eraIndex >= run.eraCount) {
-    // `good_wizard` stays FIRST of the age-limit checks (issue #23). It is
+    // `arch_lich` stays FIRST of the age-limit checks (issue #25), ahead of
+    // BOTH branches below — not a tiebreak between them, the true answer for
+    // a wizard both are true for. Nothing gates `virtue_resolution_the_
+    // quiet_ledger` on `isLich`, so a lich who then takes the vow reaches
+    // this line with `goodWizardVowed && isLich` both true; before this
+    // branch existed, `good_wizard` won by running first, and the relics and
+    // followers the rite already forfeited stayed forfeited under an ending
+    // that never mentioned the rite at all. See the doc comment on
+    // `EndingId`'s `arch_lich` member in `types.ts`.
+    if (run.goodWizardVowed && run.isLich) return 'arch_lich';
+    // `good_wizard` stays SECOND of the age-limit checks (issue #23). It is
     // earned the same way lichdom is below it — by a card the player
     // accepted (`vowGoodWizard`), not by a standing total — and it is the
-    // only one of the four age-limit outcomes that was chosen this
+    // only one of the four PLAIN age-limit outcomes that was chosen this
     // deliberately, across a whole career, rather than arrived at by the
     // accumulated shape of a run. Letting the lich check or the standing
     // comparison run first would let a wizard who vowed the Good Wizard
     // resolution be overridden by a state they no longer control the
     // meaning of.
     if (run.goodWizardVowed) return 'good_wizard';
-    // The lich branch stays SECOND and otherwise untouched. `lichdom` is the
+    // The lich branch stays THIRD and otherwise untouched. `lichdom` is the
     // Worm Below's leadership ending, and it was already earned — by the
     // rite the player accepted, at the price the rite charges. Letting the
     // standing comparison below run first would let a Covenant devotee who

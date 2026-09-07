@@ -73,14 +73,30 @@ describe('the rule-1 exception: nothing but good_wizard reads the counters', () 
     }
   });
 
-  it('is checked FIRST at the age limit, ahead of lichdom', () => {
-    const run = start({ phase: 'decline', eraIndex: 16, eraCount: 16, isLich: true, goodWizardVowed: true });
+  it('is checked FIRST at the age limit, ahead of lichdom, UNLESS the wizard is also a lich', () => {
+    // Vowed, never took the rite — the plain `good_wizard` branch.
+    const run = start({ phase: 'decline', eraIndex: 16, eraCount: 16, isLich: false, goodWizardVowed: true });
     expect(checkEndings(run, content)).toBe('good_wizard');
   });
 
   it('falls through to lichdom when the vow was never taken', () => {
     const run = start({ phase: 'decline', eraIndex: 16, eraCount: 16, isLich: true, goodWizardVowed: false });
     expect(checkEndings(run, content)).toBe('lichdom');
+  });
+
+  /**
+   * Issue #25's real bug, not just its disclosure gap: `virtue_resolution_
+   * the_quiet_ledger` gates on `minGoodActs`/`maxIllActs` alone, nothing
+   * excludes `isLich`, and the vow moves neither hidden counter — so a lich
+   * who then vows used to reach this branch with BOTH flags true and get
+   * plain `good_wizard`, discarding the relics and followers the rite
+   * already forfeited under an ending that never mentioned the rite.
+   * `arch_lich` is the true answer for that career, checked ahead of both
+   * plain branches rather than choosing between them.
+   */
+  it('reads arch_lich, not good_wizard, for a wizard who is both', () => {
+    const run = start({ phase: 'decline', eraIndex: 16, eraCount: 16, isLich: true, goodWizardVowed: true });
+    expect(checkEndings(run, content)).toBe('arch_lich');
   });
 
   it('conditionMet reads goodActs/illActs ONLY for minGoodActs/maxIllActs', () => {

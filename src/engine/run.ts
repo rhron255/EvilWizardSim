@@ -396,7 +396,18 @@ export function resolveChoice(
   // The world reassigns your address before it decides your fate — a wizard
   // promoted this era should die in the better lair, and the ledger row above
   // already recorded the old one.
-  draft.lairId = promoteLair(draft, content);
+  //
+  // Skipped when THIS era's own effects just demoted the lair on purpose
+  // (`oath_verdant_choir`, `concordat_choir`, `scripted_the_chosen_one`'s
+  // surrender): entitlement is read from notoriety and followers alone, so a
+  // wizard famous enough to have earned the rung they just gave up would
+  // otherwise be promoted straight back into it in the SAME resolution —
+  // refunding the authored cost before the resolution card finishes
+  // rendering it as paid. The demotion is left to stand for this era; a
+  // wizard who stays that famous re-earns the rung the ordinary way, one rung
+  // at a time, starting next era.
+  const lairDemotedThisEra = application.applied.some((e) => e.t === 'lairTier' && e.v < 0);
+  draft.lairId = lairDemotedThisEra ? draft.lairId : promoteLair(draft, content);
 
   // ---- ending check, after EVERY era -----------------------------------
   draft.ending = endingFromEffect ?? checkEndings(draft, content);

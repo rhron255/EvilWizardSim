@@ -368,6 +368,37 @@ describe('the lair ladder', () => {
     const run = { ...start({}, real), lairId: ladder[5].id, notoriety: 0, followers: 0 };
     expect(promoteLair(run, real)).toBe(ladder[5].id);
   });
+
+  /**
+   * `oath_verdant_choir` and `concordat_choir` both charge `lairTier: -1` as
+   * a real price. `entitledLairRung` reads fame and followers alone, with no
+   * memory of an authored move, so a wizard entitled to the rung they just
+   * gave up used to be promoted straight back into it by the SAME call to
+   * `resolveChoice` — refunding the cost before the resolution card finished
+   * printing it as paid. The demotion must survive the era it happens in.
+   */
+  it('does not refund an authored demotion in the same era', () => {
+    const ladder = indexOf(real).lairLadder;
+    // Entitled to exactly rung 5 today, per `entitledLairRung`'s formula —
+    // so absent the demotion below, nothing would move at all.
+    const run = { ...start({}, real), lairId: ladder[5].id, notoriety: 45, followers: 90 };
+    expect(entitledLairRung(run, ladder.length)).toBe(5);
+    const offer = {
+      id: 'test_demote',
+      title: 'T',
+      body: 'b',
+      phase: 'any' as const,
+      options: [
+        {
+          kind: 'certain' as const,
+          label: 'Give it back',
+          effects: [{ t: 'lairTier', v: -1 } as Effect],
+        },
+      ],
+    };
+    const { next } = resolveChoice(run, offer, 0, real);
+    expect(indexOf(real).lairRung.get(next.lairId)).toBe(4);
+  });
 });
 
 describe('endings', () => {
@@ -419,6 +450,12 @@ describe('faction reprisals', () => {
   ): RunState => ({
     ...start(),
     phase: 'decline',
+    // One era clear of the prophecy transition, not merely `phase: 'decline'`
+    // — `reprisalLiveFor` now keys on this, not on `phase` alone, and a
+    // fixture that left it at `start()`'s default 0 would make every "fires"
+    // test below false-negative the moment that fix landed instead of
+    // exercising it.
+    erasSinceProphecy: 1,
     notoriety: SEAL_MIN_NOTORIETY,
     eraIndex: 8,
     eraCount: 16,
@@ -426,27 +463,57 @@ describe('faction reprisals', () => {
     ...over,
   });
 
+  /**
+   * A bundle that DEFINES all six reprisal endings.
+   *
+   * `fixtureContent` declares only `sealed_in_gem` — the one reprisal that
+   * predates issue #14 — so a test run against it for any other faction
+   * exercises `reprisalEnding`'s bundle guard rather than the reprisal rule
+   * the tests below are named for. Mirrors the leadership suite's `crowned`
+   * bundle below, for the identical reason: the engine takes a
+   * `ContentBundle`, and content declaring fewer endings than the frozen
+   * contract lists is a legitimate pack, not a bug.
+   */
+  const withReprisals: ContentBundle = {
+    ...fixtureContent,
+    endings: [
+      ...fixtureContent.endings,
+      ...Object.values(REPRISAL_BY_FACTION)
+        .filter((id) => !fixtureContent.endings.some((e) => e.id === id))
+        .map((id) => ({
+          id,
+          name: `Fixture ${id}`,
+          summary: 'Fixture summary.',
+          hint: 'for a fixture',
+          narration: 'Fixture narration.',
+          rarity: 'rare' as const,
+          codaMode: 'fixed' as const,
+          coda: 'Fixture coda.',
+        })),
+    ],
+  };
+
   it('gives every faction its own ending, not the Academy’s', () => {
     for (const [factionId, endingId] of Object.entries(REPRISAL_BY_FACTION)) {
       const run = at({ [factionId as FactionId]: SEAL_MAX_STANDING });
-      expect(checkEndings(run, fixtureContent), factionId).toBe(endingId);
+      expect(checkEndings(run, withReprisals), factionId).toBe(endingId);
     }
   });
 
   it('needs BOTH halves, exactly as the seal did', () => {
     // Deep enough, not famous enough.
     expect(
-      checkEndings(at({ crownlands: SEAL_MAX_STANDING - 40 }, { notoriety: SEAL_MIN_NOTORIETY - 1 }), fixtureContent),
+      checkEndings(at({ crownlands: SEAL_MAX_STANDING - 40 }, { notoriety: SEAL_MIN_NOTORIETY - 1 }), withReprisals),
     ).toBeUndefined();
     // Famous enough, one point short.
     expect(
-      checkEndings(at({ crownlands: SEAL_MAX_STANDING + 1 }), fixtureContent),
+      checkEndings(at({ crownlands: SEAL_MAX_STANDING + 1 }), withReprisals),
     ).toBeUndefined();
   });
 
   it('fires the LOWEST standing when two factions are under at once', () => {
     const run = at({ gilded_hand: SEAL_MAX_STANDING - 2, worm_below: SEAL_MAX_STANDING - 30 });
-    expect(checkEndings(run, fixtureContent)).toBe(REPRISAL_BY_FACTION.worm_below);
+    expect(checkEndings(run, withReprisals)).toBe(REPRISAL_BY_FACTION.worm_below);
   });
 
   it('breaks an exact tie by FACTION_ORDER, the same way every time', () => {
@@ -454,8 +521,22 @@ describe('faction reprisals', () => {
     const run = at({ [first]: SEAL_MAX_STANDING - 7, [second]: SEAL_MAX_STANDING - 7 });
     // `second` is earlier in FACTION_ORDER, so it wins the tie regardless of
     // which order the two were written into `factionStanding` above.
-    expect(checkEndings(run, fixtureContent)).toBe(REPRISAL_BY_FACTION[second]);
+    expect(checkEndings(run, withReprisals)).toBe(REPRISAL_BY_FACTION[second]);
     expect(FACTION_ORDER.indexOf(second)).toBeLessThan(FACTION_ORDER.indexOf(first));
+  });
+
+  /**
+   * The mirror of leadership's own guard test, for `reprisalEnding`'s copy of
+   * the same rule (see the comment on `reprisalEnding` in `src/engine/
+   * endings.ts`). Same run, same standings: a bundle that declares the id
+   * ends the run on it, and a bundle that does not — `fixtureContent`, which
+   * carries only `sealed_in_gem` — lets the career continue rather than
+   * crash the ending screen on an id it cannot render.
+   */
+  it('never returns a reprisal the content bundle does not define', () => {
+    const run = at({ crownlands: SEAL_MAX_STANDING });
+    expect(checkEndings(run, withReprisals)).toBe(REPRISAL_BY_FACTION.crownlands);
+    expect(checkEndings(run, fixtureContent)).toBeUndefined();
   });
 
   it('keeps the five new ones out of the ascent, and the Academy in it', () => {
@@ -466,6 +547,28 @@ describe('faction reprisals', () => {
     expect(checkEndings(at({ pale_academy: SEAL_MAX_STANDING }, ascent), fixtureContent)).toBe(
       'sealed_in_gem',
     );
+  });
+
+  /**
+   * The bug underneath issue #25's review: `phase` flips to `'decline'` the
+   * instant `resolveChoice` advances `eraIndex` to `prophecyEra`, and
+   * `checkEndings` runs on that SAME transition — before the player has ever
+   * been shown the pinned prophecy card for that era. A reprisal gated on
+   * `phase` alone could fire right there, ending the run before the central
+   * beat the whole arc is built around ever appears. `erasSinceProphecy`
+   * stays 0 on exactly that transition (it becomes 1 only once the prophecy
+   * era's own card has been resolved), which is what `reprisalLiveFor` must
+   * key on instead.
+   */
+  it('does not fire on the era that crosses into decline, before the prophecy card is shown', () => {
+    const crossing = at(
+      { crownlands: SEAL_MAX_STANDING },
+      { erasSinceProphecy: 0 },
+    );
+    expect(checkEndings(crossing, withReprisals)).toBeUndefined();
+    // The very next era, the same standing fires as normal.
+    const oneEraLater = at({ crownlands: SEAL_MAX_STANDING }, { erasSinceProphecy: 1 });
+    expect(checkEndings(oneEraLater, withReprisals)).toBe(REPRISAL_BY_FACTION.crownlands);
   });
 
   it('does not outrank the blade', () => {

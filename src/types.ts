@@ -77,7 +77,24 @@ export type EndingId =
    * collection's locked-slot redaction hides it exactly like the other
    * twelve until it is reached.
    */
-  | 'good_wizard';
+  | 'good_wizard'
+  /**
+   * Arch-Lich (issue #25) — the ONE age-limit outcome the good-wizard vow and
+   * the lich rite can both be true for at once, and the reason neither of the
+   * two branches above may simply win outright.
+   *
+   * Before this existed, `checkEndings` read `goodWizardVowed` first and
+   * `isLich` second, so a lich who then took `virtue_resolution_the_quiet_
+   * ledger` (decline, `minGoodActs: 3`, `maxIllActs: 1` — neither gate
+   * excludes a lich) got plain `good_wizard`: the relics and followers the
+   * rite already forfeited stayed forfeited, and the ending said nothing
+   * about it, an undisclosed discard of a transformation the player paid a
+   * real, mechanical price for. Checked ahead of BOTH `good_wizard` and
+   * `lichdom` for exactly that reason: it is not a tiebreak between them, it
+   * is the true answer for a wizard who is both, and neither of the plain
+   * branches is honest about that career.
+   */
+  | 'arch_lich';
 
 /**
  * A cosmetic palette the player has unlocked and may select.

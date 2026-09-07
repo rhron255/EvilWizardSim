@@ -76,23 +76,25 @@ These come from a game that worked at scale. They look arbitrary in isolation.
    early would either spoil the reveal or print a lie. If you add a
    deterministic `Effect` variant, add it to `PROJECTABLE` or the card starts
    lying again.
-   *Amended for the Good Wizard route (issue #23).* `goodActs`/`illActs` are
-   hidden `RunState` counters — the one deliberate exception to this rule,
-   and a narrower one than theme's exception to rule 3: these two counters
-   are never disclosed anywhere, not on the card and not after it. Defensible
-   on exactly one ground, and only this one: the route they gate can only
-   ever ADD an ending (`good_wizard`), never end a run early, never close a
-   door, never move any other threshold. `applyEffects` in
-   `src/engine/effects.ts` never pushes either variant to
+   *Amended for the Good Wizard route (issue #23; widened by issue #25's
+   Arch-Lich).* `goodActs`/`illActs` are hidden `RunState` counters — the one
+   deliberate exception to this rule, and a narrower one than theme's
+   exception to rule 3: these two counters are never disclosed anywhere, not
+   on the card and not after it. Defensible on exactly one ground, and only
+   this one: the route they gate can only ever ADD an ending (`good_wizard`,
+   or `arch_lich` for a wizard who is also a lich — decided by `isLich`, an
+   already-disclosed state, never by the counters themselves), never end a
+   run early, never close a door, never move any other threshold.
+   `applyEffects` in `src/engine/effects.ts` never pushes either variant to
    `EffectApplication.applied` — the array every renderer walks — so the
    silence is structural, not a UI-layer filter someone could forget to add
    to a new screen. Enforced, not merely asserted: `src/engine/
    goodWizard.test.ts` sweeps both counters against every other engine
    outcome (`defenseOf`, `threatGainFor`, `decayFor`, every `checkEndings`
-   branch but its own, every `Condition` but its own two) and asserts nothing
-   moves; `src/components/run/stakes.test.ts` sweeps the header for any
-   mention of them. **If a future change makes either counter gate anything
-   else, this exception is void and both must be disclosed like every other
+   branch but its own two, every `Condition` but its own two) and asserts
+   nothing moves; `src/components/run/stakes.test.ts` sweeps the header for
+   any mention of them. **If a future change makes either counter gate
+   anything else, this exception is void and both must be disclosed like every other
    stat** — see the doc comment on `Effect`'s `goodAct`/`illAct` variants in
    `src/types.ts`.
 2. **The ledger appends and never resets.** The accumulating table is what makes

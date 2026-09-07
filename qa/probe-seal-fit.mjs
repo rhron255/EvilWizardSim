@@ -18,18 +18,18 @@ const URL = arg('--url', 'http://localhost:5173');
 
 const CANDIDATES = [
   // The line the budget was set by, in both of its forms.
-  'The Academy is 25 from the gem · it acts at 55 Notoriety.',
+  'The Academy is 25 from the gem · acts at 55 Notoriety.',
   'The Academy is done deliberating · your fame qualifies.',
   // One per faction, distance form then past-the-line form.
-  'The Covenant is 25 from the ash · it acts at 55 Notoriety.',
+  'The Covenant is 25 from the ash · acts at 55 Notoriety.',
   'The Covenant has a use for you · your fame qualifies.',
-  'The Hand is 25 from the auction · it acts at 55 Notoriety.',
+  'The Hand is 25 from the auction · acts at 55 Notoriety.',
   'The Hand has called the account · your fame qualifies.',
-  'The Choir is 25 from the loam · it acts at 55 Notoriety.',
+  'The Choir is 25 from the loam · acts at 55 Notoriety.',
   'The Choir wants the ground back · your fame qualifies.',
-  'The Crown is 25 from the writ · it acts at 55 Notoriety.',
+  'The Crown is 25 from the writ · acts at 55 Notoriety.',
   'The Crown has drawn up the writ · your fame qualifies.',
-  'The Worm is 25 from the schedule · it acts at 55 Notoriety.',
+  'The Worm is 25 from the schedule · acts at 55 Notoriety.',
   'The Worm has set your date · your fame qualifies.',
 ];
 
@@ -44,7 +44,7 @@ const out = await page.evaluate((texts) => {
   // its own text rather than by a class, so a renamed CSS module cannot make
   // this probe quietly measure nothing.
   const line = [...document.querySelectorAll('p')].find((p) =>
-    / · (your fame qualifies|it acts at)/.test(p.textContent ?? ''),
+    / · (your fame qualifies|acts at)/.test(p.textContent ?? ''),
   );
   if (!line) return { missing: true };
   const shipped = line.textContent;
@@ -64,13 +64,17 @@ if (out.missing) {
   process.exit(1);
 }
 
-console.log(`column ${out.width}px · shipped line: "${out.shipped}"`);
-const heights = out.rows.map((r) => r.h);
-const single = Math.min(...heights);
+console.log(`column ${out.width}px · shipped line: "${out.shipped}" (${out.one}px, one line)`);
+// Anchored to `out.one` — the height the app actually rendered for the
+// SHIPPED line, measured before any candidate text is substituted in — not
+// to the minimum across the candidates below. A `Math.min` over the
+// candidate set is not a fact about one line of type; it is a fact about
+// whichever candidate happens to be shortest, and if every candidate here
+// wraps, the minimum wraps too and "wraps" stops being detectable at all.
 let wrapped = 0;
 for (const r of out.rows) {
-  const flag = r.h > single ? ' WRAPS' : '';
-  if (r.h > single) wrapped++;
+  const flag = r.h > out.one ? ' WRAPS' : '';
+  if (r.h > out.one) wrapped++;
   console.log(`${String(r.h).padStart(3)}px  ${String(r.chars).padStart(3)}ch  ${r.t}${flag}`);
 }
 await browser.close();

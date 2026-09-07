@@ -129,10 +129,10 @@ export const endings: Ending[] = [
   {
     id: 'ascension',
     name: 'Ascension',
-    summary: 'You held one of the four, and the room did not survive what you did with it.',
+    summary: 'You held a legendary the world could not ignore, and the room did not survive what you did with it.',
     hint: 'for the greatest name and a relic to match',
     narration:
-      'The four were never four things; they were one thing, broken on purpose — any shard works, if the hand holding it is famous enough. Yours was. You did it in a room built for nothing else, and the room did not survive the moment, and in any useful sense neither did you. The Crownlands struck your name from the tax rolls, as near as it comes to conceding the supernatural. You are not dead. On certain nights the old province’s sky is the wrong colour, and nobody under it remarks on it any more.',
+      'Every faction keeps something it was never supposed to let go of, and any of them works, if the hand holding it is famous enough. Yours was. You did it in a room built for nothing else, and the room did not survive the moment, and in any useful sense neither did you. The Crownlands struck your name from the tax rolls, as near as it comes to conceding the supernatural. You are not dead. On certain nights the old province’s sky is the wrong colour, and nobody under it remarks on it any more.',
     codaMode: 'tiered',
     coda: {
       unknown: 'The province has a sky the wrong colour and no story to attach to it. It was yours.',
@@ -290,6 +290,34 @@ export const endings: Ending[] = [
       named_threat: 'The file on you is thin, out of date, and describes a threat nobody ever felt.',
       kingdom: 'The Crownlands keep a file that says dangerous and a populace that would tell them otherwise.',
       legend: 'The songs got the fame right and the reason for it wrong, in the same direction as always.',
+    },
+    rarity: 'legendary',
+  },
+
+  // -------------------------------------------------------------------------
+  // Arch-Lich (issue #25). The one age-limit outcome the rite and the vow can
+  // both be true for — see the doc comment on `EndingId`'s `arch_lich` member
+  // in `types.ts` for why it is checked ahead of both `lichdom` and
+  // `good_wizard` rather than choosing between them. `codaMode: 'tiered'`,
+  // matching `lichdom`: fame still measures something for this wizard, and
+  // what it measures is the same contrast `good_wizard`'s coda runs on —
+  // between how the province files you and what you were actually doing.
+  // -------------------------------------------------------------------------
+
+  {
+    id: 'arch_lich',
+    name: 'Arch-Lich',
+    summary: 'The rite priced everything it knew how to. Some of you was never on that ledger.',
+    hint: 'for the eternally grateful',
+    narration:
+      'The rite took what it always takes: the followers left within the week, the relics went back into the ground, the cold set in and stayed. By its own accounting the matter is closed. Nobody accounted for the rest — the fence still gets mended, the widow downhill still finds her step swept before the frost does, in a hand nobody in the valley can place. The Worm Below considers this settled. It is not wrong. It is not the whole file, either.',
+    codaMode: 'tiered',
+    coda: {
+      unknown: 'Nobody outside the valley knows what is under the hill, or whose wash still gets done at the bottom of it.',
+      local_menace: 'Three hamlets keep leaving doorstep gifts, matched by a fee nobody asked for and nobody collects.',
+      named_threat: 'The file calls it an undead hazard. A second note, in nobody’s hand, calls it a debt paid on time.',
+      kingdom: 'The Crownlands filed you as a danger, and in the same drawer, a note nobody explains: settled, every year.',
+      legend: 'The songs cannot decide what to call you, and have quietly stopped trying.',
     },
     rarity: 'legendary',
   },

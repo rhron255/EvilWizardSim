@@ -159,6 +159,7 @@ type Policy =
   | 'ascendant'
   | 'reckless'
   | 'saint'
+  | 'redeemed'
   | PariahPolicy
   | CourtierPolicy;
 
@@ -205,7 +206,7 @@ const POPULATION: Array<[Policy, number]> = [
   ['reckless', 0.1],
 ];
 
-type Mode = 'notoriety' | 'defense' | 'standing' | 'ascendant' | 'reckless' | 'saint';
+type Mode = 'notoriety' | 'defense' | 'standing' | 'ascendant' | 'reckless' | 'saint' | 'redeemed';
 
 type Weights = {
   notoriety: number;
@@ -355,6 +356,36 @@ const WEIGHTS: Record<Mode, Weights> = {
     pactCeilingAware: true,
     heroThreat: -0.7,
     lairTier: 4,
+    goodAct: 20,
+    illAct: -25,
+  },
+  /**
+   * `redeemed`'s OWN ascent profile (issue #25) — `standing`'s numbers, so it
+   * still courts the Worm and survives the ascent the way `lich` does, PLUS
+   * `saint`'s exact `goodAct`/`illAct` pair.
+   *
+   * Reusing `standing` outright was tried first and measured: `GOOD_WIZARD_
+   * ILL_CAP` is 1, and `standing` prices `goodAct`/`illAct` at 0, so a
+   * 200-run cohort picked up an early illAct "by accident" (whichever option
+   * scored better on notoriety/followers alone) often enough to be
+   * permanently capped out of `virtue_resolution_the_quiet_ledger` before
+   * decline ever started — mean illActs 0.155 at the age limit, `virtue_
+   * resolution_the_quiet_ledger` seen zero times in the cohort, `arch_lich`
+   * 0/200. The cap has to be respected from era one, not from the era mode
+   * switches to `saint`.
+   */
+  redeemed: {
+    notoriety: 0.45,
+    followers: 0.2,
+    standing: 0.16,
+    artifact: 3.5,
+    loseArtifact: -4,
+    apprentices: 0.4,
+    loyalty: 0.08,
+    pactDebt: -1.4,
+    pactCeilingAware: true,
+    heroThreat: -0.3,
+    lairTier: 3,
     goodAct: 20,
     illAct: -25,
   },
@@ -559,6 +590,15 @@ function modeFor(policy: Policy, run: RunState, threatRatio: number): Mode {
       // limit, so surviving to it matters more here than reaching a peak does
       // for a fame-chaser — see the doc comment on `WEIGHTS.saint`.
       return threatRatio > 0.55 ? 'defense' : 'saint';
+    case 'redeemed':
+      // `arch_lich`'s own policy (issue #25): its OWN mode through the
+      // ascent — `standing`'s numbers, courting the Worm the way `lich`
+      // does, but pricing `goodAct`/`illAct` from era one so an early illAct
+      // never quietly caps the wizard out of the vow before decline starts
+      // (see `WEIGHTS.redeemed`). `saint` in the decline, where the rite and
+      // `virtue_resolution_the_quiet_ledger` both live.
+      if (run.phase === 'ascent') return 'redeemed';
+      return threatRatio > 0.55 ? 'defense' : 'saint';
     case 'random':
       return 'notoriety';
   }
@@ -708,8 +748,11 @@ function chooseOption(policy: Policy, run: RunState, offer: Offer, roll: number)
   const defense = defenseOf(run, content);
   const threatRatio = defense > 0 ? run.heroThreat / defense : 0;
   const w = WEIGHTS[modeFor(policy, run, threatRatio)];
-  const takesLichdom = policy === 'lich' && run.phase === 'decline';
-  const takesGoodWizard = policy === 'saint' && run.phase === 'decline';
+  // `redeemed` wants BOTH transformations (issue #25's `arch_lich`), so it
+  // joins both conditions below rather than getting a third of its own — a
+  // `takesX` flag is "does this policy want X", not "which policy is this".
+  const takesLichdom = (policy === 'lich' || policy === 'redeemed') && run.phase === 'decline';
+  const takesGoodWizard = (policy === 'saint' || policy === 'redeemed') && run.phase === 'decline';
 
   let best = -Infinity;
   let bestIndex = 0;
@@ -725,7 +768,20 @@ function chooseOption(policy: Policy, run: RunState, offer: Offer, roll: number)
     // after. The weight is high on purpose: this models the self-imposed
     // single-faction run that wiki/06 identifies as real player behaviour,
     // not a player who merely likes the Worm slightly more than average.
-    if (policy === 'lich') score += wormAffinity(option) * LICH_DEVOTION;
+    // `redeemed` courts the same way, but ONLY through the ascent — it needs
+    // the SAME rite `lich` does, and the boost's job is getting standing past
+    // the rite's gate before decline starts, not keeping it there afterward.
+    // Measured: applying it unconditionally, the way `lich` does, drowned out
+    // `saint`'s goodAct weight (20 per unit) on every offer that also moved
+    // Worm standing — a 200-run cohort took the rite in 11 runs and averaged
+    // 0.15 goodActs, `virtue_resolution_the_quiet_ledger` never once seen.
+    // Once the ascent is over the rite is either already taken (`becomeLich`
+    // and `ending: lichdom` are separately worth +40 in `scoreEffects`, which
+    // is incentive enough on its own) or the run failed to qualify and is a
+    // saint from here — either way, decline is `saint`'s job alone.
+    if (policy === 'lich' || (policy === 'redeemed' && run.phase === 'ascent')) {
+      score += wormAffinity(option) * LICH_DEVOTION;
+    }
     // The mirror of the line above: one faction, hard, in the other direction.
     if (isPariah(policy)) {
       const target = pariahTarget(policy);
@@ -1071,6 +1127,22 @@ function pickEraCount(roll: number): number {
  */
 const PROBE_RUNS = 200;
 
+/**
+ * `arch_lich`'s own cohort size (issue #25), 50x `PROBE_RUNS` and measured,
+ * not matched to it for consistency's sake. `arch_lich` needs the rite AND
+ * the vow on the SAME career, and the two pull against each other more than
+ * independence would predict — the rite forfeits every artifact and every
+ * follower, which is most of `defenseOf`, so a `redeemed` wizard who takes it
+ * is walking into the steepest part of the hero ramp naked at the exact
+ * moment it also needs to survive to the age limit for the vow to resolve.
+ * At `PROBE_RUNS` (200) the expected count is well under 1 and the check
+ * flickers exactly the way `lichdom`'s did before it got its own cohort
+ * (issue #24). Measured across eight seeds at this size: 2-10 per run,
+ * never zero — an expected count of roughly 5, an order of magnitude clear
+ * of the flicker `lichdom` shipped with.
+ */
+const REDEEMED_PROBE_RUNS = Number(process.env.REDEEMED_PROBE_RUNS ?? 10_000);
+
 function reprisalProbe(baseSeed: number): Map<FactionId, RunResult[]> {
   const out = new Map<FactionId, RunResult[]>();
   for (const faction of PARIAH_TARGETS) {
@@ -1144,6 +1216,26 @@ function lichProbe(baseSeed: number): RunResult[] {
   const runs: RunResult[] = [];
   for (let i = 0; i < PROBE_RUNS; i++) {
     runs.push(playRun(baseSeed + 917_293 + i * 4519, pickEraCount(rng()), 'lich'));
+  }
+  return runs;
+}
+
+/**
+ * `arch_lich`'s own dedicated cohort probe (issue #25) — `lichProbe`'s
+ * mirror, for the ending neither `lichProbe` nor `saintProbe` alone can
+ * measure: `arch_lich` needs BOTH the rite and the vow true on the SAME
+ * career, and a `lich`-seeker never chases goodActs (every mode but `saint`
+ * prices them at 0) while a `saint` never courts the Worm on purpose. Without
+ * this, `arch_lich` read 0/4400 in the full report the day it shipped — not
+ * because the branch was unreachable, but because nothing in the population
+ * OR the other probes was a player who wanted it, which is exactly the
+ * instrument failure CLAUDE.md's failure mode 5 describes.
+ */
+function redeemedProbe(baseSeed: number): RunResult[] {
+  const rng = mulberry32((baseSeed ^ 0xa1c4e5ed) + 1);
+  const runs: RunResult[] = [];
+  for (let i = 0; i < REDEEMED_PROBE_RUNS; i++) {
+    runs.push(playRun(baseSeed + 428_951 + i * 3877, pickEraCount(rng()), 'redeemed'));
   }
   return runs;
 }
@@ -1247,6 +1339,10 @@ const ENDING_ORDER: EndingId[] = [
   'overthrown_the_kingdom',
   // Age-limit-only, like the leadership set above (issue #23).
   'good_wizard',
+  // The one age-limit outcome `good_wizard` and `lichdom` can both be true
+  // for at once (issue #25) — listed after both, since it is their overlap
+  // rather than a seventh independent route.
+  'arch_lich',
 ];
 
 const ALL_ENDING_IDS: EndingId[] = content.endings.map((e) => e.id);
@@ -1389,6 +1485,7 @@ function main(): void {
   const leadership = leadershipProbe(baseSeed);
   const saint = saintProbe(baseSeed);
   const lich = lichProbe(baseSeed);
+  const redeemed = redeemedProbe(baseSeed);
 
   /** Every career the harness played, for the reachability check only. */
   const byEndingAnywhere = new Map(byEnding);
@@ -1406,6 +1503,9 @@ function main(): void {
     byEndingAnywhere.set(r.ending, (byEndingAnywhere.get(r.ending) ?? 0) + 1);
   }
   for (const r of lich) {
+    byEndingAnywhere.set(r.ending, (byEndingAnywhere.get(r.ending) ?? 0) + 1);
+  }
+  for (const r of redeemed) {
     byEndingAnywhere.set(r.ending, (byEndingAnywhere.get(r.ending) ?? 0) + 1);
   }
 
@@ -1717,6 +1817,36 @@ function main(): void {
     );
   }
 
+  // --- arch_lich: the intersection ----------------------------------------
+  //
+  // Its own row rather than folded into either table above: `redeemed` is
+  // neither `saint` nor `lich`, and the number that matters here is the
+  // JOINT rate, not either half alone — see `REDEEMED_PROBE_RUNS` for why
+  // this cohort is far larger than the others.
+  console.log(rule());
+  console.log(`  ARCH-LICH  (${REDEEMED_PROBE_RUNS}-run cohort probe, then the population)`);
+  console.log(
+    `${pad('  ', 20)}${padLeft('cohort', 8)}${padLeft('rite', 8)}${padLeft('resolution', 12)}${padLeft('ending', 9)}${padLeft('pop', 8)}`,
+  );
+  {
+    const rite = redeemed.filter((r) => r.becameLich).length;
+    const resolutionSeen = redeemed.filter((r) =>
+      r.virtueSeen.some((id) => id.startsWith('virtue_resolution_')),
+    ).length;
+    const resolutionTaken = redeemed.filter((r) =>
+      r.virtueTaken.some((id) => id.startsWith('virtue_resolution_')),
+    ).length;
+    const reached = redeemed.filter((r) => r.ending === 'arch_lich').length;
+    console.log(
+      pad('  redeemed', 20) +
+        padLeft(String(redeemed.length), 8) +
+        padLeft(pct(rite, redeemed.length), 8) +
+        padLeft(`${pct(resolutionSeen, redeemed.length)}/${pct(resolutionTaken, redeemed.length)}`, 12) +
+        padLeft(pct(reached, redeemed.length), 9) +
+        padLeft(pct(byEnding.get('arch_lich') ?? 0, total), 8),
+    );
+  }
+
   console.log(rule());
   row('became a lich (transformation)', pct(results.filter((r) => r.becameLich).length, total));
   row('LICHDOM ending', pct(byEnding.get('lichdom') ?? 0, total));
@@ -1778,17 +1908,17 @@ function main(): void {
        * headline band in the file that the wiki states outright, and the one
        * that may not simply be widened.
        *
-       * KNOWN RED SINCE THE FACTION REPRISALS LANDED (#14 slice 1), at
-       * 0.80-1.20% against a pre-reprisal 1.50-1.65%. Do not tune this band,
-       * and do not reach for `ASCENSION_MIN_NOTORIETY` to make the row go
-       * green: the cause is measured and is neither threshold. Careers end
-       * ~0.8 eras earlier now (mean run length 13.42 -> 12.62), so BOTH
-       * conjuncts fell together — 84+ notoriety 9.85% -> 7.35%, a legendary
-       * ever held 10.35% -> 8.40%. Slice 4 gives the Gilded Hand and the
-       * Verdant Choir a legendary each, which lifts the second one, and the
-       * issue plans to re-tune the threshold there with numbers on both sides.
-       * Lowering it now and raising it then is how `DEF_LICH` got distorted
-       * twice. Re-measure when slice 4 lands.
+       * WAS RED from the faction reprisals landing (#14 slice 1) through
+       * 0.80-1.20%, against a pre-reprisal 1.50-1.65% — reprisals ended
+       * careers ~0.8 eras earlier (mean run length 13.42 -> 12.62), so BOTH
+       * conjuncts fell together (84+ notoriety 9.85% -> 7.35%, a legendary
+       * ever held 10.35% -> 8.40%). `ASCENSION_MIN_NOTORIETY` was
+       * deliberately left untouched rather than lowered to paper over it.
+       * Slice 4 (issue #22) gave the Gilded Hand and the Verdant Choir a
+       * legendary each, which recovered the conjunct that fell, and measured
+       * back in-band without moving the threshold — the twice-chased
+       * `DEF_LICH` mistake this comment used to warn against repeating.
+       * PASSING again as of #22/#25, at 1.25-1.35% across seeds.
        */
       'Ascension in 1-4%',
       ascensionRate >= 0.01 && ascensionRate <= 0.04,
@@ -1884,7 +2014,8 @@ function main(): void {
         [...probe.values()].reduce((a, c) => a + c.length, 0) +
         [...leadership.values()].reduce((a, c) => a + c.length, 0) +
         saint.length +
-        lich.length
+        lich.length +
+        redeemed.length
       } careers)`,
       ALL_ENDING_IDS.every((e) => (byEndingAnywhere.get(e) ?? 0) > 0),
       `${ALL_ENDING_IDS.filter((e) => (byEndingAnywhere.get(e) ?? 0) > 0).length}/${

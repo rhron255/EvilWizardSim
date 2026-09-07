@@ -114,6 +114,7 @@ const REQUIRED_ENDINGS = [
   'archdruid',
   'overthrown_the_kingdom',
   'good_wizard',
+  'arch_lich',
 ];
 for (const id of REQUIRED_ENDINGS) {
   if (!endings.some((e) => e.id === id)) fail('endings', `missing "${id}"`);
@@ -509,19 +510,32 @@ const COUNT_WORDS = new Set([
   '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
 ]);
 
-function statesAscensionPrice(text: string): string | null {
+/**
+ * `impliedSubject`: the Ascension ending's own `summary` and `narration`
+ * describe its price without ever having to say the word "ascension" — the
+ * id already says which ending this is. "You held one of the four" and "The
+ * four were never four things" shipped in exactly those two fields, said
+ * nothing but "ascension" nowhere in either sentence, and reached six
+ * legendaries in before this check caught it, because the check requires
+ * "ascension" to co-occur with the count. `impliedSubject` widens the check
+ * to any count word in the sentence for those two fields alone. `hint` and
+ * `coda` keep the narrower, co-occurrence-based check — a coda vignette can
+ * legitimately hold an unrelated numeral (Ascension's own kingdom coda says
+ * "Three hamlets"), and a blanket count-word ban would flag it.
+ */
+function statesAscensionPrice(text: string, impliedSubject: boolean): string | null {
   for (const sentence of text.split(/(?<=[.!?])\s+/)) {
     const words = sentence.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
-    if (!words.includes('ascension')) continue;
+    if (!impliedSubject && !words.includes('ascension')) continue;
     const count = words.find((w) => COUNT_WORDS.has(w));
     if (count) return sentence.trim();
   }
   return null;
 }
 
-function checkAscensionPrice(where: string, text: string | undefined) {
+function checkAscensionPrice(where: string, text: string | undefined, impliedSubject = false) {
   if (!text) return;
-  const offending = statesAscensionPrice(text);
+  const offending = statesAscensionPrice(text, impliedSubject);
   if (offending) {
     fail(
       where,
@@ -536,8 +550,9 @@ for (const a of artifacts) {
   checkAscensionPrice(`artifact "${a.id}"`, a.flavorText);
 }
 for (const e of endings) {
-  checkAscensionPrice(`ending "${e.id}"`, e.summary);
-  checkAscensionPrice(`ending "${e.id}"`, e.narration);
+  const impliedSubject = e.id === 'ascension';
+  checkAscensionPrice(`ending "${e.id}"`, e.summary, impliedSubject);
+  checkAscensionPrice(`ending "${e.id}"`, e.narration, impliedSubject);
   checkAscensionPrice(`ending "${e.id}"`, e.hint);
   if (e.codaMode === 'tiered') {
     for (const [tier, line] of Object.entries(e.coda)) {

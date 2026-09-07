@@ -75,10 +75,17 @@ const ENDING_IDS: EndingId[] = [
   'archdruid',
   'overthrown_the_kingdom',
   'good_wizard',
+  'arch_lich',
 ];
 
 /** Every id in the frozen union is covered — no ending gets to go unchecked. */
-const SELF_DETERMINED: EndingId[] = ['lichdom', 'retired_to_swamp', 'ascension', 'good_wizard'];
+const SELF_DETERMINED: EndingId[] = [
+  'lichdom',
+  'retired_to_swamp',
+  'ascension',
+  'good_wizard',
+  'arch_lich',
+];
 const ATTRIBUTED: EndingId[] = [
   'slain_by_chosen_one',
   'sealed_in_gem',
