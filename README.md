@@ -72,6 +72,20 @@ The correctness gate for a change is **`npm run typecheck`, `npm run test` and
 `npm run lint`**, all three. Content changes additionally need
 `npm run validate:content`. Balance changes need `npm run sim`.
 
+### Deployment
+
+Every push to `main` builds the bundle and publishes it to GitHub Pages
+(`.github/workflows/pages.yml`), at
+<https://rhron255.github.io/EvilWizardSim/>. Pages serves a project site from
+a `/<repo>/` subdirectory rather than the domain root, so the workflow passes
+that prefix to the build as `BASE_PATH` and `vite.config.ts` uses it as Vite's
+`base`. Leaving `BASE_PATH` unset — as `npm run dev` and a local `npm run
+build` do — builds for the root instead.
+
+The deployment needs Pages enabled for the repository with its source set to
+**GitHub Actions** (Settings -> Pages -> Build and deployment -> Source); the
+workflow cannot turn that on for itself.
+
 ## Layout
 
 | Path | Owns |
