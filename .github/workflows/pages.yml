@@ -36,6 +36,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # `npm run build` only runs tsc and vite build — it does not run the
+      # unit tests, lint, or content validation. Those are the checks most
+      # likely to catch a broken game (bad content, a failing gameplay
+      # test), so a deploy must not skip them just because ci.yml happens to
+      # run in a separate workflow that this one does not wait on.
+      - name: Test
+        run: npm run test
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Validate content
+        run: npm run validate:content
+
       - name: Build
         # Pages serves a project site from /<repo>/, so the bundle's asset URLs
         # need that prefix. vite.config.ts reads it from BASE_PATH.
