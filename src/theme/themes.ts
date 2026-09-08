@@ -306,6 +306,330 @@ export const THEMES: ThemeDef[] = [
       ghost: '#404f4c',
     },
   },
+
+  // ---------------------------------------------------------------------------
+  // The five faction reprisals (issue #14).
+  //
+  // Adding an ending adds a theme — `ThemeId` is `'default' | EndingId` and
+  // `themes.test.ts` fails the moment an ending has none, which is the whole
+  // reason the two id spaces were collapsed into one. Each takes the hue of the
+  // faction that ended the career; none may name `--ew-tier`, and none does,
+  // because the token objects these are keyed off have no tier key.
+  //
+  // The ramps are generated rather than eyeballed: one hue per theme at the
+  // same lightness steps, then the panel darkened by a point or two where the
+  // ink did not clear the default palette's 13.80:1. Doing it by eye is how the
+  // shipped themes came to be "hard to tell apart from the regular one" —
+  // measure the ratio, then look at it.
+  // ---------------------------------------------------------------------------
+
+  {
+    id: 'eternally_repurposed',
+    name: 'Requisition',
+    endingId: 'eternally_repurposed',
+    blurb: 'Ash and old brass. Stock, correctly filed.',
+    surface: {
+      void: '#111209',
+      panel: '#212311',
+      raised: '#2e3118',
+      hover: '#3b3f1f',
+      line: '#484c26',
+      lineStrong: '#6b7326',
+    },
+    ink: {
+      bright: '#f8f8f8',
+      base: '#eeefec',
+      dim: '#a2a48e',
+      faint: '#75775f',
+      ghost: '#4d4e41',
+    },
+  },
+
+  {
+    id: 'liquidated',
+    name: 'Assets Realised',
+    endingId: 'liquidated',
+    blurb: 'Counting-house blue, under a valuer’s lamp.',
+    surface: {
+      void: '#0a1218',
+      panel: '#111f2a',
+      raised: '#172a38',
+      hover: '#1d3547',
+      line: '#234055',
+      lineStrong: '#225477',
+    },
+    ink: {
+      bright: '#f8f8f8',
+      base: '#ecedef',
+      dim: '#8e9ba4',
+      faint: '#5f6d77',
+      ghost: '#41484e',
+    },
+  },
+
+  {
+    id: 'turned_to_fertilizer',
+    name: 'Good Ground',
+    endingId: 'turned_to_fertilizer',
+    blurb: 'Everything in this room is growing. Some of it is you.',
+    // The darkest panel of the twelve: green sits high in the luminance
+    // formula, so the same lightness step that reads as a room in blue reads
+    // as a lawn here, and the ink loses its floor.
+    surface: {
+      void: '#091208',
+      panel: '#132410',
+      raised: '#1a3216',
+      hover: '#21401d',
+      line: '#294e23',
+      lineStrong: '#2e6a25',
+    },
+    ink: {
+      bright: '#f8f8f8',
+      base: '#ecefec',
+      dim: '#91a48e',
+      faint: '#62775f',
+      ghost: '#434e41',
+    },
+  },
+
+  {
+    id: 'exiled_and_overrun',
+    name: 'Past the Border',
+    endingId: 'exiled_and_overrun',
+    blurb: 'Warm, and not on your side of the line.',
+    surface: {
+      void: '#170b0f',
+      panel: '#28131b',
+      raised: '#361924',
+      hover: '#44202d',
+      line: '#512636',
+      lineStrong: '#702943',
+    },
+    ink: {
+      bright: '#f8f8f8',
+      base: '#efeced',
+      dim: '#a48e96',
+      faint: '#775f68',
+      ghost: '#4e4146',
+    },
+  },
+
+  {
+    id: 'consumed',
+    name: 'Underneath',
+    endingId: 'consumed',
+    blurb: 'Wet stone, no weather, and something patient below it.',
+    surface: {
+      void: '#0b1314',
+      panel: '#132224',
+      raised: '#1b2f31',
+      hover: '#223c3f',
+      line: '#29484c',
+      lineStrong: '#2b5e64',
+    },
+    ink: {
+      bright: '#f8f8f8',
+      base: '#eceeef',
+      dim: '#8ea2a4',
+      faint: '#5f7577',
+      ghost: '#414d4e',
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // The five faction leadership endings (issue #14, slice 2). `lichdom` above
+  // is the Worm Below's sixth and already has its theme, "Cold Room".
+  //
+  // Same generation recipe as the reprisals: one hue per theme, held at a
+  // fixed lightness ladder, panel darkened where the ink did not clear the
+  // default palette's 13.80:1 on the nose. Hues are picked at least ~25° off
+  // the twelve already in use where a gap that wide existed; `grand_arbiter`
+  // sits in the one gap that was only ~26° wide to begin with (between the
+  // reprisals' olive and this set's own gold-green), so it leans on a much
+  // higher saturation than its neighbours to stay legible as a different
+  // colour rather than a paler version of one of them.
+  // ---------------------------------------------------------------------------
+
+  {
+    id: 'contract_writer',
+    name: 'Correspondence',
+    endingId: 'contract_writer',
+    blurb: 'The Covenant’s olive, gone brassy where the ink is fresh.',
+    surface: {
+      void: '#0c1007',
+      panel: '#19210f',
+      raised: '#233015',
+      hover: '#2d3e1c',
+      line: '#384c22',
+      lineStrong: '#476824',
+    },
+    ink: {
+      bright: '#f8f8f8',
+      base: '#edefec',
+      dim: '#99a48e',
+      faint: '#6b775f',
+      ghost: '#484e41',
+    },
+  },
+
+  {
+    id: 'grand_arbiter',
+    name: 'The Final Number',
+    endingId: 'grand_arbiter',
+    blurb: 'Gold, at the exact saturation of a figure nobody argues with.',
+    surface: {
+      void: '#100f07',
+      panel: '#22200e',
+      raised: '#312e14',
+      hover: '#3f3b1a',
+      line: '#4e4820',
+      lineStrong: '#72671b',
+    },
+    ink: {
+      bright: '#f8f8f8',
+      base: '#efefec',
+      dim: '#a4a18e',
+      faint: '#77745f',
+      ghost: '#4e4c41',
+    },
+  },
+
+  {
+    id: 'archmage',
+    name: 'The Chair',
+    endingId: 'archmage',
+    blurb: 'A pale, cold blue. The disclaimer used to live here.',
+    surface: {
+      void: '#090c15',
+      panel: '#111527',
+      raised: '#171d36',
+      hover: '#1d2544',
+      line: '#232d52',
+      lineStrong: '#25346f',
+    },
+    ink: {
+      bright: '#f8f8f8',
+      base: '#ececef',
+      dim: '#8e92a4',
+      faint: '#5f6477',
+      ghost: '#41444e',
+    },
+  },
+
+  {
+    id: 'archdruid',
+    name: 'The Eldest Oak',
+    endingId: 'archdruid',
+    blurb: 'Gold-green, the colour of a grove that voted without meeting.',
+    surface: {
+      void: '#07100a',
+      panel: '#0f2215',
+      raised: '#15301d',
+      hover: '#1b3e26',
+      line: '#214d2f',
+      lineStrong: '#236939',
+    },
+    ink: {
+      bright: '#f8f8f8',
+      base: '#ecefed',
+      dim: '#8ea495',
+      faint: '#5f7767',
+      ghost: '#414e45',
+    },
+  },
+
+  {
+    id: 'overthrown_the_kingdom',
+    name: 'The Crown',
+    endingId: 'overthrown_the_kingdom',
+    blurb: 'Royal purple, kept by someone the Crownlands did not choose.',
+    surface: {
+      void: '#150913',
+      panel: '#271123',
+      raised: '#35182f',
+      hover: '#431e3c',
+      line: '#512449',
+      lineStrong: '#6d2660',
+    },
+    ink: {
+      bright: '#f8f8f8',
+      base: '#efecee',
+      dim: '#a48ea0',
+      faint: '#775f73',
+      ghost: '#4e414c',
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // The Good Wizard (issue #14 slice 5, issue #23).
+  //
+  // The one deliberate register break in the set: every theme above is a hue
+  // rotation of the same warm-DARK structure, and this one is light — cream
+  // and gold, daylight rather than tower-at-night. Constraint 2 (near-
+  // monochrome within a theme) and constraint 5 (the ink floor) are still
+  // measured, not waived: `ink` simply inverts direction here, dark warm
+  // brown-black read against a pale cream ramp rather than pale parchment
+  // read against a warm black one. Neither token object has a tier key, so
+  // constraint 1 holds the same way it does for every other theme.
+  // ---------------------------------------------------------------------------
+
+  {
+    id: 'good_wizard',
+    name: 'Ordinary Weather',
+    endingId: 'good_wizard',
+    blurb: 'Cream and gold. The one room in the tower that gets any daylight.',
+    surface: {
+      void: '#fbf4df',
+      panel: '#f3e7c4',
+      raised: '#ecdba8',
+      hover: '#e4cd8a',
+      line: '#d6b667',
+      lineStrong: '#b98b2e',
+    },
+    ink: {
+      bright: '#1c1300',
+      base: '#241a05',
+      dim: '#4a3814',
+      faint: '#6b5726',
+      ghost: '#8f7b4a',
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // Arch-Lich (issue #25).
+  //
+  // Not a rotation of "Cold Room" — a theme keyed to `arch_lich` earns its own
+  // block regardless of how close the two endings sit, the same way `good_
+  // wizard` above earns one distinct from every dark theme it sits beside.
+  // Still the SAME violet-undeath family `lichdom` claims (constraint 2 is
+  // measured per theme, not against a sibling, so there is no rule forcing
+  // distance from it) — this one is simply lit from something `lichdom`
+  // doesn't have: a shade warmer and several steps brighter, a candle in the
+  // cold room rather than the cold room itself. Dark, unlike `good_wizard`;
+  // near-monochrome within itself, unlike nothing — every theme is.
+  // ---------------------------------------------------------------------------
+
+  {
+    id: 'arch_lich',
+    name: 'Kept Vigil',
+    endingId: 'arch_lich',
+    blurb: 'The same cold room. Somebody left a candle burning in it anyway.',
+    surface: {
+      void: '#130e1a',
+      panel: '#20142e',
+      raised: '#2b1c3d',
+      hover: '#35234a',
+      line: '#432c5e',
+      lineStrong: '#573a76',
+    },
+    ink: {
+      bright: '#fbf5ff',
+      base: '#f1e7f8',
+      dim: '#b39dc5',
+      faint: '#8472a1',
+      ghost: '#5d5077',
+    },
+  },
 ];
 
 export const DEFAULT_THEME_ID: ThemeId = 'default';

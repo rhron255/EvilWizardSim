@@ -22,9 +22,23 @@
  * player has already felt during the run, so the card is naming a relationship
  * the game was enforcing rather than a number invented for the summary
  * (CLAUDE.md failure mode 6).
+ *
+ * PATRON is `patronFaction` from the engine, not a second walk of
+ * `factionStanding`. It used to be: highest standing, gated on
+ * `DEVOTION_STANDING` alone, tie-broken by whatever order `factions` happens
+ * to list — a second copy of the rule `leadershipEnding` runs on `RunState`
+ * at the age limit, and the two could disagree on which faction to name.
+ * They agreed on every run that actually reaches a crown (a crown needs
+ * `PATRON_MARGIN` clear of the runner-up, which is also enough margin to win
+ * this file's cruder walk), so the drift stayed latent — but a wizard devoted
+ * to three factions at once, margin denied, still got a "patron" line here
+ * naming one of them, directly contradicting a same-screen ending card that
+ * says nobody crowned them. Calling the shared function removes both the
+ * missing `PATRON_MARGIN` check and the second tie-break implementation in
+ * one move.
  */
 
-import { ARTIFACT_LOCKOUT_STANDING, DEVOTION_STANDING } from '../../engine';
+import { ARTIFACT_LOCKOUT_STANDING, patronFaction } from '../../engine';
 import type { Faction, FactionId, RunState } from '../../types';
 
 export type StandingBond = {
@@ -35,7 +49,7 @@ export type StandingBond = {
 };
 
 export type StandingPassage = {
-  /** Highest standing, at or above `DEVOTION_STANDING`. */
+  /** The faction `patronFaction` crowns, if any — see that function's doc comment. */
   patron: StandingBond | null;
   /** Lowest standing, at or below `ARTIFACT_LOCKOUT_STANDING`. */
   nemesis: StandingBond | null;
@@ -56,17 +70,18 @@ function bond(factions: Faction[], id: FactionId, standing: number): StandingBon
  * career, not an edge case to paper over — `retired_to_swamp` is full of them.
  */
 export function standingPassageFor(run: RunState, factions: Faction[]): StandingPassage {
-  let best: { id: FactionId; v: number } | null = null;
   let worst: { id: FactionId; v: number } | null = null;
 
   for (const faction of factions) {
     const v = run.factionStanding[faction.id] ?? 0;
-    if (best === null || v > best.v) best = { id: faction.id, v };
     if (worst === null || v < worst.v) worst = { id: faction.id, v };
   }
 
+  const patronId = patronFaction(run);
+  const patron = patronId === undefined ? null : bond(factions, patronId, run.factionStanding[patronId] ?? 0);
+
   return {
-    patron: best && best.v >= DEVOTION_STANDING ? bond(factions, best.id, best.v) : null,
+    patron,
     nemesis: worst && worst.v <= ARTIFACT_LOCKOUT_STANDING ? bond(factions, worst.id, worst.v) : null,
   };
 }

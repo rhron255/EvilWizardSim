@@ -58,8 +58,15 @@ const MINUS = '−'; // U+2212 MINUS SIGN — optically matches the plus, unlike
  * `DEF_LICH` is interpolated, never written as a literal. Reads as a bill with
  * a rebate: the forfeiture stays adjacent to "Become a lich" and the two gains
  * follow.
+ *
+ * "Not the end" opens the line (issue #21) because `becomeLich` TRANSFORMS
+ * rather than terminates — `checkEndings` still requires reaching the age
+ * limit as a lich to land on the `lichdom` ending — and the card's own label
+ * used to imply the opposite. A player who reads only this line before
+ * committing must still learn the one fact that changes what the choice
+ * means.
  */
-export const LICH_LINE = `Become a lich · forfeit every relic and all Followers · Notoriety decay ends · +${DEF_LICH} Wards`;
+export const LICH_LINE = `A lich, not the end · forfeit all relics and Followers · Notoriety decay ends · +${DEF_LICH} Wards`;
 
 /** Signed, with a real minus sign. Zero is rare but must not render as "+0". */
 export function signed(v: number): string {
@@ -199,6 +206,26 @@ export function describeEffect(
      */
     case 'becomeLich':
       return { text: LICH_LINE, tone: 'grave' };
+
+    /**
+     * Dead code by construction (issue #23's rule-1 exception). `goodAct`/
+     * `illAct` never reach a renderer: `applyEffects` never pushes either to
+     * `EffectApplication.applied`, and `projectEffects` routes them through
+     * that same function via `PROJECTABLE` rather than passing them through
+     * raw — so neither the resolution card nor the pre-commit offer card
+     * ever calls this with one. The case exists only so the exhaustive
+     * switch below still compiles. See the doc comment on `Effect` in
+     * `types.ts` before assuming this is reachable.
+     */
+    case 'goodAct':
+    case 'illAct':
+      return { text: '', tone: 'neutral' };
+
+    case 'vowGoodWizard':
+      return {
+        text: 'A quiet life, held to the end · the run continues',
+        tone: 'up',
+      };
 
     case 'ending':
       return { text: `The run ends · ${endingName(effect.endingId)}`, tone: 'grave' };

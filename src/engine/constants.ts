@@ -134,6 +134,43 @@ export const DEF_LAIR = 8;
  */
 export const DEF_LICH = 60;
 
+/**
+ * How many relics the rite demands — and consumes — before the Worm Below
+ * will take you.
+ *
+ * PROVENANCE: none. No wiki line prices lichdom in relics; this is CLAUDE.md
+ * failure mode 6's invented number, arriving labelled rather than chased
+ * quietly. The band the design CAN defend: high enough that the rite costs a
+ * real collection, not the single legendary a devoted courtier already gets
+ * for free from `concordat_worm` at the same `DEVOTION_STANDING` gate; low
+ * enough that Lich is not strictly harder to reach than the other five
+ * leadership crowns, which ask for standing alone.
+ *
+ * The requirement and the rite's cost are deliberately the SAME relics — the
+ * rite already forfeits every relic held (`becomeLich`) — so this gates the
+ * stock it spends rather than promising a fixed benefit an empty vault could
+ * still collect (CLAUDE.md failure mode 14). `scripts/validate-content.ts`
+ * holds `scripted_the_long_arrangement`'s `minArtifacts` gate to this value
+ * the same way it holds `concordat_`/`oath_` gates to `DEVOTION_STANDING`,
+ * since content stays a pure data bundle and cannot import this constant.
+ *
+ * MEASURED (issue #21), `lich` sim policy, `npm run sim -- --seed 1|2`: at 3
+ * the rite's own DEVOTION_STANDING gate plus a triple-relic hold together
+ * pushed the lich-seeker cohort to 2.31% / 1.08% — the second seed missed the
+ * 2-15% reachability band outright. At 2, the same cohort measured 2.31% /
+ * 5.38%, both comfortably inside the band, at the SAME `weight: 6` the rite
+ * already carried (raising weight instead of lowering this was tried first;
+ * it moved seed 1 from 2.31% to only 2.31% again, because the harder gate is
+ * a reachability problem the draw weight cannot fix — a seeker who cannot
+ * assemble three relics before the age limit is never offered the card at
+ * any weight). 2 is also reachable through the SAME `concordat_worm` grant a
+ * devoted courtier already collects at this standing, plus just one more
+ * relic from anywhere in the run — a real collection, but not a
+ * purpose-built vault, which is the "not strictly harder than the other five
+ * crowns" half of the band this constant cannot otherwise prove.
+ */
+export const LICH_RELIC_REQUIREMENT = 2;
+
 // ---------------------------------------------------------------------------
 // Faction standing — wiki/04 § Faction Standing
 // ---------------------------------------------------------------------------
@@ -272,28 +309,140 @@ export const BETRAYAL_MAX_LOYALTY = 15;
 export const LOYALTY_DRIFT_BASE = 2;
 export const LOYALTY_DRIFT_MIN_APPRENTICES = 2;
 
-/** Sealed in a Gem: the Pale Academy files dangerous alumni away. */
+/**
+ * A faction reprisal: standing this far under, and famous enough to be worth
+ * the trouble. Six outcomes, one condition — `REPRISAL_BY_FACTION` in
+ * `endings.ts` maps each faction to what it does about you.
+ *
+ * The names are historical: this was `sealed_in_gem`'s trigger and nothing
+ * else's, so the constants are still called SEAL_*. `SEAL_FACTION` is no
+ * longer "the faction that can end a run" — all six can. It is now the one
+ * faction whose reprisal is live in EVERY phase, which is what keeps the
+ * Academy's rate where it was measured while the five added beside it stay
+ * decline-only (`reprisalLiveFor`).
+ */
 export const SEAL_FACTION = 'pale_academy' as const;
 export const SEAL_MAX_STANDING = -55;
 export const SEAL_MIN_NOTORIETY = 55;
 
 /**
+ * How far ahead your best faction must be over your second-best before it
+ * hands you its leadership at the age limit.
+ *
+ * PROVENANCE: none. No wiki line authorises this number — wiki/01 § 7 names no
+ * leadership endings at all, and the only standing threshold the design states
+ * is `DEVOTION_STANDING`. CLAUDE.md failure mode 6 is precisely about a number
+ * invented in a task brief and then chased, so this one arrives labelled.
+ *
+ * What the design CAN defend is the shape, and this constant is the whole of
+ * it. Devotion alone is not leadership: `DEVOTION_STANDING` is the reliquary
+ * threshold, and a wizard who traded favours widely can sit over it with three
+ * factions at once. Being crowned by a faction has to mean you chose ONE and
+ * paid for it in the others — the margin is what makes that choice legible in
+ * a single number, and it is why the check is a gap rather than a second
+ * absolute threshold.
+ *
+ * The second thing it protects is `retired_to_swamp`. Every age-limit run that
+ * clears this becomes a leadership ending instead, so the margin is the only
+ * dial standing between "the anticlimactic ending the wiki asks for" and a
+ * residue nobody reaches. Its baseline share is 11.65% of runs (233/2000 in
+ * `qa/baseline-endings.json`, measured before ANY faction ending existed —
+ * reprisal or leadership). That figure is what the value was fitted against.
+ *
+ * MEASURED (issue #14 slice 2b), not merely asserted: swamp sits at
+ * 8.25-8.55% of the population now (seeds 1-2, `npm run sim`), and the number
+ * DOES NOT MOVE this constant. It was swept from 5 to 25 and the population
+ * share stayed within 0.3 points across the whole range — because the
+ * population's eight policies (`POPULATION` in `scripts/simulate.ts`) do not
+ * concentrate standing in one faction whether the bar is easy or hard; only a
+ * dedicated `courtier_<faction>` does that, and those cohorts are deliberately
+ * NOT in the population for the same reason the pariahs are not (see the
+ * comment on `POPULATION`). So the gap from 11.65% to ~8.4% is real, but it
+ * is downstream of the reprisals and the leadership endings EXISTING at all
+ * — six and then five more ways for an age-limit run to avoid the swamp
+ * outside of standing-margin play — not of where this margin sits. Chasing it
+ * by moving `PATRON_MARGIN` would be CLAUDE.md failure mode 6 in reverse: a
+ * target the constant does not actually control.
+ *
+ * What 20 IS fitted against is the thing it actually governs: whether a
+ * player who commits to ONE faction reaches its crown. Every one of the five
+ * standing-earned crowns (`courtier_<faction>`, 200-run cohorts) lands
+ * between 1.5% and 8.5% at this value, seeds 1-2 — reachable, per faction,
+ * without a single cohort reading zero. `npm run sim` is still the
+ * instrument for that half of the fit; the value stays 20 because raising it
+ * buys nothing on `retired_to_swamp` and only makes the weaker cohorts
+ * (`crownlands`, `ashen_covenant`) harder to clear.
+ */
+export const PATRON_MARGIN = 20;
+
+/**
  * Ascension: the visible unattainable prize.
  *
- * ONE legendary, not two. The four legendaries sit in the most mutually
- * hostile corner of the faction web, and hostility is contagious, so requiring
- * two meant courting two factions that spend the whole run cancelling each
- * other out — 2000 runs produced 0.05%. That is not a near-miss, it is a
- * closed door, and the empty Ascension slot in the header would have been a
- * promise the game could not keep.
+ * ONE legendary, not two. The original four legendaries sat in the most
+ * mutually hostile corner of the faction web, and hostility is contagious, so
+ * requiring two meant courting two factions that spend the whole run
+ * cancelling each other out — 2000 runs produced 0.05%. That is not a
+ * near-miss, it is a closed door, and the empty Ascension slot in the header
+ * would have been a promise the game could not keep.
  *
  * One legendary plus Legend-adjacent fame is still the hardest thing in the
  * game, and it stays LEGIBLE: devotion buys the relic, fame buys the threshold,
  * and the two pull against each other. Missing it reads as unfinished business
  * rather than as a bug, which is the whole point of wiki/04 § Near-Miss Tuning.
+ *
+ * `ASCENSION_MIN_NOTORIETY` moved 84 -> 80 in #22, alongside the Hand and the
+ * Choir each gaining a legendary (see `src/content/artifacts.ts`). The two
+ * new legendaries barely moved the rate on their own — seeds 1/2/6/7 went
+ * 1.25/0.75/0.80/0.70% to 1.40/0.75/0.80/0.75%, still under the 1-4% band —
+ * because `ascensionReady`'s notoriety conjunct (~6.5%, seed 2) was tighter
+ * than its legendary conjunct (~9.8%, seed 2): most players who reach
+ * Legend-adjacent fame never sat on a legendary, wherever it came from.
+ * Lowering the notoriety side, not adding a fifth or sixth legendary route,
+ * is what widens the intersection. At 80 seeds 1-7 land at 1.15-1.85%, all
+ * inside the band with headroom on both sides — see CLAUDE.md failure mode 6
+ * before moving this again without a fresh measurement.
  */
-export const ASCENSION_MIN_NOTORIETY = 84;
+export const ASCENSION_MIN_NOTORIETY = 80;
 export const ASCENSION_LEGENDARIES = 1;
+
+/**
+ * The Good Wizard route (issue #14 slice 5, issue #23).
+ *
+ * PROVENANCE: none — CLAUDE.md failure mode 6's invented number, arriving
+ * labelled rather than chased quietly. No wiki line prices this route; the
+ * only thing the design can defend is the SHAPE (a phase-2 reputation gate
+ * lower than the phase-3 resolution gate, a small shared `illActs` cap that
+ * does not demand perfection) and that it must be reachable by a dedicated
+ * `saint` sim policy, per `scripts/simulate.ts`'s cohort probe.
+ *
+ * `GOOD_WIZARD_ILL_CAP` is shared by both gates rather than tightening
+ * further at the resolution: the cap exists so an early lapse cannot
+ * permanently close the route (which would break the "can only ever ADD an
+ * ending" guarantee the whole exception rests on — see the doc comment on
+ * `Effect`'s `goodAct`/`illAct` in `types.ts`), not so the route demands a
+ * perfect run.
+ *
+ * MEASURED (issue #23), `saint` sim policy, `npm run sim -- --seed 1|2`, at
+ * these values: `good_wizard` reached in 1.50% of the 200-run cohort at both
+ * seeds — comparable to the other cohort-shaped endings' rates (`lichdom`
+ * 2.31%, `consumed` ~1%) and reproducible across seeds, which is the bar
+ * rule 6 sets.
+ *
+ * TRIED FIRST AND REVERTED: marking the ungated `virtue_obscure_*` offers
+ * `scripted: true` at weight 6 to raise this further. Unlike the gated
+ * `virtue_reputation_*`/`virtue_resolution_*` cards, an ungated offer's
+ * weight competes in EVERY run's pool, not only a qualifying one —
+ * `buildOfferPool` filters on `requires` before the scripted bonus applies,
+ * so a gated card's weight is invisible to a run that has not earned it, but
+ * an ungated card's is not. At that setting the obscure cards crowded out
+ * enough of the shared pool to crash Ascension from 1.25% to 0.10% and push
+ * `slain_by_chosen_one` from 47.70% to 63.30% — population-wide, for a
+ * mechanic that measures only a 200-run cohort. Reverted to ordinary weight;
+ * see the doc comment on `VIRTUE_OBSCURE` in `src/content/offers/virtue.ts`.
+ */
+export const GOOD_WIZARD_REPUTATION_GOOD = 2;
+export const GOOD_WIZARD_RESOLUTION_GOOD = 3;
+export const GOOD_WIZARD_ILL_CAP = 1;
 
 // ---------------------------------------------------------------------------
 // Persistence
@@ -303,5 +452,9 @@ export const COLLECTION_KEY = 'evil-wizard-sim:collection';
 export const RUN_KEY = 'evil-wizard-sim:run';
 /** Bump when `Collection`'s shape changes, and extend `migrateCollection`. */
 export const COLLECTION_VERSION = 3;
-/** Bump when `RunState`'s shape changes; stale in-progress runs are dropped. */
-export const RUN_SAVE_VERSION = 1;
+/**
+ * Bump when `RunState`'s shape changes; stale in-progress runs are dropped.
+ *
+ * 1 -> 2 (issue #23): added `goodActs`, `illActs`, `goodWizardVowed`.
+ */
+export const RUN_SAVE_VERSION = 2;

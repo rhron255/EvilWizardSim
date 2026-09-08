@@ -22,16 +22,34 @@
  *   - The decline reads as erosion, not a cliff
  */
 
-import type { Effect, EndingId, Offer, OfferOption, RunState, TierId } from '../src/types';
+import type {
+  Effect,
+  EndingId,
+  FactionId,
+  Offer,
+  OfferOption,
+  RunState,
+  TierId,
+} from '../src/types';
 import type { ContentBundle } from '../src/engine';
 import { TIERS, tierFor } from '../src/theme/tokens';
 import { ascensionReady, createRun, defenseOf, nextOffer, resolveChoice } from '../src/engine';
 import {
   ASCENSION_LEGENDARIES,
   ASCENSION_MIN_NOTORIETY,
+  CONTAGION_GAIN,
+  CONTAGION_LOSS,
+  DEVOTION_STANDING,
+  GOOD_WIZARD_ILL_CAP,
+  GOOD_WIZARD_REPUTATION_GOOD,
+  GOOD_WIZARD_RESOLUTION_GOOD,
   PACT_LIMIT,
+  PATRON_MARGIN,
   RUN_LENGTHS,
+  SEAL_MAX_STANDING,
+  SEAL_MIN_NOTORIETY,
 } from '../src/engine/constants';
+import { LEADERSHIP_BY_FACTION, REPRISAL_BY_FACTION } from '../src/engine/endings';
 import { fixtureContent } from '../src/engine/__fixtures__/content';
 import {
   artifacts,
@@ -64,6 +82,73 @@ const contentLabel = USE_FIXTURES ? 'FIXTURE content bundle' : 'real content bun
 // Player policies
 // ---------------------------------------------------------------------------
 
+/**
+ * The five factions a simulated player deliberately antagonises.
+ *
+ * Not the Academy: its reprisal is the one that has always been reachable by
+ * ordinary play (15-18% of runs, through contagion nobody aimed), so a cohort
+ * for it would measure a policy rather than the game. The other five needed
+ * one — every existing policy either courts a faction or ignores it, and none
+ * drives one to −55 on purpose, so all five reprisals read 0.00% in a
+ * population that has never met a player who wanted them.
+ */
+const PARIAH_TARGETS = [
+  'ashen_covenant',
+  'gilded_hand',
+  'verdant_choir',
+  'crownlands',
+  'worm_below',
+] as const satisfies readonly FactionId[];
+
+type PariahTarget = (typeof PARIAH_TARGETS)[number];
+type PariahPolicy = `pariah_${PariahTarget}`;
+
+/** A type predicate, so the exhaustive `switch` in `modeFor` stays exhaustive. */
+function isPariah(policy: Policy): policy is PariahPolicy {
+  return policy.startsWith('pariah_');
+}
+
+function pariahTarget(policy: PariahPolicy): PariahTarget {
+  return policy.slice('pariah_'.length) as PariahTarget;
+}
+
+/**
+ * The five factions whose crown (`LEADERSHIP_BY_FACTION`) is a standing
+ * total rather than an earned rite — `worm_below` excluded, because its
+ * crown is `lichdom`, already earned by the rite in `scripted.ts`. A cohort
+ * that courted the Worm on standing alone would risk landing on `lichdom`
+ * without ever taking it — see the comment on `LEADERSHIP_BY_FACTION` in
+ * `src/engine/endings.ts` — so devotion to the Worm stays the `lich`
+ * policy's job, not this one's.
+ *
+ * The mirror of `PARIAH_TARGETS`, and for the same reason that list needed
+ * one per faction: every existing policy either spreads standing thin across
+ * several factions (the generic `courtier`) or ignores standing entirely, and
+ * none commits to ONE faction hard enough to clear `PATRON_MARGIN` over its
+ * nearest rival. Unlike the pariahs, the Academy is not exempt here —
+ * nothing in the existing mix courts a single faction on purpose, so all five
+ * crowns are unreached without a dedicated cohort.
+ */
+const COURTIER_TARGETS = [
+  'ashen_covenant',
+  'gilded_hand',
+  'pale_academy',
+  'verdant_choir',
+  'crownlands',
+] as const satisfies readonly FactionId[];
+
+type CourtierTarget = (typeof COURTIER_TARGETS)[number];
+type CourtierPolicy = `courtier_${CourtierTarget}`;
+
+/** A type predicate, so the exhaustive `switch` in `modeFor` stays exhaustive. */
+function isCourtier(policy: Policy): policy is CourtierPolicy {
+  return policy.startsWith('courtier_');
+}
+
+function courtierTarget(policy: CourtierPolicy): CourtierTarget {
+  return policy.slice('courtier_'.length) as CourtierTarget;
+}
+
 type Policy =
   | 'random'
   | 'safe'
@@ -72,7 +157,11 @@ type Policy =
   | 'courtier'
   | 'lich'
   | 'ascendant'
-  | 'reckless';
+  | 'reckless'
+  | 'saint'
+  | 'redeemed'
+  | PariahPolicy
+  | CourtierPolicy;
 
 /**
  * Population mix — an attempt at a realistic spread of how people actually
@@ -88,6 +177,23 @@ type Policy =
  * `consumed_by_pact` at 1.20% while a player who simply keeps saying yes hits
  * 9.67%. A population made entirely of optimisers cannot measure an ending
  * that exists to punish not paying attention.
+ *
+ * THE `pariah_*` COHORTS ARE DELIBERATELY NOT IN THIS MIX. They were, at 2%
+ * each, and that was a mistake of exactly the kind this file keeps a list of:
+ * a tenth of the sample handed to players who spend a career making one enemy
+ * and therefore almost never ascend, which lowered the headline Ascension rate
+ * by a tenth before the mechanic under test did anything at all. The rates in
+ * this report are compared against `qa/baseline-endings.json`, and a diff is
+ * only attributable to the change under test if the POPULATION is the same
+ * population — so it is the same eight policies, at the same shares, as the
+ * baseline was recorded with. `courtier_*` is the identical argument for the
+ * same reason: a tenth of the sample devoted to a single faction on purpose
+ * would move Ascension and the reprisals both, before the leadership mechanic
+ * under test did anything.
+ *
+ * Reachability for the cohort-shaped endings is measured by `reprisalProbe`
+ * and `leadershipProbe` instead, each on its own sample, which is where a
+ * question about one kind of player belongs.
  */
 const POPULATION: Array<[Policy, number]> = [
   ['random', 0.12],
@@ -100,7 +206,7 @@ const POPULATION: Array<[Policy, number]> = [
   ['reckless', 0.1],
 ];
 
-type Mode = 'notoriety' | 'defense' | 'standing' | 'ascendant' | 'reckless';
+type Mode = 'notoriety' | 'defense' | 'standing' | 'ascendant' | 'reckless' | 'saint' | 'redeemed';
 
 type Weights = {
   notoriety: number;
@@ -128,6 +234,13 @@ type Weights = {
   pactCeilingAware: boolean;
   heroThreat: number;
   lairTier: number;
+  /**
+   * The Good Wizard route's two hidden counters (issue #23). Zero for every
+   * mode except `saint`, which is the one policy that pursues this route on
+   * purpose — see the doc comment on `WEIGHTS.saint`.
+   */
+  goodAct: number;
+  illAct: number;
 };
 
 const WEIGHTS: Record<Mode, Weights> = {
@@ -143,6 +256,8 @@ const WEIGHTS: Record<Mode, Weights> = {
     pactCeilingAware: true,
     heroThreat: -0.18,
     lairTier: 3,
+    goodAct: 0,
+    illAct: 0,
   },
   defense: {
     notoriety: 0.22,
@@ -156,6 +271,8 @@ const WEIGHTS: Record<Mode, Weights> = {
     pactCeilingAware: true,
     heroThreat: -1,
     lairTier: 4.5,
+    goodAct: 0,
+    illAct: 0,
   },
   standing: {
     notoriety: 0.45,
@@ -169,6 +286,8 @@ const WEIGHTS: Record<Mode, Weights> = {
     pactCeilingAware: true,
     heroThreat: -0.3,
     lairTier: 3,
+    goodAct: 0,
+    illAct: 0,
   },
   /**
    * The player who is not counting.
@@ -191,6 +310,8 @@ const WEIGHTS: Record<Mode, Weights> = {
     pactCeilingAware: false,
     heroThreat: -0.12,
     lairTier: 3.2,
+    goodAct: 0,
+    illAct: 0,
   },
   /** The informed player: fame AND routing, because Ascension needs both. */
   ascendant: {
@@ -205,6 +326,68 @@ const WEIGHTS: Record<Mode, Weights> = {
     pactCeilingAware: true,
     heroThreat: -0.35,
     lairTier: 4,
+    goodAct: 0,
+    illAct: 0,
+  },
+  /**
+   * The player who is deliberately routing toward the Good Wizard ending
+   * (issue #23) — the mirror of `ascendant`, chasing goodActs instead of
+   * legendaries. `goodAct`/`illAct` carry almost all the weight; the rest are
+   * ordinary survival numbers so this policy still lives long enough to reach
+   * the age limit, which the route requires.
+   */
+  saint: {
+    notoriety: 0.35,
+    followers: 0.15,
+    standing: 0.08,
+    // Close to `ascendant`'s survival numbers, not `notoriety`'s: a wizard
+    // who vows and then dies to the chosen one before the age limit never
+    // reaches `good_wizard` (the vow only resolves there), so this policy has
+    // to actually survive, not merely accumulate goodActs. Measured (issue
+    // #23): at the earlier, lower defensive weights the cohort vowed in 25%
+    // of runs but only 1% of the WHOLE cohort ended as `good_wizard` — almost
+    // every vow was followed by a death. See `GOOD_WIZARD_RESOLUTION_GOOD`'s
+    // doc comment in `constants.ts` for the after number.
+    artifact: 4,
+    loseArtifact: -5,
+    apprentices: 0.3,
+    loyalty: 0.08,
+    pactDebt: -1.6,
+    pactCeilingAware: true,
+    heroThreat: -0.7,
+    lairTier: 4,
+    goodAct: 20,
+    illAct: -25,
+  },
+  /**
+   * `redeemed`'s OWN ascent profile (issue #25) — `standing`'s numbers, so it
+   * still courts the Worm and survives the ascent the way `lich` does, PLUS
+   * `saint`'s exact `goodAct`/`illAct` pair.
+   *
+   * Reusing `standing` outright was tried first and measured: `GOOD_WIZARD_
+   * ILL_CAP` is 1, and `standing` prices `goodAct`/`illAct` at 0, so a
+   * 200-run cohort picked up an early illAct "by accident" (whichever option
+   * scored better on notoriety/followers alone) often enough to be
+   * permanently capped out of `virtue_resolution_the_quiet_ledger` before
+   * decline ever started — mean illActs 0.155 at the age limit, `virtue_
+   * resolution_the_quiet_ledger` seen zero times in the cohort, `arch_lich`
+   * 0/200. The cap has to be respected from era one, not from the era mode
+   * switches to `saint`.
+   */
+  redeemed: {
+    notoriety: 0.45,
+    followers: 0.2,
+    standing: 0.16,
+    artifact: 3.5,
+    loseArtifact: -4,
+    apprentices: 0.4,
+    loyalty: 0.08,
+    pactDebt: -1.4,
+    pactCeilingAware: true,
+    heroThreat: -0.3,
+    lairTier: 3,
+    goodAct: 20,
+    illAct: -25,
   },
 };
 
@@ -259,6 +442,7 @@ function scoreEffects(
   w: Weights,
   takesLichdom: boolean,
   debt: number,
+  takesGoodWizard: boolean,
 ): number {
   let total = 0;
   // Debt accumulates WITHIN a branch: a card that adds 2 and then 2 again has
@@ -318,6 +502,20 @@ function scoreEffects(
       case 'ending':
         total += e.endingId === 'lichdom' && takesLichdom ? 40 : ENDING_SCORE;
         break;
+      case 'goodAct':
+        total += e.v * w.goodAct;
+        break;
+      case 'illAct':
+        total += e.v * w.illAct;
+        break;
+      case 'vowGoodWizard':
+        // Not an ending — a transformation, exactly like `becomeLich` above,
+        // and costless (no forfeiture), so it is only worth pursuing for the
+        // policy actually routing toward it. Everyone else is mildly averse:
+        // vowing forecloses the run's OTHER age-limit outcomes (leadership,
+        // the swamp), which a non-saint policy has no reason to give up.
+        total += takesGoodWizard ? 60 : -10;
+        break;
     }
   }
   return total;
@@ -328,19 +526,37 @@ function optionScore(
   w: Weights,
   takesLichdom: boolean,
   debt: number,
+  takesGoodWizard: boolean,
 ): number {
-  if (option.kind === 'certain') return scoreEffects(option.effects, w, takesLichdom, debt);
+  if (option.kind === 'certain') {
+    return scoreEffects(option.effects, w, takesLichdom, debt, takesGoodWizard);
+  }
   // Both branches are priced from the SAME starting debt, which is what makes
   // a two-way gamble legible to a policy: at 5/7 the failure branch crosses
   // the ceiling and is scored as the ending it is, so the expected value
   // collapses exactly where a player would feel it collapse.
   return (
-    option.odds * scoreEffects(option.onSuccess, w, takesLichdom, debt) +
-    (1 - option.odds) * scoreEffects(option.onFailure, w, takesLichdom, debt)
+    option.odds * scoreEffects(option.onSuccess, w, takesLichdom, debt, takesGoodWizard) +
+    (1 - option.odds) * scoreEffects(option.onFailure, w, takesLichdom, debt, takesGoodWizard)
   );
 }
 
 function modeFor(policy: Policy, run: RunState, threatRatio: number): Mode {
+  // A pariah still has to LIVE to the decline and be famous enough to be worth
+  // acting on — the reprisal needs notoriety ≥ SEAL_MIN_NOTORIETY and, for
+  // five of the six factions, the decline phase. So the base play is
+  // `adaptive`; the spite rides on top of it rather than replacing it.
+  if (isPariah(policy)) {
+    if (run.phase === 'ascent') return 'notoriety';
+    return threatRatio > 0.55 ? 'defense' : 'notoriety';
+  }
+  // The mirror of the pariah branch above, and the generic `courtier` case
+  // below: build standing through the ascent, defend once threatened. The
+  // leadership check is not decline-gated the way five of the six reprisals
+  // are, so unlike the pariah there is no phase split to make here.
+  if (isCourtier(policy)) {
+    return run.phase === 'ascent' ? 'standing' : 'defense';
+  }
   switch (policy) {
     case 'reckless':
       return 'reckless';
@@ -366,6 +582,23 @@ function modeFor(policy: Policy, run: RunState, threatRatio: number): Mode {
       // threatened, because a run that plays safe never reaches Legend.
       if (run.phase === 'ascent') return 'ascendant';
       return threatRatio > 0.75 ? 'defense' : 'ascendant';
+    case 'saint':
+      // Chases goodActs in both phases — unlike the standing-based routes,
+      // there is no ascent/decline split to make here, because the counters
+      // move on ordinary catalog offers in either phase. Defends earlier than
+      // `ascendant` does (0.55, not 0.75): the vow only resolves at the age
+      // limit, so surviving to it matters more here than reaching a peak does
+      // for a fame-chaser — see the doc comment on `WEIGHTS.saint`.
+      return threatRatio > 0.55 ? 'defense' : 'saint';
+    case 'redeemed':
+      // `arch_lich`'s own policy (issue #25): its OWN mode through the
+      // ascent — `standing`'s numbers, courting the Worm the way `lich`
+      // does, but pricing `goodAct`/`illAct` from era one so an early illAct
+      // never quietly caps the wizard out of the vow before decline starts
+      // (see `WEIGHTS.redeemed`). `saint` in the decline, where the rite and
+      // `virtue_resolution_the_quiet_ledger` both live.
+      if (run.phase === 'ascent') return 'redeemed';
+      return threatRatio > 0.55 ? 'defense' : 'saint';
     case 'random':
       return 'notoriety';
   }
@@ -387,17 +620,127 @@ const LICH_DEVOTION = Number(process.env.LICH_DEVOTION ?? 5);
  * the rite -- devotion 3 transformed 0.45% of the time and devotion 8 managed
  * 0.10%. Weighting by odds is what a player actually does.
  */
-function wormOf(effects: readonly Effect[]): number {
+function standingOf(effects: readonly Effect[], factionId: FactionId): number {
   return effects
     .filter((e): e is Extract<Effect, { t: 'standing' }> => e.t === 'standing')
-    .filter((e) => e.factionId === 'worm_below')
+    .filter((e) => e.factionId === factionId)
     .reduce((a, e) => a + e.v, 0);
 }
 
-function wormAffinity(option: OfferOption): number {
-  if (option.kind === 'certain') return wormOf(option.effects);
-  return option.odds * wormOf(option.onSuccess) + (1 - option.odds) * wormOf(option.onFailure);
+/** Odds-weighted, for the same reason `wormOf` is. */
+function evOf(option: OfferOption, of: (effects: readonly Effect[]) => number): number {
+  if (option.kind === 'certain') return of(option.effects);
+  return option.odds * of(option.onSuccess) + (1 - option.odds) * of(option.onFailure);
 }
+
+function wormAffinity(option: OfferOption): number {
+  return evOf(option, (fx) => standingOf(fx, 'worm_below'));
+}
+
+/**
+ * Who is hostile to whom, read from content rather than restated.
+ *
+ * A pariah needs both routes down, because the direct one is not enough on its
+ * own: cards offering a large negative on one named faction are rare, while
+ * cards offering a large POSITIVE to that faction's enemy are everywhere, and
+ * `applyStanding` spills `CONTAGION_GAIN` of every gain onto the enemies of
+ * whoever gained. Courting the Covenant is how most players reach the gem
+ * without ever choosing to; it is also how a pariah gets there on purpose.
+ */
+const HOSTILE_TOWARD = new Map<FactionId, FactionId[]>(
+  content.factions.map((f) => [
+    f.id,
+    content.factions.filter((g) => g.hostileTo.includes(f.id)).map((g) => g.id),
+  ]),
+);
+
+/**
+ * EXPECTED standing damage to one faction — the sign-flipped mirror of
+ * `wormAffinity`, with the contagion route added.
+ *
+ * A gain for a faction hostile to the target costs the target
+ * `CONTAGION_GAIN` of it; a LOSS for that faction hands the target
+ * `CONTAGION_LOSS` back. Both rates come from `constants.ts`, so a change to
+ * the contagion model moves the policy with it instead of leaving a bot
+ * playing the old game.
+ */
+function spiteOf(effects: readonly Effect[], target: FactionId): number {
+  let total = -standingOf(effects, target);
+  for (const enemy of HOSTILE_TOWARD.get(target) ?? []) {
+    const v = standingOf(effects, enemy);
+    total += v * (v > 0 ? CONTAGION_GAIN : CONTAGION_LOSS);
+  }
+  return total;
+}
+
+/**
+ * What the damage is WORTH, given where the target already stands.
+ *
+ * Priced through a remaining-distance potential for the same reason pact debt
+ * is priced through a convex one: a flat per-point value describes a bot, not a
+ * player. Two things fall out of it, and both were bugs before it existed.
+ *
+ * Damage past `SEAL_MAX_STANDING` is worth nothing, so a pariah whose enemy is
+ * already deep enough stops feuding and spends the rest of the career doing
+ * what the OTHER half of the trigger needs — getting famous. Without that the
+ * cohort drove its target under the line in 16% of runs and converted 19% of
+ * those, because it was still picking spite over fame at 30 Notoriety with
+ * three eras left, in a game that will not act on an obscure wizard.
+ *
+ * And a card that would overshoot is priced only for the part that counts, so
+ * the policy prefers the cheap route to the line over the spectacular one.
+ */
+function spiteAffinity(option: OfferOption, target: FactionId, standing: number): number {
+  const remaining = Math.max(0, standing - SEAL_MAX_STANDING);
+  if (remaining === 0) return 0;
+  const damage = evOf(option, (fx) => spiteOf(fx, target));
+  return Math.min(damage, remaining);
+}
+
+/**
+ * How hard a pariah commits to being hated. Tuned the way `LICH_DEVOTION` was:
+ * the cohort readout below is what it was fitted against, not a guess.
+ */
+const PARIAH_SPITE = Number(process.env.PARIAH_SPITE ?? 5);
+
+/**
+ * What courting is WORTH, given where this faction already stands.
+ *
+ * `spiteAffinity`'s mirror, sign and all — literally `-spiteOf`, not a
+ * separate formula, because the contagion route runs the same way in both
+ * directions. `spiteOf` reads that route as damage: raising a HATER of the
+ * target spills loss onto the target. Courting reads the identical route as
+ * cost — a courtier that ignores it will cheerfully take a juicy card from
+ * one of the target's haters for the OTHER benefit on it and quietly undo its
+ * own courtship. This was not a hypothetical: the Pale Academy has three
+ * haters (the most of any faction) and a `courtier_pale_academy` cohort
+ * scored on raw `standingOf` alone measured a mean PEAK standing of −1 —
+ * never once ahead of zero — because nothing was pricing in the three routes
+ * back down. Pricing the contagion moved it positive; see the cohort readout
+ * below for what it actually measures now.
+ *
+ * The cap is `leadershipEnding`'s own margin, not the runner-up's actual
+ * standing: the bot does not track five other factions' totals while scoring
+ * one option, so it stops chasing THIS faction once it is comfortably past
+ * `DEVOTION_STANDING + PATRON_MARGIN`, with headroom for the oath to still
+ * read as a real jump rather than the last few points needed. Past that a
+ * courtier spends its remaining eras on notoriety, the other half of a career
+ * the standing chase would otherwise crowd out entirely.
+ */
+function devotionAffinity(option: OfferOption, target: FactionId, standing: number): number {
+  const ceiling = DEVOTION_STANDING + PATRON_MARGIN + 15;
+  const remaining = Math.max(0, ceiling - standing);
+  if (remaining === 0) return 0;
+  const gain = evOf(option, (fx) => -spiteOf(fx, target));
+  return Math.min(gain, remaining);
+}
+
+/**
+ * How hard a courtier commits to one faction. Tuned the way `LICH_DEVOTION`
+ * and `PARIAH_SPITE` were: the cohort readout below is what it was fitted
+ * against, not a guess.
+ */
+const COURTIER_DEVOTION = Number(process.env.COURTIER_DEVOTION ?? 5);
 
 function chooseOption(policy: Policy, run: RunState, offer: Offer, roll: number): number {
   if (policy === 'random') return Math.floor(roll * offer.options.length);
@@ -405,7 +748,11 @@ function chooseOption(policy: Policy, run: RunState, offer: Offer, roll: number)
   const defense = defenseOf(run, content);
   const threatRatio = defense > 0 ? run.heroThreat / defense : 0;
   const w = WEIGHTS[modeFor(policy, run, threatRatio)];
-  const takesLichdom = policy === 'lich' && run.phase === 'decline';
+  // `redeemed` wants BOTH transformations (issue #25's `arch_lich`), so it
+  // joins both conditions below rather than getting a third of its own — a
+  // `takesX` flag is "does this policy want X", not "which policy is this".
+  const takesLichdom = (policy === 'lich' || policy === 'redeemed') && run.phase === 'decline';
+  const takesGoodWizard = (policy === 'saint' || policy === 'redeemed') && run.phase === 'decline';
 
   let best = -Infinity;
   let bestIndex = 0;
@@ -413,7 +760,7 @@ function chooseOption(policy: Policy, run: RunState, offer: Offer, roll: number)
     // The "safe" player never gambles — the certain-option guarantee is what
     // makes that a playable strategy at all.
     if (policy === 'safe' && option.kind === 'gamble') return;
-    let score = optionScore(option, w, takesLichdom, run.pactDebt);
+    let score = optionScore(option, w, takesLichdom, run.pactDebt, takesGoodWizard);
     // A lich-seeker courts ONE faction, hard, because only the Worm Below
     // offers the rite and its gate is `minStanding worm_below 20`. Generic
     // standing-chasing spread the gain across all six and never opened it,
@@ -421,7 +768,30 @@ function chooseOption(policy: Policy, run: RunState, offer: Offer, roll: number)
     // after. The weight is high on purpose: this models the self-imposed
     // single-faction run that wiki/06 identifies as real player behaviour,
     // not a player who merely likes the Worm slightly more than average.
-    if (policy === 'lich') score += wormAffinity(option) * LICH_DEVOTION;
+    // `redeemed` courts the same way, but ONLY through the ascent — it needs
+    // the SAME rite `lich` does, and the boost's job is getting standing past
+    // the rite's gate before decline starts, not keeping it there afterward.
+    // Measured: applying it unconditionally, the way `lich` does, drowned out
+    // `saint`'s goodAct weight (20 per unit) on every offer that also moved
+    // Worm standing — a 200-run cohort took the rite in 11 runs and averaged
+    // 0.15 goodActs, `virtue_resolution_the_quiet_ledger` never once seen.
+    // Once the ascent is over the rite is either already taken (`becomeLich`
+    // and `ending: lichdom` are separately worth +40 in `scoreEffects`, which
+    // is incentive enough on its own) or the run failed to qualify and is a
+    // saint from here — either way, decline is `saint`'s job alone.
+    if (policy === 'lich' || (policy === 'redeemed' && run.phase === 'ascent')) {
+      score += wormAffinity(option) * LICH_DEVOTION;
+    }
+    // The mirror of the line above: one faction, hard, in the other direction.
+    if (isPariah(policy)) {
+      const target = pariahTarget(policy);
+      score += spiteAffinity(option, target, run.factionStanding[target] ?? 0) * PARIAH_SPITE;
+    }
+    // The mirror of the pariah branch above, courting instead of ruining.
+    if (isCourtier(policy)) {
+      const target = courtierTarget(policy);
+      score += devotionAffinity(option, target, run.factionStanding[target] ?? 0) * COURTIER_DEVOTION;
+    }
     if (score > best) {
       best = score;
       bestIndex = i;
@@ -486,6 +856,50 @@ type RunResult = {
    * it, so this is held-at-end UNION everything gained along the way.
    */
   discoveredIds: string[];
+  /**
+   * The lowest each faction's standing ever went.
+   *
+   * A reprisal rate on its own cannot tell "the cohort never got anyone angry
+   * enough" apart from "it did, and something else ended the run first", and
+   * those two want opposite fixes — the same reason the pact ladder is printed
+   * as a chain rather than a rate.
+   */
+  /**
+   * The feud ladder, per run: which grievance cards this career was shown, and
+   * which rungs it actually took.
+   *
+   * Per-CARD rather than a count, because the counts were misleading in the
+   * exact way CLAUDE.md warns about — a pariah takes grievance cards aimed at
+   * other factions too (declining one costs its proposer standing), so a bare
+   * "grievances taken" number said the ladder was being climbed when it was
+   * not.
+   */
+  grievancesSeen: string[];
+  grievancesTaken: string[];
+  /**
+   * The oath ladder's mirror of `grievancesSeen`/`grievancesTaken` (issue
+   * #14 slice 2b) — which `oath_*` card this career was shown, and whether it
+   * took the oath rather than declining it. A courtier cohort that never sees
+   * its own faction's oath is a card that is not surfacing, which a bare
+   * leadership rate cannot distinguish from "the standing never got there".
+   */
+  oathsSeen: string[];
+  oathsTaken: string[];
+  /**
+   * The Good Wizard ladder's mirror of `oathsSeen`/`oathsTaken` (issue #23) —
+   * which `virtue_reputation_*`/`virtue_resolution_*` cards this career was
+   * shown, and whether it took the constructive branch (always option 0,
+   * same convention the oath/grievance readers use). The counters
+   * themselves at run end, for the same reason `peakPactDebt` is printed
+   * rather than just a rate.
+   */
+  virtueSeen: string[];
+  virtueTaken: string[];
+  finalGoodActs: number;
+  finalIllActs: number;
+  minStanding: Record<FactionId, number>;
+  /** The highest each faction's standing ever reached — `minStanding`'s mirror. */
+  peakStanding: Record<FactionId, number>;
   /** Distinct lairs occupied across the run — the ending card's trophy grid. */
   lairsHeld: number;
   peakLairTier: number;
@@ -527,6 +941,8 @@ function playRun(
   let everAscensionReady = false;
   let becameLich = false;
   const declineDeltas: number[] = [];
+  const minStanding = { ...run.factionStanding };
+  const peakStanding = { ...run.factionStanding };
 
   // Hard stop: a run can never legally exceed its era count, but a harness
   // that can hang is a harness nobody runs.
@@ -558,6 +974,10 @@ function playRun(
     if (ascensionReady(run, content)) everAscensionReady = true;
     peakPactDebt = Math.max(peakPactDebt, run.pactDebt);
     if (run.pactDebt > 0) erasCarryingDebt++;
+    for (const [id, v] of Object.entries(run.factionStanding) as [FactionId, number][]) {
+      if (v < minStanding[id]) minStanding[id] = v;
+      if (v > peakStanding[id]) peakStanding[id] = v;
+    }
   }
 
   let peak = run.notoriety;
@@ -604,6 +1024,38 @@ function playRun(
     everAscensionReady,
     declineDeltas,
     discoveredIds: Array.from(discovered),
+    grievancesSeen: run.seenOfferIds.filter((id) => id.startsWith('grievance_')),
+    grievancesTaken: run.eras
+      .filter((e) => {
+        if (!e.offerId.startsWith('grievance_')) return false;
+        // The first option is always the act; the second is walking away.
+        const offer = content.offers.find((o) => o.id === e.offerId);
+        return offer?.options[0].label === e.optionLabel;
+      })
+      .map((e) => e.offerId),
+    oathsSeen: run.seenOfferIds.filter((id) => id.startsWith('oath_')),
+    oathsTaken: run.eras
+      .filter((e) => {
+        if (!e.offerId.startsWith('oath_')) return false;
+        // The first option is always the oath; the second is declining it.
+        const offer = content.offers.find((o) => o.id === e.offerId);
+        return offer?.options[0].label === e.optionLabel;
+      })
+      .map((e) => e.offerId),
+    virtueSeen: run.seenOfferIds.filter((id) => id.startsWith('virtue_')),
+    virtueTaken: run.eras
+      .filter((e) => {
+        if (!e.offerId.startsWith('virtue_')) return false;
+        // The first option is always the constructive one on every card in
+        // `virtue.ts` — see the file for why.
+        const offer = content.offers.find((o) => o.id === e.offerId);
+        return offer?.options[0].label === e.optionLabel;
+      })
+      .map((e) => e.offerId),
+    finalGoodActs: run.goodActs,
+    finalIllActs: run.illActs,
+    minStanding,
+    peakStanding,
     lairsHeld: lairIds.size,
     peakLairTier,
     becameLich,
@@ -658,6 +1110,134 @@ function pickEraCount(roll: number): number {
     if (roll < acc) return RUN_LENGTHS[i];
   }
   return RUN_LENGTHS[RUN_LENGTHS.length - 1];
+}
+
+/**
+ * Reachability, measured on a sample big enough to mean something.
+ *
+ * The pariah cohorts inside the population are ~40 runs each, where one career
+ * either way moves the rate by two and a half points — so a floor checked
+ * against them would be checking noise. Rule 6 is not a rate target, it is
+ * "every ending must be reachable", and the honest way to answer it is to play
+ * a proper sample of the player who wants each one.
+ *
+ * Deliberately separate from the headline population: these runs are NOT mixed
+ * into the distribution above, because a population made of people all chasing
+ * the same rare ending is not a population (CLAUDE.md failure mode 5).
+ */
+const PROBE_RUNS = 200;
+
+/**
+ * `arch_lich`'s own cohort size (issue #25), 50x `PROBE_RUNS` and measured,
+ * not matched to it for consistency's sake. `arch_lich` needs the rite AND
+ * the vow on the SAME career, and the two pull against each other more than
+ * independence would predict — the rite forfeits every artifact and every
+ * follower, which is most of `defenseOf`, so a `redeemed` wizard who takes it
+ * is walking into the steepest part of the hero ramp naked at the exact
+ * moment it also needs to survive to the age limit for the vow to resolve.
+ * At `PROBE_RUNS` (200) the expected count is well under 1 and the check
+ * flickers exactly the way `lichdom`'s did before it got its own cohort
+ * (issue #24). Measured across eight seeds at this size: 2-10 per run,
+ * never zero — an expected count of roughly 5, an order of magnitude clear
+ * of the flicker `lichdom` shipped with.
+ */
+const REDEEMED_PROBE_RUNS = Number(process.env.REDEEMED_PROBE_RUNS ?? 10_000);
+
+function reprisalProbe(baseSeed: number): Map<FactionId, RunResult[]> {
+  const out = new Map<FactionId, RunResult[]>();
+  for (const faction of PARIAH_TARGETS) {
+    const rng = mulberry32((baseSeed ^ 0x9e3779b9) + faction.length);
+    const runs: RunResult[] = [];
+    for (let i = 0; i < PROBE_RUNS; i++) {
+      runs.push(playRun(baseSeed + 104_729 + i * 7919, pickEraCount(rng()), `pariah_${faction}`));
+    }
+    out.set(faction, runs);
+  }
+  return out;
+}
+
+/**
+ * `reprisalProbe`'s mirror for the leadership endings (issue #14 slice 2b).
+ * Same reasoning: a `courtier_<faction>` cohort inside the 2000-run
+ * population would be ~40 runs, where one career either way moves the rate
+ * by two and a half points, so reachability is measured on its own 200-run
+ * sample per faction instead. Distinct seed constants from `reprisalProbe`'s
+ * so the two probes do not replay each other's careers.
+ */
+function leadershipProbe(baseSeed: number): Map<FactionId, RunResult[]> {
+  const out = new Map<FactionId, RunResult[]>();
+  for (const faction of COURTIER_TARGETS) {
+    const rng = mulberry32((baseSeed ^ 0x1eaf1eaf) + faction.length);
+    const runs: RunResult[] = [];
+    for (let i = 0; i < PROBE_RUNS; i++) {
+      runs.push(playRun(baseSeed + 271_828 + i * 6151, pickEraCount(rng()), `courtier_${faction}`));
+    }
+    out.set(faction, runs);
+  }
+  return out;
+}
+
+/**
+ * The Good Wizard's own 200-run cohort probe (issue #23) — the mirror of
+ * `reprisalProbe`/`leadershipProbe` for the same reason: one obscure route,
+ * measured on a sample built of the player who actually wants it, kept OUT of
+ * `POPULATION` so it cannot distort the headline numbers the way the pariah
+ * and courtier cohorts were found to.
+ */
+function saintProbe(baseSeed: number): RunResult[] {
+  const rng = mulberry32((baseSeed ^ 0x600d1dea) + 1);
+  const runs: RunResult[] = [];
+  for (let i = 0; i < PROBE_RUNS; i++) {
+    runs.push(playRun(baseSeed + 583_637 + i * 5303, pickEraCount(rng()), 'saint'));
+  }
+  return runs;
+}
+
+/**
+ * `lichdom`'s own dedicated cohort probe — `saintProbe`'s mirror, one
+ * iteration later, for the same reason.
+ *
+ * `lich` has always been a `POPULATION` policy rather than a probe-only one
+ * (its headline ascend/survive/slain stats belong in the BY PLAYER POLICY
+ * table), so before this existed `lichdom` reachability was read off
+ * whatever the population's ~6% `lich` share happened to contain — about
+ * 110-130 runs of 2000. At a ~2.3% rite-completion rate that is an expected
+ * count of ~2.8, and `npm run sim --seed 4` duly rolled zero: both "Every
+ * authored ending occurs" and "Lichdom reachable by a lich-seeker" failed
+ * together, for the same arithmetic reason CLAUDE.md's reprisal-cohort note
+ * already names (small expected count, not a broken game). A dedicated
+ * `PROBE_RUNS` cohort, kept OUT of `POPULATION` exactly like the other
+ * probes so it cannot distort the headline mix, raises the expected count to
+ * ~4.6 — not immune to a zero roll, but an order of magnitude less likely to
+ * produce one on an arbitrary seed.
+ */
+function lichProbe(baseSeed: number): RunResult[] {
+  const rng = mulberry32((baseSeed ^ 0xdeadbeef) + 1);
+  const runs: RunResult[] = [];
+  for (let i = 0; i < PROBE_RUNS; i++) {
+    runs.push(playRun(baseSeed + 917_293 + i * 4519, pickEraCount(rng()), 'lich'));
+  }
+  return runs;
+}
+
+/**
+ * `arch_lich`'s own dedicated cohort probe (issue #25) — `lichProbe`'s
+ * mirror, for the ending neither `lichProbe` nor `saintProbe` alone can
+ * measure: `arch_lich` needs BOTH the rite and the vow true on the SAME
+ * career, and a `lich`-seeker never chases goodActs (every mode but `saint`
+ * prices them at 0) while a `saint` never courts the Worm on purpose. Without
+ * this, `arch_lich` read 0/4400 in the full report the day it shipped — not
+ * because the branch was unreachable, but because nothing in the population
+ * OR the other probes was a player who wanted it, which is exactly the
+ * instrument failure CLAUDE.md's failure mode 5 describes.
+ */
+function redeemedProbe(baseSeed: number): RunResult[] {
+  const rng = mulberry32((baseSeed ^ 0xa1c4e5ed) + 1);
+  const runs: RunResult[] = [];
+  for (let i = 0; i < REDEEMED_PROBE_RUNS; i++) {
+    runs.push(playRun(baseSeed + 428_951 + i * 3877, pickEraCount(rng()), 'redeemed'));
+  }
+  return runs;
 }
 
 function pickPolicy(roll: number): Policy {
@@ -744,6 +1324,25 @@ const ENDING_ORDER: EndingId[] = [
   'consumed_by_pact',
   'lichdom',
   'ascension',
+  // The five reprisals that joined the seal, in faction order.
+  'eternally_repurposed',
+  'liquidated',
+  'turned_to_fertilizer',
+  'exiled_and_overrun',
+  'consumed',
+  // The five faction leadership endings, in the same faction order. `lichdom`
+  // is the Worm Below's and is already listed above, among the original seven.
+  'contract_writer',
+  'grand_arbiter',
+  'archmage',
+  'archdruid',
+  'overthrown_the_kingdom',
+  // Age-limit-only, like the leadership set above (issue #23).
+  'good_wizard',
+  // The one age-limit outcome `good_wizard` and `lichdom` can both be true
+  // for at once (issue #25) — listed after both, since it is their overlap
+  // rather than a seventh independent route.
+  'arch_lich',
 ];
 
 const ALL_ENDING_IDS: EndingId[] = content.endings.map((e) => e.id);
@@ -877,6 +1476,37 @@ function main(): void {
       ),
     );
     return;
+  }
+
+  // Reachability, measured apart from the population it must not distort.
+  // AFTER the `--json` early return: that path is used to diff distributions
+  // between slices and has no business paying for a thousand extra runs.
+  const probe = reprisalProbe(baseSeed);
+  const leadership = leadershipProbe(baseSeed);
+  const saint = saintProbe(baseSeed);
+  const lich = lichProbe(baseSeed);
+  const redeemed = redeemedProbe(baseSeed);
+
+  /** Every career the harness played, for the reachability check only. */
+  const byEndingAnywhere = new Map(byEnding);
+  for (const cohort of probe.values()) {
+    for (const r of cohort) {
+      byEndingAnywhere.set(r.ending, (byEndingAnywhere.get(r.ending) ?? 0) + 1);
+    }
+  }
+  for (const cohort of leadership.values()) {
+    for (const r of cohort) {
+      byEndingAnywhere.set(r.ending, (byEndingAnywhere.get(r.ending) ?? 0) + 1);
+    }
+  }
+  for (const r of saint) {
+    byEndingAnywhere.set(r.ending, (byEndingAnywhere.get(r.ending) ?? 0) + 1);
+  }
+  for (const r of lich) {
+    byEndingAnywhere.set(r.ending, (byEndingAnywhere.get(r.ending) ?? 0) + 1);
+  }
+  for (const r of redeemed) {
+    byEndingAnywhere.set(r.ending, (byEndingAnywhere.get(r.ending) ?? 0) + 1);
   }
 
   console.log('');
@@ -1049,6 +1679,174 @@ function main(): void {
   row('mean peak lair tier', mean(results.map((r) => r.peakLairTier)).toFixed(2));
   row('runs holding a single lair', pct(results.filter((r) => r.lairsHeld <= 1).length, total));
   row('runs holding 3+ lairs', pct(results.filter((r) => r.lairsHeld >= 3).length, total));
+  // --- the faction reprisals ----------------------------------------------
+  //
+  // Printed as a CHAIN and per cohort, for the two reasons the pact ladder is:
+  // a bare rate cannot separate "nobody ever made that enemy" from "they did
+  // and something else killed them first", and a cohort-level effect measured
+  // population-wide mostly measures the population mix. The population column
+  // is printed WITHOUT a target beside it, deliberately.
+  //
+  // `card` is how many of that faction's grievance cards the career was shown,
+  // and how many it took. It is the one column that says whether the route
+  // exists as opposed to whether the odds were kind — the first build of those
+  // cards was seen by a fifth of the cohort that wanted it.
+  console.log(rule());
+  console.log(
+    `  FACTION REPRISALS  (${PROBE_RUNS}-run cohort probes, then the population)`,
+  );
+  console.log(
+    `${pad('  faction', 20)}${padLeft('cohort', 8)}${padLeft('low', 7)}${padLeft(`<=${SEAL_MAX_STANDING}`, 9)}${padLeft('+fame', 8)}${padLeft('card', 12)}${padLeft('reprisal', 10)}${padLeft('pop', 8)}`,
+  );
+  for (const [factionId, endingId] of Object.entries(REPRISAL_BY_FACTION) as [
+    FactionId,
+    EndingId,
+  ][]) {
+    const cohort = probe.get(factionId) ?? [];
+    const deep = cohort.filter((r) => r.minStanding[factionId] <= SEAL_MAX_STANDING);
+    const drove = deep.length;
+    // Both halves, in the order a career meets them. A cohort that gets its
+    // enemy deep enough and stays too obscure to be worth acting on is a
+    // different problem from one that never makes the enemy.
+    const famous = deep.filter((r) => r.peakNotoriety >= SEAL_MIN_NOTORIETY).length;
+    const reached = cohort.filter((r) => r.ending === endingId).length;
+    console.log(
+      pad(`  ${factionId}`, 20) +
+        padLeft(cohort.length ? String(cohort.length) : '-', 8) +
+        padLeft(
+          cohort.length ? mean(cohort.map((r) => r.minStanding[factionId])).toFixed(0) : '-',
+          7,
+        ) +
+        padLeft(cohort.length ? pct(drove, cohort.length) : '-', 9) +
+        padLeft(drove ? pct(famous, drove) : '-', 8) +
+        padLeft(
+          cohort.length
+            ? `${mean(cohort.map((r) => r.grievancesSeen.filter((id) => id.includes(factionId)).length)).toFixed(2)}/${mean(
+                cohort.map((r) => r.grievancesTaken.filter((id) => id.includes(factionId)).length),
+              ).toFixed(2)}`
+            : '-',
+          12,
+        ) +
+        padLeft(cohort.length ? pct(reached, cohort.length) : '-', 10) +
+        padLeft(pct(byEnding.get(endingId) ?? 0, total), 8),
+    );
+  }
+
+  // --- the faction leaderships ---------------------------------------------
+  //
+  // The mirror of the reprisal table above, read from the other end (issue
+  // #14 slice 2b). `peak` is the highest this cohort ever got its OWN
+  // faction's standing — not the final value, so a courtier who cleared the
+  // margin early and then spent the rest of the career on notoriety still
+  // reads as one who got there. `>=margin` is the share that ever cleared the
+  // crown's own threshold (`DEVOTION_STANDING + PATRON_MARGIN`) on that one
+  // axis alone; it is necessary but not sufficient, since `patronFaction`
+  // also needs every OTHER faction to stay behind by the same margin. `oath`
+  // is how many times the career saw its own faction's oath card and how many
+  // it took — the one column that says whether the route exists as opposed to
+  // whether the standing arrived some other way.
+  console.log(rule());
+  console.log(`  FACTION LEADERSHIP  (${PROBE_RUNS}-run cohort probes, then the population)`);
+  console.log(
+    `${pad('  faction', 20)}${padLeft('cohort', 8)}${padLeft('peak', 7)}${padLeft(`>=${DEVOTION_STANDING + PATRON_MARGIN}`, 9)}${padLeft('oath', 12)}${padLeft('crown', 10)}${padLeft('pop', 8)}`,
+  );
+  for (const faction of COURTIER_TARGETS) {
+    const endingId = LEADERSHIP_BY_FACTION[faction];
+    const cohort = leadership.get(faction) ?? [];
+    const cleared = cohort.filter(
+      (r) => r.peakStanding[faction] >= DEVOTION_STANDING + PATRON_MARGIN,
+    ).length;
+    const reached = cohort.filter((r) => r.ending === endingId).length;
+    console.log(
+      pad(`  ${faction}`, 20) +
+        padLeft(cohort.length ? String(cohort.length) : '-', 8) +
+        padLeft(
+          cohort.length ? mean(cohort.map((r) => r.peakStanding[faction])).toFixed(0) : '-',
+          7,
+        ) +
+        padLeft(cohort.length ? pct(cleared, cohort.length) : '-', 9) +
+        padLeft(
+          cohort.length
+            ? `${mean(cohort.map((r) => r.oathsSeen.filter((id) => id.includes(faction)).length)).toFixed(2)}/${mean(
+                cohort.map((r) => r.oathsTaken.filter((id) => id.includes(faction)).length),
+              ).toFixed(2)}`
+            : '-',
+          12,
+        ) +
+        padLeft(cohort.length ? pct(reached, cohort.length) : '-', 10) +
+        padLeft(pct(byEnding.get(endingId) ?? 0, total), 8),
+    );
+  }
+
+  // --- the Good Wizard route ----------------------------------------------
+  //
+  // Same shape as the reprisal/leadership tables: a dedicated cohort probe,
+  // printed as a CHAIN (gate cleared -> card seen/taken -> ending reached)
+  // rather than a bare rate, plus the untargeted population rate beside it
+  // WITHOUT a target — this route has no wiki-authored band, only the
+  // reachability rule 6 asks for (issue #23).
+  console.log(rule());
+  console.log(`  GOOD WIZARD  (${PROBE_RUNS}-run cohort probe, then the population)`);
+  console.log(
+    `${pad('  ', 20)}${padLeft('cohort', 8)}${padLeft('good', 7)}${padLeft('ill', 6)}${padLeft(`>=rep(${GOOD_WIZARD_REPUTATION_GOOD})`, 12)}${padLeft(`>=res(${GOOD_WIZARD_RESOLUTION_GOOD})`, 12)}${padLeft('resolution', 12)}${padLeft('ending', 9)}${padLeft('pop', 8)}`,
+  );
+  {
+    const clearedRep = saint.filter(
+      (r) => r.finalGoodActs >= GOOD_WIZARD_REPUTATION_GOOD && r.finalIllActs <= GOOD_WIZARD_ILL_CAP,
+    ).length;
+    const clearedRes = saint.filter(
+      (r) => r.finalGoodActs >= GOOD_WIZARD_RESOLUTION_GOOD && r.finalIllActs <= GOOD_WIZARD_ILL_CAP,
+    ).length;
+    const resolutionSeen = saint.filter((r) =>
+      r.virtueSeen.some((id) => id.startsWith('virtue_resolution_')),
+    ).length;
+    const resolutionTaken = saint.filter((r) =>
+      r.virtueTaken.some((id) => id.startsWith('virtue_resolution_')),
+    ).length;
+    const reached = saint.filter((r) => r.ending === 'good_wizard').length;
+    console.log(
+      pad('  saint', 20) +
+        padLeft(String(saint.length), 8) +
+        padLeft(mean(saint.map((r) => r.finalGoodActs)).toFixed(1), 7) +
+        padLeft(mean(saint.map((r) => r.finalIllActs)).toFixed(1), 6) +
+        padLeft(pct(clearedRep, saint.length), 12) +
+        padLeft(pct(clearedRes, saint.length), 12) +
+        padLeft(`${pct(resolutionSeen, saint.length)}/${pct(resolutionTaken, saint.length)}`, 12) +
+        padLeft(pct(reached, saint.length), 9) +
+        padLeft(pct(byEnding.get('good_wizard') ?? 0, total), 8),
+    );
+  }
+
+  // --- arch_lich: the intersection ----------------------------------------
+  //
+  // Its own row rather than folded into either table above: `redeemed` is
+  // neither `saint` nor `lich`, and the number that matters here is the
+  // JOINT rate, not either half alone — see `REDEEMED_PROBE_RUNS` for why
+  // this cohort is far larger than the others.
+  console.log(rule());
+  console.log(`  ARCH-LICH  (${REDEEMED_PROBE_RUNS}-run cohort probe, then the population)`);
+  console.log(
+    `${pad('  ', 20)}${padLeft('cohort', 8)}${padLeft('rite', 8)}${padLeft('resolution', 12)}${padLeft('ending', 9)}${padLeft('pop', 8)}`,
+  );
+  {
+    const rite = redeemed.filter((r) => r.becameLich).length;
+    const resolutionSeen = redeemed.filter((r) =>
+      r.virtueSeen.some((id) => id.startsWith('virtue_resolution_')),
+    ).length;
+    const resolutionTaken = redeemed.filter((r) =>
+      r.virtueTaken.some((id) => id.startsWith('virtue_resolution_')),
+    ).length;
+    const reached = redeemed.filter((r) => r.ending === 'arch_lich').length;
+    console.log(
+      pad('  redeemed', 20) +
+        padLeft(String(redeemed.length), 8) +
+        padLeft(pct(rite, redeemed.length), 8) +
+        padLeft(`${pct(resolutionSeen, redeemed.length)}/${pct(resolutionTaken, redeemed.length)}`, 12) +
+        padLeft(pct(reached, redeemed.length), 9) +
+        padLeft(pct(byEnding.get('arch_lich') ?? 0, total), 8),
+    );
+  }
+
   console.log(rule());
   row('became a lich (transformation)', pct(results.filter((r) => r.becameLich).length, total));
   row('LICHDOM ending', pct(byEnding.get('lichdom') ?? 0, total));
@@ -1105,8 +1903,23 @@ function main(): void {
   const legendaryConjunct = results.filter((r) => r.metLegendaryConjunct).length / total;
   const checks: Array<[string, boolean, string]> = [
     [
-      // Provenance: wiki/04 § Near-Miss Tuning names 1-4%; this is the one
-      // headline band in the file that the wiki states outright.
+      /*
+       * Provenance: wiki/04 § Near-Miss Tuning names 1-4%; this is the one
+       * headline band in the file that the wiki states outright, and the one
+       * that may not simply be widened.
+       *
+       * WAS RED from the faction reprisals landing (#14 slice 1) through
+       * 0.80-1.20%, against a pre-reprisal 1.50-1.65% — reprisals ended
+       * careers ~0.8 eras earlier (mean run length 13.42 -> 12.62), so BOTH
+       * conjuncts fell together (84+ notoriety 9.85% -> 7.35%, a legendary
+       * ever held 10.35% -> 8.40%). `ASCENSION_MIN_NOTORIETY` was
+       * deliberately left untouched rather than lowered to paper over it.
+       * Slice 4 (issue #22) gave the Gilded Hand and the Verdant Choir a
+       * legendary each, which recovered the conjunct that fell, and measured
+       * back in-band without moving the threshold — the twice-chased
+       * `DEF_LICH` mistake this comment used to warn against repeating.
+       * PASSING again as of #22/#25, at 1.25-1.35% across seeds.
+       */
       'Ascension in 1-4%',
       ascensionRate >= 0.01 && ascensionRate <= 0.04,
       pct(ascension, total),
@@ -1158,10 +1971,56 @@ function main(): void {
       `${(cliffRate * 100).toFixed(2)}%`,
     ],
     [
-      // Rule 6, counted against the content bundle rather than a literal seven.
-      `Every authored ending occurs (${ALL_ENDING_IDS.length} in content)`,
-      ALL_ENDING_IDS.every((e) => (byEnding.get(e) ?? 0) > 0),
-      `${ALL_ENDING_IDS.filter((e) => (byEnding.get(e) ?? 0) > 0).length}/${ALL_ENDING_IDS.length}`,
+      /*
+       * Rule 6, counted against the content bundle rather than a literal
+       * seven — and against every run this harness plays, not only the
+       * headline population.
+       *
+       * Endings are ALLOWED to differ wildly in difficulty; what they may not
+       * do is be unreachable. Measuring that on the population alone made the
+       * gate seed-dependent the moment the rarest reprisals landed: the
+       * Covenant's is reached by ~3.5% of a pariah cohort that is ~40 runs of
+       * the 2000, so the expected count is 1.4 and a quarter of seeds produce
+       * none. Seed 6 duly produced none, and a load-bearing gate that goes red
+       * on a seed change is worse than one that fails honestly.
+       *
+       * The fix is NOT to raise the pariah share until the number cooperates —
+       * a population made of people all chasing rare endings is not a
+       * population (CLAUDE.md failure mode 5), and inflating it would corrupt
+       * every other rate in this report to make one check pass. So the count
+       * spans the population plus every dedicated cohort probe: `reprisalProbe`
+       * and `leadershipProbe` (slice 2b), then `saintProbe` (issue #23) and
+       * `lichProbe` (issue #24's flicker fix — `lichdom` used to be read off
+       * only the population's ~120-run `lich` slice, which is exactly the same
+       * small-expected-count problem this comment already describes for the
+       * reprisals, and seed 4 duly produced a zero), in which the rarest
+       * ending is expected several times over.
+       *
+       * The population share stays printed above, deliberately without a
+       * target beside it. An ending that occurs only in its own cohort is a
+       * rare ending, which is allowed; an ending that occurs nowhere is a
+       * broken one, which is not.
+       *
+       * THIS IS THE ONLY REACHABILITY ROW, and there used to be a second one
+       * asserting each reprisal turned up inside its own 200-run cohort. It
+       * was deleted rather than tuned: at a 1% cohort rate the expected count
+       * is two and one seed in eight produces none, so it went red on seed 2
+       * for a reason that was arithmetic rather than a defect. A gate that
+       * flickers is a gate people stop reading. The combined count is large
+       * precisely so it does not flicker.
+       */
+      `Every authored ending occurs (${ALL_ENDING_IDS.length} in content, ${
+        total +
+        [...probe.values()].reduce((a, c) => a + c.length, 0) +
+        [...leadership.values()].reduce((a, c) => a + c.length, 0) +
+        saint.length +
+        lich.length +
+        redeemed.length
+      } careers)`,
+      ALL_ENDING_IDS.every((e) => (byEndingAnywhere.get(e) ?? 0) > 0),
+      `${ALL_ENDING_IDS.filter((e) => (byEndingAnywhere.get(e) ?? 0) > 0).length}/${
+        ALL_ENDING_IDS.length
+      }`,
     ],
     [
       /*
@@ -1244,7 +2103,16 @@ function main(): void {
     [
       // Measured WITHIN the cohort that seeks it, not across the population:
       // only ~6% of simulated players take the lich policy at all, so a
-      // population-wide figure mostly measures the population mix.
+      // population-wide figure mostly measures the population mix. Still read
+      // off the population's ~110-130-run `lich` slice rather than
+      // `lichProbe` — this is a READING, not a gate (see `gate.mjs`'s header
+      // comment), so it is allowed to be noisier than the ending's actual
+      // reachability requires. `lichProbe`'s larger, dedicated 200-run cohort
+      // is what now backs "Every authored ending occurs" below, which is the
+      // check rule 6 actually needs to hold; the population's own slice was
+      // small enough to roll zero rite completions on an ordinary seed
+      // (issue #24), which is what made THAT check flicker, not this one's
+      // band being wrong.
       //
       // The band is 2-15%, and it is deliberately low. The wiki sets no target
       // rate for lichdom; earlier numbers here were invented and then chased,

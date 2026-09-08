@@ -16,11 +16,22 @@
  * |---------------------------|--------------------------------------|
  * | `slain_by_chosen_one`     | the named hero for this run's seed   |
  * | `sealed_in_gem`           | the Pale Academy                     |
+ * | `eternally_repurposed`    | the Ashen Covenant                   |
+ * | `liquidated`              | the Gilded Hand                      |
+ * | `turned_to_fertilizer`    | the Verdant Choir                    |
+ * | `exiled_and_overrun`      | the Crownlands                       |
+ * | `consumed`                | the Worm Below                       |
  * | `consumed_by_pact`        | the Ashen Covenant                   |
  * | `betrayed_by_apprentice`  | an apprentice                        |
  * | `lichdom`                 | **nobody**                           |
  * | `retired_to_swamp`        | **nobody**                           |
  * | `ascension`               | **nobody**                           |
+ * | `arch_lich`               | **nobody**                           |
+ *
+ * The five faction reprisals are the least ambiguous entries in the table: a
+ * reprisal is the faction acting, which is the whole of what it is. They are
+ * attributed through `REPRISAL_BY_FACTION` rather than by five more literals,
+ * so the card can never credit a faction other than the one the engine used.
  *
  * Those last three are SELF-DETERMINED: they are things the wizard did, not
  * things done to the wizard. Inventing an agent for them would be a lie, and a
@@ -34,7 +45,44 @@
  * faction that is absent yields `null` rather than a broken half-sentence.
  */
 
+import { LEADERSHIP_BY_FACTION, REPRISAL_BY_FACTION } from '../../engine';
 import type { EndingId, Faction, FactionId } from '../../types';
+
+/**
+ * Reprisal ending -> the faction that carried it out.
+ *
+ * Inverted from the engine's own table so there is exactly one place that
+ * decides which faction owns which reprisal. A hand-written second copy here
+ * would typecheck perfectly while naming the wrong faction on the card.
+ */
+const REPRISAL_AGENT = new Map<EndingId, FactionId>(
+  (Object.entries(REPRISAL_BY_FACTION) as [FactionId, EndingId][]).map(([factionId, endingId]) => [
+    endingId,
+    factionId,
+  ]),
+);
+
+/**
+ * The same inversion for the other end of the relationship — EXCEPT
+ * `worm_below`, whose crown is `lichdom`.
+ *
+ * `lichdom` is SELF-DETERMINED (see the table above): it is earned by the
+ * rite, a card the wizard accepted, not crowned onto them by an institution
+ * they were working WITH — the distinction `attributionLabelFor`'s doc
+ * comment draws below. A wholesale inversion of `LEADERSHIP_BY_FACTION` would
+ * map `lichdom -> worm_below` anyway and make `attributionLabelFor('lichdom')`
+ * answer "At the head of" — wrong, and safe today only because
+ * `attributionFor('lichdom')` returns `null` first and nothing downstream of
+ * it calls `attributionLabelFor` without checking that. The moment `lichdom`
+ * gains an agent, or any other surface calls this map directly, that accident
+ * stops holding. Filtering the one entry out here removes the trap instead of
+ * relying on every future caller to route around it.
+ */
+const LEADERSHIP_AGENT = new Map<EndingId, FactionId>(
+  (Object.entries(LEADERSHIP_BY_FACTION) as [FactionId, EndingId][])
+    .filter(([, endingId]) => endingId !== 'lichdom')
+    .map(([factionId, endingId]) => [endingId, factionId]),
+);
 
 /** What the screen needs to resolve an attribution. */
 export type AttributionContext = {
@@ -72,8 +120,33 @@ export function attributionFor(endingId: EndingId, ctx: AttributionContext): str
       // rather than a label with a blank after it.
       return ctx.heroName.trim() || null;
 
+    // --- faction reprisals: the faction IS the ending ------------------------
     case 'sealed_in_gem':
-      return nameOf(ctx.factions, 'pale_academy');
+    case 'eternally_repurposed':
+    case 'liquidated':
+    case 'turned_to_fertilizer':
+    case 'exiled_and_overrun':
+    case 'consumed': {
+      const factionId = REPRISAL_AGENT.get(endingId);
+      return factionId ? nameOf(ctx.factions, factionId) : null;
+    }
+
+    // --- faction leadership: the faction is who you did it FOR ---------------
+    //
+    // Patron-determined, not self-determined. A wizard does not become Archmage
+    // alone in a room — there is an institution doing the crowning, and it is
+    // the same fixed cast the reprisals are drawn from, which is the whole
+    // point of a recurring six (wiki/06 § What Does Not Transfer). Leaving
+    // these in the `null` branch below would print the biggest name in the
+    // career and then decline to say whose name it was.
+    case 'contract_writer':
+    case 'grand_arbiter':
+    case 'archmage':
+    case 'archdruid':
+    case 'overthrown_the_kingdom': {
+      const factionId = LEADERSHIP_AGENT.get(endingId);
+      return factionId ? nameOf(ctx.factions, factionId) : null;
+    }
 
     case 'consumed_by_pact':
       return nameOf(ctx.factions, 'ashen_covenant');
@@ -82,9 +155,17 @@ export function attributionFor(endingId: EndingId, ctx: AttributionContext): str
       return APPRENTICE;
 
     // --- self-determined: no agent exists, so none is named -----------------
+    //
+    // `good_wizard` belongs here too (issue #23): it is chosen, not inflicted
+    // or bestowed, so no faction crowns it and nothing did it to the wizard —
+    // it sits beside `retired_to_swamp`, not beside the leadership set above.
+    // `arch_lich` (issue #25) is the same case twice over: both the rite and
+    // the vow it combines are already self-determined on their own.
     case 'lichdom':
     case 'retired_to_swamp':
     case 'ascension':
+    case 'good_wizard':
+    case 'arch_lich':
       return null;
 
     default: {
@@ -102,3 +183,22 @@ export function attributionFor(endingId: EndingId, ctx: AttributionContext): str
  * this card is always in the narration, never in the caption (rule 4).
  */
 export const ATTRIBUTION_LABEL = 'At the hands of';
+
+/**
+ * ...except when the faction did not do it TO you.
+ *
+ * "At the hands of The Pale Academy" is the right caption for a wizard filed
+ * away in a gem and exactly the wrong one for a wizard who ended the career as
+ * its Archmage. Every attributed ending until now was something done to the
+ * player, so one phrase carried them all; leadership is the first agent on
+ * this card the wizard was working WITH.
+ *
+ * Derived from `LEADERSHIP_AGENT` — the same map the switch above answers from
+ * — rather than written as a second switch over the same ids. A parallel list
+ * of "which endings are leadership" is the shape that drifts (failure mode 3:
+ * never mirror a fact across a seam), and the drift here would print a crown
+ * as an execution.
+ */
+export function attributionLabelFor(endingId: EndingId): string {
+  return LEADERSHIP_AGENT.has(endingId) ? 'At the head of' : ATTRIBUTION_LABEL;
+}

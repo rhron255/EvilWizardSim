@@ -309,9 +309,9 @@
     line-height: 1.3;
   }
 
-  /* Size is untouched on purpose: this is the one standing value that ends a
-     run outright, so it gives back spacing and nothing else. */
-  .seal {
+  /* Size is untouched on purpose: this names a standing that ends a run
+     outright, so it gives back spacing and nothing else. */
+  .reprisal {
     margin-top: var(--ew-space-1);
     line-height: 1.35;
   }
@@ -671,9 +671,10 @@
 .allegiance[data-tone='lethal'] .allegianceValue { color: var(--ew-danger); }
 .allegiance[data-tone='lethal'] .allegianceFill { background: var(--ew-danger); }
 
-/* The seal is the only standing value that ends a run outright, so it gets a
-   sentence rather than a colour the player has to decode. */
-.seal {
+/* A standing low enough to end a run gets a sentence rather than a colour the
+   player has to decode. Six factions can reach it; one line names whichever is
+   closest, because the header has room for a sentence and not for a table. */
+.reprisal {
   grid-column: 1 / -1;
   margin: var(--ew-space-2) 0 0;
   font-size: var(--ew-size-sm);
@@ -682,6 +683,6 @@
   text-wrap: pretty;
 }
 
-.seal[data-armed='true'] {
+.reprisal[data-armed='true'] {
   color: var(--ew-danger);
 }

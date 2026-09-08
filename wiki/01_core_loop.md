@@ -119,11 +119,48 @@ set:
 | Consumed by the Pact | Demon-pact debt unpaid | High-variance play punished. |
 | Ascension | Rare; requires the run's top prize | The near-miss target. Should be genuinely uncommon. |
 
+**Amended by issue #14 — the seal was one of six.** "Sealed in a Gem" reads
+above as a *specific* faction outcome, and that was the problem: faction
+standing is the most-touched system in the game and reached exactly one
+ending, so five of the six factions were a shop rather than a life. The same
+trigger — standing at or under `SEAL_MAX_STANDING`, notoriety at or over
+`SEAL_MIN_NOTORIETY` — now reads against all six, and each faction has its own
+idea of what to do about you.
+
+| Faction | Reprisal |
+|---|---|
+| Ashen Covenant | Eternally Repurposed |
+| Gilded Hand | Liquidated |
+| Pale Academy | Sealed in a Gem *(unchanged)* |
+| Verdant Choir | Turned to Fertilizer |
+| Crownlands | Exiled and Overrun |
+| Worm Below | Consumed |
+
+The trigger itself was deliberately **not** retuned in the same change. Only
+the Academy's fires in any phase, as it always has; the other five are decline
+only, so an ascent dip cannot end a career before the prophecy the arc rests
+on. The leadership half of the same issue — devotion, rather than enmity — is
+still to come.
+
 **Lichdom is an ending, not a prize.** It is the branch that cheats the
 decline phase — the lich's Notoriety does not decay. The cost must be
 real and mechanical, not flavor: proposal is that the lich forfeits all
 held artifacts and all followers desert. This makes it a live decision
 rather than a strict upgrade.
+
+**Amended by issue #14 slice 5 / issue #23 — a thirteenth, obscure ending.**
+The Good Wizard is reached by a career of consistently constructive choices
+— blessing a harvest, fixing a mill, resolving a haunting by talking to the
+ghost instead of binding it — counted by two hidden run-scoped counters
+(`goodActs`/`illActs`) that are never shown on screen, the one deliberate
+exception to this document's odds-disclosure rule (see CLAUDE.md's amendment
+to failure mode 1). The exception holds only because the route is purely
+additive: it can add this ending at the age limit, ahead of Lichdom, and
+cannot end a run early, close off any other ending, or move any other
+threshold. Like Lichdom, it is player-chosen rather than triggered by a
+faction or a stat crossing a threshold — three phases of offers (constructive
+choices scattered through the catalog, then a reputation shift once enough
+have accumulated, then a closing card that commits to it) rather than one.
 
 ### 8. Ending Card & Collection
 

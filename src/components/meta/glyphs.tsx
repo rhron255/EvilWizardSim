@@ -277,6 +277,110 @@ const ENDING_PATHS: Record<EndingId, string[]> = {
     'M2 11.4H.4',
     'M22 11.4h1.6',
   ],
+  // A crate with a flame in it: stock, not a person.
+  eternally_repurposed: [
+    'M4.4 8.8h15.2v11.6H4.4z',
+    'M4.4 12.4h15.2',
+    'M9.2 8.8V6.4a2.8 2.8 0 015.6 0v2.4',
+    'M12 19a2.1 2.1 0 002.1-2.1c0-1.7-2.1-2.4-2.1-4.5 0 2.1-2.1 2.8-2.1 4.5A2.1 2.1 0 0012 19z',
+  ],
+  // An auctioneer's hammer, and the last coin off the table.
+  liquidated: [
+    'M13.6 2.8l7.4 7.4-2.9 2.9-7.4-7.4z',
+    'M11.5 9.5L3.4 17.6',
+    'M2 21.4h9.8',
+    'M17.6 20.4a2.7 2.7 0 100-5.4 2.7 2.7 0 000 5.4z',
+  ],
+  // A sprout out of a mound, and the furrows either side of it.
+  turned_to_fertilizer: [
+    'M2.6 17.6h18.8',
+    'M5.2 17.6c0-3.5 3-6.2 6.8-6.2s6.8 2.7 6.8 6.2',
+    'M12 11.4V4.4',
+    'M12 8.4c0-1.9 1.5-3.3 3.5-3.5-.2 2-1.6 3.5-3.5 3.5z',
+    'M12 10c0-1.9-1.5-3.3-3.5-3.5.2 2 1.6 3.5 3.5 3.5z',
+    'M4.8 20.8h3.6',
+    'M10.2 20.8h3.6',
+    'M15.6 20.8h3.6',
+  ],
+  // A border post pointing outward, and the briar on the far side of it.
+  exiled_and_overrun: [
+    'M2.6 20.6h18.8',
+    'M6.4 20.6V6.6',
+    'M6.4 8.6h7.6l2.4 2.2-2.4 2.2H6.4',
+    'M16.8 20.6c0-3.6 1.6-6 4.4-7',
+    'M19.6 16.4c-1.7-.7-2.5-2-2.4-3.7 1.9.3 2.9 1.4 3.1 3.3z',
+  ],
+  // A quill over a folded contract: the terms, and the hand that writes them.
+  contract_writer: [
+    'M4.2 19.8h15.6',
+    'M6.6 16.8V5.2h8.2l3 2.9v8.7z',
+    'M9.2 8.4h5.4',
+    'M9.2 11.4h5.4',
+    'M17.6 3.4c-2 3.9-4.3 6.4-7 7.6l1.7 1.8c2.8-1.1 4.9-3.9 5.3-9.4z',
+  ],
+  // A balance at rest, with the beam locked level.
+  grand_arbiter: [
+    'M12 3.6v16.8',
+    'M6.8 20.4h10.4',
+    'M4 8.6h16',
+    'M4 8.6L1.8 13.8a2.6 2.6 0 004.4 0z',
+    'M20 8.6l2.2 5.2a2.6 2.6 0 01-4.4 0z',
+    'M9 5.8h6',
+  ],
+  // A star held above an open book — the Academy's own mark, granted rather
+  // than withheld.
+  archmage: [
+    'M3.2 12.4h7.2c.8 0 1.2.5 1.2 1.1v7.4c0-.6-.4-1.1-1.2-1.1H3.2z',
+    'M20.8 12.4h-7.2c-.8 0-1.2.5-1.2 1.1v7.4c0-.6.4-1.1 1.2-1.1h7.2z',
+    'M12 2.2l1.5 3.3 3.5.4-2.6 2.5.7 3.5L12 10.2 8.9 11.9l.7-3.5L7 5.9l3.5-.4z',
+  ],
+  // Antlers crowned with a leaf: the Choir's shape, worn.
+  archdruid: [
+    'M12 21.6V12.4',
+    'M12 12.4L7.6 8',
+    'M7.6 8L4.4 9.2',
+    'M7.6 8L6.6 4.6',
+    'M12 12.4L16.4 8',
+    'M16.4 8l3.2 1.2',
+    'M16.4 8l1-3.4',
+    'M12 6.4c0-2.1 1.7-3.7 4-3.9-.2 2.3-1.9 3.9-4 3.9z',
+    'M9.4 16.4l-3 1.2',
+    'M14.6 16.4l3 1.2',
+  ],
+  // A crown resting on a toppled throne.
+  overthrown_the_kingdom: [
+    'M2.6 20.6h18.8',
+    'M6.4 20.6l1.6-8.4h7.4l1.6 8.4',
+    'M8.4 12.2V6.6',
+    'M15.4 12.2V6.6',
+    'M5.6 5.2l-1-3.6 3 2 2.4-3 2.4 3 3-2-1 3.6z',
+  ],
+  // A funnel of ground, seen from directly above.
+  consumed: [
+    'M12 21.4c-5 0-9-3.8-9-8.6S7 3.6 12.4 3.6s8.8 3.4 8.8 7.6-3 6.6-6.4 6.6-5.4-2.2-5.4-4.6 1.9-4 3.8-4 3 1.3 3 2.8',
+    'M1.6 9.6l-1.4-1',
+    'M22.6 15l1.4-1',
+  ],
+  // A sprouting seed cupped in an open hand: a small act, held out plainly.
+  good_wizard: [
+    'M4 15.4c0-3.4 2-6.6 5-8.2',
+    'M20 15.4c0-3.4-2-6.6-5-8.2',
+    'M4 15.4c1.6 4 4.6 6 8 6s6.4-2 8-6',
+    'M12 15.4V9.6',
+    'M12 9.6c0-2.4 1.9-4.2 4.2-4.4-.2 2.3-2 4.2-4.2 4.4z',
+    'M12 9.6c0-2.4-1.9-4.2-4.2-4.4.2 2.3 2 4.2 4.2 4.4z',
+  ],
+  // `lichdom`'s hood, eyes and drips, unchanged — same undeath, same
+  // silhouette. Only the circlet above it is different: a kept flame where
+  // the crown was, for the one thing the rite's accounting never touched.
+  arch_lich: [
+    'M6 13.6a6 6 0 1112 0v3.2a2 2 0 01-2 2H8a2 2 0 01-2-2z',
+    'M9.6 13.2a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',
+    'M14.4 13.2a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',
+    'M9.4 18.8v2.6',
+    'M14.6 18.8v2.6',
+    'M12 1.4c1.5 1.7 2.3 3.1 2.3 4.2a2.3 2.3 0 11-4.6 0c0-1.1.8-2.5 2.3-4.2z',
+  ],
 };
 
 export function EndingGlyph({ id, size = 30, className, locked }: GlyphProps & { id: EndingId }) {

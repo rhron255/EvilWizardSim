@@ -15,7 +15,7 @@ import type { DefenseReadout } from '../../engine';
 import type { Faction, Lair, RunState } from '../../types';
 import { tierColor, tierFor } from '../../theme/tokens';
 import { NotorietyBadge } from './NotorietyBadge';
-import { allegiancesFor, sealSentence, sealWarningFor } from './allegiances';
+import { allegiancesFor, reprisalSentence, reprisalWarningFor } from './allegiances';
 import { lichSentence, siegeFor, stakesFor } from './stakes';
 import styles from './WizardHeader.module.css';
 
@@ -51,7 +51,7 @@ export function WizardHeader({
   const captionId = useId();
   const stakes = stakesFor(run);
   const allegiances = allegiancesFor(run, factions);
-  const seal = sealWarningFor(run);
+  const reprisal = reprisalWarningFor(run);
   const lich = lichSentence(run);
   const siege = defense == null ? null : siegeFor(run, defense);
   const lair = lairs.find((l) => l.id === run.lairId);
@@ -195,9 +195,12 @@ export function WizardHeader({
         ))}
       </ul>
 
-      {seal && (
-        <p className={styles.seal} data-armed={seal.armed ? 'true' : undefined}>
-          {sealSentence(seal)}
+      {/* One line, for the faction closest to acting — the same one the engine
+          would pick. Six factions can end a run this way; six warnings would
+          be a table, and the header has room for a sentence. */}
+      {reprisal && (
+        <p className={styles.reprisal} data-armed={reprisal.armed ? 'true' : undefined}>
+          {reprisalSentence(reprisal)}
         </p>
       )}
 

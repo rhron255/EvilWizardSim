@@ -1,19 +1,24 @@
 import type { Artifact } from '../types';
 
 /**
- * Thirty artifacts: 16 common, 10 rare, 4 legendary.
+ * Thirty-two artifacts: 16 common, 10 rare, 6 legendary.
  *
- * Five per faction, so the collection grid reads as six shelves rather than
- * one pile. The thematic binding is the whole point — a player should be able
- * to learn "the Covenant has the bone-and-contract material, the Hand has the
- * money, the Worm has the dark" and turn that into routing.
+ * Five per faction, except the Hand and the Choir, which carry six apiece
+ * since #22 gave each a legendary of its own. The thematic binding is the
+ * whole point — a player should be able to learn "the Covenant has the
+ * bone-and-contract material, the Hand has the money, the Worm has the dark"
+ * and turn that into routing.
  *
- * The four legendaries sit in the most hostile corner of the faction web
+ * The first four legendaries sat in the most hostile corner of the faction web
  * (Covenant, Academy, Crown, Worm — a knot in which almost everyone is hostile
- * to almost everyone), so reaching any one of them means committing to a
- * faction hard enough to open its reliquary. Ascension asks for ONE of them
- * plus Kingdom-level fame, and those two pull against each other — see
- * `ASCENSION_LEGENDARIES` in src/engine/constants.ts for why it is not two.
+ * to almost everyone), so reaching any one of them meant committing to a
+ * faction hard enough to open its reliquary. The Hand's is the odd one out:
+ * the Hand is hostile to nobody but the Choir, and the Choir to it, so buying
+ * either legendary is a comparatively cheap route in — see the note on
+ * `ASCENSION_MIN_NOTORIETY` in src/engine/constants.ts for how that got priced
+ * in. Ascension asks for ONE legendary from any faction plus Kingdom-level
+ * fame, and those two pull against each other — see `ASCENSION_LEGENDARIES`
+ * for why it is not two.
  *
  * `effect` is straight-faced by rule. All the comedy is in `flavorText`.
  */
@@ -125,6 +130,16 @@ export const artifacts: Artifact[] = [
       'For weighing. It adds exactly as much as is customary, and what is customary has never been written down.',
     defense: 4,
   },
+  {
+    id: 'final_ledger',
+    name: 'The Final Ledger',
+    factionId: 'gilded_hand',
+    rarity: 'legendary',
+    effect: 'Defense +7.',
+    flavorText:
+      'Records every transaction the Hand has ever completed, including several you have not made yet. The Hand insists this is not a threat. It is, however, an invoice.',
+    defense: 7,
+  },
 
   // ---------------------------------------------------------------------
   // The Pale Academy — instruments, apparatus, citation
@@ -232,6 +247,16 @@ export const artifacts: Artifact[] = [
     flavorText:
       'An oak stump entitled to speak in Choir assembly. It has never abstained, and its record on questions of masonry is unbroken.',
     defense: 5,
+  },
+  {
+    id: 'old_growth_charter',
+    name: 'The Old-Growth Charter',
+    factionId: 'verdant_choir',
+    rarity: 'legendary',
+    effect: 'Defense +7.',
+    flavorText:
+      'A tree old enough to have voted against the Choir’s founding charter, and lost. It has not forgiven this. Neither, structurally, has the charter.',
+    defense: 7,
   },
 
   // ---------------------------------------------------------------------

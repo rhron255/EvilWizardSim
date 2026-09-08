@@ -15,10 +15,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildOfferPool,
+  checkEndings,
   createRun,
   decayFor,
   defenseOf,
   emptyCollection,
+  DEVOTION_STANDING,
+  FACTION_ORDER,
+  LEADERSHIP_BY_FACTION,
+  PATRON_MARGIN,
   migrateCollection,
   nextOffer,
   pactRoleOf,
@@ -27,7 +32,10 @@ import {
   PACT_RELIEF_MAX,
   PACT_TEMPT_MAX,
   QUIET_ERA_OFFER,
+  REPRISAL_BY_FACTION,
   resolveChoice,
+  SEAL_MAX_STANDING,
+  SEAL_MIN_NOTORIETY,
   tierCrossing,
 } from './index';
 import type { ContentBundle } from './index';
@@ -36,7 +44,7 @@ import { applyStanding } from './effects';
 import { indexOf } from './content-port';
 import { fixtureContent } from './__fixtures__/content';
 import * as C from '../content';
-import type { Collection, Effect, RunState } from '../types';
+import type { Collection, Effect, FactionId, RunState } from '../types';
 
 const real: ContentBundle = {
   factions: C.factions,
@@ -360,6 +368,37 @@ describe('the lair ladder', () => {
     const run = { ...start({}, real), lairId: ladder[5].id, notoriety: 0, followers: 0 };
     expect(promoteLair(run, real)).toBe(ladder[5].id);
   });
+
+  /**
+   * `oath_verdant_choir` and `concordat_choir` both charge `lairTier: -1` as
+   * a real price. `entitledLairRung` reads fame and followers alone, with no
+   * memory of an authored move, so a wizard entitled to the rung they just
+   * gave up used to be promoted straight back into it by the SAME call to
+   * `resolveChoice` — refunding the cost before the resolution card finished
+   * printing it as paid. The demotion must survive the era it happens in.
+   */
+  it('does not refund an authored demotion in the same era', () => {
+    const ladder = indexOf(real).lairLadder;
+    // Entitled to exactly rung 5 today, per `entitledLairRung`'s formula —
+    // so absent the demotion below, nothing would move at all.
+    const run = { ...start({}, real), lairId: ladder[5].id, notoriety: 45, followers: 90 };
+    expect(entitledLairRung(run, ladder.length)).toBe(5);
+    const offer = {
+      id: 'test_demote',
+      title: 'T',
+      body: 'b',
+      phase: 'any' as const,
+      options: [
+        {
+          kind: 'certain' as const,
+          label: 'Give it back',
+          effects: [{ t: 'lairTier', v: -1 } as Effect],
+        },
+      ],
+    };
+    const { next } = resolveChoice(run, offer, 0, real);
+    expect(indexOf(real).lairRung.get(next.lairId)).toBe(4);
+  });
 });
 
 describe('endings', () => {
@@ -390,6 +429,301 @@ describe('endings', () => {
     const done = states.at(-1)!;
     const { next } = resolveChoice(done, nextOffer(done, real), 0, real);
     expect(next).toBe(done);
+  });
+});
+
+/**
+ * The six reprisals, and the rule that decides between them.
+ *
+ * `sealed_in_gem` was the only ending faction standing could reach, so the
+ * check read one faction and nothing else. Six factions carrying the same
+ * condition need an ORDER, because contagion routinely puts two of them under
+ * the line in the same era — courting the Covenant drives the Academy and the
+ * Crownlands down together. "Whichever the object literal happens to list
+ * first" is a nondeterminism bug that no single playthrough would show.
+ */
+describe('faction reprisals', () => {
+  /** A run under the line with one faction, deep in the decline. */
+  const at = (
+    standing: Partial<Record<FactionId, number>>,
+    over: Partial<RunState> = {},
+  ): RunState => ({
+    ...start(),
+    phase: 'decline',
+    // One era clear of the prophecy transition, not merely `phase: 'decline'`
+    // — `reprisalLiveFor` now keys on this, not on `phase` alone, and a
+    // fixture that left it at `start()`'s default 0 would make every "fires"
+    // test below false-negative the moment that fix landed instead of
+    // exercising it.
+    erasSinceProphecy: 1,
+    notoriety: SEAL_MIN_NOTORIETY,
+    eraIndex: 8,
+    eraCount: 16,
+    factionStanding: { ...start().factionStanding, ...standing },
+    ...over,
+  });
+
+  /**
+   * A bundle that DEFINES all six reprisal endings.
+   *
+   * `fixtureContent` declares only `sealed_in_gem` — the one reprisal that
+   * predates issue #14 — so a test run against it for any other faction
+   * exercises `reprisalEnding`'s bundle guard rather than the reprisal rule
+   * the tests below are named for. Mirrors the leadership suite's `crowned`
+   * bundle below, for the identical reason: the engine takes a
+   * `ContentBundle`, and content declaring fewer endings than the frozen
+   * contract lists is a legitimate pack, not a bug.
+   */
+  const withReprisals: ContentBundle = {
+    ...fixtureContent,
+    endings: [
+      ...fixtureContent.endings,
+      ...Object.values(REPRISAL_BY_FACTION)
+        .filter((id) => !fixtureContent.endings.some((e) => e.id === id))
+        .map((id) => ({
+          id,
+          name: `Fixture ${id}`,
+          summary: 'Fixture summary.',
+          hint: 'for a fixture',
+          narration: 'Fixture narration.',
+          rarity: 'rare' as const,
+          codaMode: 'fixed' as const,
+          coda: 'Fixture coda.',
+        })),
+    ],
+  };
+
+  it('gives every faction its own ending, not the Academy’s', () => {
+    for (const [factionId, endingId] of Object.entries(REPRISAL_BY_FACTION)) {
+      const run = at({ [factionId as FactionId]: SEAL_MAX_STANDING });
+      expect(checkEndings(run, withReprisals), factionId).toBe(endingId);
+    }
+  });
+
+  it('needs BOTH halves, exactly as the seal did', () => {
+    // Deep enough, not famous enough.
+    expect(
+      checkEndings(at({ crownlands: SEAL_MAX_STANDING - 40 }, { notoriety: SEAL_MIN_NOTORIETY - 1 }), withReprisals),
+    ).toBeUndefined();
+    // Famous enough, one point short.
+    expect(
+      checkEndings(at({ crownlands: SEAL_MAX_STANDING + 1 }), withReprisals),
+    ).toBeUndefined();
+  });
+
+  it('fires the LOWEST standing when two factions are under at once', () => {
+    const run = at({ gilded_hand: SEAL_MAX_STANDING - 2, worm_below: SEAL_MAX_STANDING - 30 });
+    expect(checkEndings(run, withReprisals)).toBe(REPRISAL_BY_FACTION.worm_below);
+  });
+
+  it('breaks an exact tie by FACTION_ORDER, the same way every time', () => {
+    const [first, second] = [FACTION_ORDER[4], FACTION_ORDER[1]];
+    const run = at({ [first]: SEAL_MAX_STANDING - 7, [second]: SEAL_MAX_STANDING - 7 });
+    // `second` is earlier in FACTION_ORDER, so it wins the tie regardless of
+    // which order the two were written into `factionStanding` above.
+    expect(checkEndings(run, withReprisals)).toBe(REPRISAL_BY_FACTION[second]);
+    expect(FACTION_ORDER.indexOf(second)).toBeLessThan(FACTION_ORDER.indexOf(first));
+  });
+
+  /**
+   * The mirror of leadership's own guard test, for `reprisalEnding`'s copy of
+   * the same rule (see the comment on `reprisalEnding` in `src/engine/
+   * endings.ts`). Same run, same standings: a bundle that declares the id
+   * ends the run on it, and a bundle that does not — `fixtureContent`, which
+   * carries only `sealed_in_gem` — lets the career continue rather than
+   * crash the ending screen on an id it cannot render.
+   */
+  it('never returns a reprisal the content bundle does not define', () => {
+    const run = at({ crownlands: SEAL_MAX_STANDING });
+    expect(checkEndings(run, withReprisals)).toBe(REPRISAL_BY_FACTION.crownlands);
+    expect(checkEndings(run, fixtureContent)).toBeUndefined();
+  });
+
+  it('keeps the five new ones out of the ascent, and the Academy in it', () => {
+    const ascent = { phase: 'ascent' as const };
+    expect(
+      checkEndings(at({ verdant_choir: SEAL_MAX_STANDING - 30 }, ascent), fixtureContent),
+    ).toBeUndefined();
+    expect(checkEndings(at({ pale_academy: SEAL_MAX_STANDING }, ascent), fixtureContent)).toBe(
+      'sealed_in_gem',
+    );
+  });
+
+  /**
+   * The bug underneath issue #25's review: `phase` flips to `'decline'` the
+   * instant `resolveChoice` advances `eraIndex` to `prophecyEra`, and
+   * `checkEndings` runs on that SAME transition — before the player has ever
+   * been shown the pinned prophecy card for that era. A reprisal gated on
+   * `phase` alone could fire right there, ending the run before the central
+   * beat the whole arc is built around ever appears. `erasSinceProphecy`
+   * stays 0 on exactly that transition (it becomes 1 only once the prophecy
+   * era's own card has been resolved), which is what `reprisalLiveFor` must
+   * key on instead.
+   */
+  it('does not fire on the era that crosses into decline, before the prophecy card is shown', () => {
+    const crossing = at(
+      { crownlands: SEAL_MAX_STANDING },
+      { erasSinceProphecy: 0 },
+    );
+    expect(checkEndings(crossing, withReprisals)).toBeUndefined();
+    // The very next era, the same standing fires as normal.
+    const oneEraLater = at({ crownlands: SEAL_MAX_STANDING }, { erasSinceProphecy: 1 });
+    expect(checkEndings(oneEraLater, withReprisals)).toBe(REPRISAL_BY_FACTION.crownlands);
+  });
+
+  it('does not outrank the blade', () => {
+    // Precedence is unchanged from the seal's: the hero lands first. Pinned
+    // because generalising the branch moved it, and a reordering here would
+    // silently redistribute two endings' rates.
+    const run = at({ pale_academy: SEAL_MAX_STANDING }, { heroThreat: 9999 });
+    expect(checkEndings(run, fixtureContent)).toBe('slain_by_chosen_one');
+  });
+});
+
+/**
+ * The other end of the same relationship: what a faction does about a wizard
+ * who spent a career at the TOP of its standing.
+ *
+ * Leadership is read at the AGE LIMIT only, so every run below has run out of
+ * eras. That is the asymmetry with the reprisals and it is deliberate: a
+ * reprisal is something done to you and may cut a career short, a crown is
+ * what is left to say about one that lasted.
+ */
+describe('faction leadership', () => {
+  /**
+   * A bundle that DEFINES the leadership endings.
+   *
+   * `src/content` now defines them too (issue #14 slice 2), but this suite
+   * stays fixture-driven on purpose: the engine takes a `ContentBundle`, and a
+   * test that only worked against the real one would say nothing about a pack
+   * that ships different — or no — leadership prose. The last test in this
+   * block covers that other case, where the bundle declares none.
+   */
+  const crowned: ContentBundle = {
+    ...fixtureContent,
+    endings: [
+      ...fixtureContent.endings,
+      ...Object.values(LEADERSHIP_BY_FACTION).map((id) => ({
+        id,
+        name: `Fixture ${id}`,
+        summary: 'Fixture summary.',
+        hint: 'for a fixture',
+        narration: 'Fixture narration.',
+        rarity: 'rare' as const,
+        codaMode: 'fixed' as const,
+        coda: 'Fixture coda.',
+      })),
+    ],
+  };
+
+  /** A career that reached the age limit, with the given standings. */
+  const retiring = (
+    standing: Partial<Record<FactionId, number>>,
+    over: Partial<RunState> = {},
+  ): RunState => ({
+    ...start(),
+    phase: 'decline',
+    eraIndex: 16,
+    eraCount: 16,
+    factionStanding: { ...start().factionStanding, ...standing },
+    ...over,
+  });
+
+  it('gives every faction its own crown', () => {
+    for (const [factionId, endingId] of Object.entries(LEADERSHIP_BY_FACTION)) {
+      // `lichdom` is the Worm's and is earned by the rite, not by standing —
+      // it is covered on its own below.
+      if (endingId === 'lichdom') continue;
+      const run = retiring({ [factionId as FactionId]: DEVOTION_STANDING + PATRON_MARGIN });
+      expect(checkEndings(run, crowned), factionId).toBe(endingId);
+    }
+  });
+
+  it('retires the wizard who was liked by three factions and led by none', () => {
+    // The whole reason `PATRON_MARGIN` exists: devotion has to be a
+    // commitment, not the top of a flat spread.
+    const run = retiring({
+      ashen_covenant: DEVOTION_STANDING + 6,
+      pale_academy: DEVOTION_STANDING + 4,
+      crownlands: DEVOTION_STANDING,
+    });
+    expect(checkEndings(run, crowned)).toBe('retired_to_swamp');
+  });
+
+  it('needs the margin, at the boundary in both directions', () => {
+    const dominant = retiring({
+      verdant_choir: DEVOTION_STANDING + PATRON_MARGIN,
+      gilded_hand: DEVOTION_STANDING,
+    });
+    expect(checkEndings(dominant, crowned)).toBe(LEADERSHIP_BY_FACTION.verdant_choir);
+
+    const oneShort = retiring({
+      verdant_choir: DEVOTION_STANDING + PATRON_MARGIN - 1,
+      gilded_hand: DEVOTION_STANDING,
+    });
+    expect(checkEndings(oneShort, crowned)).toBe('retired_to_swamp');
+  });
+
+  it('needs devotion, at the boundary in both directions', () => {
+    // Borrowed, never invented: `DEVOTION_STANDING` is the same threshold that
+    // opens a reliquary, so leadership is not a second number to learn.
+    expect(checkEndings(retiring({ crownlands: DEVOTION_STANDING }), crowned)).toBe(
+      LEADERSHIP_BY_FACTION.crownlands,
+    );
+    expect(checkEndings(retiring({ crownlands: DEVOTION_STANDING - 1 }), crowned)).toBe(
+      'retired_to_swamp',
+    );
+  });
+
+  it('breaks an exact tie by FACTION_ORDER, the same way every time', () => {
+    // Two factions at the same top standing cannot both crown you, and which
+    // one does may not depend on object key order.
+    const [first, second] = [FACTION_ORDER[4], FACTION_ORDER[1]];
+    const run = retiring({
+      [first]: DEVOTION_STANDING + PATRON_MARGIN,
+      [second]: DEVOTION_STANDING + PATRON_MARGIN,
+    });
+    // A tie means no margin over the runner-up, so nobody is crowned at all.
+    expect(checkEndings(run, crowned)).toBe('retired_to_swamp');
+    expect(FACTION_ORDER.indexOf(second)).toBeLessThan(FACTION_ORDER.indexOf(first));
+  });
+
+  it('leaves a lich a lich, whatever the standings say', () => {
+    // `lichdom` is the Worm's leadership ending and the rite already charged
+    // for it. A Covenant devotee who took the rite must not die a Pact Master.
+    const run = retiring(
+      { ashen_covenant: DEVOTION_STANDING + PATRON_MARGIN },
+      { isLich: true },
+    );
+    expect(checkEndings(run, crowned)).toBe('lichdom');
+  });
+
+  /**
+   * Issue #21's real bug, not just its disclosure gap. `LEADERSHIP_BY_FACTION`
+   * maps `worm_below` to `lichdom` for attribution's sake, and
+   * `patronFaction` reads standing alone — so a wizard who courted the Worm
+   * to a dominant standing but never took the rite used to reach this branch
+   * with `isLich: false` and still get mapped through to `lichdom`,
+   * narrating a transformation, a forfeited vault and a frozen decay that
+   * never happened. The Worm's crown is earned by the rite ONLY
+   * (`content/standing.ts`'s `PATRON_BY_ENDING` comment says the same thing
+   * from the flavor side); a standing-only wizard retires like anyone else
+   * who committed to nothing that pays off.
+   */
+  it('does not crown a standing-only devotee of the Worm Below', () => {
+    const run = retiring({ worm_below: DEVOTION_STANDING + PATRON_MARGIN });
+    expect(run.isLich).toBe(false);
+    expect(checkEndings(run, crowned)).toBe('retired_to_swamp');
+  });
+
+  it('never returns an ending the content bundle does not define', () => {
+    // The guard that makes this branch safe for any pack — and for this repo
+    // today, where the ids exist and the prose does not. Same run, same
+    // standings, a bundle that declares no crowns: the career retires instead
+    // of ending on a card that cannot be rendered.
+    const run = retiring({ ashen_covenant: DEVOTION_STANDING + PATRON_MARGIN });
+    expect(checkEndings(run, crowned)).toBe(LEADERSHIP_BY_FACTION.ashen_covenant);
+    expect(checkEndings(run, fixtureContent)).toBe('retired_to_swamp');
   });
 });
 

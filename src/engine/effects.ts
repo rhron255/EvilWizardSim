@@ -17,6 +17,7 @@ import {
   DEVOTION_STANDING,
   CONTAGION_GAIN,
   CONTAGION_LOSS,
+  GOOD_WIZARD_ILL_CAP,
   NOVELTY_BIAS,
   RARITY_DRAW_WEIGHT,
   STANDING_MAX,
@@ -173,6 +174,51 @@ export function applyEffects(
         // Pushed so the resolution card lists the rite alongside its price;
         // `run.ts` appends the concrete forfeiture once it knows what was held.
         out.applied.push({ t: 'becomeLich' });
+        break;
+      }
+
+      /**
+       * The rule-1 exception (issue #23) — see the doc comment on these two
+       * variants in `types.ts`. Every other numeric case above pushes to
+       * `out.applied` only `if (delta !== 0)`; these two never push at all,
+       * unconditionally. That is what makes disclosure structural rather
+       * than a UI-layer filter: `appliedEffects` (the ledger, the resolution
+       * card) reads this array directly, and `projectEffects` below reads it
+       * too (via `PROJECTABLE`), so both leak points close from one place.
+       */
+      case 'goodAct': {
+        draft.goodActs = Math.max(0, draft.goodActs + effect.v);
+        break;
+      }
+
+      case 'illAct': {
+        draft.illActs = Math.max(0, draft.illActs + effect.v);
+        // The vow is a promise the career keeps to the end ("held to the
+        // end", per `virtue_resolution_the_quiet_ledger`'s own resultText),
+        // not a one-time gate check spent at the moment it was taken. That
+        // offer's own `requires` caps illActs at `GOOD_WIZARD_ILL_CAP`, but
+        // nothing enforced the cap AFTER the vow — a wizard who vowed at
+        // illActs 0 or 1 and then picked an illAct-tagged option elsewhere in
+        // the pool (`virtue_obscure_*` offers are ordinary-reading and
+        // ungated, so every run sees them, saint or not) kept `good_wizard`/
+        // `arch_lich` regardless of how many more harmful choices followed,
+        // contradicting the card's own gate and its own promise.
+        //
+        // Revoked here, silently — as silently as the counters that gate it.
+        // Rule 1's amendment permits this route to only ever ADD an ending;
+        // un-adding it the moment its OWN condition stops holding is the same
+        // door the counters already gate, not a new one.
+        if (draft.goodWizardVowed && draft.illActs > GOOD_WIZARD_ILL_CAP) {
+          draft.goodWizardVowed = false;
+        }
+        break;
+      }
+
+      case 'vowGoodWizard': {
+        draft.goodWizardVowed = true;
+        // Fully disclosed, unlike the case above — see the doc comment on
+        // `Effect`'s `vowGoodWizard` member.
+        out.applied.push({ t: 'vowGoodWizard' });
         break;
       }
 
@@ -387,6 +433,18 @@ const PROJECTABLE: ReadonlySet<Effect['t']> = new Set([
   'heroThreat',
   'standing',
   'lairTier',
+  /**
+   * `goodAct`/`illAct` are projectable for the opposite of the usual reason:
+   * not to correct the authored number, but to make it vanish. Routing them
+   * through `applyEffects` (which never pushes either to `out.applied`, see
+   * the case above) means the pre-commit offer card gets the same silence
+   * the post-commit resolution card does, from the same mechanism — see the
+   * rule-1 exception on `Effect` in `types.ts`. Leaving them OUT of this set
+   * would send them down the "pass through raw" branch below instead, which
+   * is exactly the leak this exists to close.
+   */
+  'goodAct',
+  'illAct',
 ]);
 
 /** Never reached: no projectable effect draws from the rng. */

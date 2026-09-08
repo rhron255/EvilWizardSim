@@ -16,7 +16,7 @@ import type { Artifact, Ending, Faction, Lair, RunState, ThemeId, TierId } from 
 import { themeFor } from '../theme/themes';
 import {
   ArtifactGrid,
-  ATTRIBUTION_LABEL,
+  attributionLabelFor,
   CornerMarks,
   FactionGlyph,
   Flourish,
@@ -285,7 +285,9 @@ export function EndingScreen({
               "nobody" placeholder, because a blank is the honest answer. */}
           {attribution ? (
             <p className={styles.attribution} data-attribution>
-              <span className={styles.attributionLabel}>{ATTRIBUTION_LABEL}</span>
+              <span className={styles.attributionLabel}>
+                {attributionLabelFor(ending.id)}
+              </span>
               <span className={styles.attributionName}>{attribution}</span>
             </p>
           ) : null}
@@ -306,7 +308,7 @@ export function EndingScreen({
               usual one for a quiet retirement. */}
           {(bonds.patron || bonds.nemesis) && (
             <p className={styles.bonds}>
-              {bonds.patron && <span>{patronLineFor(bonds.patron.factionId)}</span>}{' '}
+              {bonds.patron && <span>{patronLineFor(bonds.patron.factionId, ending.id)}</span>}{' '}
               {bonds.nemesis && <span>{nemesisLineFor(bonds.nemesis.factionId, ending.id)}</span>}
             </p>
           )}

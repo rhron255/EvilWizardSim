@@ -121,27 +121,50 @@ describe('WizardHeader · disclosure', () => {
     expect(within(strip).getAllByRole('listitem')).toHaveLength(6);
   });
 
-  it('warns about the seal once the Academy is close', () => {
+  /**
+   * The warning names the faction that would ACT, not a favourite.
+   *
+   * The demo run is the case that used to be wrong: the Academy at −48 and the
+   * Crownlands at −76, in the decline, at 71 Notoriety. That career ends in
+   * `exiled_and_overrun` and the header spent the whole build warning about a
+   * gem — the Academy was simply the only faction the header could talk about.
+   */
+  it('warns about whichever faction is closest to acting', () => {
     show(demoRun);
-    expect(screen.getByText(/The Academy is/)).toBeInTheDocument();
-  });
-
-  it('says nothing about the seal when the Academy is indifferent', () => {
-    const calm = {
-      ...demoRun,
-      factionStanding: { ...demoRun.factionStanding, pale_academy: 40 },
-    };
-    show(calm);
+    expect(screen.getByText(/The Crown/)).toBeInTheDocument();
     expect(screen.queryByText(/The Academy is/)).toBeNull();
   });
 
-  it('names the fame that arms the seal while fame is the half still missing', () => {
+  it('warns about the Academy when the Academy is the one closest', () => {
+    const academy = {
+      ...demoRun,
+      factionStanding: { ...demoRun.factionStanding, crownlands: 10, pale_academy: -48 },
+    };
+    show(academy);
+    expect(screen.getByText(/The Academy is/)).toBeInTheDocument();
+  });
+
+  it('says nothing at all when no faction is anywhere near acting', () => {
+    const calm = {
+      ...demoRun,
+      factionStanding: { ...demoRun.factionStanding, pale_academy: 40, crownlands: 20 },
+    };
+    show(calm);
+    expect(screen.queryByText(/is done deliberating|from the gem|from the writ/)).toBeNull();
+  });
+
+  it('names the fame that arms the reprisal while fame is the half still missing', () => {
     const quiet = {
       ...demoRun,
       notoriety: 20,
-      factionStanding: { ...demoRun.factionStanding, pale_academy: SEAL_MAX_STANDING },
+      factionStanding: {
+        ...demoRun.factionStanding,
+        crownlands: 10,
+        pale_academy: SEAL_MAX_STANDING,
+      },
     };
     show(quiet);
+    expect(screen.getByText(/The Academy is done deliberating/)).toBeInTheDocument();
     expect(screen.getByText(/55 Notoriety/)).toBeInTheDocument();
   });
 });
@@ -224,10 +247,21 @@ describe('WizardHeader · the lich says so', () => {
  */
 describe('the lichdom bill', () => {
   it('names all four consequences', () => {
-    expect(LICH_LINE).toMatch(/forfeit every relic/i);
+    expect(LICH_LINE).toMatch(/forfeit all relics/i);
     expect(LICH_LINE).toMatch(/Followers/);
     expect(LICH_LINE).toMatch(/decay ends/i);
     expect(LICH_LINE).toContain(`+${DEF_LICH} Wards`);
+  });
+
+  /**
+   * Issue #21: the rite TRANSFORMS rather than terminates — a lich still has
+   * to survive to the age limit to land on the `lichdom` ending — and the
+   * card's own label ("Accept. Become the thing under the hill.") never said
+   * so. This is the one line every player reads before committing, so it is
+   * where the fact has to survive even if every other surface goes quiet.
+   */
+  it('says plainly that this is not the ending', () => {
+    expect(LICH_LINE).toMatch(/not the end/i);
   });
 
   it('tracks the constant, so prose cannot drift from the rule', () => {

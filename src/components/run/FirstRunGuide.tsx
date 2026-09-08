@@ -43,12 +43,17 @@ const CARDS: Card[] = [
     title: 'The same six, every run',
     // The seal moved here. It used to be a permanent sentence in the header —
     // printed from era one, above a wizard too obscure for the Academy to care
-    // about, on top of the choice cards. The live distance is now a tick on the
-    // Academy's own bar; this is where the rule gets explained, once. Both
+    // about, on top of the choice cards. The live distance is now a tick on
+    // every faction's bar; this is where the rule gets explained, once. Both
     // halves of the trigger are named, because a threshold without the thing
     // that trips it is half a disclosure (`allegiances.ts` documents the death
     // that taught us so).
-    body: 'Six factions, the same six every career. Court one and its enemies hear about it: standing spills along old grudges — sink far enough with the Pale Academy and, once your name is big enough, they file you away in a gem.',
+    //
+    // It no longer names the Academy, because the Academy is no longer the
+    // only one: all six carry the same condition and each has its own idea of
+    // what to do about you. Teaching the gem specifically would leave five
+    // reprisals as the surprise this card exists to prevent.
+    body: 'Six factions, the same six every career. Court one and its enemies hear about it: standing spills along old grudges — sink far enough with any of them and, once your name is big enough, they deal with you permanently, each in their own way.',
   },
   {
     eyebrow: 'The numbers',

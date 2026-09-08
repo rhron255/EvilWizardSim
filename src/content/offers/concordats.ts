@@ -1,4 +1,4 @@
-import type { FactionId, Offer } from '../../types';
+import type { Condition, FactionId, Offer } from '../../types';
 
 /**
  * THE CONCORDATS — the reliquary beat, one per faction that owns a legendary.
@@ -11,14 +11,29 @@ import type { FactionId, Offer } from '../../types';
  * the header is supposed to be a near-miss, not a lie.
  *
  * The gate is devotion — standing at or above the level where a faction opens
- * its reliquary. That is deliberate and matches the world bible: the four
- * legendaries live in the most mutually hostile corner of the faction web
+ * its reliquary. That is deliberate and matches the world bible: the first
+ * four legendaries live in the most mutually hostile corner of the faction web
  * (Covenant, Academy, Crownlands, Worm), and hostility is contagious, so
  * holding two means brokering a peace nobody else in the province has managed.
  * The rarity is legible rather than arbitrary — you can see why you missed.
  *
+ * The Hand and the Choir joined in #22 and do not sit in that corner — the
+ * Hand is hostile to nobody but the Choir, and the Choir to it, so courting
+ * either one is comparatively cheap. Measured alone, the two extra routes
+ * barely moved the Ascension rate (the notoriety conjunct was the tighter
+ * one); `ASCENSION_MIN_NOTORIETY` is what actually restored the 1-4% band —
+ * see the comment on that constant.
+ *
  * Each is a live decision, never a free relic: the certain branch charges a
  * real price in the currency that faction actually wants.
+ *
+ * `stockGate` exists for the same reason `oaths.ts`'s does (CLAUDE.md failure
+ * mode 14): followers, apprentices and lair tier all floor or refuse to move
+ * past their minimum, so a price naming one of them costs nothing to a wizard
+ * who has none to give, while the fixed legendary still pays out in full. The
+ * Hand's and the Choir's routes (#22) both spend stock this way and are gated;
+ * the original four price the relic in pactDebt, notoriety or hero threat —
+ * currencies with no floor to hide behind — and need no gate.
  */
 
 type Concordat = {
@@ -29,6 +44,8 @@ type Concordat = {
   takeLabel: string;
   /** What accepting costs, beyond the relic itself. */
   price: Offer['options'][number];
+  /** The stock `price` spends beyond the relic, if any — see the note above. */
+  stockGate?: Condition[];
   declineLabel: string;
   declineText: string;
 };
@@ -114,6 +131,48 @@ const CONCORDATS: Concordat[] = [
     declineLabel: 'Refuse the loan',
     declineText: 'It withdraws without comment. The shelf stays where you can think about it.',
   },
+  {
+    id: 'concordat_hand',
+    factionId: 'gilded_hand',
+    title: 'The Whole Estate',
+    body: 'The Hand offers you the one item it swore, in writing, it would never sell. The price is not negotiable. It was never going to be negotiable — that was the tell.',
+    takeLabel: 'Buy the Estate',
+    price: {
+      kind: 'certain',
+      label: 'Buy the Estate',
+      effects: [
+        { t: 'artifactFrom', factionId: 'gilded_hand', rarity: 'legendary' },
+        { t: 'followers', v: -45 },
+        { t: 'notoriety', v: 6 },
+      ],
+      resultText:
+        'Forty-five of your household are logged as “liquidated,” a word the Hand spells correctly on purpose.',
+    },
+    stockGate: [{ c: 'minFollowers', v: 45 }],
+    declineLabel: 'Let it stay unsold',
+    declineText: 'The Hand records the refusal without visible reaction. It does not take refusals personally, which is somehow worse.',
+  },
+  {
+    id: 'concordat_choir',
+    factionId: 'verdant_choir',
+    title: 'The Standing Grove',
+    body: 'The Choir has voted, at length, to let you take the charter-tree. The vote records no dissent, which the Choir considers a formality rather than a fact.',
+    takeLabel: 'Take the charter-tree',
+    price: {
+      kind: 'certain',
+      label: 'Take the charter-tree',
+      effects: [
+        { t: 'artifactFrom', factionId: 'verdant_choir', rarity: 'legendary' },
+        { t: 'lairTier', v: -1 },
+        { t: 'followers', v: -20 },
+        { t: 'notoriety', v: 6 },
+      ],
+      resultText: 'It is dug out roots and all. What it leaves behind is not level, and never will be again.',
+    },
+    stockGate: [{ c: 'minLairTier', v: 1 }, { c: 'minFollowers', v: 20 }],
+    declineLabel: 'Leave the grove standing',
+    declineText: 'The Choir says nothing. It has already begun growing around the space you would have made.',
+  },
 ];
 
 export const concordatOffers: Offer[] = CONCORDATS.map((c) => ({
@@ -130,7 +189,7 @@ export const concordatOffers: Offer[] = CONCORDATS.map((c) => ({
   // the content/engine separation, so `scripts/validate-content.ts` asserts the
   // equality instead — a literal copy here would silently drift, as it did when
   // DEVOTION_STANDING moved from 55 to 50.
-  requires: [{ c: 'minStanding', factionId: c.factionId, v: 50 }],
+  requires: [{ c: 'minStanding', factionId: c.factionId, v: 50 }, ...(c.stockGate ?? [])],
   weight: 3,
   options: [
     c.price,

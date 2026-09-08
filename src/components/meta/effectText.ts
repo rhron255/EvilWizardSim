@@ -100,6 +100,16 @@ export function formatEffect(e: Effect, ctx: EffectContext = {}): string {
       return `${signed(e.v)} Lair Tier${Math.abs(e.v) === 1 ? '' : 's'}`;
     case 'becomeLich':
       return LICH_LINE;
+    /**
+     * Dead code by construction — see the matching case in
+     * `components/run/effectText.ts` for why `goodAct`/`illAct` never reach
+     * a renderer (issue #23's rule-1 exception).
+     */
+    case 'goodAct':
+    case 'illAct':
+      return '';
+    case 'vowGoodWizard':
+      return 'A quiet life, held to the end · the run continues';
     case 'ending':
       return 'Ends the career';
   }

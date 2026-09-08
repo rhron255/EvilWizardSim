@@ -25,9 +25,37 @@ device, not a breakpoint to degrade toward.
 
 - Full run: title → creation → ~15 eras → prophecy → ending → collection. Clean
   playthrough at 393×852 and 1440×1000, no console errors.
-- 129 offers, 30 artifacts (all 30 reachable), 6 factions, 10 lairs, 7 endings.
-- All seven endings reachable. Ascension ~2%. `slain_by_chosen_one` is ABOVE
-  45% and is the open question below.
+- **153 offers, 32 artifacts (all reachable), 6 factions, 10 lairs, 19 endings**
+  — the seven original, five faction reprisals (issue #14), five faction
+  leaderships (issue #14 slice 2), the Good Wizard (issue #23), and Arch-Lich
+  (issue #25), the one age-limit outcome the rite and the vow can both be true
+  for. Corrected from "136 offers, 30 artifacts, 12 endings", which this
+  section quoted through #14 slice 1 — later commits on the same branch
+  outran the sentence describing them.
+- All nineteen endings reachable, including the five faction reprisals added
+  by issue #14 — measured by a 200-run cohort probe per faction, not by the
+  population, where each pariah cohort is ~40 runs. `liquidated` is the
+  weakest at 1% of its cohort, and the reason is not the card and not the
+  offer-count skew: the catalog moves Gilded Hand standing less than any other
+  faction's, in either direction, while the Covenant has twice the cards and
+  is nearly as unreachable because its cards push its standing UP. Measured by
+  `qa/probe-standing-routes.ts` — run it after any faction-content slice.
+  `arch_lich` needed a cohort of its own 50x the size (`REDEEMED_PROBE_RUNS`,
+  10,000): the rite and the vow pull against each other more than
+  independence predicts — the rite's forfeiture is most of `defenseOf`, so a
+  wizard who takes it walks the steepest part of the hero ramp naked at
+  exactly the point it also needs to survive to the age limit — and a
+  200-run sample the other cohorts use rolled zero.
+- **Ascension closed the gap slice 1 opened and is back in its band.**
+  1.25-1.35% across seeds, against the wiki-authored 1-4%. This section
+  previously flagged it "BELOW its band, a known, deferred state" pending
+  slice 4 (legendaries for the Hand and the Choir) and a possible re-tune of
+  `ASCENSION_MIN_NOTORIETY`. Slice 4 landed (issue #22): the conjunct that
+  fell recovered, and the constant did not need to move — the same
+  now-corrected story `scripts/simulate.ts`'s Ascension check told in its own
+  comment.
+- `slain_by_chosen_one` is 45-47%, still ABOVE the 45% target on some seeds but
+  down from 63% before the reprisals.
   Lichdom went 0.25% -> 0.80% by raising the rite offer's weight: a dedicated
   seeker met its standing gate in 61% of careers but was shown the card in only
   19.9% of those, so the branch was a lottery rather than the "live decision"

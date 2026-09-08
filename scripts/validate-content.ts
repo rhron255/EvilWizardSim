@@ -21,7 +21,14 @@
 
 import type { Artifact, Condition, Effect, OfferOption, Rarity } from '../src/types';
 import * as content from '../src/content';
-import { DEVOTION_STANDING, PACT_LIMIT } from '../src/engine/constants';
+import {
+  DEVOTION_STANDING,
+  GOOD_WIZARD_ILL_CAP,
+  GOOD_WIZARD_REPUTATION_GOOD,
+  GOOD_WIZARD_RESOLUTION_GOOD,
+  LICH_RELIC_REQUIREMENT,
+  PACT_LIMIT,
+} from '../src/engine/constants';
 import { pactRoleOf } from '../src/engine/content-port';
 
 const problems: string[] = [];
@@ -85,7 +92,9 @@ for (const faction of factions) {
   }
 }
 
-// wiki/01 § 7 names seven endings and the collection screen shows seven slots.
+// wiki/01 § 7 names the first seven; issue #14 adds the five faction reprisals
+// beside `sealed_in_gem`, which was always one of that set. The collection
+// screen shows a slot for each.
 const REQUIRED_ENDINGS = [
   'slain_by_chosen_one',
   'sealed_in_gem',
@@ -94,6 +103,18 @@ const REQUIRED_ENDINGS = [
   'retired_to_swamp',
   'consumed_by_pact',
   'ascension',
+  'eternally_repurposed',
+  'liquidated',
+  'turned_to_fertilizer',
+  'exiled_and_overrun',
+  'consumed',
+  'contract_writer',
+  'grand_arbiter',
+  'archmage',
+  'archdruid',
+  'overthrown_the_kingdom',
+  'good_wizard',
+  'arch_lich',
 ];
 for (const id of REQUIRED_ENDINGS) {
   if (!endings.some((e) => e.id === id)) fail('endings', `missing "${id}"`);
@@ -172,6 +193,14 @@ function checkEffects(where: string, effects: readonly Effect[]) {
         break;
       case 'lairTier':
         if (Math.abs(e.v) > 3) warn(where, `lairTier ${e.v} moves more than three rungs at once`);
+        break;
+      case 'goodAct':
+      case 'illAct':
+        // These move a HIDDEN counter (issue #23's rule-1 exception) — a
+        // large magnitude on one card would let a single choice leap the
+        // whole route, which is the opposite of "consistently constructive
+        // across a career."
+        if (Math.abs(e.v) > 1) warn(where, `${e.t} ${e.v} moves the hidden counter by more than one`);
         break;
       default:
         break;
@@ -277,6 +306,186 @@ for (const offer of offers.filter((o) => o.id.startsWith('concordat_'))) {
 }
 
 // ---------------------------------------------------------------------------
+// The oath gate must track DEVOTION_STANDING
+// ---------------------------------------------------------------------------
+
+/**
+ * The mirror of the concordat rule above, for the leadership route
+ * (`oath_*`, issue #14 slice 2b): "devoted enough to swear an oath" must mean
+ * the same standing the reliquary and the draw upgrade already use. A literal
+ * copy of `DEVOTION_STANDING` here would drift exactly the way the concordat
+ * gate did when the constant moved from 55 to 50.
+ */
+for (const offer of offers.filter((o) => o.id.startsWith('oath_'))) {
+  const gate = (offer.requires ?? []).find(
+    (c): c is Extract<Condition, { c: 'minStanding' }> =>
+      c.c === 'minStanding' && c.factionId === offer.factionId,
+  );
+  if (!gate) {
+    fail(`offer "${offer.id}"`, 'an oath must gate on minStanding for its own faction');
+  } else if (gate.v !== DEVOTION_STANDING) {
+    fail(
+      `offer "${offer.id}"`,
+      `devotion gate is ${gate.v} but DEVOTION_STANDING is ${DEVOTION_STANDING} — ` +
+        'the oath and the reliquary must agree on what "devoted" means',
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The lich rite's gates must track DEVOTION_STANDING and LICH_RELIC_REQUIREMENT
+// ---------------------------------------------------------------------------
+
+/**
+ * `scripted_the_long_arrangement` is lichdom's rite (issue #21, #14 slice 3):
+ * lichdom is the Worm Below's leadership ending, so "devoted enough" has to
+ * mean the same standing the reliquary, the oath and the draw upgrade already
+ * use, and the relic price has to match the constant it was tuned against —
+ * the same drift the concordat and oath rules above already guard against,
+ * for the same reason (content is pure data and cannot import the engine
+ * constant it must agree with).
+ */
+{
+  const rite = offers.find((o) => o.id === 'scripted_the_long_arrangement');
+  if (!rite) {
+    fail('offer "scripted_the_long_arrangement"', 'the lich rite is missing from the catalog');
+  } else {
+    const where = `offer "${rite.id}"`;
+    const standingGate = (rite.requires ?? []).find(
+      (c): c is Extract<Condition, { c: 'minStanding' }> =>
+        c.c === 'minStanding' && c.factionId === 'worm_below',
+    );
+    if (!standingGate) {
+      fail(where, 'the lich rite must gate on minStanding for worm_below');
+    } else if (standingGate.v !== DEVOTION_STANDING) {
+      fail(
+        where,
+        `devotion gate is ${standingGate.v} but DEVOTION_STANDING is ${DEVOTION_STANDING} — ` +
+          'lichdom is a leadership ending and must require the same devotion the others do',
+      );
+    }
+
+    const relicGate = (rite.requires ?? []).find(
+      (c): c is Extract<Condition, { c: 'minArtifacts' }> => c.c === 'minArtifacts',
+    );
+    if (!relicGate) {
+      fail(where, 'the lich rite must gate on minArtifacts — it consumes every relic it grants access to');
+    } else if (relicGate.v !== LICH_RELIC_REQUIREMENT) {
+      fail(
+        where,
+        `relic gate is ${relicGate.v} but LICH_RELIC_REQUIREMENT is ${LICH_RELIC_REQUIREMENT} — ` +
+          'the requirement and the rite\'s cost must be the same relics',
+      );
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The Good Wizard gates must track GOOD_WIZARD_REPUTATION_GOOD /
+// GOOD_WIZARD_RESOLUTION_GOOD / GOOD_WIZARD_ILL_CAP
+// ---------------------------------------------------------------------------
+
+/**
+ * The mirror of the concordat/oath/lich-rite rules above, for the Good
+ * Wizard route (issue #23): content is a pure data bundle and cannot import
+ * the engine constants its gates must agree with, so the two are held in
+ * step here instead of by a shared import — the same drift the other three
+ * rules already guard against.
+ */
+function checkGoodActsGate(where: string, requires: Condition[] | undefined, expectGood: number) {
+  const goodGate = (requires ?? []).find(
+    (c): c is Extract<Condition, { c: 'minGoodActs' }> => c.c === 'minGoodActs',
+  );
+  if (!goodGate) {
+    fail(where, 'must gate on minGoodActs');
+  } else if (goodGate.v !== expectGood) {
+    fail(where, `minGoodActs gate is ${goodGate.v} but the constant is ${expectGood}`);
+  }
+
+  const illGate = (requires ?? []).find(
+    (c): c is Extract<Condition, { c: 'maxIllActs' }> => c.c === 'maxIllActs',
+  );
+  if (!illGate) {
+    fail(where, 'must gate on maxIllActs');
+  } else if (illGate.v !== GOOD_WIZARD_ILL_CAP) {
+    fail(where, `maxIllActs gate is ${illGate.v} but GOOD_WIZARD_ILL_CAP is ${GOOD_WIZARD_ILL_CAP}`);
+  }
+}
+
+for (const offer of offers.filter((o) => o.id.startsWith('virtue_reputation_'))) {
+  checkGoodActsGate(`offer "${offer.id}"`, offer.requires, GOOD_WIZARD_REPUTATION_GOOD);
+}
+for (const offer of offers.filter((o) => o.id.startsWith('virtue_resolution_'))) {
+  checkGoodActsGate(`offer "${offer.id}"`, offer.requires, GOOD_WIZARD_RESOLUTION_GOOD);
+}
+
+// ---------------------------------------------------------------------------
+// The grievance cards must point AWAY from the faction they belong to
+// ---------------------------------------------------------------------------
+
+/**
+ * The mirror of the concordat rule, guarding the property the grievances exist
+ * for rather than a number.
+ *
+ * A `grievance_*` card is the one deliberate route to a faction reprisal, and
+ * it works only because it is affiliated with an ENEMY of its target: an offer
+ * belonging to a faction you have already alienated is one `standingWeight`
+ * has already stopped showing you, so a grievance filed under its own target
+ * would be a route that closes exactly as you start to need it. That is a
+ * silent failure — the card still exists, still validates, and simply never
+ * appears — so it is asserted here.
+ *
+ * Three things are pinned: the gate is a single `maxStanding` on one faction
+ * at a negative value (a grievance requires an existing grievance), the offer
+ * belongs to a faction that `factions.ts` marks hostile to that one, and some
+ * option actually does the target real damage. The MAGNITUDES are content's to
+ * tune; the direction is not.
+ */
+const GRIEVANCE_MIN_DAMAGE = 20;
+
+for (const offer of offers.filter((o) => o.id.startsWith('grievance_'))) {
+  const where = `offer "${offer.id}"`;
+
+  // The target is read from what the card DOES, not from its id or its gate.
+  // The gate moved once already — the first rung stopped gating on standing
+  // when that turned out to be a door locked with its own key — and a rule
+  // anchored to the gate would have gone quiet at exactly that moment.
+  const damages = offer.options.flatMap((option) =>
+    (option.kind === 'certain' ? option.effects : option.onSuccess).filter(
+      (e): e is Extract<Effect, { t: 'standing' }> =>
+        e.t === 'standing' && e.v <= -GRIEVANCE_MIN_DAMAGE,
+    ),
+  );
+  if (damages.length === 0) {
+    fail(where, `a grievance must cost some faction at least ${GRIEVANCE_MIN_DAMAGE} standing`);
+    continue;
+  }
+  const target = damages[0].factionId;
+
+  if (target === offer.factionId) {
+    fail(where, 'a grievance is filed by an ENEMY of its target, never by the target itself');
+  } else if (!factions.find((f) => f.id === offer.factionId)?.hostileTo.includes(target)) {
+    fail(
+      where,
+      `"${offer.factionId}" is not hostile to "${target}", so this card has no reason to exist ` +
+        'and no reliable way to surface',
+    );
+  }
+
+  // If it gates on standing at all, it gates on the faction it ruins, in the
+  // direction that makes it a consequence: the second rung is the first one's
+  // aftermath, never an independent lottery.
+  for (const c of offer.requires ?? []) {
+    if (c.c !== 'maxStanding') continue;
+    if (c.factionId !== target) {
+      fail(where, `gates on "${c.factionId}" standing but ruins "${target}"`);
+    } else if (c.v > 0) {
+      fail(where, `standing gate is ${c.v} — this rung is meant to follow an existing grievance`);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Prose must not restate a rule the constants own
 // ---------------------------------------------------------------------------
 
@@ -301,19 +510,32 @@ const COUNT_WORDS = new Set([
   '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
 ]);
 
-function statesAscensionPrice(text: string): string | null {
+/**
+ * `impliedSubject`: the Ascension ending's own `summary` and `narration`
+ * describe its price without ever having to say the word "ascension" — the
+ * id already says which ending this is. "You held one of the four" and "The
+ * four were never four things" shipped in exactly those two fields, said
+ * nothing but "ascension" nowhere in either sentence, and reached six
+ * legendaries in before this check caught it, because the check requires
+ * "ascension" to co-occur with the count. `impliedSubject` widens the check
+ * to any count word in the sentence for those two fields alone. `hint` and
+ * `coda` keep the narrower, co-occurrence-based check — a coda vignette can
+ * legitimately hold an unrelated numeral (Ascension's own kingdom coda says
+ * "Three hamlets"), and a blanket count-word ban would flag it.
+ */
+function statesAscensionPrice(text: string, impliedSubject: boolean): string | null {
   for (const sentence of text.split(/(?<=[.!?])\s+/)) {
     const words = sentence.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
-    if (!words.includes('ascension')) continue;
+    if (!impliedSubject && !words.includes('ascension')) continue;
     const count = words.find((w) => COUNT_WORDS.has(w));
     if (count) return sentence.trim();
   }
   return null;
 }
 
-function checkAscensionPrice(where: string, text: string | undefined) {
+function checkAscensionPrice(where: string, text: string | undefined, impliedSubject = false) {
   if (!text) return;
-  const offending = statesAscensionPrice(text);
+  const offending = statesAscensionPrice(text, impliedSubject);
   if (offending) {
     fail(
       where,
@@ -328,8 +550,9 @@ for (const a of artifacts) {
   checkAscensionPrice(`artifact "${a.id}"`, a.flavorText);
 }
 for (const e of endings) {
-  checkAscensionPrice(`ending "${e.id}"`, e.summary);
-  checkAscensionPrice(`ending "${e.id}"`, e.narration);
+  const impliedSubject = e.id === 'ascension';
+  checkAscensionPrice(`ending "${e.id}"`, e.summary, impliedSubject);
+  checkAscensionPrice(`ending "${e.id}"`, e.narration, impliedSubject);
   checkAscensionPrice(`ending "${e.id}"`, e.hint);
   if (e.codaMode === 'tiered') {
     for (const [tier, line] of Object.entries(e.coda)) {

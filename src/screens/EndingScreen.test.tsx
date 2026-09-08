@@ -25,6 +25,7 @@ import { endings } from '../content/endings';
 import { factions } from '../content/factions';
 import { heroNameFor } from '../content/heroes';
 import { ATTRIBUTION_LABEL, attributionFor } from '../components/meta';
+import { LEADERSHIP_BY_FACTION, REPRISAL_BY_FACTION } from '../engine';
 import {
   demoArtifacts,
   demoLairs,
@@ -63,15 +64,50 @@ const ENDING_IDS: EndingId[] = [
   'retired_to_swamp',
   'consumed_by_pact',
   'ascension',
+  'eternally_repurposed',
+  'liquidated',
+  'turned_to_fertilizer',
+  'exiled_and_overrun',
+  'consumed',
+  'contract_writer',
+  'grand_arbiter',
+  'archmage',
+  'archdruid',
+  'overthrown_the_kingdom',
+  'good_wizard',
+  'arch_lich',
 ];
 
 /** Every id in the frozen union is covered — no ending gets to go unchecked. */
-const SELF_DETERMINED: EndingId[] = ['lichdom', 'retired_to_swamp', 'ascension'];
+const SELF_DETERMINED: EndingId[] = [
+  'lichdom',
+  'retired_to_swamp',
+  'ascension',
+  'good_wizard',
+  'arch_lich',
+];
 const ATTRIBUTED: EndingId[] = [
   'slain_by_chosen_one',
   'sealed_in_gem',
   'betrayed_by_apprentice',
   'consumed_by_pact',
+  // The five faction reprisals. A reprisal with no agent would be the one
+  // case where "nobody ended you" is flatly untrue — the faction is the
+  // ending.
+  'eternally_repurposed',
+  'liquidated',
+  'turned_to_fertilizer',
+  'exiled_and_overrun',
+  'consumed',
+  // The five faction leadership endings. The agent is the faction the wizard
+  // led rather than one that acted on them, but `attributionFor` still owes
+  // it a name — see `attributionLabelFor`, which is what keeps the caption
+  // from reading as "at the hands of" a faction the wizard was running.
+  'contract_writer',
+  'grand_arbiter',
+  'archmage',
+  'archdruid',
+  'overthrown_the_kingdom',
 ];
 
 function show(
@@ -143,6 +179,41 @@ describe('EndingScreen attribution', () => {
   it('credits the Ashen Covenant for consumed_by_pact', () => {
     const { container } = show('consumed_by_pact');
     expect(attributionOnScreen(container)).toBe('The Ashen Covenant');
+  });
+
+  /**
+   * Each reprisal credits the faction that carried it out — and specifically
+   * NOT the faction next door.
+   *
+   * The pairs are read from the engine's own `REPRISAL_BY_FACTION`, which is
+   * what `attributionFor` inverts. A hand-written table here would agree with
+   * a hand-written table there and both could be wrong together; this fails
+   * the moment the card names a faction the engine did not use.
+   */
+  it.each(Object.entries(REPRISAL_BY_FACTION))(
+    'credits %s for its own reprisal',
+    (factionId, endingId) => {
+      const { container } = show(endingId);
+      const expected = factions.find((f) => f.id === factionId)!.name;
+      expect(attributionOnScreen(container)).toBe(expected);
+    },
+  );
+
+  /**
+   * The mirror of the reprisal loop above: each leadership ending credits the
+   * faction the wizard led. `lichdom` is excluded — it is `LEADERSHIP_BY_FACTION`'s
+   * entry for the Worm Below, but it is self-determined (see `SELF_DETERMINED`
+   * above) and covered by its own tests.
+   */
+  it.each(
+    Object.entries(LEADERSHIP_BY_FACTION).filter(([, endingId]) => endingId !== 'lichdom'),
+  )('credits %s for its own leadership ending, "at the head of" it', (factionId, endingId) => {
+    const { container } = show(endingId);
+    const expected = factions.find((f) => f.id === factionId)!.name;
+    const node = container.querySelector('[data-attribution]');
+    expect((node?.textContent ?? '').replace('At the head of', '').trim()).toBe(expected);
+    expect(screen.getByText('At the head of')).toBeInTheDocument();
+    expect(screen.queryByText(ATTRIBUTION_LABEL)).not.toBeInTheDocument();
   });
 
   it('credits an unnamed apprentice for betrayed_by_apprentice', () => {

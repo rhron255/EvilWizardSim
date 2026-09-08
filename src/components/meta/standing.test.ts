@@ -10,7 +10,7 @@
  * already felt rather than numbers invented for the summary.
  */
 import { describe, expect, it } from 'vitest';
-import { ARTIFACT_LOCKOUT_STANDING, DEVOTION_STANDING } from '../../engine';
+import { ARTIFACT_LOCKOUT_STANDING, DEVOTION_STANDING, PATRON_MARGIN } from '../../engine';
 import { factions } from '../../content/factions';
 import type { FactionId, RunState } from '../../types';
 import { standingPassageFor } from './standing';
@@ -84,5 +84,42 @@ describe('standingPassageFor', () => {
   it('yields nothing for a faction missing from the cast', () => {
     const short = factions.filter((f) => f.id !== 'worm_below');
     expect(standingPassageFor(run({ worm_below: 90 }), short).patron).toBeNull();
+  });
+
+  /**
+   * `patronFaction`'s own exclusivity bar (`PATRON_MARGIN`, `src/engine/
+   * endings.ts`): a wizard devoted to three factions at once is never
+   * crowned by any of them (`checkEndings` falls through to
+   * `retired_to_swamp` for exactly this run shape — see the matching test in
+   * `engine.test.ts`). This file used to derive "patron" from a bare highest-
+   * standing walk with no margin check, so this same run got a confident
+   * "patron" line naming whichever faction the cast happened to list first —
+   * a caption contradicting the very ending card it sits on. Delegating to
+   * `patronFaction` closes that gap.
+   */
+  it('names no patron for a wizard devoted to three factions with no clear favorite', () => {
+    const p = standingPassageFor(
+      run({
+        ashen_covenant: DEVOTION_STANDING + 6,
+        pale_academy: DEVOTION_STANDING + 4,
+        crownlands: DEVOTION_STANDING,
+      }),
+      factions,
+    );
+    expect(p.patron).toBeNull();
+  });
+
+  it('still names a patron once the margin is clear, at the boundary', () => {
+    const dominant = run({
+      verdant_choir: DEVOTION_STANDING + PATRON_MARGIN,
+      gilded_hand: DEVOTION_STANDING,
+    });
+    expect(standingPassageFor(dominant, factions).patron?.factionId).toBe('verdant_choir');
+
+    const oneShort = run({
+      verdant_choir: DEVOTION_STANDING + PATRON_MARGIN - 1,
+      gilded_hand: DEVOTION_STANDING,
+    });
+    expect(standingPassageFor(oneShort, factions).patron).toBeNull();
   });
 });

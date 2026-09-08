@@ -31,6 +31,25 @@ export type FactionId =
   | 'crownlands'
   | 'worm_below';
 
+/**
+ * Every biography the game can write.
+ *
+ * The first seven are wiki/01 § 7's original set. The five below them are the
+ * FACTION REPRISALS added by issue #14: standing is the most-touched system in
+ * the game and reached exactly one ending, so `sealed_in_gem` was generalised —
+ * each faction now resolves the matter permanently once you are far enough
+ * under it and famous enough to be worth the trouble. `sealed_in_gem` is the
+ * Pale Academy's member of that set, not a special case; see
+ * `REPRISAL_BY_FACTION` in `src/engine/endings.ts`.
+ *
+ * The last block is the same generalisation pointing the other way: what a
+ * faction does about a wizard who spent a career at the TOP of its standing
+ * rather than the bottom. Only five ids are added for six factions, because
+ * `lichdom` is the Worm Below's member of that set — the Worm already crowns
+ * its devotees, and it does so through a rite the player accepted rather than
+ * through a standing total, so the set is six and the additions are five. See
+ * `LEADERSHIP_BY_FACTION` in `src/engine/endings.ts`.
+ */
 export type EndingId =
   | 'slain_by_chosen_one'
   | 'sealed_in_gem'
@@ -38,7 +57,44 @@ export type EndingId =
   | 'lichdom'
   | 'retired_to_swamp'
   | 'consumed_by_pact'
-  | 'ascension';
+  | 'ascension'
+  // --- faction reprisals (issue #14) ---------------------------------------
+  | 'eternally_repurposed'
+  | 'liquidated'
+  | 'turned_to_fertilizer'
+  | 'exiled_and_overrun'
+  | 'consumed'
+  // --- faction leadership (issue #14) — plus `lichdom`, the Worm's ---------
+  | 'contract_writer'
+  | 'grand_arbiter'
+  | 'archmage'
+  | 'archdruid'
+  | 'overthrown_the_kingdom'
+  /**
+   * The Good Wizard (issue #14 slice 5, issue #23) — an obscure route open to
+   * a consistently constructive career, age-limit-only, checked ahead of
+   * `lichdom`. An ordinary ending: no `Ending` field marks it out, and the
+   * collection's locked-slot redaction hides it exactly like the other
+   * twelve until it is reached.
+   */
+  | 'good_wizard'
+  /**
+   * Arch-Lich (issue #25) — the ONE age-limit outcome the good-wizard vow and
+   * the lich rite can both be true for at once, and the reason neither of the
+   * two branches above may simply win outright.
+   *
+   * Before this existed, `checkEndings` read `goodWizardVowed` first and
+   * `isLich` second, so a lich who then took `virtue_resolution_the_quiet_
+   * ledger` (decline, `minGoodActs: 3`, `maxIllActs: 1` — neither gate
+   * excludes a lich) got plain `good_wizard`: the relics and followers the
+   * rite already forfeited stayed forfeited, and the ending said nothing
+   * about it, an undisclosed discard of a transformation the player paid a
+   * real, mechanical price for. Checked ahead of BOTH `good_wizard` and
+   * `lichdom` for exactly that reason: it is not a tiebreak between them, it
+   * is the true answer for a wizard who is both, and neither of the plain
+   * branches is honest about that career.
+   */
+  | 'arch_lich';
 
 /**
  * A cosmetic palette the player has unlocked and may select.
@@ -112,6 +168,36 @@ export type Effect =
    * pile of `loseArtifact` entries and a negative-followers sentinel.
    */
   | { t: 'becomeLich' }
+  /**
+   * A constructive or destructive act, counted toward the Good Wizard route
+   * (issue #23) — hidden `RunState` counters `goodActs`/`illActs`.
+   *
+   * THE ONE DELIBERATE EXCEPTION TO THIS FILE'S OWN RULE: the doc comment two
+   * lines up says an effect exists so nothing is ever smuggled into prose
+   * undisclosed, and `applyEffects` in `src/engine/effects.ts` is written to
+   * violate that on purpose for exactly these two variants — they never reach
+   * `EffectApplication.applied`, so no card, ledger row or resolution ever
+   * prints one. CLAUDE.md records why: this route can only ever ADD an
+   * ending, never end a run early, never close a door, never move any other
+   * threshold. `conditionMet`'s `minGoodActs`/`maxIllActs` cases are the ONLY
+   * other place either counter is read.
+   *
+   * **If a future change makes these gate anything else — a defense term, an
+   * offer weight, any condition besides the two above — this exception is
+   * void and the counters must be disclosed like every other stat.** See
+   * `src/engine/goodWizard.test.ts`, which is the test that would catch it.
+   */
+  | { t: 'goodAct'; v: number }
+  | { t: 'illAct'; v: number }
+  /**
+   * The Good Wizard resolution's own commitment (issue #23) — mirrors
+   * `becomeLich` exactly: it does NOT terminate the run. It sets
+   * `RunState.goodWizardVowed`, which `checkEndings` reads at the age limit,
+   * ahead of the lich branch. Unlike `goodAct`/`illAct` above, this one is
+   * fully disclosed — by the resolution card, the player is knowingly
+   * committing, the same way a lich knowingly takes the rite.
+   */
+  | { t: 'vowGoodWizard' }
   /** Terminate the run immediately with this ending. */
   | { t: 'ending'; endingId: EndingId };
 
@@ -169,7 +255,15 @@ export type Condition =
   | { c: 'minLairTier'; v: number }
   | { c: 'minEraIndex'; v: number }
   | { c: 'hasArtifact'; artifactId: string }
-  | { c: 'holdsAnyArtifact' };
+  | { c: 'holdsAnyArtifact' }
+  | { c: 'minArtifacts'; v: number }
+  /**
+   * The Good Wizard route's gates (issue #23). Reads `RunState.goodActs` /
+   * `illActs` — the ONLY conditions permitted to. See the doc comment on
+   * `Effect`'s `goodAct`/`illAct` variants for why that restriction matters.
+   */
+  | { c: 'minGoodActs'; v: number }
+  | { c: 'maxIllActs'; v: number };
 
 export type Offer = {
   id: string;
@@ -341,6 +435,15 @@ export type RunState = {
   heroThreat: number;
   /** True after the lichdom branch — freezes notoriety decay. */
   isLich: boolean;
+  /**
+   * Hidden counters for the Good Wizard route (issue #23). Never rendered —
+   * see the doc comment on `Effect`'s `goodAct`/`illAct` variants for the
+   * rule-1 exception this is, and its one condition.
+   */
+  goodActs: number;
+  illActs: number;
+  /** True after the Good Wizard resolution's `vowGoodWizard` — see `Effect`. */
+  goodWizardVowed: boolean;
   /** Append-only. Never removed, never rewritten. */
   eras: EraRecord[];
   seenOfferIds: string[];
