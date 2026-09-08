@@ -4,8 +4,10 @@
  * Requested as a tutorial. The constraint that shapes it is that a whole run is
  * two to four minutes — a minute of instruction costs a third of the
  * experience — so this teaches only what the run screen cannot teach by
- * existing, and it opens ON the run screen, with the header and the empty
- * ledger visible behind it.
+ * existing, and it opens ON the run screen, with the masthead and the
+ * Decision tab's empty offer slot visible behind it (issue #18 moved the
+ * ledger and the allegiance strip this guide narrates onto the Career tab,
+ * one deliberate tap away rather than on screen with the guide itself).
  *
  * Two things are deliberately NOT here:
  *
@@ -14,9 +16,10 @@
  *     player ten seconds of surprise. wiki/04's "do not add a doom meter" says
  *     the same thing from the other end — the decline is not announced, and a
  *     tutorial card announcing it is still announcing it.
- *   - Anything the header already says. Every stat prints its own threshold
- *     (see `stakes.ts`), so the third card points at that mechanism rather than
- *     restating five numbers the player is about to read anyway.
+ *   - Anything the Decision tab already says on its own. Every stat prints its
+ *     own threshold (see `stakes.ts`), so the third card points at that
+ *     mechanism rather than restating five numbers the player is about to
+ *     read anyway.
  *
  * Identity capture already happened on the creation screen, which is reference
  * principle 1: the player has a name before a single mechanic is explained.

@@ -14,9 +14,15 @@
  * them would be that same bug, five times.
  */
 import { describe, expect, it } from 'vitest';
-import { REPRISAL_BY_FACTION, SEAL_MAX_STANDING, SEAL_MIN_NOTORIETY } from '../../engine';
-import type { FactionId, Phase, RunState } from '../../types';
-import { allegiancesFor, reprisalSentence, reprisalWarningFor } from './allegiances';
+import {
+  DEVOTION_STANDING,
+  PATRON_MARGIN,
+  REPRISAL_BY_FACTION,
+  SEAL_MAX_STANDING,
+  SEAL_MIN_NOTORIETY,
+} from '../../engine';
+import type { Faction, FactionId, Phase, RunState } from '../../types';
+import { allegiancesFor, nextThreatFor, patronFor, reprisalSentence, reprisalWarningFor } from './allegiances';
 
 const run = (
   standing: number | Partial<Record<FactionId, number>>,
@@ -213,5 +219,86 @@ describe('the reprisal tick', () => {
     const academy = rows.find((r) => r.id === 'pale_academy')!;
     expect(Math.abs(academy.ratio)).toBe(1);
     expect(Math.abs(academy.ratio) * 50).toBe(50);
+  });
+});
+
+/**
+ * The Decision tab's ambient status line (issue #18) — `reprisalWarningFor`'s
+ * computation, with its two proximity gates removed. The two functions must
+ * never disagree about WHICH faction is nearest, only about whether it is
+ * close enough to be worth an alarm.
+ */
+describe('the next-threat line', () => {
+  it('speaks even when nobody is anywhere near acting — the gates that silence the warning do not apply', () => {
+    // All six tied at 0 in the decline, where all six are live: the tie
+    // resolves to FACTION_ORDER's first entry, same rule `reprisalWarningFor`
+    // would use if it were not gated silent here by the 55-margin check.
+    expect(nextThreatFor(run(0, 90))).not.toBeNull();
+    expect(nextThreatFor(run(0, 90))!.factionId).toBe('ashen_covenant');
+    expect(reprisalWarningFor(run(0, 90))).toBeNull();
+  });
+
+  it('names the same faction reprisalWarningFor would, whenever the warning is live', () => {
+    const close = run(SEAL_MAX_STANDING + 6, SEAL_MIN_NOTORIETY);
+    expect(nextThreatFor(close)!.factionId).toBe(reprisalWarningFor(close)!.factionId);
+    expect(nextThreatFor(close)!.margin).toBe(reprisalWarningFor(close)!.margin);
+  });
+
+  it('stays live across the phase boundary the same way the engine predicate does', () => {
+    // Five of the six reprisals are decline-only; the Academy is not. The
+    // ambient line follows `nearestReprisalFaction('live')` exactly, so an
+    // ascent-phase scan still finds the Academy and only the Academy.
+    const ascent = run({ verdant_choir: SEAL_MAX_STANDING - 20 }, SEAL_MIN_NOTORIETY, 'ascent');
+    expect(nextThreatFor(ascent)!.factionId).toBe('pale_academy');
+  });
+});
+
+/**
+ * The Decision tab's other status line: who this career has courted, by the
+ * engine's own `patronFaction` rule rather than a second walk of
+ * `factionStanding` (the drift `standing.ts`'s doc comment warns about).
+ */
+describe('the patron line', () => {
+  const FACTIONS: Faction[] = [
+    { id: 'ashen_covenant', name: 'The Ashen Covenant', blurb: '', demands: '', hostileTo: [], adjective: '' },
+    { id: 'gilded_hand', name: 'The Gilded Hand', blurb: '', demands: '', hostileTo: [], adjective: '' },
+    { id: 'pale_academy', name: 'The Pale Academy', blurb: '', demands: '', hostileTo: [], adjective: '' },
+    { id: 'verdant_choir', name: 'The Verdant Choir', blurb: '', demands: '', hostileTo: [], adjective: '' },
+    { id: 'crownlands', name: 'The Crownlands', blurb: '', demands: '', hostileTo: [], adjective: '' },
+    { id: 'worm_below', name: 'The Worm Below', blurb: '', demands: '', hostileTo: [], adjective: '' },
+  ];
+
+  it('is null for a career nobody has courted — the honest "no patron yet" state', () => {
+    expect(patronFor(run(0, 10), FACTIONS)).toBeNull();
+  });
+
+  it('is null below the devotion bar, even as the sole leader', () => {
+    const under = run({ ashen_covenant: DEVOTION_STANDING - 1 }, 10);
+    expect(patronFor(under, FACTIONS)).toBeNull();
+  });
+
+  it('is null when devotion is cleared but a runner-up denies the exclusivity margin', () => {
+    const contested = run(
+      { ashen_covenant: DEVOTION_STANDING + 10, gilded_hand: DEVOTION_STANDING + 10 - (PATRON_MARGIN - 1) },
+      10,
+    );
+    expect(patronFor(contested, FACTIONS)).toBeNull();
+  });
+
+  it('names the faction once both bars clear, using the cast\'s own name', () => {
+    const devoted = run(
+      { ashen_covenant: DEVOTION_STANDING + PATRON_MARGIN, gilded_hand: 0 },
+      10,
+    );
+    const patron = patronFor(devoted, FACTIONS);
+    expect(patron).not.toBeNull();
+    expect(patron!.factionId).toBe('ashen_covenant');
+    expect(patron!.name).toBe('The Ashen Covenant');
+    expect(patron!.standing).toBe(DEVOTION_STANDING + PATRON_MARGIN);
+  });
+
+  it('returns null rather than a half sentence for a cast missing the faction', () => {
+    const devoted = run({ ashen_covenant: DEVOTION_STANDING + PATRON_MARGIN }, 10);
+    expect(patronFor(devoted, FACTIONS.filter((f) => f.id !== 'ashen_covenant'))).toBeNull();
   });
 });

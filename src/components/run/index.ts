@@ -18,8 +18,17 @@ export type { LedgerProps } from './Ledger';
 export { LedgerRow } from './LedgerRow';
 export type { LedgerRowProps } from './LedgerRow';
 
-export { WizardHeader } from './WizardHeader';
-export type { WizardHeaderProps } from './WizardHeader';
+export { Masthead } from './Masthead';
+export type { MastheadProps } from './Masthead';
+
+export { Tabs } from './Tabs';
+export type { TabItem, TabsProps } from './Tabs';
+
+export { DecisionTab } from './DecisionTab';
+export type { DecisionTabProps } from './DecisionTab';
+
+export { CareerTab } from './CareerTab';
+export type { CareerTabProps } from './CareerTab';
 
 export { FirstRunGuide } from './FirstRunGuide';
 export type { FirstRunGuideProps } from './FirstRunGuide';

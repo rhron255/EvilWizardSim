@@ -114,17 +114,19 @@ for (let i = 0; i < 8; i++) {
 await page.evaluate(() => document.fonts?.ready);
 await page.waitForTimeout(1200);
 
+// Issue #18 split the run screen into a masthead + Decision/Career tabs. The
+// ledger moved onto Career, which is not the default tab — so on the tab a
+// player actually lands on (Decision), nothing above the offer is the ledger
+// any more. That is the redesign's whole point, not a gap in this probe, but
+// it means "how far below the fold is the ledger" is no longer a question
+// this view can answer; measured separately, after switching tabs, below.
 const run = await page.evaluate(() => {
   const doc = document.scrollingElement ?? document.documentElement;
   const y = (el) => (el ? Math.round(el.getBoundingClientRect().top + doc.scrollTop) : null);
   const bottom = (el) => (el ? Math.round(el.getBoundingClientRect().bottom + doc.scrollTop) : null);
 
   const header = document.querySelector('main header');
-  const ledger = document.querySelector('section[aria-labelledby="ledger-heading"]');
-  const scroll = ledger?.querySelector('[role="region"]');
   const first = document.querySelector('button[data-option-index]');
-  const rows = [...document.querySelectorAll('tbody tr')];
-  const current = rows.find((r) => r.dataset.current === 'true');
 
   return {
     viewport: innerHeight,
@@ -133,20 +135,10 @@ const run = await page.evaluate(() => {
     headerTop: y(header),
     headerBottom: bottom(header),
     headerHeight: header ? Math.round(header.getBoundingClientRect().height) : null,
-    ledgerTop: y(ledger),
-    ledgerBottom: bottom(ledger),
-    ledgerHeight: ledger ? Math.round(ledger.getBoundingClientRect().height) : null,
-    ledgerScrollH: scroll?.scrollHeight ?? null,
-    ledgerClientH: scroll?.clientHeight ?? null,
-    rowCount: rows.length,
-    currentRowVisibleInLedger: current && scroll
-      ? current.getBoundingClientRect().bottom <= scroll.getBoundingClientRect().bottom + 1 &&
-        current.getBoundingClientRect().top >= scroll.getBoundingClientRect().top - 1
-      : null,
-    // Seed-independent: everything above the offer block is header + ledger +
-    // gaps, which is the part this pass actually controls. `firstOptionTop`
-    // additionally carries the offer's own title and body, and those vary in
-    // length from era to era, so compare both.
+    // Seed-independent: everything above the offer block is the masthead +
+    // tabs + Decision-tab status lines, which is the part this pass actually
+    // controls. `firstOptionTop` additionally carries the offer's own title
+    // and body, and those vary in length from era to era, so compare both.
     offerTop: y(first?.closest('section') ?? document.querySelector('main > div:last-child')),
     firstOptionTop: y(first),
     firstOptionBottom: bottom(first),
@@ -179,43 +171,60 @@ await page.screenshot({
   fullPage: true,
 });
 
-// The ledger's expand toggle, open, with the newest era still in frame.
-// Scoped to the ledger on purpose: the header's stat captions are also
-// aria-expanded buttons, and an unscoped selector opens one of those instead.
+// The ledger itself, on its own tab (issue #18 — it no longer shares the
+// Decision tab's above-the-fold budget at all). Collapsed first, so the
+// phone-only 3-row cap is measured before the toggle opens it.
+let ledger = null;
+let expanded = null;
+await page.getByRole('tab', { name: 'Career' }).click();
+await page.waitForTimeout(300);
+
+const ledgerBox = () =>
+  page.evaluate(() => {
+    const el = document.querySelector('section[aria-labelledby="ledger-heading"]');
+    const scroll = el?.querySelector('[role="region"]');
+    const rows = [...document.querySelectorAll('tbody tr')];
+    const current = rows.find((r) => r.dataset.current === 'true');
+    if (!el || !scroll) return null;
+    return {
+      ledgerHeight: Math.round(el.getBoundingClientRect().height),
+      clientH: scroll.clientHeight,
+      scrollH: scroll.scrollHeight,
+      rowCount: rows.length,
+      currentRowVisibleInLedger: current
+        ? current.getBoundingClientRect().bottom <= scroll.getBoundingClientRect().bottom + 1 &&
+          current.getBoundingClientRect().top >= scroll.getBoundingClientRect().top - 1
+        : null,
+    };
+  });
+
+ledger = await ledgerBox();
+if (ledger === null) {
+  console.log('WARNING: could not find the ledger on the Career tab — this probe is now blind to it.');
+}
+
+// The expand toggle. Scoped to the ledger on purpose: the Career tab's own
+// stat captions are not buttons, but a future addition could be.
 const toggle = page
   .locator('section[aria-labelledby="ledger-heading"] button[aria-expanded]')
   .first();
-let expanded = null;
 if (await toggle.isVisible().catch(() => false)) {
   await toggle.click();
   await page.waitForTimeout(600);
-  expanded = await page.evaluate(() => {
-    const doc = document.scrollingElement ?? document.documentElement;
-    const ledger = document.querySelector('section[aria-labelledby="ledger-heading"]');
-    const scroll = ledger?.querySelector('[role="region"]');
-    const rows = [...document.querySelectorAll('tbody tr')];
-    const current = rows.find((r) => r.dataset.current === 'true');
-    const first = document.querySelector('button[data-option-index]');
-    return {
-      ledgerHeight: Math.round(ledger.getBoundingClientRect().height),
-      clientH: scroll.clientHeight,
-      scrollH: scroll.scrollHeight,
-      rowsVisible: +((scroll.clientHeight - 22) / ((scroll.scrollHeight - 22) / rows.length)).toFixed(
-        1
-      ),
-      currentRowInFrame:
-        current.getBoundingClientRect().bottom <= scroll.getBoundingClientRect().bottom + 1,
-      firstOptionTop: Math.round(first.getBoundingClientRect().top + doc.scrollTop),
-    };
-  });
-  await page.evaluate(() => window.scrollTo(0, 0));
+  expanded = await ledgerBox();
+  if (expanded === null) {
+    console.log('WARNING: the ledger disappeared after expanding it — this probe is now blind to it.');
+  }
   await page.waitForTimeout(200);
-  await page.screenshot({ path: `qa/screenshots/measure-${WIDTH}-run-expanded.png` });
+  await page.screenshot({ path: `qa/screenshots/measure-${WIDTH}-run-expanded.png`, fullPage: true });
+} else {
+  console.log('WARNING: no ledger expand toggle found on the Career tab — nothing to expand, or the tab is empty.');
 }
 
 console.log(`\n=== ${WIDTH}x${HEIGHT}, ${eras} eras played ===`);
 console.log('creation:', JSON.stringify(creation, null, 2));
-console.log('run:', JSON.stringify(run, null, 2));
-console.log('ledger expanded:', JSON.stringify(expanded, null, 2));
+console.log('run (Decision tab, above the fold):', JSON.stringify(run, null, 2));
+console.log('ledger (Career tab, collapsed):', JSON.stringify(ledger, null, 2));
+console.log('ledger (Career tab, expanded):', JSON.stringify(expanded, null, 2));
 
 await browser.close();

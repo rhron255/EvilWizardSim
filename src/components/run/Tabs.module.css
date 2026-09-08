@@ -1,0 +1,60 @@
+/* A generic tab strip. Understated on purpose — CLAUDE.md rule 3: the
+   Notoriety badge is the run's one scarce colour, so this stays monochrome,
+   ink-scale only, never `--ew-tier`. Underline tabs: a hairline under the
+   whole row, a heavier one under the selected tab. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.tablist {
+  display: flex;
+  border-bottom: 1px solid var(--ew-line);
+}
+
+.tab {
+  position: relative;
+  flex: 1;
+  padding: var(--ew-space-3) var(--ew-space-2);
+  font-family: var(--ew-font-ui);
+  font-size: var(--ew-size-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: center;
+  color: var(--ew-ink-faint);
+  border-bottom: 2px solid transparent;
+  /* Sits flush against the shared hairline above; pull it up one pixel so the
+     2px selected rule replaces it rather than sitting a pixel below it. */
+  margin-bottom: -1px;
+  transition:
+    color var(--ew-fast) var(--ew-ease),
+    border-color var(--ew-base) var(--ew-ease);
+}
+
+/* Expand the tap target without changing the visible padding — same pattern
+   as DecisionTab's .statButton::after. Matters most on a phone, where two
+   tabs fill 393px and every extra millimetre of hit area counts. */
+.tab::after {
+  content: '';
+  position: absolute;
+  inset: -6px -4px;
+}
+
+.tab:hover {
+  color: var(--ew-ink-dim);
+  background: var(--ew-hover);
+}
+
+.tab[data-selected] {
+  color: var(--ew-ink-bright);
+  border-bottom-color: var(--ew-ink);
+}
+
+.tab[data-selected]:hover {
+  background: none;
+}
+
+.panel {
+  padding-top: var(--ew-space-4);
+}

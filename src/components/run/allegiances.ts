@@ -33,6 +33,7 @@ import {
   SEAL_MAX_STANDING,
   SEAL_MIN_NOTORIETY,
   nearestReprisalFaction,
+  patronFaction,
   reprisalLiveFor,
 } from '../../engine';
 import type { Faction, FactionId, RunState } from '../../types';
@@ -229,15 +230,37 @@ export type ReprisalWarning = {
  */
 const SEAL_FAME_LEAD = 12;
 
-export function reprisalWarningFor(run: RunState): ReprisalWarning | null {
-  // Live only: an ascent-phase Choir at −70 is not a warning, because the
-  // engine will not act on it. Same predicate the ending uses.
+/**
+ * The reprisal nearest to firing, unconditionally — issue #18's Decision-tab
+ * "next-threat line". Ascent or decline, close or distant, this always names
+ * the faction `nearestReprisalFaction` would act through first (the Academy is
+ * live in every phase, so this is `null` only for a cast that omits it
+ * entirely). It is deliberately NOT gated the way `reprisalWarningFor` below
+ * is: the Decision tab has room for an ambient status line every era, not
+ * just an alarm, and a player planning a career benefits from knowing who is
+ * closest even while that faction is in good health.
+ *
+ * `reprisalWarningFor` is this same computation with the Career tab's
+ * proximity gates layered on top, so the two can never name different
+ * factions or disagree about the distance.
+ */
+export function nextThreatFor(run: RunState): ReprisalWarning | null {
   const factionId = nearestReprisalFaction(run, 'live');
   if (factionId === undefined) return null;
   const standing = run.factionStanding[factionId] ?? 0;
-  const margin = standing - SEAL_MAX_STANDING;
+  return {
+    factionId,
+    standing,
+    margin: standing - SEAL_MAX_STANDING,
+    armed: run.notoriety >= SEAL_MIN_NOTORIETY,
+  };
+}
+
+export function reprisalWarningFor(run: RunState): ReprisalWarning | null {
+  const status = nextThreatFor(run);
+  if (status === null) return null;
   // Only warn once it is genuinely close; a faction in good health is not news.
-  if (margin > 25) return null;
+  if (status.margin > 25) return null;
   // ...and, while standing still has room, only once the OTHER half of the
   // trigger is within reach. Both conditions have to be live before this is a
   // warning rather than trivia.
@@ -246,8 +269,8 @@ export function reprisalWarningFor(run: RunState): ReprisalWarning | null {
   // threshold, the ONLY thing keeping the run alive is a notoriety number that
   // the whole game pushes upward. That is precisely when the fame half has to
   // be named, and it is the case `WizardHeader.test.tsx` pins.
-  if (margin > 0 && run.notoriety < SEAL_MIN_NOTORIETY - SEAL_FAME_LEAD) return null;
-  return { factionId, standing, margin, armed: run.notoriety >= SEAL_MIN_NOTORIETY };
+  if (status.margin > 0 && run.notoriety < SEAL_MIN_NOTORIETY - SEAL_FAME_LEAD) return null;
+  return status;
 }
 
 /**
@@ -287,4 +310,34 @@ export function reprisalSentence(warning: ReprisalWarning): string {
       : `is ${warning.margin} from ${REPRISAL_NOUN[warning.factionId]}`;
   const trigger = warning.armed ? 'your fame qualifies' : `acts at ${SEAL_MIN_NOTORIETY} Notoriety`;
   return `${REPRISAL_SUBJECT[warning.factionId]} ${distance} · ${trigger}.`;
+}
+
+/**
+ * The Decision tab's other status line — who this career is currently
+ * courting, by the engine's own rule rather than a second walk of
+ * `factionStanding`.
+ *
+ * `patronFaction` already backs the ending screen's "who remembers you"
+ * passage (`src/components/meta/standing.ts`); this is the same function, on
+ * the run screen, while the outcome is still live. `null` is a real, common
+ * state — most careers never clear `PATRON_MARGIN` over a runner-up — and the
+ * issue's acceptance check calls it out explicitly ("with a no-patron
+ * state"), so callers must render *something* for it rather than omitting the
+ * line, or the Decision tab silently loses the distinction between "no patron
+ * yet" and "this UI forgot to ask".
+ */
+export type Patron = {
+  factionId: FactionId;
+  name: string;
+  standing: number;
+};
+
+export function patronFor(run: RunState, factions: Faction[]): Patron | null {
+  const factionId = patronFaction(run);
+  if (factionId === undefined) return null;
+  const faction = factions.find((f) => f.id === factionId);
+  // A cast that does not contain the faction yields nothing rather than a
+  // half-sentence with an id in it — same rule `standing.ts`'s `bond` follows.
+  if (!faction) return null;
+  return { factionId, name: faction.name, standing: run.factionStanding[factionId] ?? 0 };
 }
