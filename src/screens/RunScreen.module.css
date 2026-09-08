@@ -76,6 +76,53 @@
     var(--ew-void);
 }
 
+/* --------------------------------------------------------------------------
+   The eleven C2 themes (issue #15). Five of them specify a background
+   ornament of their own; the other six (both Ashen Covenant themes, both
+   Gilded Hand themes, the King, and Good Wizard) do not, matching the
+   scope C1 already set — this file carries the light-source ornament and
+   nothing else, the same restraint that left `sealed_in_gem`'s clip-path
+   corners and `slain_by_chosen_one`'s card hairline unbuilt.
+   -------------------------------------------------------------------------- */
+
+/* Requisition — a requisition form is filled out from the bottom up. The
+   light rises from below instead of falling from above. */
+.screen[data-theme='eternally_repurposed'] {
+  background:
+    radial-gradient(90% 55% at 50% 110%, rgba(224, 214, 180, 0.04), transparent 68%),
+    var(--ew-void);
+}
+
+/* The Eldest Oak — growth, not light. The gradient rises from the bottom
+   edge rather than falling from above. */
+.screen[data-theme='archdruid'] {
+  background:
+    radial-gradient(85% 60% at 50% 108%, rgba(150, 224, 160, 0.05), transparent 70%),
+    var(--ew-void);
+}
+
+/* Good Ground — a slow dark bloom, centred low rather than lit from above. */
+.screen[data-theme='turned_to_fertilizer'] {
+  background:
+    radial-gradient(70% 55% at 50% 78%, rgba(120, 200, 110, 0.045), transparent 72%),
+    var(--ew-void);
+}
+
+/* Past the Border — the light comes from outside the frame, offset to one
+   edge, on the wrong side of the line. */
+.screen[data-theme='exiled_and_overrun'] {
+  background:
+    radial-gradient(80% 60% at 92% 6%, rgba(224, 190, 200, 0.045), transparent 70%),
+    var(--ew-void);
+}
+
+/* Underneath — from below, very low. Whatever is down there is patient. */
+.screen[data-theme='consumed'] {
+  background:
+    radial-gradient(70% 40% at 50% 118%, rgba(150, 140, 224, 0.035), transparent 66%),
+    var(--ew-void);
+}
+
 .column {
   position: relative;
   z-index: 1;
