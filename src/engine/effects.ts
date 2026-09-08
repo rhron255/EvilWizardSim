@@ -17,6 +17,7 @@ import {
   DEVOTION_STANDING,
   CONTAGION_GAIN,
   CONTAGION_LOSS,
+  GOOD_WIZARD_ILL_CAP,
   NOVELTY_BIAS,
   RARITY_DRAW_WEIGHT,
   STANDING_MAX,
@@ -192,6 +193,24 @@ export function applyEffects(
 
       case 'illAct': {
         draft.illActs = Math.max(0, draft.illActs + effect.v);
+        // The vow is a promise the career keeps to the end ("held to the
+        // end", per `virtue_resolution_the_quiet_ledger`'s own resultText),
+        // not a one-time gate check spent at the moment it was taken. That
+        // offer's own `requires` caps illActs at `GOOD_WIZARD_ILL_CAP`, but
+        // nothing enforced the cap AFTER the vow — a wizard who vowed at
+        // illActs 0 or 1 and then picked an illAct-tagged option elsewhere in
+        // the pool (`virtue_obscure_*` offers are ordinary-reading and
+        // ungated, so every run sees them, saint or not) kept `good_wizard`/
+        // `arch_lich` regardless of how many more harmful choices followed,
+        // contradicting the card's own gate and its own promise.
+        //
+        // Revoked here, silently — as silently as the counters that gate it.
+        // Rule 1's amendment permits this route to only ever ADD an ending;
+        // un-adding it the moment its OWN condition stops holding is the same
+        // door the counters already gate, not a new one.
+        if (draft.goodWizardVowed && draft.illActs > GOOD_WIZARD_ILL_CAP) {
+          draft.goodWizardVowed = false;
+        }
         break;
       }
 

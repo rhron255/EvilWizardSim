@@ -49,13 +49,36 @@ const out = await page.evaluate((texts) => {
   if (!line) return { missing: true };
   const shipped = line.textContent;
   const w = Math.round(line.getBoundingClientRect().width);
-  const one = Math.round(line.getBoundingClientRect().height);
+  const shippedHeight = Math.round(line.getBoundingClientRect().height);
+  // The height of exactly ONE line, from the stylesheet's `line-height`
+  // rather than from any rendered text. A height measured off the shipped
+  // line (the earlier version of this probe) is not immune to the same trap
+  // it exists to catch: if the shipped line is ALREADY wrapped — a text,
+  // font, or layout regression — that measurement records the WRAPPED
+  // (two-line) height as "one line", and a candidate that also wraps to
+  // that same height never registers as taller than it, so the probe would
+  // report success while every warning on screen is wrapped. `line-height`
+  // is a stylesheet property, resolved from font metrics alone — it cannot
+  // itself be "wrapped", so it stays a true one-line baseline regardless of
+  // what the shipped text happens to be doing.
+  const computed = parseFloat(getComputedStyle(line).lineHeight);
+  let one;
+  if (Number.isFinite(computed)) {
+    one = computed;
+  } else {
+    // `line-height: normal` has no resolvable px value from
+    // `getComputedStyle` — fall back to a single short character, which
+    // cannot wrap at this column width regardless of font.
+    line.textContent = 'X';
+    one = line.getBoundingClientRect().height;
+  }
+  one = Math.round(one);
   const rows = texts.map((t) => {
     line.textContent = t;
     return { h: Math.round(line.getBoundingClientRect().height), chars: t.length, t };
   });
   line.textContent = shipped;
-  return { width: w, shipped, one, rows };
+  return { width: w, shipped, shippedHeight, one, rows };
 }, CANDIDATES);
 
 if (out.missing) {
@@ -64,13 +87,17 @@ if (out.missing) {
   process.exit(1);
 }
 
-console.log(`column ${out.width}px · shipped line: "${out.shipped}" (${out.one}px, one line)`);
-// Anchored to `out.one` — the height the app actually rendered for the
-// SHIPPED line, measured before any candidate text is substituted in — not
-// to the minimum across the candidates below. A `Math.min` over the
-// candidate set is not a fact about one line of type; it is a fact about
-// whichever candidate happens to be shortest, and if every candidate here
-// wraps, the minimum wraps too and "wraps" stops being detectable at all.
+console.log(`column ${out.width}px · one line = ${out.one}px · shipped line: "${out.shipped}" (${out.shippedHeight}px)`);
+
+if (out.shippedHeight > out.one) {
+  console.error(
+    `the SHIPPED line itself is ${out.shippedHeight}px, taller than one line (${out.one}px) — ` +
+      'it is already wrapped in production, before any candidate is even measured',
+  );
+  await browser.close();
+  process.exit(1);
+}
+
 let wrapped = 0;
 for (const r of out.rows) {
   const flag = r.h > out.one ? ' WRAPS' : '';
