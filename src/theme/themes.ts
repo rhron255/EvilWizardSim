@@ -308,19 +308,25 @@ export const THEMES: ThemeDef[] = [
   },
 
   // ---------------------------------------------------------------------------
-  // The five faction reprisals (issue #14).
+  // The five faction reprisals (issue #14 slice 1, recoloured for issue #15
+  // track C2).
   //
-  // Adding an ending adds a theme — `ThemeId` is `'default' | EndingId` and
-  // `themes.test.ts` fails the moment an ending has none, which is the whole
-  // reason the two id spaces were collapsed into one. Each takes the hue of the
-  // faction that ended the career; none may name `--ew-tier`, and none does,
-  // because the token objects these are keyed off have no tier key.
+  // These five shipped as a SIDE EFFECT of #14: `themes.test.ts` fails the
+  // moment an ending has no theme, so each reprisal got a generated palette —
+  // one hue per theme, no relation to the faction it belonged to — the day its
+  // ending landed, months before C2 was scheduled to give them one on purpose.
+  // That palette is what #15 C2 actually specifies: "faction pairs share a hue
+  // family and differ in treatment; leadership is the faction ascendant,
+  // reprisal is the faction's process applied to you." Four of these five
+  // hues did not agree with their pair (`turned_to_fertilizer` already landed
+  // in the Verdant Choir's own green and needed no change; the family
+  // reassignment below is what C2 is actually for).
   //
-  // The ramps are generated rather than eyeballed: one hue per theme at the
-  // same lightness steps, then the panel darkened by a point or two where the
-  // ink did not clear the default palette's 13.80:1. Doing it by eye is how the
-  // shipped themes came to be "hard to tell apart from the regular one" —
-  // measure the ratio, then look at it.
+  // Same generation recipe as before — one hue per theme at a fixed
+  // lightness/saturation ladder, the panel and ink nudged until the default
+  // palette's 13.80:1 clears on `base`, `bright`, and against `void` — with
+  // the hue itself now chosen to MATCH the leadership half of the pair below,
+  // not merely to look distinct from its neighbours.
   // ---------------------------------------------------------------------------
 
   {
@@ -328,20 +334,24 @@ export const THEMES: ThemeDef[] = [
     name: 'Requisition',
     endingId: 'eternally_repurposed',
     blurb: 'Ash and old brass. Stock, correctly filed.',
+    // Ashen Covenant, paired with `contract_writer` below: the same
+    // near-black ember hue, gone cold. Saturation drops from Pact Master's
+    // ~22% toward ~12% — "desaturated toward neutral grey" — and `base` sits
+    // two steps closer to `faint` than the usual ink recipe, per the brief.
     surface: {
-      void: '#111209',
-      panel: '#212311',
-      raised: '#2e3118',
-      hover: '#3b3f1f',
-      line: '#484c26',
-      lineStrong: '#6b7326',
+      void: '#0f0d0c',
+      panel: '#1d1917',
+      raised: '#292320',
+      hover: '#352d29',
+      line: '#403632',
+      lineStrong: '#4c423e',
     },
     ink: {
       bright: '#f8f8f8',
-      base: '#eeefec',
-      dim: '#a2a48e',
-      faint: '#75775f',
-      ghost: '#4d4e41',
+      base: '#eae7e6',
+      dim: '#998780',
+      faint: '#71615b',
+      ghost: '#4b423f',
     },
   },
 
@@ -349,21 +359,27 @@ export const THEMES: ThemeDef[] = [
     id: 'liquidated',
     name: 'Assets Realised',
     endingId: 'liquidated',
-    blurb: 'Counting-house blue, under a valuer’s lamp.',
+    blurb: 'The same green-black ledger room, emptied.',
+    // Gilded Hand, paired with `grand_arbiter` below. Previously a
+    // counting-house BLUE with no relation to its partner's gold-on-green —
+    // the brief's own "same green-black" was not optional. `raised` is
+    // deliberately equal to `panel` ("raised drops a step, so surfaces are
+    // literally emptied") and `line`/`lineStrong` desaturate toward grey
+    // rather than carrying the brass forward.
     surface: {
-      void: '#0a1218',
-      panel: '#111f2a',
-      raised: '#172a38',
-      hover: '#1d3547',
-      line: '#234055',
-      lineStrong: '#225477',
+      void: '#0c1309',
+      panel: '#172410',
+      raised: '#172410',
+      hover: '#223319',
+      line: '#2e372a',
+      lineStrong: '#3b4536',
     },
     ink: {
       bright: '#f8f8f8',
-      base: '#ecedef',
-      dim: '#8e9ba4',
-      faint: '#5f6d77',
-      ghost: '#41484e',
+      base: '#edefec',
+      dim: '#8b9b83',
+      faint: '#5d6c56',
+      ghost: '#3e463a',
     },
   },
 
@@ -374,7 +390,9 @@ export const THEMES: ThemeDef[] = [
     blurb: 'Everything in this room is growing. Some of it is you.',
     // The darkest panel of the twelve: green sits high in the luminance
     // formula, so the same lightness step that reads as a room in blue reads
-    // as a lawn here, and the ink loses its floor.
+    // as a lawn here, and the ink loses its floor. Verdant Choir, paired with
+    // `archdruid` — this one already shared the family when it shipped under
+    // #14, so C2 leaves it untouched.
     surface: {
       void: '#091208',
       panel: '#132410',
@@ -396,21 +414,30 @@ export const THEMES: ThemeDef[] = [
     id: 'exiled_and_overrun',
     name: 'Past the Border',
     endingId: 'exiled_and_overrun',
-    blurb: 'Warm, and not on your side of the line.',
+    blurb: 'The same purple the Crown wears, gone slate and cold.',
+    // Crownlands, paired with `overthrown_the_kingdom` below. Previously a
+    // warm rose unrelated to the King's palette; now the same indigo-violet
+    // family, desaturated and cooled ("gone slate and colder"). `raised`
+    // flattens to `panel`'s own step, matching Liquidated's move, and
+    // `lineStrong` breaks from the family hue toward a low-presence
+    // danger-red rather than carrying the King's gold rule forward — the
+    // brief's "the gold rule becomes `--ew-danger` at low opacity", read as a
+    // hue swap rather than a literal alpha channel (every token here is an
+    // opaque hex; `contrastRatio` assumes it).
     surface: {
-      void: '#170b0f',
-      panel: '#28131b',
-      raised: '#361924',
-      hover: '#44202d',
-      line: '#512636',
-      lineStrong: '#702943',
+      void: '#130c13',
+      panel: '#221622',
+      raised: '#221622',
+      hover: '#2f202f',
+      line: '#3b293b',
+      lineStrong: '#56342e',
     },
     ink: {
       bright: '#f8f8f8',
-      base: '#efeced',
-      dim: '#a48e96',
-      faint: '#775f68',
-      ghost: '#4e4146',
+      base: '#efecef',
+      dim: '#998099',
+      faint: '#6c566c',
+      ghost: '#463a46',
     },
   },
 
@@ -418,57 +445,74 @@ export const THEMES: ThemeDef[] = [
     id: 'consumed',
     name: 'Underneath',
     endingId: 'consumed',
-    blurb: 'Wet stone, no weather, and something patient below it.',
+    blurb: 'The same violet as the cold room, dropped nearly to black.',
+    // Worm Below, paired with `lichdom` ("Cold Room") above — same ~253°
+    // blue-violet hue `lichdom` claims, not the unrelated teal this shipped
+    // with under #14. `void` and `panel` sit one lightness step apart instead
+    // of the usual two ("almost converge"), and `line` desaturates hard
+    // relative to its neighbours ("barely visible") while `lineStrong` stays
+    // saturated enough to clear its own reason for existing.
     surface: {
-      void: '#0b1314',
-      panel: '#132224',
-      raised: '#1b2f31',
-      hover: '#223c3f',
-      line: '#29484c',
-      lineStrong: '#2b5e64',
+      void: '#0b0814',
+      panel: '#0e0b19',
+      raised: '#151125',
+      hover: '#1b162f',
+      line: '#231f30',
+      lineStrong: '#2b224f',
     },
     ink: {
       bright: '#f8f8f8',
-      base: '#eceeef',
-      dim: '#8ea2a4',
-      faint: '#5f7577',
-      ghost: '#414d4e',
+      base: '#e4e3e8',
+      dim: '#88839b',
+      faint: '#5b566c',
+      ghost: '#3c3a46',
     },
   },
 
   // ---------------------------------------------------------------------------
-  // The five faction leadership endings (issue #14, slice 2). `lichdom` above
-  // is the Worm Below's sixth and already has its theme, "Cold Room".
+  // The five faction leadership endings (issue #14, slice 2), recoloured for
+  // issue #15 track C2. `lichdom` above is the Worm Below's sixth and already
+  // has its theme, "Cold Room".
   //
-  // Same generation recipe as the reprisals: one hue per theme, held at a
-  // fixed lightness ladder, panel darkened where the ink did not clear the
-  // default palette's 13.80:1 on the nose. Hues are picked at least ~25° off
-  // the twelve already in use where a gap that wide existed; `grand_arbiter`
-  // sits in the one gap that was only ~26° wide to begin with (between the
-  // reprisals' olive and this set's own gold-green), so it leans on a much
-  // higher saturation than its neighbours to stay legible as a different
-  // colour rather than a paler version of one of them.
+  // Same generation recipe as the reprisals above: one hue per theme, held at
+  // a fixed lightness ladder, panel and ink nudged until the default
+  // palette's 13.80:1 clears on `base`, `bright`, and against `void`.
+  //
+  // `contract_writer` shipped under #14 in the SAME olive `archdruid` and
+  // `turned_to_fertilizer` already occupy — a generated hue with no relation
+  // to "Ashen Covenant", chosen before C2 existed to give it one. It moves to
+  // the ember-red family it shares with `eternally_repurposed` above; that
+  // frees the olive/gold-green band for the Verdant Choir pair alone, so
+  // `grand_arbiter` no longer needs the crowded, over-saturated compromise
+  // its comment used to describe. It now reads as what the brief actually
+  // asks for — green-black "baize" surfaces with a `lineStrong` bent toward
+  // brass — shared with `liquidated` above, and the two are the pair the
+  // rest of the ramp keeps in lockstep with (`liquidated`'s `raised` is
+  // literally `grand_arbiter`'s `panel` value).
   // ---------------------------------------------------------------------------
 
   {
     id: 'contract_writer',
     name: 'Correspondence',
     endingId: 'contract_writer',
-    blurb: 'The Covenant’s olive, gone brassy where the ink is fresh.',
+    blurb: 'Ash over banked embers. The ink is still fresh.',
+    // Ashen Covenant, paired with `eternally_repurposed` above: the same
+    // near-black ember hue at roughly double its saturation — "ash-grey
+    // panels" with a red undertone the reprisal has already lost.
     surface: {
-      void: '#0c1007',
-      panel: '#19210f',
-      raised: '#233015',
-      hover: '#2d3e1c',
-      line: '#384c22',
-      lineStrong: '#476824',
+      void: '#100b0a',
+      panel: '#1f1714',
+      raised: '#2c201c',
+      hover: '#392a24',
+      line: '#46322b',
+      lineStrong: '#703c29',
     },
     ink: {
       bright: '#f8f8f8',
-      base: '#edefec',
-      dim: '#99a48e',
-      faint: '#6b775f',
-      ghost: '#484e41',
+      base: '#efedec',
+      dim: '#a4948e',
+      faint: '#77665f',
+      ghost: '#4e4441',
     },
   },
 
@@ -476,21 +520,29 @@ export const THEMES: ThemeDef[] = [
     id: 'grand_arbiter',
     name: 'The Final Number',
     endingId: 'grand_arbiter',
-    blurb: 'Gold, at the exact saturation of a figure nobody argues with.',
+    blurb: 'Green-black ledger surfaces, ruled in brass.',
+    // Gilded Hand, paired with `liquidated` above: "deep green-black
+    // surfaces, lineStrong in brass" — the brief names the base hue and the
+    // accent as two different colours on purpose, so `lineStrong` alone
+    // breaks toward gold (hue ~48° against the ramp's ~100°). The gap is
+    // held under the near-monochrome ceiling (spread ~53° of the allowed
+    // 90°) rather than reaching for a fully saturated gold, which is what
+    // "brass" over "baize" means anyway — a warm accent on a green room, not
+    // a second hue family.
     surface: {
-      void: '#100f07',
-      panel: '#22200e',
-      raised: '#312e14',
-      hover: '#3f3b1a',
-      line: '#4e4820',
-      lineStrong: '#72671b',
+      void: '#0c1309',
+      panel: '#172410',
+      raised: '#203317',
+      hover: '#29411d',
+      line: '#325022',
+      lineStrong: '#73621f',
     },
     ink: {
       bright: '#f8f8f8',
-      base: '#efefec',
-      dim: '#a4a18e',
-      faint: '#77745f',
-      ghost: '#4e4c41',
+      base: '#edefec',
+      dim: '#95a48e',
+      faint: '#67775f',
+      ghost: '#454e41',
     },
   },
 
@@ -543,20 +595,28 @@ export const THEMES: ThemeDef[] = [
     name: 'The Crown',
     endingId: 'overthrown_the_kingdom',
     blurb: 'Royal purple, kept by someone the Crownlands did not choose.',
+    // Crownlands, paired with `exiled_and_overrun` above: the same
+    // indigo-violet family, with `lineStrong` bent toward a restrained gold —
+    // "a single gold rule" — the same accent-not-family-shift `grand_arbiter`
+    // uses above, for the same reason: true spectral gold (~45°) sits well
+    // outside 90° of true indigo (~250°), so the rule reads warm relative to
+    // the room rather than literally gold. The constraint wins, because it is
+    // the testable one (`sealed_in_gem`'s comment above gives the general
+    // case).
     surface: {
-      void: '#150913',
-      panel: '#271123',
-      raised: '#35182f',
-      hover: '#431e3c',
-      line: '#512449',
-      lineStrong: '#6d2660',
+      void: '#150911',
+      panel: '#27111f',
+      raised: '#35182a',
+      hover: '#431e35',
+      line: '#512440',
+      lineStrong: '#705629',
     },
     ink: {
       bright: '#f8f8f8',
       base: '#efecee',
-      dim: '#a48ea0',
-      faint: '#775f73',
-      ghost: '#4e414c',
+      dim: '#a48e9c',
+      faint: '#775f6e',
+      ghost: '#4e4149',
     },
   },
 

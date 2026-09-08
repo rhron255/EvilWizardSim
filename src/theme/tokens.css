@@ -270,49 +270,57 @@
 }
 
 /* --------------------------------------------------------------------------
-   The five faction reprisals (issue #14).
+   The five faction reprisals (issue #14 slice 1), recoloured for issue #15
+   track C2.
 
-   Each takes the hue of the faction that ended the career, run through the
-   same warm-dark structure as everything above: one hue family per theme, the
-   ramp spaced as the others are, and the ink lifted to clear the contrast
-   floor `themes.test.ts` computes from the default palette. Every block below
-   is the machine-generated twin of its `ThemeDef` in `themes.ts`, and the test
-   diffs the two token for token.
+   These shipped as a side effect of #14 — `themes.test.ts` requires every
+   ending to have a theme — with one generated hue per theme and no relation
+   to the faction it belonged to. C2 is what actually asks for "faction pairs
+   share a hue family and differ in treatment", so four of the five move to
+   match their leadership half below; `turned_to_fertilizer` already shared
+   the Verdant Choir's green when it shipped and is unchanged. Every block
+   below is the machine-generated twin of its `ThemeDef` in `themes.ts`, and
+   `themes.test.ts` diffs the two token for token.
    -------------------------------------------------------------------------- */
 
-/* Requisition — ash and old brass. Stock, correctly filed. */
+/* Requisition — Ashen Covenant, paired with `contract_writer` below: the
+   same near-black ember hue, gone cold and desaturated toward neutral grey. */
 [data-theme='eternally_repurposed'] {
-  --ew-void: #111209;
-  --ew-panel: #212311;
-  --ew-raised: #2e3118;
-  --ew-hover: #3b3f1f;
-  --ew-line: #484c26;
-  --ew-line-strong: #6b7326;
+  --ew-void: #0f0d0c;
+  --ew-panel: #1d1917;
+  --ew-raised: #292320;
+  --ew-hover: #352d29;
+  --ew-line: #403632;
+  --ew-line-strong: #4c423e;
 
   --ew-ink-bright: #f8f8f8;
-  --ew-ink: #eeefec;
-  --ew-ink-dim: #a2a48e;
-  --ew-ink-faint: #75775f;
-  --ew-ink-ghost: #4d4e41;
+  --ew-ink: #eae7e6;
+  --ew-ink-dim: #998780;
+  --ew-ink-faint: #71615b;
+  --ew-ink-ghost: #4b423f;
 }
 
-/* Assets Realised — counting-house blue, under a valuer's lamp. */
+/* Assets Realised — Gilded Hand, paired with `grand_arbiter` below: the same
+   green-black ledger room, emptied. `raised` equals `panel`, and the brass
+   line reverts to plain grey rather than carrying the gilt forward. */
 [data-theme='liquidated'] {
-  --ew-void: #0a1218;
-  --ew-panel: #111f2a;
-  --ew-raised: #172a38;
-  --ew-hover: #1d3547;
-  --ew-line: #234055;
-  --ew-line-strong: #225477;
+  --ew-void: #0c1309;
+  --ew-panel: #172410;
+  --ew-raised: #172410;
+  --ew-hover: #223319;
+  --ew-line: #2e372a;
+  --ew-line-strong: #3b4536;
 
   --ew-ink-bright: #f8f8f8;
-  --ew-ink: #ecedef;
-  --ew-ink-dim: #8e9ba4;
-  --ew-ink-faint: #5f6d77;
-  --ew-ink-ghost: #41484e;
+  --ew-ink: #edefec;
+  --ew-ink-dim: #8b9b83;
+  --ew-ink-faint: #5d6c56;
+  --ew-ink-ghost: #3e463a;
 }
 
-/* Good Ground — the darkest green the ink will sit on. Everything is growing. */
+/* Good Ground — the darkest green the ink will sit on. Everything is
+   growing. Verdant Choir, paired with `archdruid`; already shared the family
+   under #14 and is unchanged by C2. */
 [data-theme='turned_to_fertilizer'] {
   --ew-void: #091208;
   --ew-panel: #132410;
@@ -328,68 +336,76 @@
   --ew-ink-ghost: #434e41;
 }
 
-/* Past the Border — a bruised rose. Warm, and not on your side of the line. */
+/* Past the Border — Crownlands, paired with `overthrown_the_kingdom` below:
+   the same indigo-violet the King wears, gone slate and cold. `raised`
+   flattens to `panel`, and the strong rule breaks from the family hue toward
+   a low-presence danger-red rather than carrying the gold forward. */
 [data-theme='exiled_and_overrun'] {
-  --ew-void: #170b0f;
-  --ew-panel: #28131b;
-  --ew-raised: #361924;
-  --ew-hover: #44202d;
-  --ew-line: #512636;
-  --ew-line-strong: #702943;
+  --ew-void: #130c13;
+  --ew-panel: #221622;
+  --ew-raised: #221622;
+  --ew-hover: #2f202f;
+  --ew-line: #3b293b;
+  --ew-line-strong: #56342e;
 
   --ew-ink-bright: #f8f8f8;
-  --ew-ink: #efeced;
-  --ew-ink-dim: #a48e96;
-  --ew-ink-faint: #775f68;
-  --ew-ink-ghost: #4e4146;
+  --ew-ink: #efecef;
+  --ew-ink-dim: #998099;
+  --ew-ink-faint: #6c566c;
+  --ew-ink-ghost: #463a46;
 }
 
-/* Underneath — wet stone, no weather. The least saturated of the five. */
+/* Underneath — Worm Below, paired with `lichdom` ("Cold Room") above: the
+   same blue-violet hue, dropped nearly to black. `void` and `panel` sit one
+   step apart instead of two, and `line` all but disappears into them. */
 [data-theme='consumed'] {
-  --ew-void: #0b1314;
-  --ew-panel: #132224;
-  --ew-raised: #1b2f31;
-  --ew-hover: #223c3f;
-  --ew-line: #29484c;
-  --ew-line-strong: #2b5e64;
+  --ew-void: #0b0814;
+  --ew-panel: #0e0b19;
+  --ew-raised: #151125;
+  --ew-hover: #1b162f;
+  --ew-line: #231f30;
+  --ew-line-strong: #2b224f;
 
   --ew-ink-bright: #f8f8f8;
-  --ew-ink: #eceeef;
-  --ew-ink-dim: #8ea2a4;
-  --ew-ink-faint: #5f7577;
-  --ew-ink-ghost: #414d4e;
+  --ew-ink: #e4e3e8;
+  --ew-ink-dim: #88839b;
+  --ew-ink-faint: #5b566c;
+  --ew-ink-ghost: #3c3a46;
 }
 
-/* Correspondence — the Covenant's olive, gone brassy where the ink is fresh. */
+/* Correspondence — Ashen Covenant, paired with `eternally_repurposed` above:
+   ash over banked embers, at roughly double its reprisal's saturation. */
 [data-theme='contract_writer'] {
-  --ew-void: #0c1007;
-  --ew-panel: #19210f;
-  --ew-raised: #233015;
-  --ew-hover: #2d3e1c;
-  --ew-line: #384c22;
-  --ew-line-strong: #476824;
+  --ew-void: #100b0a;
+  --ew-panel: #1f1714;
+  --ew-raised: #2c201c;
+  --ew-hover: #392a24;
+  --ew-line: #46322b;
+  --ew-line-strong: #703c29;
+
+  --ew-ink-bright: #f8f8f8;
+  --ew-ink: #efedec;
+  --ew-ink-dim: #a4948e;
+  --ew-ink-faint: #77665f;
+  --ew-ink-ghost: #4e4441;
+}
+
+/* The Final Number — Gilded Hand, paired with `liquidated` above: deep
+   green-black surfaces with `--ew-line-strong` bent toward brass, a warm
+   accent rather than a second hue family (spread ~53° of the 90° ceiling). */
+[data-theme='grand_arbiter'] {
+  --ew-void: #0c1309;
+  --ew-panel: #172410;
+  --ew-raised: #203317;
+  --ew-hover: #29411d;
+  --ew-line: #325022;
+  --ew-line-strong: #73621f;
 
   --ew-ink-bright: #f8f8f8;
   --ew-ink: #edefec;
-  --ew-ink-dim: #99a48e;
-  --ew-ink-faint: #6b775f;
-  --ew-ink-ghost: #484e41;
-}
-
-/* The Final Number — gold, at the exact saturation of a figure nobody argues with. */
-[data-theme='grand_arbiter'] {
-  --ew-void: #100f07;
-  --ew-panel: #22200e;
-  --ew-raised: #312e14;
-  --ew-hover: #3f3b1a;
-  --ew-line: #4e4820;
-  --ew-line-strong: #72671b;
-
-  --ew-ink-bright: #f8f8f8;
-  --ew-ink: #efefec;
-  --ew-ink-dim: #a4a18e;
-  --ew-ink-faint: #77745f;
-  --ew-ink-ghost: #4e4c41;
+  --ew-ink-dim: #95a48e;
+  --ew-ink-faint: #67775f;
+  --ew-ink-ghost: #454e41;
 }
 
 /* The Chair — a pale, cold blue. The disclaimer used to live here. */
@@ -424,20 +440,23 @@
   --ew-ink-ghost: #414e45;
 }
 
-/* The Crown — royal purple, kept by someone the Crownlands did not choose. */
+/* The Crown — royal purple, kept by someone the Crownlands did not choose.
+   Paired with `exiled_and_overrun` above; `--ew-line-strong` bends toward a
+   restrained gold rule, the same accent-not-family-shift `grand_arbiter`
+   above uses and for the same reason (see `sealed_in_gem`'s comment). */
 [data-theme='overthrown_the_kingdom'] {
-  --ew-void: #150913;
-  --ew-panel: #271123;
-  --ew-raised: #35182f;
-  --ew-hover: #431e3c;
-  --ew-line: #512449;
-  --ew-line-strong: #6d2660;
+  --ew-void: #150911;
+  --ew-panel: #27111f;
+  --ew-raised: #35182a;
+  --ew-hover: #431e35;
+  --ew-line: #512440;
+  --ew-line-strong: #705629;
 
   --ew-ink-bright: #f8f8f8;
   --ew-ink: #efecee;
-  --ew-ink-dim: #a48ea0;
-  --ew-ink-faint: #775f73;
-  --ew-ink-ghost: #4e414c;
+  --ew-ink-dim: #a48e9c;
+  --ew-ink-faint: #775f6e;
+  --ew-ink-ghost: #4e4149;
 }
 
 [data-theme='good_wizard'] {
