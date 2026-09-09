@@ -108,10 +108,10 @@ describe('DecisionTab · the next-threat line', () => {
    * the Academy is live in every phase, so a `'live'`-only scan reported it
    * as "the" threat while the far closer, not-yet-live Choir went completely
    * unmentioned. Fixed by scanning every faction by standing regardless of
-   * live status, and saying so honestly when the nearest one cannot fire
-   * yet — pinned here at the component level, not just in `allegiances.ts`.
+   * live status — pinned here at the component level, not just in
+   * `allegiances.ts`.
    */
-  it('names the closer faction even when its reprisal cannot fire yet, and says so', () => {
+  it('names the closer faction even when its reprisal cannot fire yet', () => {
     const notYetLive = {
       ...demoRun,
       phase: 'ascent',
@@ -131,7 +131,6 @@ describe('DecisionTab · the next-threat line', () => {
     show(notYetLive);
     expect(screen.getByText(/The Choir/)).toBeInTheDocument();
     expect(screen.queryByText(/The Academy/)).toBeNull();
-    expect(screen.getByText(/waits for the decline/)).toBeInTheDocument();
   });
 });
 

@@ -147,21 +147,6 @@ describe('the reprisal warning · all six factions', () => {
     }
   });
 
-  it('holds the not-yet-live variant to the same budget, for the five factions that can show it', () => {
-    // The Academy is excluded on purpose: `reprisalLiveFor` never returns
-    // false for it, so nextThreatFor can never actually hand this wording a
-    // pale_academy warning — including it here would test an impossible case.
-    const nonAcademy = FACTIONS.filter((id) => id !== 'pale_academy');
-    for (const id of nonAcademy) {
-      for (const standing of [SEAL_MAX_STANDING + 6, SEAL_MAX_STANDING - 1]) {
-        const ascent = run({ [id]: standing }, SEAL_MIN_NOTORIETY, 'ascent');
-        const line = reprisalSentence(nextThreatFor(ascent)!);
-        expect(line, line).toContain('waits for the decline');
-        expect(line.length, line).toBeLessThanOrEqual(60);
-      }
-    }
-  });
-
   it('names the faction the ENGINE would fire, when two are under at once', () => {
     // Contagion puts two factions under the line together far more often than
     // the arithmetic suggests. A warning about the Crown above a run that ends
@@ -255,7 +240,6 @@ describe('the next-threat line', () => {
     const close = run(SEAL_MAX_STANDING + 6, SEAL_MIN_NOTORIETY);
     expect(nextThreatFor(close)!.factionId).toBe(reprisalWarningFor(close)!.factionId);
     expect(nextThreatFor(close)!.margin).toBe(reprisalWarningFor(close)!.margin);
-    expect(nextThreatFor(close)!.live).toBe(true);
   });
 
   /**
@@ -276,18 +260,20 @@ describe('the next-threat line', () => {
     const threat = nextThreatFor(notYetLive);
     expect(threat!.factionId).toBe('verdant_choir');
     expect(threat!.margin).toBe(5);
-    expect(threat!.live).toBe(false);
   });
 
-  it('says plainly that a not-yet-live faction cannot fire, instead of the armed/fame wording', () => {
+  it('uses the same armed/fame wording whether or not the closest faction is live', () => {
+    // No separate "cannot fire yet" clause: the sentence reads identically
+    // to a live candidate's, by design (kept simple rather than disclosing
+    // erasSinceProphecy as its own line).
     const notYetLive = run(
       { verdant_choir: -50, pale_academy: 20 },
       SEAL_MIN_NOTORIETY,
       'ascent',
     );
-    const line = reprisalSentence(nextThreatFor(notYetLive)!);
-    expect(line).toContain('waits for the decline');
-    expect(line).not.toMatch(/Notoriety|fame qualifies/);
+    expect(reprisalSentence(nextThreatFor(notYetLive)!)).toBe(
+      'The Choir is 5 from the loam · your fame qualifies.',
+    );
   });
 
   it('still prefers a live faction when it really is the closest', () => {
@@ -298,7 +284,6 @@ describe('the next-threat line', () => {
     );
     const threat = nextThreatFor(bothClose);
     expect(threat!.factionId).toBe('pale_academy');
-    expect(threat!.live).toBe(true);
   });
 
   it("does not let the alarm regress to a faction whose reprisal isn't live", () => {
