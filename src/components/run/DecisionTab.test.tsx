@@ -131,7 +131,7 @@ describe('DecisionTab · the next-threat line', () => {
     show(notYetLive);
     expect(screen.getByText(/The Choir/)).toBeInTheDocument();
     expect(screen.queryByText(/The Academy/)).toBeNull();
-    expect(screen.getByText(/not live yet/)).toBeInTheDocument();
+    expect(screen.getByText(/waits for the decline/)).toBeInTheDocument();
   });
 });
 

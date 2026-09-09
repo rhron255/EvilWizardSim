@@ -338,13 +338,17 @@ export function reprisalWarningFor(run: RunState): ReprisalWarning | null {
  * room to spare, without reaching for a faction-specific shortening that
  * would make the six read unevenly.
  *
- * `live` overrides the trigger clause entirely, short on purpose to hold the
- * budget: a not-yet-live faction cannot be armed by fame no matter what
- * notoriety reads, so printing "acts at 55 Notoriety" for one would be a
- * second, opposite lie from the one the fame clause exists to prevent — it
- * would claim a single threshold governs firing when `erasSinceProphecy`
- * gates it first. Only `nextThreatFor` can ever hand this function a `live:
- * false` warning; `reprisalWarningFor`'s candidates are always live already.
+ * `live` overrides the trigger clause entirely: a not-yet-live faction cannot
+ * be armed by fame no matter what notoriety reads, so printing "acts at 55
+ * Notoriety" for one would be a second, opposite lie from the one the fame
+ * clause exists to prevent — it would claim a single threshold governs firing
+ * when `erasSinceProphecy` gates it first. "waits for the decline" says the
+ * same thing in the game's own voice — every other clause here personifies
+ * the faction ("wants the ground back", "your fame qualifies") rather than
+ * reporting a flag, and a bare status string ("not live yet") was the one
+ * line on this screen that broke that voice. Only `nextThreatFor` can ever
+ * hand this function a `live: false` warning; `reprisalWarningFor`'s
+ * candidates are always live already.
  */
 export function reprisalSentence(warning: ReprisalWarning): string {
   const distance =
@@ -352,7 +356,7 @@ export function reprisalSentence(warning: ReprisalWarning): string {
       ? REPRISAL_PAST[warning.factionId]
       : `is ${warning.margin} from ${REPRISAL_NOUN[warning.factionId]}`;
   const trigger = !warning.live
-    ? 'not live yet'
+    ? 'waits for the decline'
     : warning.armed
       ? 'your fame qualifies'
       : `acts at ${SEAL_MIN_NOTORIETY} Notoriety`;

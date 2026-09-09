@@ -156,7 +156,7 @@ describe('the reprisal warning · all six factions', () => {
       for (const standing of [SEAL_MAX_STANDING + 6, SEAL_MAX_STANDING - 1]) {
         const ascent = run({ [id]: standing }, SEAL_MIN_NOTORIETY, 'ascent');
         const line = reprisalSentence(nextThreatFor(ascent)!);
-        expect(line, line).toContain('not live yet');
+        expect(line, line).toContain('waits for the decline');
         expect(line.length, line).toBeLessThanOrEqual(60);
       }
     }
@@ -286,7 +286,7 @@ describe('the next-threat line', () => {
       'ascent',
     );
     const line = reprisalSentence(nextThreatFor(notYetLive)!);
-    expect(line).toContain('not live yet');
+    expect(line).toContain('waits for the decline');
     expect(line).not.toMatch(/Notoriety|fame qualifies/);
   });
 
