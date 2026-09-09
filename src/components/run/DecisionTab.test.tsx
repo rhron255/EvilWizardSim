@@ -81,14 +81,12 @@ describe('DecisionTab · the next-threat line', () => {
   });
 
   it('speaks up even when nobody is anywhere near acting — this is the ambient line, not the alarm', () => {
-    // Every faction sitting well clear of the threshold, in the ASCENT — where
-    // only the Academy's reprisal is live at all. The OLD armed warning would
-    // have said nothing here (nothing is close); the next-threat line always
-    // has something to report because the Academy is live in every phase.
+    // Every faction tied well clear of the threshold. The OLD armed warning
+    // would have said nothing here (nothing is close); the next-threat line
+    // always has something to report — the tie resolves to FACTION_ORDER's
+    // first entry, same as `nearestReprisalFaction` documents.
     const calm = {
       ...demoRun,
-      phase: 'ascent',
-      erasSinceProphecy: 0,
       factionStanding: {
         ashen_covenant: 40,
         gilded_hand: 40,
@@ -98,8 +96,42 @@ describe('DecisionTab · the next-threat line', () => {
         worm_below: 40,
       },
     } as RunState;
-    show(calm);
-    expect(screen.getByText(/The Academy/)).toBeInTheDocument();
+    // No offer: demoOffer's own title ("The Covenant Sends a Courier")
+    // collides with the sentence this test is actually checking.
+    show(calm, wards(120), null);
+    expect(screen.getByText(/The Covenant/)).toBeInTheDocument();
+  });
+
+  /**
+   * Reported from play: the Verdant Choir sat at −50 (5 points from ending
+   * the run) while the Decision tab named "The Academy is 75 from the gem" —
+   * the Academy is live in every phase, so a `'live'`-only scan reported it
+   * as "the" threat while the far closer, not-yet-live Choir went completely
+   * unmentioned. Fixed by scanning every faction by standing regardless of
+   * live status, and saying so honestly when the nearest one cannot fire
+   * yet — pinned here at the component level, not just in `allegiances.ts`.
+   */
+  it('names the closer faction even when its reprisal cannot fire yet, and says so', () => {
+    const notYetLive = {
+      ...demoRun,
+      phase: 'ascent',
+      erasSinceProphecy: 0,
+      // Every other faction pinned well clear of the threshold, so the Choir
+      // at −50 is unambiguously the lowest standing of the six — demoRun's
+      // own Crownlands (−61) would otherwise still be the nearer number.
+      factionStanding: {
+        ashen_covenant: 0,
+        gilded_hand: 0,
+        pale_academy: 20,
+        verdant_choir: -50,
+        crownlands: 0,
+        worm_below: 0,
+      },
+    } as RunState;
+    show(notYetLive);
+    expect(screen.getByText(/The Choir/)).toBeInTheDocument();
+    expect(screen.queryByText(/The Academy/)).toBeNull();
+    expect(screen.getByText(/not live yet/)).toBeInTheDocument();
   });
 });
 

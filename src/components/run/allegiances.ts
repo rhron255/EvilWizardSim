@@ -211,6 +211,22 @@ export type ReprisalWarning = {
   standing: number;
   margin: number;
   armed: boolean;
+  /**
+   * Whether this faction's reprisal can fire in THIS phase at all — the
+   * engine's own `reprisalLiveFor`, carried onto the warning so the sentence
+   * can say so. `reprisalWarningFor` only ever returns live candidates (its
+   * whole point is the alarm that must never false-fire), so this is always
+   * `true` there; `nextThreatFor` scans every faction regardless, and without
+   * this field a player has no way to tell "closest, and about to act" from
+   * "closest, but cannot act yet" — which is exactly the confusion a reprisal
+   * gated to the wrong half of that distinction produces (a bar reading as
+   * lethal for a condition that structurally cannot fire is the false alarm
+   * `toneFor` above already guards against; silently OMITTING the nearer,
+   * not-yet-live faction from the Decision tab's status line is the same
+   * defect from the other direction — the player sees a DISTANT live faction
+   * named as "the threat" while a much closer one goes unmentioned).
+   */
+  live: boolean;
 };
 
 /**
@@ -230,35 +246,54 @@ export type ReprisalWarning = {
  */
 const SEAL_FAME_LEAD = 12;
 
-/**
- * The reprisal nearest to firing, unconditionally — issue #18's Decision-tab
- * "next-threat line". Ascent or decline, close or distant, this always names
- * the faction `nearestReprisalFaction` would act through first (the Academy is
- * live in every phase, so this is `null` only for a cast that omits it
- * entirely). It is deliberately NOT gated the way `reprisalWarningFor` below
- * is: the Decision tab has room for an ambient status line every era, not
- * just an alarm, and a player planning a career benefits from knowing who is
- * closest even while that faction is in good health.
- *
- * `reprisalWarningFor` is this same computation with the Career tab's
- * proximity gates layered on top, so the two can never name different
- * factions or disagree about the distance.
- */
-export function nextThreatFor(run: RunState): ReprisalWarning | null {
-  const factionId = nearestReprisalFaction(run, 'live');
-  if (factionId === undefined) return null;
+function reprisalStatus(factionId: FactionId, run: RunState): ReprisalWarning {
   const standing = run.factionStanding[factionId] ?? 0;
   return {
     factionId,
     standing,
     margin: standing - SEAL_MAX_STANDING,
     armed: run.notoriety >= SEAL_MIN_NOTORIETY,
+    live: reprisalLiveFor(factionId, run),
   };
 }
 
+/**
+ * The reprisal nearest to firing BY STANDING, unconditionally — issue #18's
+ * Decision-tab "next-threat line". Ascent or decline, live or not, this
+ * always names whichever faction `nearestReprisalFaction(run, 'any')` says is
+ * closest, because "closest to killing me" is a question about the standing
+ * number, not about which factions happen to be armed yet.
+ *
+ * Scanning `'any'` here rather than `'live'` is deliberate and was the fix for
+ * a real bug: five of the six reprisals only go live once
+ * `erasSinceProphecy > 0`, so a `'live'`-only scan skips a faction sitting
+ * one point from its threshold — genuinely the closest thing to ending the
+ * run — for as long as it isn't live yet, and reports whichever faction IS
+ * live instead, however distant. A player reading "The Academy is 75 from
+ * the gem" while the Verdant Choir sat at −50 (5 from −55, not yet live) got
+ * pointed at the wrong faction entirely: not a false alarm, but the opposite
+ * failure — a real, close threat going unmentioned while a distant one was
+ * named as "the" threat. `reprisalSentence` below reads `live` off the result
+ * so a not-yet-live faction is still reported honestly rather than with the
+ * armed-trigger wording that implies it could fire this era.
+ *
+ * `reprisalWarningFor` below is a DIFFERENT scan — `'live'` only, because
+ * that one backs the Career tab's alarm and must never name a faction that
+ * structurally cannot act (the false alarm `toneFor` already guards against).
+ * The two can therefore legitimately name different factions: the ambient
+ * line's job is "who is closest", the alarm's job is "who could actually get
+ * you this era".
+ */
+export function nextThreatFor(run: RunState): ReprisalWarning | null {
+  const factionId = nearestReprisalFaction(run, 'any');
+  if (factionId === undefined) return null;
+  return reprisalStatus(factionId, run);
+}
+
 export function reprisalWarningFor(run: RunState): ReprisalWarning | null {
-  const status = nextThreatFor(run);
-  if (status === null) return null;
+  const factionId = nearestReprisalFaction(run, 'live');
+  if (factionId === undefined) return null;
+  const status = reprisalStatus(factionId, run);
   // Only warn once it is genuinely close; a faction in good health is not news.
   if (status.margin > 25) return null;
   // ...and, while standing still has room, only once the OTHER half of the
@@ -302,13 +337,25 @@ export function reprisalWarningFor(run: RunState): ReprisalWarning | null {
  * height). Dropping "it " is the one uniform trim that clears all three with
  * room to spare, without reaching for a faction-specific shortening that
  * would make the six read unevenly.
+ *
+ * `live` overrides the trigger clause entirely, short on purpose to hold the
+ * budget: a not-yet-live faction cannot be armed by fame no matter what
+ * notoriety reads, so printing "acts at 55 Notoriety" for one would be a
+ * second, opposite lie from the one the fame clause exists to prevent — it
+ * would claim a single threshold governs firing when `erasSinceProphecy`
+ * gates it first. Only `nextThreatFor` can ever hand this function a `live:
+ * false` warning; `reprisalWarningFor`'s candidates are always live already.
  */
 export function reprisalSentence(warning: ReprisalWarning): string {
   const distance =
     warning.margin <= 0
       ? REPRISAL_PAST[warning.factionId]
       : `is ${warning.margin} from ${REPRISAL_NOUN[warning.factionId]}`;
-  const trigger = warning.armed ? 'your fame qualifies' : `acts at ${SEAL_MIN_NOTORIETY} Notoriety`;
+  const trigger = !warning.live
+    ? 'not live yet'
+    : warning.armed
+      ? 'your fame qualifies'
+      : `acts at ${SEAL_MIN_NOTORIETY} Notoriety`;
   return `${REPRISAL_SUBJECT[warning.factionId]} ${distance} · ${trigger}.`;
 }
 

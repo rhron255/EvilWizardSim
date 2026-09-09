@@ -56,7 +56,14 @@ export function DecisionTab({
             closest even while that faction is in good health; the Career
             tab's armed warning stays the alarm that only speaks up close. */}
         {threat && (
-          <p className={styles.threat} data-armed={threat.armed ? 'true' : undefined}>
+          <p
+            className={styles.threat}
+            // Red only for a threat that is actually live AND armed — a
+            // not-yet-live faction can't fire regardless of fame, so
+            // colouring it red would be the false alarm `toneFor` (Career
+            // tab) already guards against, one component over.
+            data-armed={threat.live && threat.armed ? 'true' : undefined}
+          >
             {reprisalSentence(threat)}
           </p>
         )}

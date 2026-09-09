@@ -147,6 +147,21 @@ describe('the reprisal warning · all six factions', () => {
     }
   });
 
+  it('holds the not-yet-live variant to the same budget, for the five factions that can show it', () => {
+    // The Academy is excluded on purpose: `reprisalLiveFor` never returns
+    // false for it, so nextThreatFor can never actually hand this wording a
+    // pale_academy warning — including it here would test an impossible case.
+    const nonAcademy = FACTIONS.filter((id) => id !== 'pale_academy');
+    for (const id of nonAcademy) {
+      for (const standing of [SEAL_MAX_STANDING + 6, SEAL_MAX_STANDING - 1]) {
+        const ascent = run({ [id]: standing }, SEAL_MIN_NOTORIETY, 'ascent');
+        const line = reprisalSentence(nextThreatFor(ascent)!);
+        expect(line, line).toContain('not live yet');
+        expect(line.length, line).toBeLessThanOrEqual(60);
+      }
+    }
+  });
+
   it('names the faction the ENGINE would fire, when two are under at once', () => {
     // Contagion puts two factions under the line together far more often than
     // the arithmetic suggests. A warning about the Crown above a run that ends
@@ -223,10 +238,8 @@ describe('the reprisal tick', () => {
 });
 
 /**
- * The Decision tab's ambient status line (issue #18) — `reprisalWarningFor`'s
- * computation, with its two proximity gates removed. The two functions must
- * never disagree about WHICH faction is nearest, only about whether it is
- * close enough to be worth an alarm.
+ * The Decision tab's ambient status line (issue #18) — nearest by STANDING,
+ * live or not, unlike `reprisalWarningFor`'s live-only alarm below.
  */
 describe('the next-threat line', () => {
   it('speaks even when nobody is anywhere near acting — the gates that silence the warning do not apply', () => {
@@ -238,18 +251,68 @@ describe('the next-threat line', () => {
     expect(reprisalWarningFor(run(0, 90))).toBeNull();
   });
 
-  it('names the same faction reprisalWarningFor would, whenever the warning is live', () => {
+  it('names the same faction reprisalWarningFor would, whenever the closest candidate is live', () => {
     const close = run(SEAL_MAX_STANDING + 6, SEAL_MIN_NOTORIETY);
     expect(nextThreatFor(close)!.factionId).toBe(reprisalWarningFor(close)!.factionId);
     expect(nextThreatFor(close)!.margin).toBe(reprisalWarningFor(close)!.margin);
+    expect(nextThreatFor(close)!.live).toBe(true);
   });
 
-  it('stays live across the phase boundary the same way the engine predicate does', () => {
-    // Five of the six reprisals are decline-only; the Academy is not. The
-    // ambient line follows `nearestReprisalFaction('live')` exactly, so an
-    // ascent-phase scan still finds the Academy and only the Academy.
-    const ascent = run({ verdant_choir: SEAL_MAX_STANDING - 20 }, SEAL_MIN_NOTORIETY, 'ascent');
-    expect(nextThreatFor(ascent)!.factionId).toBe('pale_academy');
+  /**
+   * The reported bug, pinned. A `'live'`-only scan skipped the Verdant
+   * Choir at −50 (5 from −55, genuinely the closest thing to ending the run)
+   * for as long as its reprisal wasn't live yet, and reported the Academy
+   * instead — live in every phase, but sitting at a harmless +20 (75 from
+   * the gem). The ambient line pointed at the wrong faction: not a false
+   * alarm, but a real, close threat going unmentioned while a distant one
+   * was named as "the" threat.
+   */
+  it('names the closer faction by STANDING even when its reprisal cannot fire yet', () => {
+    const notYetLive = run(
+      { verdant_choir: -50, pale_academy: 20 },
+      SEAL_MIN_NOTORIETY,
+      'ascent',
+    );
+    const threat = nextThreatFor(notYetLive);
+    expect(threat!.factionId).toBe('verdant_choir');
+    expect(threat!.margin).toBe(5);
+    expect(threat!.live).toBe(false);
+  });
+
+  it('says plainly that a not-yet-live faction cannot fire, instead of the armed/fame wording', () => {
+    const notYetLive = run(
+      { verdant_choir: -50, pale_academy: 20 },
+      SEAL_MIN_NOTORIETY,
+      'ascent',
+    );
+    const line = reprisalSentence(nextThreatFor(notYetLive)!);
+    expect(line).toContain('not live yet');
+    expect(line).not.toMatch(/Notoriety|fame qualifies/);
+  });
+
+  it('still prefers a live faction when it really is the closest', () => {
+    const bothClose = run(
+      { verdant_choir: -50, pale_academy: -60 },
+      SEAL_MIN_NOTORIETY,
+      'decline',
+    );
+    const threat = nextThreatFor(bothClose);
+    expect(threat!.factionId).toBe('pale_academy');
+    expect(threat!.live).toBe(true);
+  });
+
+  it("does not let the alarm regress to a faction whose reprisal isn't live", () => {
+    // Same fixture as the bug above: the Choir is closer by standing, but its
+    // reprisal cannot fire yet — the Career tab's ALARM must stay quiet
+    // (Academy's own margin, 75, is nowhere near the 25-point warning gate),
+    // never substitute the Choir just because `nearestReprisalFaction('any')`
+    // would prefer it.
+    const notYetLive = run(
+      { verdant_choir: -50, pale_academy: 20 },
+      SEAL_MIN_NOTORIETY,
+      'ascent',
+    );
+    expect(reprisalWarningFor(notYetLive)).toBeNull();
   });
 });
 
