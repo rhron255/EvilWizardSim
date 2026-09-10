@@ -768,18 +768,32 @@ function chooseOption(policy: Policy, run: RunState, offer: Offer, roll: number)
     // after. The weight is high on purpose: this models the self-imposed
     // single-faction run that wiki/06 identifies as real player behaviour,
     // not a player who merely likes the Worm slightly more than average.
-    // `redeemed` courts the same way, but ONLY through the ascent — it needs
-    // the SAME rite `lich` does, and the boost's job is getting standing past
-    // the rite's gate before decline starts, not keeping it there afterward.
-    // Measured: applying it unconditionally, the way `lich` does, drowned out
-    // `saint`'s goodAct weight (20 per unit) on every offer that also moved
-    // Worm standing — a 200-run cohort took the rite in 11 runs and averaged
-    // 0.15 goodActs, `virtue_resolution_the_quiet_ledger` never once seen.
-    // Once the ascent is over the rite is either already taken (`becomeLich`
-    // and `ending: lichdom` are separately worth +40 in `scoreEffects`, which
-    // is incentive enough on its own) or the run failed to qualify and is a
-    // saint from here — either way, decline is `saint`'s job alone.
-    if (policy === 'lich' || (policy === 'redeemed' && run.phase === 'ascent')) {
+    // `redeemed` courts the same way, but the boost's job is getting standing
+    // past the rite's gate, not keeping it there afterward — so it turns off
+    // the moment `DEVOTION_STANDING` is cleared OR the rite is taken,
+    // whichever phase either happens in.
+    //
+    // Applying it at full `LICH_DEVOTION` for the WHOLE run, the way `lich`
+    // does, was tried first (issue #25) and drowned out `saint`'s goodAct
+    // weight (20 per unit) on every offer that also moved Worm standing — a
+    // 200-run cohort took the rite in 11 runs and averaged 0.15 goodActs,
+    // `virtue_resolution_the_quiet_ledger` never once seen. Cutting it off at
+    // the ascent/decline boundary fixed that, but a `redeemed` wizard who only
+    // builds standing during the ascent often clears the gate too close to
+    // decline's start to leave the weight-6 `scripted_the_long_arrangement`
+    // enough remaining eras to actually be drawn. Letting the boost survive
+    // into decline UNTIL the gate itself closes (rather than until the phase
+    // changes) buys back most of that: MEASURED, `redeemed` 10,000-run
+    // cohort, the rite-taken rate went 3.41% -> ~5.4% with no measurable
+    // change to `virtue_resolution_the_quiet_ledger`'s own reachability,
+    // because it drops to zero the instant the gate is cleared, same as it
+    // always did once the rite itself was taken.
+    if (
+      policy === 'lich' ||
+      (policy === 'redeemed' &&
+        !run.isLich &&
+        (run.factionStanding.worm_below ?? 0) < DEVOTION_STANDING)
+    ) {
       score += wormAffinity(option) * LICH_DEVOTION;
     }
     // The mirror of the line above: one faction, hard, in the other direction.
@@ -1178,16 +1192,33 @@ function leadershipProbe(baseSeed: number): Map<FactionId, RunResult[]> {
 }
 
 /**
- * The Good Wizard's own 200-run cohort probe (issue #23) — the mirror of
+ * The Good Wizard's own cohort probe (issue #23) — the mirror of
  * `reprisalProbe`/`leadershipProbe` for the same reason: one obscure route,
  * measured on a sample built of the player who actually wants it, kept OUT of
  * `POPULATION` so it cannot distort the headline numbers the way the pariah
  * and courtier cohorts were found to.
+ *
+ * `SAINT_PROBE_RUNS`, not `PROBE_RUNS` — raised from 200 (issue #25's
+ * `arch_lich` fix). `good_wizard`'s own rate inside this cohort is ~1.5%, an
+ * expected count of ~3 at 200: thin enough to flicker on its own, and it had
+ * been quietly propped up by `redeemedProbe`'s incidental non-lich-vowed
+ * runs, which used to outnumber this cohort's own good_wizard count several
+ * times over. Making `redeemed` a more committed Worm-courter to fix
+ * `arch_lich` converts a share of THAT pool from `good_wizard` into
+ * `arch_lich` (the same wizard, further along the same route), which dropped
+ * `redeemedProbe`'s backstop out from under `good_wizard` and produced a real
+ * 18/19 miss on "Every authored ending occurs" at seed 5 — not a flake, a
+ * dependency this file had never named. 1,000 raises the expected count to
+ * ~15, the same "order of magnitude clear of flicker" bar `lichdom` and
+ * `arch_lich`'s own dedicated cohorts were fitted to, on its own, without
+ * relying on what any OTHER probe happens to also produce.
  */
+const SAINT_PROBE_RUNS = 1000;
+
 function saintProbe(baseSeed: number): RunResult[] {
   const rng = mulberry32((baseSeed ^ 0x600d1dea) + 1);
   const runs: RunResult[] = [];
-  for (let i = 0; i < PROBE_RUNS; i++) {
+  for (let i = 0; i < SAINT_PROBE_RUNS; i++) {
     runs.push(playRun(baseSeed + 583_637 + i * 5303, pickEraCount(rng()), 'saint'));
   }
   return runs;
@@ -1230,12 +1261,26 @@ function lichProbe(baseSeed: number): RunResult[] {
  * because the branch was unreachable, but because nothing in the population
  * OR the other probes was a player who wanted it, which is exactly the
  * instrument failure CLAUDE.md's failure mode 5 describes.
+ *
+ * Unlike every other probe, this one forces the Long run length rather than
+ * sampling `ERA_LENGTH_WEIGHTS`. `arch_lich` needs two scripted, decline-only
+ * cards to both be drawn AND taken on the same career, and drawing either is
+ * a per-era roll against whatever else is in the decline pool — so how many
+ * decline eras a career gets is not incidental to this probe the way it is to
+ * the others. A real player deliberately chasing the rarest ending in the
+ * game would not leave that up to `pickEraCount`'s 25/50/25 split; they would
+ * pick Long every time, since length "controls length, never difficulty"
+ * (`RUN_LENGTHS`'s own doc comment) and costs the player nothing. Sampling
+ * era length the same way the population does was measuring a seeker who
+ * plays like everyone else in the one respect that costs nothing to fix —
+ * CLAUDE.md failure mode 5's instrument-not-the-game shape. MEASURED: forcing
+ * Long alone (before any constant changed) moved the rite-and-vowed-on-the-
+ * same-career count from 9/10,000 to 45/10,000 at the old `DEF_LICH`.
  */
 function redeemedProbe(baseSeed: number): RunResult[] {
-  const rng = mulberry32((baseSeed ^ 0xa1c4e5ed) + 1);
   const runs: RunResult[] = [];
   for (let i = 0; i < REDEEMED_PROBE_RUNS; i++) {
-    runs.push(playRun(baseSeed + 428_951 + i * 3877, pickEraCount(rng()), 'redeemed'));
+    runs.push(playRun(baseSeed + 428_951 + i * 3877, RUN_LENGTHS[RUN_LENGTHS.length - 1], 'redeemed'));
   }
   return runs;
 }
@@ -1786,7 +1831,7 @@ function main(): void {
   // WITHOUT a target — this route has no wiki-authored band, only the
   // reachability rule 6 asks for (issue #23).
   console.log(rule());
-  console.log(`  GOOD WIZARD  (${PROBE_RUNS}-run cohort probe, then the population)`);
+  console.log(`  GOOD WIZARD  (${SAINT_PROBE_RUNS}-run cohort probe, then the population)`);
   console.log(
     `${pad('  ', 20)}${padLeft('cohort', 8)}${padLeft('good', 7)}${padLeft('ill', 6)}${padLeft(`>=rep(${GOOD_WIZARD_REPUTATION_GOOD})`, 12)}${padLeft(`>=res(${GOOD_WIZARD_RESOLUTION_GOOD})`, 12)}${padLeft('resolution', 12)}${padLeft('ending', 9)}${padLeft('pop', 8)}`,
   );
@@ -2126,6 +2171,31 @@ function main(): void {
       'Lichdom reachable by a lich-seeker (2-15% of that cohort)',
       lichSeekerLichdomRate >= 0.02 && lichSeekerLichdomRate <= 0.15,
       pct(lichSeekerLichdoms, lichSeekerRuns),
+    ],
+    [
+      /*
+       * `arch_lich`'s own band — there was none before this. It shipped with
+       * no target check at all (unlike `lichdom`, which got one after issue
+       * #24's flicker), and drifted to 0.03% of `redeemed`'s dedicated
+       * cohort — an expected wait of ~3,300 careers, two orders of magnitude
+       * past every other ending — before anyone was checking. `DEF_LICH`'s
+       * doc comment in `constants.ts` has the fix and the measurement.
+       *
+       * PROVENANCE: none in the wiki, same as `lichdom`'s own band — this one
+       * traces to a design conversation about completion time (not an issue
+       * number), which asked for the rarest ending to be findable by a
+       * dedicated seeker inside roughly a thousand careers rather than
+       * several thousand. 0.1-1.0% means an expected wait of 100-1,000
+       * careers; seeds 1-5 land at 0.19-0.33%, comfortably inside with
+       * headroom on both sides rather than pinned to the edge that produced
+       * `lichdom`'s original flicker.
+       */
+      'Arch-Lich reachable by a redeemed-seeker (0.1-1.0% of that cohort)',
+      (() => {
+        const rate = redeemed.filter((r) => r.ending === 'arch_lich').length / redeemed.length;
+        return rate >= 0.001 && rate <= 0.01;
+      })(),
+      pct(redeemed.filter((r) => r.ending === 'arch_lich').length, redeemed.length),
     ],
     [
       // PROVENANCE: wiki/01 § 8 specifies "a grid of lairs held, one card
