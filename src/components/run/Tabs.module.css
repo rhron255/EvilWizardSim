@@ -6,6 +6,12 @@
 .wrap {
   display: flex;
   flex-direction: column;
+  /* Tells the browser vertical panning is the only NATIVE gesture in here —
+     a horizontal drag is left alone rather than being claimed for the
+     browser's own handling (iOS Safari's edge-swipe-to-go-back, in
+     particular), so the component's touchstart/touchend handlers actually
+     see it. Vertical scrolling stays fully native either way. */
+  touch-action: pan-y;
 }
 
 .tablist {

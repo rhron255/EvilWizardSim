@@ -8,7 +8,7 @@
  * activation).
  */
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Tabs } from './Tabs';
 import type { TabItem } from './Tabs';
@@ -20,8 +20,24 @@ const tabs: TabItem[] = [
 
 const show = (selected = 'decision') => {
   const onSelect = vi.fn();
-  render(<Tabs tabs={tabs} selected={selected} onSelect={onSelect} label="Run screen" />);
-  return { onSelect, user: userEvent.setup() };
+  const { container } = render(
+    <Tabs tabs={tabs} selected={selected} onSelect={onSelect} label="Run screen" />,
+  );
+  return { onSelect, user: userEvent.setup(), wrap: container.firstElementChild! };
+};
+
+/** A single-finger drag from (startX, startY) to (endX, endY), lifted. */
+const swipe = (
+  el: Element,
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+  fingersStillDown = 0,
+) => {
+  fireEvent.touchStart(el, { touches: [{ clientX: start.x, clientY: start.y }] });
+  fireEvent.touchEnd(el, {
+    changedTouches: [{ clientX: end.x, clientY: end.y }],
+    touches: Array.from({ length: fingersStillDown }, () => ({ clientX: end.x, clientY: end.y })),
+  });
 };
 
 describe('Tabs · structure', () => {
@@ -88,5 +104,46 @@ describe('Tabs · interaction', () => {
     await userEvent.keyboard('{ArrowLeft}');
     expect(screen.getByRole('tab', { name: 'Career' })).toHaveFocus();
     expect(onSelect).toHaveBeenCalledWith('career');
+  });
+});
+
+describe('Tabs · swipe', () => {
+  it('a leftward swipe selects the next tab', () => {
+    const { onSelect, wrap } = show('decision');
+    swipe(wrap, { x: 300, y: 400 }, { x: 200, y: 400 });
+    expect(onSelect).toHaveBeenCalledWith('career');
+  });
+
+  it('a rightward swipe selects the previous tab', () => {
+    const { onSelect, wrap } = show('career');
+    swipe(wrap, { x: 100, y: 400 }, { x: 200, y: 400 });
+    expect(onSelect).toHaveBeenCalledWith('decision');
+  });
+
+  it('does not fire on a short drag — a tap must not be read as a swipe', () => {
+    const { onSelect, wrap } = show('decision');
+    swipe(wrap, { x: 300, y: 400 }, { x: 280, y: 400 });
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('does not fire on a mostly-vertical drag — a scroll must not be read as a swipe', () => {
+    const { onSelect, wrap } = show('decision');
+    // Horizontal distance alone clears the swipe threshold, but the vertical
+    // drift is larger still — this is a scroll that wandered sideways, not a
+    // swipe that wandered vertically.
+    swipe(wrap, { x: 300, y: 200 }, { x: 200, y: 500 });
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('does not fire past the last tab — swiping left on Career does not wrap', () => {
+    const { onSelect, wrap } = show('career');
+    swipe(wrap, { x: 300, y: 400 }, { x: 200, y: 400 });
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('does not fire while a second finger is still down', () => {
+    const { onSelect, wrap } = show('decision');
+    swipe(wrap, { x: 300, y: 400 }, { x: 200, y: 400 }, 1);
+    expect(onSelect).not.toHaveBeenCalled();
   });
 });
