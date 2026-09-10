@@ -62,7 +62,7 @@ keeping the row count visually satisfying.
 ### 3. The Ledger
 
 The single most important UI element. A table that grows downward, one
-row per era, always visible above the choice cards.
+row per era.
 
 Columns: `Age | Lair | Notoriety | Followers | Artifacts | Deeds`
 
@@ -71,9 +71,18 @@ Rules:
 - Notoriety renders as a colored badge per tier (see
   `02_data_models_and_content.md`).
 - The current era's row is highlighted; prior rows dim slightly with age.
-- The header above the ledger shows lifetime totals and — critically — an
-  **empty trophy slot** for the run's unattainable prize, visible from
-  the first era to the last.
+- A shared masthead — not the ledger's own header — shows lifetime totals
+  and, critically, an **empty trophy slot** for the run's unattainable
+  prize, visible from the first era to the last.
+
+**Revised for issue #18.** This section originally called the ledger "always
+visible above the choice cards", on a single stacked screen. It no longer is:
+the run screen split into a Decision tab (the choice cards, plus the ambient
+stakes a player needs to choose) and a Career tab (the ledger, full faction
+standing, full stats), because the stacked layout pushed the cards themselves
+below the fold on a phone. The ledger's importance — append-only, the record
+that makes quitting expensive — is what the split preserves; the placement is
+what it gave up.
 
 ### 4. Ascent Phase
 

@@ -11,8 +11,11 @@ biography. It is built and playable.
 **Mobile is the target audience.** 393×852 (iPhone 14/15) is the reference
 device, not a breakpoint to degrade toward — if a change looks right at 1440px
 and cramped on a phone, it is wrong. Screen budget is the scarce resource there:
-the header and ledger sit above the choice cards by design (see rule 2), so
-anything added to them pushes the actual interaction further down the page.
+the run screen is a masthead above a Decision | Career tablist (issue #18),
+and Decision holds the choice cards — so anything added to the masthead, or to
+Decision's own content above the cards, pushes the actual interaction further
+down the page. The ledger (rule 2) lives on Career now, one tap away rather
+than stacked above the cards on the same screen.
 
 The reward structure is modelled on **ליגיונר** (legionnaire.xyz). `wiki/` holds
 the design rationale; `wiki/06_reference_analysis.md` explains *why* the
