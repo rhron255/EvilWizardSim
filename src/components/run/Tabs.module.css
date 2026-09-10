@@ -11,6 +11,18 @@
 .tablist {
   display: flex;
   border-bottom: 1px solid var(--ew-line);
+  /* Both panels routinely run longer than one viewport (Decision can hold
+     four option cards, Career can hold a full ledger) — without this, a
+     player scrolled into either one has to scroll back up just to reach the
+     other tab. Sticks at the very top rather than the top of some inner
+     scrollport, because the page itself is what scrolls here (the masthead
+     scrolls away first; the tabs are the thing pinned).
+     `--ew-void` matches `.screen`'s own base surface so scrolled content
+     disappears cleanly under it rather than showing a mismatched panel. */
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--ew-void);
 }
 
 .tab {
