@@ -15,7 +15,7 @@
  * is the toggle that opens the frame to full height.
  */
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import type { Artifact, EraRecord, Lair } from '../../types';
 import { LedgerRow } from './LedgerRow';
 import styles from './Ledger.module.css';
@@ -24,17 +24,30 @@ export type LedgerProps = {
   eras: EraRecord[];
   lairs: Lair[];
   artifacts: Artifact[];
+  /**
+   * Collapsed by default, and only ON A PHONE does collapsed mean anything —
+   * the stylesheet caps the frame at three rows below 700px and leaves the
+   * desktop height alone. The rows are never removed from the DOM, so the
+   * record is still whole to a screen reader and to Ctrl-F; what is capped is
+   * how much of the screen it may spend before the choice cards.
+   *
+   * Controlled by the caller rather than owned here (issue #18): the Career
+   * tab this now lives in fully unmounts when the Decision tab is selected —
+   * only the active tabpanel's content is ever mounted, so it can never run a
+   * `window` keydown listener while hidden. A local `useState` would have
+   * silently discarded an explicit "show every era" tap the moment the
+   * player switched tabs and switched back, which is the same shape of loss
+   * rule 2 ("the ledger appends and never resets") exists to prevent, one
+   * layer up from the row data itself. `RunScreen` is the parent that
+   * actually survives a tab switch, so it is where this state now lives.
+   */
+  expanded: boolean;
+  onToggleExpanded(): void;
 };
 
-export function Ledger({ eras, lairs, artifacts }: LedgerProps) {
+export function Ledger({ eras, lairs, artifacts, expanded, onToggleExpanded }: LedgerProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastCount = useRef(-1);
-  // Collapsed by default, and only ON A PHONE does collapsed mean anything —
-  // the stylesheet caps the frame at three rows below 700px and leaves the
-  // desktop height alone. The rows are never removed from the DOM, so the
-  // record is still whole to a screen reader and to Ctrl-F; what is capped is
-  // how much of the screen it may spend before the choice cards.
-  const [expanded, setExpanded] = useState(false);
   const scrollId = useId();
 
   // The live row is the bottom row, so the ledger opens at the bottom — a long
@@ -77,7 +90,7 @@ export function Ledger({ eras, lairs, artifacts }: LedgerProps) {
           <button
             type="button"
             className={`${styles.count} ${styles.countButton} ew-num`}
-            onClick={() => setExpanded((v) => !v)}
+            onClick={onToggleExpanded}
             aria-expanded={expanded}
             aria-controls={scrollId}
             title={expanded ? 'Show fewer eras' : 'Show every era'}

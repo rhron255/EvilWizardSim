@@ -14,9 +14,15 @@
  * them would be that same bug, five times.
  */
 import { describe, expect, it } from 'vitest';
-import { REPRISAL_BY_FACTION, SEAL_MAX_STANDING, SEAL_MIN_NOTORIETY } from '../../engine';
-import type { FactionId, Phase, RunState } from '../../types';
-import { allegiancesFor, reprisalSentence, reprisalWarningFor } from './allegiances';
+import {
+  DEVOTION_STANDING,
+  PATRON_MARGIN,
+  REPRISAL_BY_FACTION,
+  SEAL_MAX_STANDING,
+  SEAL_MIN_NOTORIETY,
+} from '../../engine';
+import type { Faction, FactionId, Phase, RunState } from '../../types';
+import { allegiancesFor, nextThreatFor, patronFor, reprisalSentence, reprisalWarningFor } from './allegiances';
 
 const run = (
   standing: number | Partial<Record<FactionId, number>>,
@@ -213,5 +219,134 @@ describe('the reprisal tick', () => {
     const academy = rows.find((r) => r.id === 'pale_academy')!;
     expect(Math.abs(academy.ratio)).toBe(1);
     expect(Math.abs(academy.ratio) * 50).toBe(50);
+  });
+});
+
+/**
+ * The Decision tab's ambient status line (issue #18) — nearest by STANDING,
+ * live or not, unlike `reprisalWarningFor`'s live-only alarm below.
+ */
+describe('the next-threat line', () => {
+  it('speaks even when nobody is anywhere near acting — the gates that silence the warning do not apply', () => {
+    // All six tied at 0 in the decline, where all six are live: the tie
+    // resolves to FACTION_ORDER's first entry, same rule `reprisalWarningFor`
+    // would use if it were not gated silent here by the 55-margin check.
+    expect(nextThreatFor(run(0, 90))).not.toBeNull();
+    expect(nextThreatFor(run(0, 90))!.factionId).toBe('ashen_covenant');
+    expect(reprisalWarningFor(run(0, 90))).toBeNull();
+  });
+
+  it('names the same faction reprisalWarningFor would, whenever the closest candidate is live', () => {
+    const close = run(SEAL_MAX_STANDING + 6, SEAL_MIN_NOTORIETY);
+    expect(nextThreatFor(close)!.factionId).toBe(reprisalWarningFor(close)!.factionId);
+    expect(nextThreatFor(close)!.margin).toBe(reprisalWarningFor(close)!.margin);
+  });
+
+  /**
+   * The reported bug, pinned. A `'live'`-only scan skipped the Verdant
+   * Choir at −50 (5 from −55, genuinely the closest thing to ending the run)
+   * for as long as its reprisal wasn't live yet, and reported the Academy
+   * instead — live in every phase, but sitting at a harmless +20 (75 from
+   * the gem). The ambient line pointed at the wrong faction: not a false
+   * alarm, but a real, close threat going unmentioned while a distant one
+   * was named as "the" threat.
+   */
+  it('names the closer faction by STANDING even when its reprisal cannot fire yet', () => {
+    const notYetLive = run(
+      { verdant_choir: -50, pale_academy: 20 },
+      SEAL_MIN_NOTORIETY,
+      'ascent',
+    );
+    const threat = nextThreatFor(notYetLive);
+    expect(threat!.factionId).toBe('verdant_choir');
+    expect(threat!.margin).toBe(5);
+  });
+
+  it('uses the same armed/fame wording whether or not the closest faction is live', () => {
+    // No separate "cannot fire yet" clause: the sentence reads identically
+    // to a live candidate's, by design (kept simple rather than disclosing
+    // erasSinceProphecy as its own line).
+    const notYetLive = run(
+      { verdant_choir: -50, pale_academy: 20 },
+      SEAL_MIN_NOTORIETY,
+      'ascent',
+    );
+    expect(reprisalSentence(nextThreatFor(notYetLive)!)).toBe(
+      'The Choir is 5 from the loam · your fame qualifies.',
+    );
+  });
+
+  it('still prefers a live faction when it really is the closest', () => {
+    const bothClose = run(
+      { verdant_choir: -50, pale_academy: -60 },
+      SEAL_MIN_NOTORIETY,
+      'decline',
+    );
+    const threat = nextThreatFor(bothClose);
+    expect(threat!.factionId).toBe('pale_academy');
+  });
+
+  it("does not let the alarm regress to a faction whose reprisal isn't live", () => {
+    // Same fixture as the bug above: the Choir is closer by standing, but its
+    // reprisal cannot fire yet — the Career tab's ALARM must stay quiet
+    // (Academy's own margin, 75, is nowhere near the 25-point warning gate),
+    // never substitute the Choir just because `nearestReprisalFaction('any')`
+    // would prefer it.
+    const notYetLive = run(
+      { verdant_choir: -50, pale_academy: 20 },
+      SEAL_MIN_NOTORIETY,
+      'ascent',
+    );
+    expect(reprisalWarningFor(notYetLive)).toBeNull();
+  });
+});
+
+/**
+ * The Decision tab's other status line: who this career has courted, by the
+ * engine's own `patronFaction` rule rather than a second walk of
+ * `factionStanding` (the drift `standing.ts`'s doc comment warns about).
+ */
+describe('the patron line', () => {
+  const FACTIONS: Faction[] = [
+    { id: 'ashen_covenant', name: 'The Ashen Covenant', blurb: '', demands: '', hostileTo: [], adjective: '' },
+    { id: 'gilded_hand', name: 'The Gilded Hand', blurb: '', demands: '', hostileTo: [], adjective: '' },
+    { id: 'pale_academy', name: 'The Pale Academy', blurb: '', demands: '', hostileTo: [], adjective: '' },
+    { id: 'verdant_choir', name: 'The Verdant Choir', blurb: '', demands: '', hostileTo: [], adjective: '' },
+    { id: 'crownlands', name: 'The Crownlands', blurb: '', demands: '', hostileTo: [], adjective: '' },
+    { id: 'worm_below', name: 'The Worm Below', blurb: '', demands: '', hostileTo: [], adjective: '' },
+  ];
+
+  it('is null for a career nobody has courted — the honest "no patron yet" state', () => {
+    expect(patronFor(run(0, 10), FACTIONS)).toBeNull();
+  });
+
+  it('is null below the devotion bar, even as the sole leader', () => {
+    const under = run({ ashen_covenant: DEVOTION_STANDING - 1 }, 10);
+    expect(patronFor(under, FACTIONS)).toBeNull();
+  });
+
+  it('is null when devotion is cleared but a runner-up denies the exclusivity margin', () => {
+    const contested = run(
+      { ashen_covenant: DEVOTION_STANDING + 10, gilded_hand: DEVOTION_STANDING + 10 - (PATRON_MARGIN - 1) },
+      10,
+    );
+    expect(patronFor(contested, FACTIONS)).toBeNull();
+  });
+
+  it('names the faction once both bars clear, using the cast\'s own name', () => {
+    const devoted = run(
+      { ashen_covenant: DEVOTION_STANDING + PATRON_MARGIN, gilded_hand: 0 },
+      10,
+    );
+    const patron = patronFor(devoted, FACTIONS);
+    expect(patron).not.toBeNull();
+    expect(patron!.factionId).toBe('ashen_covenant');
+    expect(patron!.name).toBe('The Ashen Covenant');
+    expect(patron!.standing).toBe(DEVOTION_STANDING + PATRON_MARGIN);
+  });
+
+  it('returns null rather than a half sentence for a cast missing the faction', () => {
+    const devoted = run({ ashen_covenant: DEVOTION_STANDING + PATRON_MARGIN }, 10);
+    expect(patronFor(devoted, FACTIONS.filter((f) => f.id !== 'ashen_covenant'))).toBeNull();
   });
 });

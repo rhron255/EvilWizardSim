@@ -451,7 +451,7 @@ export const GOOD_WIZARD_ILL_CAP = 1;
 export const COLLECTION_KEY = 'evil-wizard-sim:collection';
 export const RUN_KEY = 'evil-wizard-sim:run';
 /** Bump when `Collection`'s shape changes, and extend `migrateCollection`. */
-export const COLLECTION_VERSION = 3;
+export const COLLECTION_VERSION = 4;
 /**
  * Bump when `RunState`'s shape changes; stale in-progress runs are dropped.
  *

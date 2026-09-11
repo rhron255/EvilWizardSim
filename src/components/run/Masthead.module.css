@@ -1,0 +1,225 @@
+/* Identity first, always. Everything below happens to this name — literally,
+   now: the Decision and Career tabpanels render underneath this header. */
+
+.header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--ew-space-4) var(--ew-space-5);
+  padding-bottom: var(--ew-space-4);
+  border-bottom: 1px solid var(--ew-line);
+}
+
+.identity {
+  min-width: 0;
+  /* The name is fitted to this column's real width, not to the viewport — the
+     badge and trophy sit beside it and take a variable slice. */
+  container-type: inline-size;
+}
+
+.eyebrow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--ew-space-2);
+  margin: 0 0 var(--ew-space-2);
+  font-size: var(--ew-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--ew-ink-faint);
+}
+
+.lair {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ew-ink-dim);
+}
+
+.dot {
+  color: var(--ew-ink-ghost);
+}
+
+/* One run of text, two type treatments. Both children are inline so the line
+   breaks between WORDS — a flex row breaks between the name and the epithet
+   as whole boxes, which puts the epithet's comma at the head of a line. */
+.nameLine {
+  display: block;
+  text-wrap: pretty;
+}
+
+.ageLine {
+  margin: var(--ew-space-2) 0 0;
+}
+
+.name {
+  display: inline;
+  font-family: var(--ew-font-display);
+  /* Scale down, then wrap — never clip. `--name-len` is set by the component;
+     the fallback keeps this sane if the property is ever missing. Long names
+     shrink to the 1.75rem floor and are allowed to run onto a second line
+     after that, which is always preferable to losing a character. */
+  font-size: clamp(
+    1.75rem,
+    min(6.2vw, calc(100cqw / (var(--name-len, 14) * 0.5))),
+    var(--ew-size-xxl)
+  );
+  font-weight: 600;
+  /* Tight, but not so tight that a wrapped name closes up: at the 1.75rem
+     floor a long name runs to two or three lines on a phone, and 1.02 set
+     those lines almost touching. */
+  line-height: 1.1;
+  letter-spacing: -0.005em;
+  color: var(--ew-ink-bright);
+  overflow-wrap: break-word;
+  text-wrap: balance;
+}
+
+.epithet {
+  display: inline;
+  margin: 0;
+  font-family: var(--ew-font-display);
+  font-style: italic;
+  font-size: var(--ew-size-md);
+  color: var(--ew-ink-dim);
+}
+
+.age {
+  font-family: var(--ew-font-ui);
+  font-style: normal;
+  font-size: var(--ew-size-xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ew-ink-faint);
+}
+
+.right {
+  display: flex;
+  align-items: stretch;
+  gap: var(--ew-space-4);
+}
+
+/* The empty slot ----------------------------------------------------------
+   Quietly conspicuous: a real frame, a real label, nothing inside. It is not
+   greyed out like a disabled control — it is simply unfilled. */
+
+.trophy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ew-space-2);
+  padding-left: var(--ew-space-4);
+  border-left: 1px solid var(--ew-line);
+  cursor: default;
+}
+
+.trophySlot {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border: 1px dashed var(--ew-line-strong);
+  border-radius: var(--ew-radius-sm);
+  background:
+    radial-gradient(70% 70% at 50% 40%, rgba(255, 246, 224, 0.028), transparent 70%),
+    var(--ew-void);
+  box-shadow: inset 0 1px 0 rgba(255, 246, 224, 0.03);
+}
+
+.trophyMark {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--ew-ink-ghost);
+  transition: color var(--ew-base) var(--ew-ease);
+}
+
+.trophyLabel {
+  font-size: 0.5625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--ew-ink-ghost);
+  white-space: nowrap;
+}
+
+.trophy[data-earned='true'] .trophySlot {
+  border-style: solid;
+  border-color: var(--ew-tier);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 0 24px -6px var(--ew-tier);
+}
+
+.trophy[data-earned='true'] .trophyMark {
+  color: var(--ew-tier);
+}
+
+.trophy[data-earned='true'] .trophyLabel {
+  color: var(--ew-ink-dim);
+}
+
+/* The lich state.
+
+   Deliberately NOT the tier colour: that is the notoriety badge's, and being
+   undying is not a rank. */
+.undying {
+  font-family: var(--ew-font-ui);
+  font-size: var(--ew-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ew-ink-bright);
+}
+
+@media (max-width: 560px) {
+  /* Two columns, the same as every width above this one.
+     This used to collapse to a single column, which put the badge in a band of
+     its own UNDER the name — ~44px of a 852px phone spent on a number that has
+     a perfectly good empty column beside the name to sit in. The identity
+     column is three lines tall (name, epithet, age); the badge is three lines
+     tall; they cost the same height side by side as the name did alone. */
+  .header {
+    gap: var(--ew-space-3) var(--ew-space-4);
+    padding-bottom: var(--ew-space-3);
+  }
+
+  /* Was 0 — the era/lair line sat directly on the name with no gap at all. */
+  .eyebrow {
+    margin-bottom: var(--ew-space-2);
+  }
+
+  .epithet {
+    font-size: var(--ew-size-base);
+  }
+
+  /* The right column stacks instead of running across the screen: badge over
+     trophy, both flush to the right margin, so the column stays about 96px
+     wide and leaves the name the rest. */
+  .right {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: var(--ew-space-2);
+  }
+
+  /* The trophy lies down.
+     Stacked, the slot and its label made this 62px tall for two things that
+     are each one line of information. Side by side it is 26px and says exactly
+     as much. The slot keeps its dashed frame, which is the part that reads as
+     "unfilled" (wiki/04 § Near-Miss Tuning); only the axis changed.
+
+     The divider goes with it: as a row under the badge there is nothing to its
+     left to be divided from. */
+  .trophy {
+    flex-direction: row;
+    gap: var(--ew-space-2);
+    padding-left: 0;
+    border-left: none;
+  }
+
+  .trophySlot {
+    width: 1.65rem;
+    height: 1.65rem;
+  }
+
+  .trophyMark {
+    width: 0.9rem;
+    height: 0.9rem;
+  }
+}

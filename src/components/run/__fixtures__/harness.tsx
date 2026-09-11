@@ -110,6 +110,8 @@ export function Harness() {
       resolution={resolution}
       lairs={demoLairs}
       themeId="default"
+      showTabsHint={false}
+      onDismissTabsHint={() => {}}
       artifacts={demoArtifacts}
       factions={demoFactions}
       onChoose={choose}

@@ -13,3 +13,13 @@ import '@testing-library/jest-dom/vitest';
 if (typeof Element !== 'undefined' && !Element.prototype.scrollTo) {
   Element.prototype.scrollTo = () => {};
 }
+
+/**
+ * Same gap, same fix: `RunScreen` calls `scrollIntoView` on the tab strip so
+ * switching between Decision and Career doesn't leave a player scrolled
+ * mid-way into whichever panel comes up next. jsdom does not implement it
+ * either.
+ */
+if (typeof Element !== 'undefined' && !Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {};
+}

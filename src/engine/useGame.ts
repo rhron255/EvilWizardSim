@@ -71,6 +71,17 @@ export type Game = {
    */
   showFirstRunGuide: boolean;
   dismissFirstRunGuide(): void;
+  /**
+   * A one-time floating hint naming the swipe gesture, owed once the guide
+   * above is out of the way (it teaches navigation, not the loop, so it
+   * waits its turn rather than competing with the guide for the same first
+   * few seconds). Gated on `tutorialSeen` rather than repeating the guide's
+   * own `eras.length === 0` condition — a returning player whose save
+   * predates this field has `tutorialSeen: true` already and is owed the
+   * hint immediately, not a re-run of the three-card guide first.
+   */
+  showTabsHint: boolean;
+  dismissTabsHint(): void;
 };
 
 type GameState = {
@@ -116,7 +127,8 @@ type Action =
   | { type: 'selectTheme'; id: ThemeId }
   | { type: 'backToTitle' }
   | { type: 'resume'; content: ContentBundle }
-  | { type: 'dismissGuide' };
+  | { type: 'dismissGuide' }
+  | { type: 'dismissTabsHint' };
 
 function initialState(): GameState {
   return {
@@ -292,6 +304,11 @@ export function gameReducer(state: GameState, action: Action): GameState {
       return { ...state, collection: { ...state.collection, tutorialSeen: true } };
     }
 
+    case 'dismissTabsHint': {
+      if (state.collection.tabsHintSeen) return state;
+      return { ...state, collection: { ...state.collection, tabsHintSeen: true } };
+    }
+
     case 'resume': {
       const run = state.resumable;
       if (!run) return state;
@@ -363,6 +380,7 @@ export function useGame(content: ContentBundle): Game {
   const backToTitle = useCallback(() => dispatch({ type: 'backToTitle' }), []);
   const resume = useCallback(() => dispatch({ type: 'resume', content }), [content]);
   const dismissFirstRunGuide = useCallback(() => dispatch({ type: 'dismissGuide' }), []);
+  const dismissTabsHint = useCallback(() => dispatch({ type: 'dismissTabsHint' }), []);
 
   return useMemo(
     () => ({
@@ -398,6 +416,12 @@ export function useGame(content: ContentBundle): Game {
         state.run !== null &&
         state.run.eras.length === 0,
       dismissFirstRunGuide,
+      showTabsHint:
+        !state.collection.tabsHintSeen &&
+        state.collection.tutorialSeen &&
+        state.screen === 'run' &&
+        state.run !== null,
+      dismissTabsHint,
     }),
     [
       state.screen,
@@ -420,6 +444,7 @@ export function useGame(content: ContentBundle): Game {
       backToTitle,
       resume,
       dismissFirstRunGuide,
+      dismissTabsHint,
     ],
   );
 }

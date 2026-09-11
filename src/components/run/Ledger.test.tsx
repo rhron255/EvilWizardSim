@@ -11,15 +11,31 @@
  *      height, never a slice of the data — every era stays in the DOM, or the
  *      record has stopped being a record.
  */
-import { describe, expect, it } from 'vitest';
+import { useState } from 'react';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { EraRecord } from '../../types';
 import { demoArtifacts, demoEras, demoLairs } from './__fixtures__/demo';
 import { Ledger } from './Ledger';
 
-const show = (eras: EraRecord[]) =>
-  render(<Ledger eras={eras} lairs={demoLairs} artifacts={demoArtifacts} />);
+// `expanded` is controlled by the caller now (issue #18 — `RunScreen` owns
+// it, so the toggle survives a tab switch that unmounts `Ledger` itself).
+// This harness plays that caller's role for the tests below.
+function Harness({ eras }: { eras: EraRecord[] }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <Ledger
+      eras={eras}
+      lairs={demoLairs}
+      artifacts={demoArtifacts}
+      expanded={expanded}
+      onToggleExpanded={() => setExpanded((v) => !v)}
+    />
+  );
+}
+
+const show = (eras: EraRecord[]) => render(<Harness eras={eras} />);
 
 const bodyRows = () => within(screen.getByRole('table')).getAllByRole('row').slice(1);
 
@@ -33,7 +49,7 @@ describe('Ledger', () => {
     const { rerender } = show(demoEras);
     const before = bodyRows().length;
     await userEvent.click(screen.getByRole('button', { name: /eras/i }));
-    rerender(<Ledger eras={demoEras} lairs={demoLairs} artifacts={demoArtifacts} />);
+    rerender(<Harness eras={demoEras} />);
     expect(bodyRows()).toHaveLength(before);
   });
 
@@ -47,7 +63,7 @@ describe('Ledger', () => {
   it('appends without rewriting what is already there', () => {
     const { rerender } = show(demoEras.slice(0, 3));
     const first = bodyRows()[0].textContent;
-    rerender(<Ledger eras={demoEras} lairs={demoLairs} artifacts={demoArtifacts} />);
+    rerender(<Harness eras={demoEras} />);
     expect(bodyRows()[0].textContent).toBe(first);
     expect(bodyRows().length).toBeGreaterThan(3);
   });
@@ -72,6 +88,26 @@ describe('Ledger', () => {
   it('counts one era in the singular', () => {
     show(demoEras.slice(0, 1));
     expect(screen.getByRole('button', { name: /^1 era/ })).toBeInTheDocument();
+  });
+
+  it('is controlled: it calls onToggleExpanded rather than keeping its own state', async () => {
+    // The Career tab this lives in (issue #18) fully unmounts on a tab
+    // switch, so `Ledger` cannot own this boolean itself any more — it has
+    // to defer to whatever the caller passes down.
+    const onToggleExpanded = vi.fn();
+    render(
+      <Ledger
+        eras={demoEras}
+        lairs={demoLairs}
+        artifacts={demoArtifacts}
+        expanded={false}
+        onToggleExpanded={onToggleExpanded}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /eras/i }));
+    expect(onToggleExpanded).toHaveBeenCalledTimes(1);
+    // No internal state — the prop, not the click, decides what is shown.
+    expect(screen.getByRole('button', { name: /eras/i })).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('names all six columns for a screen reader', () => {

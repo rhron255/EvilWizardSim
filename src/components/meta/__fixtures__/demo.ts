@@ -710,6 +710,7 @@ export const demoCollection: Collection = {
   endingsSeen: ['slain_by_chosen_one', 'retired_to_swamp', 'betrayed_by_apprentice'],
   runsCompleted: 23,
   tutorialSeen: true,
+  tabsHintSeen: true,
   lastWizardName: 'Malvorn Ashgrave',
   bestNotoriety: 88,
   // Wearing one of the three it has actually earned, so the selector fixture
@@ -724,6 +725,7 @@ export const demoEmptyCollection: Collection = {
   endingsSeen: [],
   runsCompleted: 0,
   tutorialSeen: false,
+  tabsHintSeen: false,
   lastWizardName: '',
   bestNotoriety: 0,
   selectedThemeId: 'default',
