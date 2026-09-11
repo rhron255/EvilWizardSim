@@ -24,6 +24,18 @@ describe('TabsHint', () => {
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 
+  it('lets a tap on its own body pass through to whatever is underneath', () => {
+    // The toast overlaps the bottom option card at 393px (accepted — see the
+    // doc comment on TabsHint.tsx) but must not eat a tap meant for that
+    // card for up to six seconds (Codex review, PR #28). Only the dismiss
+    // button below opts back in.
+    render(<TabsHint onDismiss={vi.fn()} />);
+    expect(getComputedStyle(screen.getByRole('status')).pointerEvents).toBe('none');
+    expect(
+      getComputedStyle(screen.getByRole('button', { name: /dismiss hint/i })).pointerEvents,
+    ).toBe('auto');
+  });
+
   describe('the unattended timeout', () => {
     afterEach(() => vi.useRealTimers());
 

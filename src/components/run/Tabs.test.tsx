@@ -165,6 +165,16 @@ describe('Tabs · swipe', () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
+  it('does not fire when the drag is not horizontally dominant, even inside both absolute thresholds', () => {
+    // 50px sideways clears SWIPE_MIN_DISTANCE and 59px vertically clears
+    // SWIPE_MAX_OFF_AXIS on their own, but the vertical leg is still the
+    // larger of the two — closer to a scroll than a swipe (Codex review,
+    // PR #28).
+    const { onSelect, wrap } = show('decision');
+    swipe(wrap, { x: 300, y: 200 }, { x: 250, y: 259 });
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
   it('does not fire past the last tab — swiping left on Career does not wrap', () => {
     const { onSelect, wrap } = show('career');
     swipe(wrap, { x: 300, y: 400 }, { x: 200, y: 400 });

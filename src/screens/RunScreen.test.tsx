@@ -109,6 +109,19 @@ describe('RunScreen · tab state', () => {
     expect(screen.getByRole('list', { name: 'Faction standing' })).toBeInTheDocument();
   });
 
+  it('scrolls the tab strip into view whenever the selected tab changes', async () => {
+    // Decision and Career are unrelated content at unrelated heights — a
+    // scroll position left over from a long Decision or an expanded Career
+    // ledger otherwise opens the next panel mid-way through itself (Codex
+    // review, PR #28).
+    const scrollIntoView = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => {});
+    show(demoRun);
+    scrollIntoView.mockClear();
+    await userEvent.click(screen.getByRole('tab', { name: 'Career' }));
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'start' });
+    scrollIntoView.mockRestore();
+  });
+
   it('puts the player back on Decision after continuing an era, even from Career', async () => {
     const onContinue = vi.fn();
     const { rerender } = show(demoRun, 'default', demoResolutionSuccess, onContinue);

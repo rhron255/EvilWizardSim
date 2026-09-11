@@ -31,9 +31,16 @@
  * on its own the moment an element re-enters the render tree, so no timer or
  * transition-end listener is needed to keep it in sync with the mount/unmount
  * this component already does.
+ *
+ * The root `.wrap` node is forwarded via ref — not because this component
+ * needs it, but because a caller with two panels of very different length
+ * (Decision's cards, Career's ledger) needs a hook to reset scroll position
+ * on switch: the sticky tablist alone does not do that, and a scroll deep
+ * into one panel otherwise lands the player mid-way into whichever panel
+ * comes up next. See `RunScreen`'s `scrollIntoView` on this ref.
  */
 
-import { useCallback, useEffect, useId, useRef } from 'react';
+import { forwardRef, useCallback, useEffect, useId, useRef } from 'react';
 import type { KeyboardEvent, ReactNode, TouchEvent as ReactTouchEvent } from 'react';
 import styles from './Tabs.module.css';
 
@@ -58,7 +65,10 @@ export type TabsProps = {
   label: string;
 };
 
-export function Tabs({ tabs, selected, onSelect, label }: TabsProps) {
+export const Tabs = forwardRef<HTMLDivElement, TabsProps>(function Tabs(
+  { tabs, selected, onSelect, label },
+  ref,
+) {
   const base = useId();
   const touchStart = useRef<{ x: number; y: number } | null>(null);
 
@@ -120,7 +130,14 @@ export function Tabs({ tabs, selected, onSelect, label }: TabsProps) {
       if (!touch) return;
       const dx = touch.clientX - start.x;
       const dy = touch.clientY - start.y;
-      if (Math.abs(dx) < SWIPE_MIN_DISTANCE || Math.abs(dy) > SWIPE_MAX_OFF_AXIS) return;
+      const absDx = Math.abs(dx);
+      const absDy = Math.abs(dy);
+      // Dominance, not just the two absolute thresholds: 50px sideways and
+      // 59px vertically clears both bounds individually, but that drag is
+      // closer to a scroll than a swipe. Requiring the horizontal leg to
+      // actually be the larger one catches it without tightening either
+      // threshold on its own.
+      if (absDx < SWIPE_MIN_DISTANCE || absDy > SWIPE_MAX_OFF_AXIS || absDx <= absDy) return;
 
       if (currentIndex === -1) return;
       // Swipe left (finger travels right-to-left) reveals the next tab, same
@@ -134,6 +151,7 @@ export function Tabs({ tabs, selected, onSelect, label }: TabsProps) {
 
   return (
     <div
+      ref={ref}
       className={styles.wrap}
       data-direction={direction}
       onTouchStart={onTouchStart}
@@ -180,4 +198,4 @@ export function Tabs({ tabs, selected, onSelect, label }: TabsProps) {
       })}
     </div>
   );
-}
+});

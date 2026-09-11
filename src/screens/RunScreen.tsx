@@ -14,7 +14,7 @@
  * single voice (wiki/06_reference_analysis.md, principle 6).
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Artifact, Faction, Lair, Offer, RunState, ThemeId } from '../types';
 import type { Resolution } from '../components/run/resolution';
 import type { DefenseReadout } from '../engine';
@@ -97,6 +97,21 @@ export function RunScreen({
   );
 
   /**
+   * Decision and Career are unrelated content at unrelated heights — without
+   * this, switching tabs from deep in a long Decision (option card four) or
+   * a long Career (ledger expanded) leaves `scrollY` untouched, so the newly
+   * mounted panel opens mid-way through itself, or a short one just clamps
+   * to the bottom of the page. Keyed on `tab` rather than called from
+   * `handleSelectTab` directly so it also fires when `handleContinue` snaps
+   * back to Decision from Career — the same "unrelated content, stale
+   * scroll" problem, one call site earlier.
+   */
+  const tabsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    tabsRef.current?.scrollIntoView({ block: 'start' });
+  }, [tab]);
+
+  /**
    * The ledger's "show every era" toggle, lifted out of `Ledger` itself.
    *
    * The Career tab's content fully unmounts whenever Decision is selected —
@@ -168,7 +183,7 @@ export function RunScreen({
       <main className={styles.column}>
         <Masthead run={run} lairs={lairs} hasAscensionTrophy={run.ending === 'ascension'} />
 
-        <Tabs label="Run screen" tabs={tabs} selected={tab} onSelect={handleSelectTab} />
+        <Tabs ref={tabsRef} label="Run screen" tabs={tabs} selected={tab} onSelect={handleSelectTab} />
       </main>
 
       {showTabsHint && <TabsHint onDismiss={onDismissTabsHint} />}

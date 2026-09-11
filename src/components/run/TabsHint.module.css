@@ -21,6 +21,11 @@
   border-radius: var(--ew-radius-lg);
   box-shadow: var(--ew-lip), var(--ew-shadow-overlay);
   animation: toastIn var(--ew-base) var(--ew-ease) both;
+  /* The toast sits low enough to overlap the last option card at 393px —
+     that's accepted (see the doc comment on TabsHint.tsx), but a tap meant
+     for the card underneath must not land on inert toast body instead. Only
+     the dismiss button below opts back in. */
+  pointer-events: none;
 }
 
 .dismiss {
@@ -31,6 +36,7 @@
   color: var(--ew-ink-faint);
   background: none;
   border: 0;
+  pointer-events: auto;
 }
 
 /* Expands the tap target to ~44px without growing the visible glyph — same
