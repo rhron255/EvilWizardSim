@@ -1405,8 +1405,23 @@ type CompletionCurve = {
   /** Runs until BOTH checklists are empty, one entry per simulated player. `cap + 1` means "not within cap". */
   runsToComplete: number[];
   medianRunsToComplete: number;
+  /**
+   * Mean of `runsToComplete`, sentinels included. Unlike the median and the
+   * p90 — order statistics that either land clear of every sentinel or land
+   * exactly ON `cap + 1`, so a display layer can tell the two cases apart by
+   * comparing against `cap` — the arithmetic mean blends real completion
+   * times with `cap + 1` placeholders the instant even ONE player is
+   * censored, producing a precise-looking number that is neither the true
+   * mean nor visibly a sentinel. So this field is only an exact mean when
+   * `censoredCount === 0`; otherwise every censored player's TRUE time is
+   * unknown but at least `cap + 1`, which makes this a valid LOWER BOUND on
+   * the true mean, never the mean itself. Report it as one — see the `>`
+   * prefix in `main`'s FULL COMPLETION section.
+   */
   meanRunsToComplete: number;
   p90RunsToComplete: number;
+  /** How many of `runsToComplete` are the `cap + 1` sentinel, not a real completion time. */
+  censoredCount: number;
 };
 
 /**
@@ -1471,6 +1486,7 @@ function completionProbe(baseSeed: number, players: number, cap: number): Comple
     medianRunsToComplete: median(runsToComplete),
     meanRunsToComplete: mean(runsToComplete),
     p90RunsToComplete: percentile(runsToComplete, 0.9),
+    censoredCount: runsToComplete.filter((v) => v > cap).length,
   };
 }
 
@@ -2347,9 +2363,18 @@ function main(): void {
        * from the isolated per-ending probes above (their isolated
        * expected-waits are not additive; see `completionProbe`'s own doc
        * comment for why).
+       *
+       * `medianRunsToComplete <= completion.cap` is not redundant with the
+       * `< 1000` half. When `COMPLETION_CAP` is overridden below 999 (the
+       * same env-override convention as `LICH_DEVOTION` etc., for cheaper
+       * local runs) and at least half the cohort never finishes,
+       * `medianRunsToComplete` IS the `cap + 1` sentinel — e.g. `cap=500`
+       * reports `501`, which still satisfies `< 1000` and would otherwise
+       * mark a mostly-censored cohort as passing the target it never
+       * actually measured.
        */
       'Full completion (every ending + every artifact) in under 1000 runs (median)',
-      completion.medianRunsToComplete < 1000,
+      completion.medianRunsToComplete <= completion.cap && completion.medianRunsToComplete < 1000,
       completion.medianRunsToComplete > completion.cap
         ? `>${completion.cap}`
         : String(completion.medianRunsToComplete),
@@ -2397,7 +2422,15 @@ function main(): void {
   console.log(rule());
   const completionCapped = (v: number) => (v > completion.cap ? `>${completion.cap}` : String(v));
   row('median runs to full completion', completionCapped(completion.medianRunsToComplete));
-  row('mean runs to full completion', completion.meanRunsToComplete.toFixed(1));
+  // A censored player contributes `cap + 1` to the sum, not their (unknown,
+  // larger) true completion time, so the mean is a LOWER BOUND whenever any
+  // player is censored — never an exact figure. See `CompletionCurve.
+  // meanRunsToComplete`'s doc comment for why this differs from the median/
+  // p90 handling above.
+  row(
+    'mean runs to full completion',
+    `${completion.censoredCount > 0 ? '>' : ''}${completion.meanRunsToComplete.toFixed(1)}`,
+  );
   row('p90 runs to full completion', completionCapped(completion.p90RunsToComplete));
 
   console.log('');
