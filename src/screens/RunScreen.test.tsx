@@ -41,6 +41,8 @@ const show = (
       onContinue={onContinue}
       defense={null}
       themeId={themeId}
+      showTabsHint={false}
+      onDismissTabsHint={() => {}}
     />,
   );
 
@@ -130,6 +132,8 @@ describe('RunScreen · tab state', () => {
         onContinue={onContinue}
         defense={null}
         themeId="default"
+        showTabsHint={false}
+        onDismissTabsHint={() => {}}
       />,
     );
     expect(screen.getByRole('tab', { name: 'Decision' })).toHaveAttribute('aria-selected', 'true');

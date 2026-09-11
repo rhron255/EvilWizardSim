@@ -87,6 +87,78 @@ describe('the first-run guide gate', () => {
   });
 });
 
+describe('the tabs hint gate', () => {
+  it('is not owed while the first-run guide is still up', () => {
+    const { result } = beginRun();
+    expect(result.current.showFirstRunGuide).toBe(true);
+    expect(result.current.showTabsHint).toBe(false);
+  });
+
+  it('is owed the moment the guide is out of the way', () => {
+    const { result } = beginRun();
+    act(() => result.current.dismissFirstRunGuide());
+    expect(result.current.showTabsHint).toBe(true);
+  });
+
+  it('is not owed on the title or creation screens', () => {
+    const hook = renderHook(() => useGame(content));
+    expect(hook.result.current.showTabsHint).toBe(false);
+    act(() => hook.result.current.begin());
+    expect(hook.result.current.showTabsHint).toBe(false);
+  });
+
+  it('closes for good once dismissed', () => {
+    const { result } = beginRun();
+    act(() => result.current.dismissFirstRunGuide());
+    act(() => result.current.dismissTabsHint());
+    expect(result.current.showTabsHint).toBe(false);
+    expect(result.current.collection.tabsHintSeen).toBe(true);
+  });
+
+  it('does not come back on the next career', () => {
+    const { result } = beginRun();
+    act(() => result.current.dismissFirstRunGuide());
+    act(() => result.current.dismissTabsHint());
+    act(() => result.current.playAgain());
+    act(() => result.current.create('Second', 'the Wiser', content.origins[0].id, 16));
+    act(() => result.current.dismissFirstRunGuide());
+    expect(result.current.showTabsHint).toBe(false);
+  });
+
+  it('survives the reload it was dismissed on', () => {
+    const first = beginRun();
+    act(() => first.result.current.dismissFirstRunGuide());
+    act(() => first.result.current.dismissTabsHint());
+    first.unmount();
+
+    const second = beginRun();
+    expect(second.result.current.collection.tabsHintSeen).toBe(true);
+    expect(second.result.current.showTabsHint).toBe(false);
+  });
+
+  it('is owed immediately for a returning player whose save predates this field', () => {
+    // Shaped like a v3 save: `tutorialSeen: true` from an already-finished
+    // career, and no `tabsHintSeen` at all — the swipe gesture postdates
+    // every save this player has ever written.
+    localStorage.setItem(
+      COLLECTION_KEY,
+      JSON.stringify({
+        version: 3,
+        discoveredArtifactIds: [],
+        endingsSeen: [],
+        runsCompleted: 12,
+        bestNotoriety: 40,
+        tutorialSeen: true,
+        lastWizardName: 'Old Wizard',
+        selectedThemeId: 'default',
+      }),
+    );
+    const { result } = beginRun();
+    expect(result.current.showFirstRunGuide).toBe(false);
+    expect(result.current.showTabsHint).toBe(true);
+  });
+});
+
 describe('the remembered name', () => {
   it('is empty for a player who has never named a wizard', () => {
     const { result } = renderHook(() => useGame(content));
@@ -233,5 +305,39 @@ describe('collection v2 -> v3 · the theme pointer', () => {
       ...written,
       selectedThemeId: 'default',
     });
+  });
+});
+
+describe('collection v3 -> v4 · the tabs hint flag', () => {
+  it('owes the hint to a v3 save, whatever its other history', () => {
+    // Unlike `tutorialSeen`'s v1 -> v2 migration, there is no runsCompleted
+    // branch: the swipe gesture is new content nobody's save has ever shown.
+    const v3 = {
+      version: 3,
+      discoveredArtifactIds: ['a'],
+      endingsSeen: ['lichdom'],
+      runsCompleted: 40,
+      bestNotoriety: 71,
+      tutorialSeen: true,
+      lastWizardName: 'Malvorn',
+      selectedThemeId: 'default',
+    };
+    const migrated = migrateCollection(v3);
+    expect(migrated.tabsHintSeen).toBe(false);
+    // And nothing else was lost on the way through.
+    expect(migrated.runsCompleted).toBe(40);
+    expect(migrated.tutorialSeen).toBe(true);
+  });
+
+  it('keeps an explicit true rather than reshowing it', () => {
+    expect(
+      migrateCollection({ version: 4, tutorialSeen: true, tabsHintSeen: true }).tabsHintSeen,
+    ).toBe(true);
+  });
+
+  it('reads a v4 save back exactly as written', () => {
+    const written = { ...emptyCollection(), tabsHintSeen: true };
+    localStorage.setItem(COLLECTION_KEY, JSON.stringify(written));
+    expect(migrateCollection(JSON.parse(localStorage.getItem(COLLECTION_KEY)!))).toEqual(written);
   });
 });

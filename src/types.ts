@@ -466,6 +466,19 @@ export type Collection = {
    */
   tutorialSeen: boolean;
   /**
+   * A single floating line, shown once ever, that names the swipe gesture
+   * (issue #18 follow-up) — nothing else on the run screen suggests a tab
+   * strip is swipeable, unlike tapping a tab, which is visible on its own.
+   *
+   * Lives here rather than gating on `tutorialSeen` because it teaches a
+   * DIFFERENT thing at a different moment: the three-card guide explains the
+   * loop before the first choice, this explains navigation once the guide is
+   * out of the way. A player whose save predates this field has never seen
+   * either the tab strip or the hint, tutorial-graduate or not — see the
+   * migration comment in `persistence.ts`.
+   */
+  tabsHintSeen: boolean;
+  /**
    * The last name the player typed, carried into the next creation screen.
    *
    * The name is the only typing in the game and the anchor the whole run hangs

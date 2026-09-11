@@ -33,6 +33,9 @@ export type { CareerTabProps } from './CareerTab';
 export { FirstRunGuide } from './FirstRunGuide';
 export type { FirstRunGuideProps } from './FirstRunGuide';
 
+export { TabsHint } from './TabsHint';
+export type { TabsHintProps } from './TabsHint';
+
 export { ResolutionOverlay } from './ResolutionOverlay';
 export type { ResolutionOverlayProps } from './ResolutionOverlay';
 

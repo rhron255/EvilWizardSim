@@ -19,9 +19,21 @@
  * `touch-action: pan-y` on `.wrap` is what actually keeps a horizontal drag
  * from being swallowed by the browser's own gestures (edge-swipe-to-go-back
  * on iOS Safari, in particular) before this component ever sees it.
+ *
+ * The panel that becomes selected plays a brief slide-and-fade — CSS only,
+ * in `Tabs.module.css` — in the direction travel actually went: `data-
+ * direction` on `.wrap` compares this render's selected index against the
+ * PREVIOUS one (tracked in `prevIndexRef`, updated in an effect so the
+ * comparison during render still sees the old value), the same for a click,
+ * an arrow key, or a swipe, so the motion always agrees with which way the
+ * player just moved. It costs nothing on the unmount side: each panel `div`
+ * already toggles `display: none` via `hidden`, and a CSS animation restarts
+ * on its own the moment an element re-enters the render tree, so no timer or
+ * transition-end listener is needed to keep it in sync with the mount/unmount
+ * this component already does.
  */
 
-import { useCallback, useId, useRef } from 'react';
+import { useCallback, useEffect, useId, useRef } from 'react';
 import type { KeyboardEvent, ReactNode, TouchEvent as ReactTouchEvent } from 'react';
 import styles from './Tabs.module.css';
 
@@ -52,6 +64,16 @@ export function Tabs({ tabs, selected, onSelect, label }: TabsProps) {
 
   const tabId = useCallback((id: string) => `${base}-tab-${id}`, [base]);
   const panelId = useCallback((id: string) => `${base}-panel-${id}`, [base]);
+
+  // -1 (not found) reads as "did not move backward", which only matters if a
+  // caller ever passes a `selected` id absent from `tabs` — the same case
+  // every other index lookup here already treats as a no-op.
+  const currentIndex = tabs.findIndex((t) => t.id === selected);
+  const prevIndexRef = useRef(currentIndex);
+  const direction = currentIndex >= prevIndexRef.current ? 'forward' : 'backward';
+  useEffect(() => {
+    prevIndexRef.current = currentIndex;
+  }, [currentIndex]);
 
   // Arrow keys move focus AND select in the same action (automatic
   // activation). Scoped to the tab buttons themselves via onKeyDown — unlike
@@ -100,19 +122,23 @@ export function Tabs({ tabs, selected, onSelect, label }: TabsProps) {
       const dy = touch.clientY - start.y;
       if (Math.abs(dx) < SWIPE_MIN_DISTANCE || Math.abs(dy) > SWIPE_MAX_OFF_AXIS) return;
 
-      const index = tabs.findIndex((t) => t.id === selected);
-      if (index === -1) return;
+      if (currentIndex === -1) return;
       // Swipe left (finger travels right-to-left) reveals the next tab, same
       // direction the tab strip itself already reads in.
       const delta = dx < 0 ? 1 : -1;
-      const next = tabs[Math.max(0, Math.min(tabs.length - 1, index + delta))];
+      const next = tabs[Math.max(0, Math.min(tabs.length - 1, currentIndex + delta))];
       if (next && next.id !== selected) onSelect(next.id);
     },
-    [tabs, selected, onSelect],
+    [tabs, selected, currentIndex, onSelect],
   );
 
   return (
-    <div className={styles.wrap} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+    <div
+      className={styles.wrap}
+      data-direction={direction}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
       <div className={styles.tablist} role="tablist" aria-label={label}>
         {tabs.map((tab) => {
           const isSelected = tab.id === selected;

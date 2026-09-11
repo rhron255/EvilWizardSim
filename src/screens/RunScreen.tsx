@@ -18,7 +18,7 @@ import { useCallback, useState } from 'react';
 import type { Artifact, Faction, Lair, Offer, RunState, ThemeId } from '../types';
 import type { Resolution } from '../components/run/resolution';
 import type { DefenseReadout } from '../engine';
-import { CareerTab, DecisionTab, Masthead, ResolutionOverlay, Tabs } from '../components/run';
+import { CareerTab, DecisionTab, Masthead, ResolutionOverlay, Tabs, TabsHint } from '../components/run';
 import type { TabItem } from '../components/run';
 import { themeAttr } from '../components/meta';
 import { tierColor, tierFor, tierGlow } from '../theme/tokens';
@@ -41,6 +41,9 @@ export type RunScreenProps = {
   defense?: DefenseReadout | null;
   /** The cosmetic theme the player is wearing. */
   themeId: ThemeId;
+  /** Owed once, after the first-run guide is out of the way — see `useGame`. */
+  showTabsHint: boolean;
+  onDismissTabsHint(): void;
 };
 
 type RunTab = 'decision' | 'career';
@@ -56,6 +59,8 @@ export function RunScreen({
   onContinue,
   defense,
   themeId,
+  showTabsHint,
+  onDismissTabsHint,
 }: RunScreenProps) {
   const tier = tierFor(run.notoriety);
 
@@ -77,6 +82,19 @@ export function RunScreen({
     setTab('decision');
     onContinue();
   }, [onContinue]);
+
+  // A player who switches tabs at all — by tap OR by the swipe TabsHint is
+  // teaching — has had the hint in front of them while doing it, so there is
+  // nothing left for the hint to say. Only fires the dismiss once; the
+  // reducer is idempotent on an already-seen hint, but there is no reason to
+  // dispatch on every subsequent switch once it is gone.
+  const handleSelectTab = useCallback(
+    (id: string) => {
+      if (showTabsHint) onDismissTabsHint();
+      setTab(id as RunTab);
+    },
+    [showTabsHint, onDismissTabsHint],
+  );
 
   /**
    * The ledger's "show every era" toggle, lifted out of `Ledger` itself.
@@ -150,8 +168,10 @@ export function RunScreen({
       <main className={styles.column}>
         <Masthead run={run} lairs={lairs} hasAscensionTrophy={run.ending === 'ascension'} />
 
-        <Tabs label="Run screen" tabs={tabs} selected={tab} onSelect={(id) => setTab(id as RunTab)} />
+        <Tabs label="Run screen" tabs={tabs} selected={tab} onSelect={handleSelectTab} />
       </main>
+
+      {showTabsHint && <TabsHint onDismiss={onDismissTabsHint} />}
 
       {resolution && (
         <ResolutionOverlay

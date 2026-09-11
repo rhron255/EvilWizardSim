@@ -107,6 +107,36 @@ describe('Tabs · interaction', () => {
   });
 });
 
+describe('Tabs · direction-aware transition', () => {
+  it('marks the wrapper forward when moving to a later tab', () => {
+    const { container, rerender } = render(
+      <Tabs tabs={tabs} selected="decision" onSelect={vi.fn()} label="Run screen" />,
+    );
+    rerender(<Tabs tabs={tabs} selected="career" onSelect={vi.fn()} label="Run screen" />);
+    expect(container.firstElementChild).toHaveAttribute('data-direction', 'forward');
+  });
+
+  it('marks the wrapper backward when moving to an earlier tab', () => {
+    const { container, rerender } = render(
+      <Tabs tabs={tabs} selected="career" onSelect={vi.fn()} label="Run screen" />,
+    );
+    rerender(<Tabs tabs={tabs} selected="decision" onSelect={vi.fn()} label="Run screen" />);
+    expect(container.firstElementChild).toHaveAttribute('data-direction', 'backward');
+  });
+
+  it('keeps the direction from the last actual move across an unrelated re-render', () => {
+    // `tabs` is a fresh array literal below, the way RunScreen passes one on
+    // every render — this must not read as a "backward" move just because
+    // `selected` is technically unchanged from the caller's own identity churn.
+    const { container, rerender } = render(
+      <Tabs tabs={tabs} selected="decision" onSelect={vi.fn()} label="Run screen" />,
+    );
+    rerender(<Tabs tabs={tabs} selected="career" onSelect={vi.fn()} label="Run screen" />);
+    rerender(<Tabs tabs={[...tabs]} selected="career" onSelect={vi.fn()} label="Run screen" />);
+    expect(container.firstElementChild).toHaveAttribute('data-direction', 'forward');
+  });
+});
+
 describe('Tabs · swipe', () => {
   it('a leftward swipe selects the next tab', () => {
     const { onSelect, wrap } = show('decision');

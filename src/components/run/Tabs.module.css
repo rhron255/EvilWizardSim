@@ -75,4 +75,36 @@
 
 .panel {
   padding-top: var(--ew-space-4);
+  /* Restarts on its own every time this panel's `hidden` flips off — a CSS
+     animation resets whenever its element re-enters the render tree, so no
+     JS is needed to replay it on each switch. `data-direction` on `.wrap`
+     (set in Tabs.tsx) picks which keyframe plays; see the panelSlide*
+     pair below. */
+  animation: panelSlideForward var(--ew-base) var(--ew-ease) both;
+}
+
+.wrap[data-direction='backward'] .panel {
+  animation-name: panelSlideBackward;
+}
+
+@keyframes panelSlideForward {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes panelSlideBackward {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }

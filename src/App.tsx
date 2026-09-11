@@ -124,6 +124,8 @@ export default function App() {
             onContinue={game.continueAfterResolution}
             defense={defense}
             themeId={themeId}
+            showTabsHint={game.showTabsHint}
+            onDismissTabsHint={game.dismissTabsHint}
           />
           {/* A sibling, not a screen: the guide opens with the masthead and
               the Decision tab behind it, so both have to be mounted while it

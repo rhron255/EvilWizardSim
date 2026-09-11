@@ -1,0 +1,64 @@
+/* Fixed, not in flow — see the doc comment on TabsHint.tsx for why this must
+   never cost the choice cards a single pixel of the mobile budget. */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: var(--ew-space-5);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: var(--ew-space-3);
+  width: max-content;
+  max-width: calc(100% - var(--ew-space-6));
+  margin: 0;
+  padding: var(--ew-space-3) var(--ew-space-4);
+  font-size: var(--ew-size-sm);
+  line-height: 1.4;
+  color: var(--ew-ink-dim);
+  background: var(--ew-raised);
+  border: 1px solid var(--ew-line-strong);
+  border-radius: var(--ew-radius-lg);
+  box-shadow: var(--ew-lip), var(--ew-shadow-overlay);
+  animation: toastIn var(--ew-base) var(--ew-ease) both;
+}
+
+.dismiss {
+  position: relative;
+  flex-shrink: 0;
+  font-size: var(--ew-size-base);
+  line-height: 1;
+  color: var(--ew-ink-faint);
+  background: none;
+  border: 0;
+}
+
+/* Expands the tap target to ~44px without growing the visible glyph — same
+   pattern as Tabs' own .tab::after. */
+.dismiss::after {
+  content: '';
+  position: absolute;
+  inset: -14px;
+}
+
+.dismiss:hover {
+  color: var(--ew-ink);
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (max-width: 420px) {
+  .toast {
+    bottom: var(--ew-space-4);
+    font-size: var(--ew-size-xs);
+  }
+}
