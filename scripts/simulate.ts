@@ -164,6 +164,40 @@ type Policy =
   | CourtierPolicy;
 
 /**
+ * Priority order for "which ending should a completionist chase next" —
+ * rarest known ending first, using the SAME dedicated-seeker mapping the
+ * probes below already rely on (`reprisalProbe`, `leadershipProbe`,
+ * `saintProbe`, `lichProbe`, `redeemedProbe`). An ending with `undefined` here
+ * has no dedicated seeker because ordinary play already reaches it often
+ * enough that no cohort in this file has ever needed one (the three generic
+ * age/threat/loyalty outcomes, and the Pale Academy's reprisal — see
+ * `PARIAH_TARGETS`'s own doc comment for why the Academy is excluded from
+ * that list). `completionProbe` below falls back to the population mix for
+ * those.
+ */
+const ENDING_CHASE_ORDER: ReadonlyArray<readonly [EndingId, Policy | undefined]> = [
+  ['arch_lich', 'redeemed'],
+  ['lichdom', 'lich'],
+  ['consumed', 'pariah_worm_below'],
+  ['exiled_and_overrun', 'pariah_crownlands'],
+  ['turned_to_fertilizer', 'pariah_verdant_choir'],
+  ['liquidated', 'pariah_gilded_hand'],
+  ['eternally_repurposed', 'pariah_ashen_covenant'],
+  ['good_wizard', 'saint'],
+  ['overthrown_the_kingdom', 'courtier_crownlands'],
+  ['archdruid', 'courtier_verdant_choir'],
+  ['archmage', 'courtier_pale_academy'],
+  ['grand_arbiter', 'courtier_gilded_hand'],
+  ['contract_writer', 'courtier_ashen_covenant'],
+  ['ascension', 'ascendant'],
+  ['consumed_by_pact', 'reckless'],
+  ['sealed_in_gem', undefined],
+  ['slain_by_chosen_one', undefined],
+  ['betrayed_by_apprentice', undefined],
+  ['retired_to_swamp', undefined],
+];
+
+/**
  * Population mix — an attempt at a realistic spread of how people actually
  * play, not a uniform sample. Most players are sensible, a fifth never gamble,
  * a fifth chase the headline number, and a minority are deliberately routing
@@ -1349,6 +1383,97 @@ function collectionCurve(baseSeed: number, players: number, cap: number): Collec
   };
 }
 
+/**
+ * Cohort size for `completionProbe`. Each "player" is up to `COMPLETION_CAP`
+ * whole runs, so this is far more expensive per player than
+ * `collectionCurve`'s — sized down accordingly, the same tradeoff
+ * `collectionCurve` itself makes (120 players, not 2000). Override via env
+ * for local tuning, the same convention as `LICH_DEVOTION` etc.
+ */
+const COMPLETION_PLAYERS = Number(process.env.COMPLETION_PLAYERS ?? 150);
+/**
+ * Twice the target band's ceiling, so a miss still reports a real number
+ * instead of every player reading `>cap`.
+ */
+const COMPLETION_CAP = Number(process.env.COMPLETION_CAP ?? 2000);
+
+type CompletionCurve = {
+  players: number;
+  cap: number;
+  endingsTotal: number;
+  slots: number;
+  /** Runs until BOTH checklists are empty, one entry per simulated player. `cap + 1` means "not within cap". */
+  runsToComplete: number[];
+  medianRunsToComplete: number;
+  meanRunsToComplete: number;
+  p90RunsToComplete: number;
+};
+
+/**
+ * One continuous meta-progression per simulated player (issue #33): the
+ * player is free to re-target strategy after each acquisition, chasing
+ * whatever's still missing from BOTH the ending checklist and
+ * `content.artifacts`, until both are empty. `collectionCurve` answers the
+ * artifact half of this in isolation; this reuses its exact "fold each run
+ * into a persistent set" mechanic and adds the ending half plus the adaptive
+ * policy switch, because the two checklists are not independent — most
+ * endings and artifacts arrive as SIDE EFFECTS of whichever policy the player
+ * is currently running for the other reason, so summing each item's isolated
+ * expected-wait overstates the true total-to-100%.
+ */
+function completionProbe(baseSeed: number, players: number, cap: number): CompletionCurve {
+  const allEndingIds = new Set(ALL_ENDING_IDS);
+  const slots = content.artifacts.length;
+  const runsToComplete: number[] = [];
+
+  for (let p = 0; p < players; p++) {
+    const rng = mulberry32((baseSeed + p * 104729) ^ 0xc0de5eed);
+    const ownedArtifacts = new Set<string>();
+    const seenEndings = new Set<EndingId>();
+    let doneAt = cap + 1;
+
+    for (let n = 1; n <= cap; n++) {
+      const target = ENDING_CHASE_ORDER.find(
+        ([id]) => allEndingIds.has(id) && !seenEndings.has(id),
+      );
+      const policy: Policy = target ? (target[1] ?? pickPolicy(rng())) : pickPolicy(rng());
+      // `redeemed`'s own probe forces Long for the same reason (arch_lich
+      // needs two decline-only scripted cards on the same career, and era
+      // length costs a real seeker nothing to maximise) — see
+      // `redeemedProbe`'s doc comment.
+      const eraCount =
+        policy === 'redeemed' ? RUN_LENGTHS[RUN_LENGTHS.length - 1] : pickEraCount(rng());
+      const result = playRun(
+        baseSeed + p * 104729 + n * 7919,
+        eraCount,
+        policy,
+        Array.from(ownedArtifacts),
+      );
+
+      seenEndings.add(result.ending);
+      for (const id of result.discoveredIds) ownedArtifacts.add(id);
+
+      if (seenEndings.size >= allEndingIds.size && ownedArtifacts.size >= slots) {
+        doneAt = n;
+        break;
+      }
+    }
+
+    runsToComplete.push(doneAt);
+  }
+
+  return {
+    players,
+    cap,
+    endingsTotal: allEndingIds.size,
+    slots,
+    runsToComplete,
+    medianRunsToComplete: median(runsToComplete),
+    meanRunsToComplete: mean(runsToComplete),
+    p90RunsToComplete: percentile(runsToComplete, 0.9),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Reporting
 // ---------------------------------------------------------------------------
@@ -1428,6 +1553,18 @@ function median(xs: number[]): number {
   const sorted = xs.slice().sort((a, b) => a - b);
   const mid = sorted.length >> 1;
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+/**
+ * `p` in [0, 1]. Nearest-rank, not interpolated — this file's other
+ * distribution readouts (`median`) don't interpolate either, and a tail stat
+ * only needs to say roughly where the slow players land.
+ */
+function percentile(xs: number[], p: number): number {
+  if (xs.length === 0) return 0;
+  const sorted = xs.slice().sort((a, b) => a - b);
+  const idx = Math.min(sorted.length - 1, Math.floor(p * sorted.length));
+  return sorted[idx];
 }
 
 function rule(width = 66): string {
@@ -1530,6 +1667,7 @@ function main(): void {
   const leadership = leadershipProbe(baseSeed);
   const saint = saintProbe(baseSeed);
   const lich = lichProbe(baseSeed);
+  const completion = completionProbe(baseSeed ^ 0xc0111ec7, COMPLETION_PLAYERS, COMPLETION_CAP);
   const redeemed = redeemedProbe(baseSeed);
 
   /** Every career the harness played, for the reachability check only. */
@@ -2198,6 +2336,25 @@ function main(): void {
       pct(redeemed.filter((r) => r.ending === 'arch_lich').length, redeemed.length),
     ],
     [
+      /*
+       * PROVENANCE: not the wiki — a design conversation confirmed with the
+       * user (issue #33's own text, quoted verbatim): "for each ending &
+       * artifact, while changing strategy after acquiring each ending, the
+       * game takes less than a thousand runs to finish." That is: one
+       * continuous meta-progression across all `completion.endingsTotal`
+       * endings and all `completion.slots` artifacts, free to re-target
+       * after each acquisition — measured by `completionProbe`, not summed
+       * from the isolated per-ending probes above (their isolated
+       * expected-waits are not additive; see `completionProbe`'s own doc
+       * comment for why).
+       */
+      'Full completion (every ending + every artifact) in under 1000 runs (median)',
+      completion.medianRunsToComplete < 1000,
+      completion.medianRunsToComplete > completion.cap
+        ? `>${completion.cap}`
+        : String(completion.medianRunsToComplete),
+    ],
+    [
       // PROVENANCE: wiki/01 § 8 specifies "a grid of lairs held, one card
       // each" as the ending card's centrepiece; a grid of one is not a grid.
       // The 3-5 BAND is not authored anywhere — it is the range that fills
@@ -2231,6 +2388,17 @@ function main(): void {
   row('median runs to half the grid', capped(curve.medianRunsToHalf));
   row('median runs to the full grid', capped(curve.medianRunsToFull));
   row('runs that add nothing new', `${(curve.barrenRunRate * 100).toFixed(1)}%`);
+
+  // --- full completion, one continuous meta-progression -------------------
+  console.log('');
+  console.log(
+    `FULL COMPLETION  (${completion.players} players, ${completion.endingsTotal} endings + ${completion.slots} artifacts, cap ${completion.cap} runs)`,
+  );
+  console.log(rule());
+  const completionCapped = (v: number) => (v > completion.cap ? `>${completion.cap}` : String(v));
+  row('median runs to full completion', completionCapped(completion.medianRunsToComplete));
+  row('mean runs to full completion', completion.meanRunsToComplete.toFixed(1));
+  row('p90 runs to full completion', completionCapped(completion.p90RunsToComplete));
 
   console.log('');
   console.log('TARGET CHECKS');
