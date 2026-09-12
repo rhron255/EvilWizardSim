@@ -2100,6 +2100,39 @@ function main(): void {
   const repeatRate = repeatedDeeds / Math.max(1, allDeeds.length);
   const notorietyConjunct = results.filter((r) => r.metNotorietyConjunct).length / total;
   const legendaryConjunct = results.filter((r) => r.metLegendaryConjunct).length / total;
+  /*
+   * Feeds the "Rarity ordering" check below (issue #32). `otherRates` reuses
+   * the exact counts the FACTION REPRISALS, FACTION LEADERSHIP, and LICHDOM
+   * ending report sections already compute — the five `reprisalProbe`
+   * cohorts, the five `leadershipProbe` cohorts, and `lichProbe`'s own
+   * `lichdom` rate — rather than resampling any of them.
+   */
+  const archLichRate =
+    redeemed.length > 0
+      ? redeemed.filter((r) => r.ending === 'arch_lich').length / redeemed.length
+      : 0;
+  const goodWizardRate =
+    saint.length > 0 ? saint.filter((r) => r.ending === 'good_wizard').length / saint.length : 0;
+  const otherEndingRates: Array<[EndingId, number]> = [
+    ...PARIAH_TARGETS.map((faction): [EndingId, number] => {
+      const cohort = probe.get(faction) ?? [];
+      const endingId = REPRISAL_BY_FACTION[faction];
+      const rate =
+        cohort.length > 0 ? cohort.filter((r) => r.ending === endingId).length / cohort.length : 0;
+      return [endingId, rate];
+    }),
+    ...COURTIER_TARGETS.map((faction): [EndingId, number] => {
+      const cohort = leadership.get(faction) ?? [];
+      const endingId = LEADERSHIP_BY_FACTION[faction];
+      const rate =
+        cohort.length > 0 ? cohort.filter((r) => r.ending === endingId).length / cohort.length : 0;
+      return [endingId, rate];
+    }),
+    ['lichdom', lich.length > 0 ? lich.filter((r) => r.ending === 'lichdom').length / lich.length : 0],
+  ];
+  const [minOtherEndingName, minOtherRate] = otherEndingRates.reduce((min, cur) =>
+    cur[1] < min[1] ? cur : min,
+  );
   const checks: Array<[string, boolean, string]> = [
     [
       /*
@@ -2350,6 +2383,60 @@ function main(): void {
         return rate >= 0.001 && rate <= 0.01;
       })(),
       pct(redeemed.filter((r) => r.ending === 'arch_lich').length, redeemed.length),
+    ],
+    [
+      /*
+       * PROVENANCE: not the wiki — a design conversation confirmed with the
+       * user (issue #32), narrowed to just this piece after the Ashen
+       * Covenant follow-up below it got deferred. `arch_lich` and
+       * `good_wizard` are deliberately the two rarest routes in the game
+       * (the former is the intersection of two other endings' own gates,
+       * the latter needs two hidden counters no card ever mentions per
+       * CLAUDE.md rule 1's Good Wizard amendment) — every OTHER ending's own
+       * dedicated-cohort rate should sit above both, or one of them has
+       * quietly become rarer than the ending it is supposed to gate.
+       *
+       * Checked per-member against `min(otherRates)`, not against an
+       * average of the eleven — a tier-average version was proposed and
+       * explicitly rejected in that conversation, because an average lets
+       * one cohort (here, Ashen Covenant's) hide under the other ten.
+       *
+       * `otherRates` reuses the exact counts the FACTION REPRISALS, FACTION
+       * LEADERSHIP, and LICHDOM ending sections above already compute —
+       * the five `reprisalProbe` cohorts, the five `leadershipProbe`
+       * cohorts, and `lichProbe`'s own `lichdom` rate — rather than
+       * resampling any of them.
+       *
+       * EXPECTED TO FAIL as written, and measured across seeds 1-10: FAILs
+       * 9 of 10 (only seed 3 passes). Ashen Covenant's crown
+       * (`contract_writer`) is the single most frequent `min(otherRates)`
+       * (4 of 10 seeds, 0.00-1.00%) and is the one with an already-diagnosed
+       * cause — `src/content/offers/grievances.ts` and `PATRON_MARGIN`'s
+       * doc comment both describe it, not yet fixed. But `min(otherRates)`
+       * is NOT stably pinned to Ashen Covenant: seeds 2, 8, 9 instead read
+       * `archdruid` (Verdant Choir's crown), `liquidated` (Gilded Hand's
+       * reprisal, also the seed-3 PASS's own min at 1.50%), or
+       * `overthrown_the_kingdom` (Crownlands' crown) as the minimum, each at
+       * 0.00-1.50%. That is the flicker CLAUDE.md failure mode 5 and this
+       * file's own reprisal/leadership reachability check both warn about:
+       * at `PROBE_RUNS` = 200, a true ~1% cohort rate has an expected count
+       * of ~2, so which of several similarly-rare crowns/reprisals reads
+       * lowest in a given seed is largely sampling noise, not signal. Do NOT
+       * read a seed where some OTHER faction holds the minimum as evidence
+       * Ashen Covenant is fixed, or read `archdruid`/`overthrown_the_kingdom`
+       * holding it as a new defect to chase — both cohorts are far too small
+       * here to tell a genuine rarity from noise. The check should stay red
+       * until Ashen Covenant's own fix lands AND (per issue #32's own plan)
+       * `reprisalProbe`/`leadershipProbe` grow past 200 runs so the minimum
+       * stops moving between unrelated factions from seed to seed.
+       */
+      'Rarity ordering: arch_lich < good_wizard < every other ending',
+      archLichRate < goodWizardRate && goodWizardRate < minOtherRate,
+      // Leading space: this label already exceeds `pad`'s 48-column width
+      // (like several others in this file), so `padLeft` below has nothing
+      // to add — without it, the label runs straight into the value with no
+      // separator at all.
+      ` arch_lich ${(archLichRate * 100).toFixed(2)}% < good_wizard ${(goodWizardRate * 100).toFixed(2)}% < ${minOtherEndingName} ${(minOtherRate * 100).toFixed(2)}%`,
     ],
     [
       /*
