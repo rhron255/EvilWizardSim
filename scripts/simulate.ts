@@ -2407,26 +2407,48 @@ function main(): void {
        * cohorts, and `lichProbe`'s own `lichdom` rate — rather than
        * resampling any of them.
        *
-       * EXPECTED TO FAIL as written, and measured across seeds 1-10: FAILs
-       * 9 of 10 (only seed 3 passes). Ashen Covenant's crown
-       * (`contract_writer`) is the single most frequent `min(otherRates)`
-       * (4 of 10 seeds, 0.00-1.00%) and is the one with an already-diagnosed
-       * cause — `src/content/offers/grievances.ts` and `PATRON_MARGIN`'s
-       * doc comment both describe it, not yet fixed. But `min(otherRates)`
-       * is NOT stably pinned to Ashen Covenant: seeds 2, 8, 9 instead read
-       * `archdruid` (Verdant Choir's crown), `liquidated` (Gilded Hand's
-       * reprisal, also the seed-3 PASS's own min at 1.50%), or
-       * `overthrown_the_kingdom` (Crownlands' crown) as the minimum, each at
-       * 0.00-1.50%. That is the flicker CLAUDE.md failure mode 5 and this
-       * file's own reprisal/leadership reachability check both warn about:
+       * EXPECTED TO FAIL as written, though the Ashen Covenant's REPRISAL
+       * half of this (`eternally_repurposed`) is fixed: it read 0.50% at
+       * issue #32's own writing (below `good_wizard`), and reads 1.00-2.50%
+       * across seeds 1-3 now (`src/content/offers/pacts.ts` — four of the
+       * pact ladder's DECLINE-direction options gained modest notoriety, so
+       * a pariah who alienates the Covenant builds fame at the same time
+       * instead of for free, which was the whole gap; `src/content/
+       * factions.ts` also narrowed the Covenant's `hostileTo` to the Academy
+       * alone, dropping a redundant hostility toward the Crownlands that no
+       * grievance card actually authors).
+       *
+       * The Covenant's LEADERSHIP half (`contract_writer`) is NOT fixed, and
+       * is now the single most frequent `min(otherRates)`. Root cause
+       * measured directly (temporary debug instrumentation, not left in the
+       * harness): a `courtier_ashen_covenant` cohort ends via `sealed_in_gem`
+       * or `exiled_and_overrun` — the ACADEMY'S or CROWNLANDS' OWN reprisal —
+       * in roughly HALF its 200 runs, before ever reaching the age limit.
+       * The Covenant has the richest single-faction card economy in the
+       * game (`grievances.ts`'s own header comment), so a wizard courting it
+       * to `DEVOTION_STANDING + PATRON_MARGIN` necessarily climbs standing
+       * (and, on the same cards, notoriety) far faster than any other
+       * faction's courtier needs to — and `applyStanding`'s contagion spends
+       * the FULL rate against every entry in `hostileTo` independently, not
+       * divided between them. Trimming the size of the biggest offending
+       * cards was tried and reverted: it moved `contract_writer` by at most
+       * one run in 200 (noise) while measurably shifting the population's
+       * already-failing `slain_by_chosen_one` share, which is not a trade
+       * worth making for an unreliable gain. A real fix needs either a
+       * broader authored rebalance of the pact ladder's standing/notoriety
+       * pairing, or a mechanic change to how a devotion chase prices
+       * collateral risk to a THIRD faction — bigger than a surgical content
+       * patch, and left open the same way `liquidated` is in `grievances.ts`.
+       *
+       * `min(otherRates)` is NOT stably pinned to Ashen Covenant even so —
        * at `PROBE_RUNS` = 200, a true ~1% cohort rate has an expected count
        * of ~2, so which of several similarly-rare crowns/reprisals reads
-       * lowest in a given seed is largely sampling noise, not signal. Do NOT
-       * read a seed where some OTHER faction holds the minimum as evidence
-       * Ashen Covenant is fixed, or read `archdruid`/`overthrown_the_kingdom`
-       * holding it as a new defect to chase — both cohorts are far too small
-       * here to tell a genuine rarity from noise. The check should stay red
-       * until Ashen Covenant's own fix lands AND (per issue #32's own plan)
+       * lowest in a given seed is partly sampling noise (seed 3 above read
+       * `overthrown_the_kingdom` at 0.00% instead). Do NOT read a seed where
+       * some OTHER faction holds the minimum as evidence Ashen Covenant is
+       * fixed — the histogram-level diagnosis above is what says it isn't,
+       * not this check's per-seed minimum. The check should stay red until
+       * `contract_writer` itself is fixed AND (per issue #32's own plan)
        * `reprisalProbe`/`leadershipProbe` grow past 200 runs so the minimum
        * stops moving between unrelated factions from seed to seed.
        */

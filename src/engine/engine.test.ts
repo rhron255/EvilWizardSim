@@ -231,11 +231,14 @@ describe('faction standing', () => {
   };
 
   it('spreads hostility along hostileTo, and only one hop', () => {
-    // The Ashen Covenant is hostile to the Pale Academy and the Crownlands.
+    // The Ashen Covenant is hostile to the Pale Academy alone (not the
+    // Crownlands — see the doc comment on `hostileTo` in `factions.ts`).
     const d = deltas('ashen_covenant', 40);
     expect(d.ashen_covenant).toBe(40);
     expect(d.pale_academy).toBeLessThan(0);
-    expect(d.crownlands).toBeLessThan(0);
+    // The Crownlands share the Covenant's OTHER half of the asymmetry (they
+    // hate it back), but courting the Covenant does not cost them standing.
+    expect(d.crownlands).toBe(0);
     // The Gilded Hand is not on that list and must be untouched.
     expect(d.gilded_hand).toBe(0);
     // One hop only: the Academy's own enemies must not move.
