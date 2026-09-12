@@ -123,16 +123,48 @@ export const DEF_NOTORIETY = 0.3;
 export const DEF_LAIR = 8;
 
 /**
- * A lich is harder to put down — but this is deliberately set NEAR the value
- * of a mid-run artifact set, not above it.
+ * A lich is harder to put down.
  *
  * That single number is what makes lichdom a live decision rather than a
- * strict upgrade or a strict trap: a wizard holding four artifacts (~26
- * defense) loses badly by taking the rite, while a fame-chaser holding none
+ * strict upgrade or a strict trap: a wizard holding a heavy artifact set
+ * loses badly by taking the rite, while a fame-chaser holding little to none
  * gains. The right answer depends on the build the player actually assembled,
  * which is the whole point of wiki/01's "This makes it a live decision".
+ *
+ * MOVED 60 -> 90 for `arch_lich` (issue #25's ending, no wiki line prices
+ * it): at 60, a `redeemed`-policy wizard who cleared BOTH the rite's gate and
+ * the Good Wizard vow's on the same career (`scripts/simulate.ts`'s dedicated
+ * 10,000-run cohort) was overwhelmingly caught by `slain_by_chosen_one` at the
+ * literal last era before the age-limit branch was ever reached — the flat
+ * post-rite defense was losing the race against a hero threat that keeps
+ * ramping every decline era while a lich's stats do not. `arch_lich` read
+ * 0.03% of that cohort (an expected wait of ~3,300 careers), the rarest
+ * branch in the game by two orders of magnitude and, per the design
+ * conversation this was tuned against, rare enough to be practically
+ * undiscoverable rather than merely hard.
+ *
+ * MEASURED (this change, seeds 1-5, `REDEEMED_PROBE_RUNS`-run cohort): the
+ * rite-and-vow survival-to-age-limit conversion went from "usually loses to
+ * the hero at the finish line" to 46/46, 40/42, 40/45, 32/33, 25/26 —
+ * essentially solved — and `arch_lich` landed at 0.19-0.33% across the five
+ * seeds (33, 27, 27, 23, 19 per 10,000), an expected wait of roughly 300-500
+ * careers rather than 3,300. `lichdom`'s own reachability (the check this
+ * constant was ALREADY load-bearing for) moved with it but stayed inside its
+ * 2-15% band at every seed checked. Population-wide Ascension, the pact
+ * ending, and the decline-erosion check did not move at all — `isLich` runs
+ * are ~0.4% of the population, too few to feel it.
+ *
+ * 90 is a stopping point, not a ceiling found by search: 120 pushed
+ * `arch_lich` only to ~0.35-0.39% before plateauing (the remaining ceiling is
+ * how often the rite and the vow are cleared on the same career at all, not
+ * survival), and kept climbing would mean the rite stops being "NEAR a
+ * mid-run artifact set" and becomes a strict upgrade for most builds, which
+ * is the exact thing this constant exists to prevent. Reaching the
+ * originally-discussed ~1% target would cost more of that tradeoff than the
+ * ending is worth; 90 buys most of the survival fix (the acute bug) while
+ * `lichdom` visibly stays a real decision.
  */
-export const DEF_LICH = 60;
+export const DEF_LICH = 90;
 
 /**
  * How many relics the rite demands — and consumes — before the Worm Below

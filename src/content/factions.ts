@@ -18,7 +18,26 @@ export const factions: Faction[] = [
       'A demon-pact cult with a filing system. The Covenant does not tempt, threaten, or haggle; it presents terms, waits while you read them, and is genuinely wounded when you do not. Members burn their own names on joining, which makes the membership roll difficult and has never once impeded a collection.',
     demands:
       'Takes apprentices, one at a time, and never the one you would have offered. Pays in raw Notoriety and in pact debt, both immediately.',
-    hostileTo: ['pale_academy', 'crownlands'],
+    // Pale Academy only, not Crownlands — the reciprocal rivalry the two
+    // grievance cards actually author (`grievances.ts`: the Academy burns the
+    // Covenant's reliquary, the Covenant burns the Academy's register). It
+    // used to list both, which made courting the Covenant hard to hold to a
+    // crown: reaching `DEVOTION_STANDING + PATRON_MARGIN` needs a large net
+    // climb, and `applyStanding` spills the FULL contagion rate onto every
+    // entry independently, not divided between them — so a courtier_ashen_
+    // covenant cohort spilled onto BOTH the Academy and the Crownlands hard
+    // enough to seal one of them (`sealed_in_gem`/`exiled_and_overrun`) in
+    // 53.5% of a 200-run cohort, before the wizard ever reached the age
+    // limit. MEASURED: `contract_writer` read 0.00% across that whole cohort
+    // — not rare, structurally unreachable. Trimming the Covenant's own card
+    // magnitudes barely moved it (peak mean 42 -> 41), because the total net
+    // climb a courtier needs is fixed by the threshold, not by how many cards
+    // it takes to get there; the fix had to be directional, per this file's
+    // sibling comment in `grievances.ts` on the reprisal side of the same
+    // faction. The Crownlands keep their own half of the asymmetry — they
+    // still list the Covenant in THEIR `hostileTo` below, the same one-way
+    // shape this file already uses for the Choir and the Crownlands.
+    hostileTo: ['pale_academy'],
     adjective: 'Covenant',
   },
   {

@@ -49,7 +49,7 @@ const MINUS = '−'; // U+2212 MINUS SIGN — optically matches the plus, unlike
  * The lichdom bill, written once and shared with the meta renderer so the two
  * screens can never disagree about what the player is giving up.
  *
- * The wards clause is new and it was a rule-1 hole: `DEF_LICH` is 60, the
+ * The wards clause is new and it was a rule-1 hole: `DEF_LICH` is 90, the
  * single largest defence term in the game — more than the entire ten-rung lair
  * ladder — and the card offering the rite disclosed it NOWHERE. An undisclosed
  * upside is the same defect as an undisclosed downside; the player could not
