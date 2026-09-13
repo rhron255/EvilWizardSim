@@ -194,6 +194,7 @@ function main() {
     base
       ? `Seeds ${seeds}, this branch vs its merge base. **Population** is the 2000-career mixed-policy run — how often an ending finds a player who was not looking for it. **Seeker** is the ending's own dedicated cohort, which is the only number that says whether a player chasing it can get it; for the cohort-shaped endings the population figure is near zero *by construction*, because those cohorts are deliberately kept out of the population mix.`
       : `Seeds ${seeds}. **Population** is the 2000-career mixed-policy run; **seeker** is the ending's own dedicated cohort.`,
+    baseMissing ? '' : null,
     baseMissing
       ? 'ℹ️ **No comparison against the base ref** — it produced no reports, which is expected for a branch that predates `--report-json`. The numbers below are this branch only.'
       : null,
