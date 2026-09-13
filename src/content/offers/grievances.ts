@@ -85,8 +85,29 @@ import type { FactionId, Offer } from '../../types';
  * the rate by nothing) and not by a card big enough to be a button. It is
  * fixable by authoring, and the fix is directional rather than numerical —
  * Gilded cards that can cost you the Hand, and Covenant cards that are not
- * another way to earn its goodwill. Slice 2 adds per-faction content and
- * slice 4 gives the Hand a legendary; run the probe again then.
+ * another way to earn its goodwill.
+ *
+ * ## Both halves of that were done, and one of them not the way this said
+ *
+ * FIXED, and the numbers above are now history — rerun the probe rather than
+ * reading them. The direction was right and the location was wrong: the
+ * shortfall was closed in `src/content/factions.ts`, not by authoring cards
+ * here. The Hand had ONE hater on the whole graph, so almost all of its
+ * available pressure had to come through its own fourteen offers, which
+ * `standingWeight` surfaces less often exactly as you start to need them.
+ * Adding the Hand to the Ashen Covenant's `hostileTo` gave it a second, and
+ * the Covenant has the largest up-volume in the game to spill: the Hand's
+ * up/down went 0.95 -> 0.70, a `pariah_gilded_hand` cohort's mean low went
+ * −15 -> −26, and `liquidated` went 1.0-2.0% -> 2.5-5.0%. The card below is
+ * unchanged; it simply becomes ELIGIBLE now, which was always the problem —
+ * a −20 gate in front of a career that ended at −15.
+ *
+ * The second half — "Covenant cards that are not another way to earn its
+ * goodwill" — is deliberately NOT done, and should not be. That ratchet is
+ * load-bearing for Ascension through `DEVOTION_STANDING`'s reliquary rule;
+ * flattening it measurably breaks a wiki-authored band. The Covenant's own
+ * reprisal was fixed on its other conjunct instead (fame, in `pacts.ts`).
+ * The full argument, with the measurement, is in `factions.ts`'s header.
  */
 
 type Rung = {

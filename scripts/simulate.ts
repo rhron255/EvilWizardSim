@@ -2407,50 +2407,35 @@ function main(): void {
        * cohorts, and `lichProbe`'s own `lichdom` rate — rather than
        * resampling any of them.
        *
-       * EXPECTED TO FAIL as written, though the Ashen Covenant's REPRISAL
-       * half of this (`eternally_repurposed`) is fixed: it read 0.50% at
-       * issue #32's own writing (below `good_wizard`), and reads 1.00-2.50%
-       * across seeds 1-3 now (`src/content/offers/pacts.ts` — four of the
-       * pact ladder's DECLINE-direction options gained modest notoriety, so
-       * a pariah who alienates the Covenant builds fame at the same time
-       * instead of for free, which was the whole gap; `src/content/
-       * factions.ts` also narrowed the Covenant's `hostileTo` to the Academy
-       * alone, dropping a redundant hostility toward the Crownlands that no
-       * grievance card actually authors).
+       * The three endings this check was written red against are now fixed,
+       * and it PASSES on some seeds and fails on others by a hair. What
+       * changed, all of it in the faction hostility graph rather than in any
+       * card (see `src/content/factions.ts`'s header for the argument and
+       * `qa/probe-standing-routes.ts` for the instrument):
        *
-       * The Covenant's LEADERSHIP half (`contract_writer`) is NOT fixed, and
-       * is now the single most frequent `min(otherRates)`. Root cause
-       * measured directly (temporary debug instrumentation, not left in the
-       * harness): a `courtier_ashen_covenant` cohort ends via `sealed_in_gem`
-       * or `exiled_and_overrun` — the ACADEMY'S or CROWNLANDS' OWN reprisal —
-       * in roughly HALF its 200 runs, before ever reaching the age limit.
-       * The Covenant has the richest single-faction card economy in the
-       * game (`grievances.ts`'s own header comment), so a wizard courting it
-       * to `DEVOTION_STANDING + PATRON_MARGIN` necessarily climbs standing
-       * (and, on the same cards, notoriety) far faster than any other
-       * faction's courtier needs to — and `applyStanding`'s contagion spends
-       * the FULL rate against every entry in `hostileTo` independently, not
-       * divided between them. Trimming the size of the biggest offending
-       * cards was tried and reverted: it moved `contract_writer` by at most
-       * one run in 200 (noise) while measurably shifting the population's
-       * already-failing `slain_by_chosen_one` share, which is not a trade
-       * worth making for an unreliable gain. A real fix needs either a
-       * broader authored rebalance of the pact ladder's standing/notoriety
-       * pairing, or a mechanic change to how a devotion chase prices
-       * collateral risk to a THIRD faction — bigger than a surgical content
-       * patch, and left open the same way `liquidated` is in `grievances.ts`.
+       *   `eternally_repurposed`  0.50%      -> 1.0-4.5%
+       *   `contract_writer`       0.50-1.00% -> 2.5-4.5%
+       *   `liquidated`            1.00-2.00% -> 2.5-5.0%
        *
-       * `min(otherRates)` is NOT stably pinned to Ashen Covenant even so —
-       * at `PROBE_RUNS` = 200, a true ~1% cohort rate has an expected count
-       * of ~2, so which of several similarly-rare crowns/reprisals reads
-       * lowest in a given seed is partly sampling noise (seed 3 above read
-       * `overthrown_the_kingdom` at 0.00% instead). Do NOT read a seed where
-       * some OTHER faction holds the minimum as evidence Ashen Covenant is
-       * fixed — the histogram-level diagnosis above is what says it isn't,
-       * not this check's per-seed minimum. The check should stay red until
-       * `contract_writer` itself is fixed AND (per issue #32's own plan)
-       * `reprisalProbe`/`leadershipProbe` grow past 200 runs so the minimum
-       * stops moving between unrelated factions from seed to seed.
+       * It still fails on roughly half of seeds, and the reason is now
+       * SAMPLING rather than a broken ending. At `PROBE_RUNS` = 200 a true
+       * ~1.5% cohort rate has an expected count of 3, so the minimum of
+       * eleven such rates is dominated by whichever cohort got unlucky:
+       * seeds 1-4 above put it on `eternally_repurposed` (1.00%),
+       * `archdruid` (1.00-2.00%) and `overthrown_the_kingdom` (1.00-1.50%)
+       * in turn, and `good_wizard` itself moves 1.10-1.60% across the same
+       * seeds on a 1000-run cohort. Two rates three runs apart are not
+       * ordered by anything but luck.
+       *
+       * So do NOT chase whichever ending holds `min(otherRates)` on the seed
+       * in front of you — that is CLAUDE.md failure mode 5 with extra steps,
+       * and it will send you to a different faction every time. The way to
+       * make this check mean something is issue #32's own remaining half:
+       * grow `reprisalProbe`/`leadershipProbe` past 200 runs so the minimum
+       * stops moving between unrelated factions from seed to seed. Until
+       * then, read the per-cohort tables above, where a genuinely dead
+       * ending shows up as a zero that survives every seed — which is what
+       * `contract_writer` looked like, and no longer does.
        */
       'Rarity ordering: arch_lich < good_wizard < every other ending',
       archLichRate < goodWizardRate && goodWizardRate < minOtherRate,
