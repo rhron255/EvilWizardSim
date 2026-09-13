@@ -67,26 +67,42 @@ const band = (xs: number[]): Band => ({
   max: Math.max(...xs),
 });
 
-const pct = (v: number) => `${(v * 100).toFixed(2)}%`;
+/**
+ * Precision scaled to the magnitude, because two decimals on a 50% share is
+ * three digits of noise — the population is 2000 careers, so the sampling
+ * error on that number is itself around a point.
+ *
+ * Chosen from ONE value and then applied to the whole cell, so a range reads
+ * `9.9–11.4` rather than `9.9–11`: picking each end's precision separately
+ * makes the two halves of one number look like they were measured differently.
+ */
+const digitsFor = (v: number) => (v * 100 >= 10 ? 0 : v * 100 >= 1 ? 1 : 2);
+
+const fmt = (v: number, digits: number) => (v * 100).toFixed(digits);
 
 /** Mean, with the spread beside it when the seeds disagreed enough to matter. */
 function cell(b: Band | undefined): string {
   if (!b) return '—';
-  if (b.max - b.min < 0.0001) return pct(b.mean);
-  return `${pct(b.mean)} <sub>${pct(b.min)}–${pct(b.max)}</sub>`;
+  const d = digitsFor(b.mean);
+  if (b.max - b.min < 0.0001) return `${fmt(b.mean, d)}%`;
+  return `${fmt(b.mean, d)}% <sub>${fmt(b.min, d)}–${fmt(b.max, d)}</sub>`;
 }
 
 /**
- * The delta column. Blank when the movement is inside the base's own seed
- * spread, because at 200 runs that is what "no change" looks like.
+ * The delta. EMPTY when the movement is inside the base's own seed spread,
+ * because at 200 runs that is what "no change" looks like — and an empty cell
+ * says it more quietly than a row of `±noise` badges, which turned out to be
+ * the loudest thing in the table while carrying the least information.
  */
 function delta(head: Band | undefined, base: Band | undefined): string {
   if (!head || !base) return '';
   const d = head.mean - base.mean;
   const noise = Math.max(base.max - base.min, MIN_MOVE);
-  if (Math.abs(d) <= noise) return `<sub>±noise</sub>`;
-  const sign = d > 0 ? '+' : '−';
-  return `**${sign}${(Math.abs(d) * 100).toFixed(2)}pt**`;
+  if (Math.abs(d) <= noise) return '';
+  // Fixed precision, NOT scaled to magnitude like the cells: deltas are read
+  // against each other down the column, and `+1.00` beside `+2.7` reads as a
+  // difference in measurement rather than a difference in size.
+  return `**${d > 0 ? '+' : '−'}${(Math.abs(d) * 100).toFixed(1)}**`;
 }
 
 function bands(reports: Report[]) {
@@ -129,15 +145,37 @@ function checkTable(head: Report[], base: Report[] | undefined, measured: boolea
   const passes = (rs: Report[], label: string) =>
     rs.filter((r) => r.checks.find((c) => c.label === label)?.pass).length;
 
-  const rows = labels.map((label) => {
+  const scored = labels.map((label) => {
     const h = passes(head, label);
     const b = base ? passes(base, label) : undefined;
-    const moved = b !== undefined && h !== b;
-    const mark = h === head.length ? '✅' : h === 0 ? '❌' : '⚠️';
-    const was = b === undefined ? '' : moved ? ` (was ${b}/${base!.length})` : '';
+    return { label, h, b, moved: b !== undefined && h !== b };
+  });
+
+  // Only the targets worth a reviewer's eye get a row: anything not unanimous,
+  // and anything whose verdict moved. A wall of sixteen green ticks is where a
+  // real amber one goes to hide, so the rest collapse into a single line.
+  const notable = scored.filter((s) => s.h !== head.length || s.moved);
+  const clean = scored.length - notable.length;
+
+  if (notable.length === 0) {
+    return `All ${scored.length} targets passed on every seed.`;
+  }
+
+  const rows = notable.map(({ label, h, b, moved }) => {
+    const mark = h === 0 ? '❌' : '⚠️';
+    const was = moved ? ` (was ${b}/${base!.length})` : '';
     return `| ${mark} ${label} | ${h}/${head.length}${was} |`;
   });
-  return ['| target | seeds passing |', '| --- | --- |', ...rows].join('\n');
+  return [
+    '| target | seeds passing |',
+    '| --- | --- |',
+    ...rows,
+    clean > 0
+      ? `\nThe other ${clean} target${clean === 1 ? '' : 's'} passed on all ${head.length} seeds.`
+      : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
 }
 
 function main() {
@@ -173,15 +211,17 @@ function main() {
     return ry - rx;
   });
 
+  // No `cohort` column: it repeated what the ending name already implies
+  // (`liquidated` -> `pariah_gilded_hand`) in the widest cell of the table.
+  // The two odd ones out are named in the footnote instead.
   const rows = ids.map((id) => {
     const pop = h.population.get(id);
     const seek = h.seekers.get(id);
-    const cohort = h.cohortOf.get(id);
     const popCell = `${cell(pop)} ${base ? delta(pop, b!.population.get(id)) : ''}`.trim();
     const seekCell = seek
       ? `${cell(seek)} ${base ? delta(seek, b!.seekers.get(id)) : ''}`.trim()
       : '—';
-    return `| \`${id}\` | ${popCell} | ${seekCell} | ${cohort ? `\`${cohort}\`` : '—'} |`;
+    return `| \`${id}\` | ${popCell} | ${seekCell} |`;
   });
 
   const seeds = head.map((r) => r.seed).join(', ');
@@ -191,19 +231,21 @@ function main() {
     '<!-- balance-report -->',
     '## Balance: ending percentages',
     '',
-    base
-      ? `Seeds ${seeds}, this branch vs its merge base. **Population** is the 2000-career mixed-policy run — how often an ending finds a player who was not looking for it. **Seeker** is the ending's own dedicated cohort, which is the only number that says whether a player chasing it can get it; for the cohort-shaped endings the population figure is near zero *by construction*, because those cohorts are deliberately kept out of the population mix.`
-      : `Seeds ${seeds}. **Population** is the 2000-career mixed-policy run; **seeker** is the ending's own dedicated cohort.`,
+    `**Population** — how often an ending finds a player who was not chasing it, out of ${head[0].runs} mixed-policy careers. **Seeker** — its own dedicated cohort, the only number that says whether someone chasing it can get there. For the cohort-shaped endings the population figure is near zero *by construction*: those cohorts are kept out of the population mix on purpose.`,
     baseMissing ? '' : null,
     baseMissing
       ? 'ℹ️ **No comparison against the base ref** — it produced no reports, which is expected for a branch that predates `--report-json`. The numbers below are this branch only.'
       : null,
     '',
-    '| ending | population | seeker | cohort |',
-    '| --- | --- | --- | --- |',
+    '| ending | population | seeker |',
+    '| --- | --- | --- |',
     ...rows,
     '',
-    'Small type is the range across seeds. A delta is only shown when it exceeds the spread the base seeds produced on their own — anything inside that reads `±noise`, because at 200 runs per cohort a two-career swing is not a signal. Chasing one is how this repo got `DEF_LICH` wrong twice.',
+    `<sub>Seeds ${seeds}; mean, with the across-seed range in small type.${
+      base
+        ? ' **Bold** marks a move larger than the spread the base seeds produced on their own — everything else is blank because at 200 runs per cohort a two-career swing is not a signal, and chasing one is how `DEF_LICH` got distorted twice.'
+        : ''
+    } \`lichdom\` is measured on the \`lich\` cohort and \`arch_lich\` on \`redeemed\`; the rest are the \`pariah_\`/\`courtier_\` cohort for that faction, plus \`saint\` for \`good_wizard\`.</sub>`,
     '',
     '### Target checks',
     '',
