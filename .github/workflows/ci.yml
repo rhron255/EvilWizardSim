@@ -46,3 +46,120 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  # The balance numbers, posted on the PR as one comment that updates in place.
+  #
+  # Separate job on purpose: it is measurement, not a gate. `npm run sim` has
+  # standing FAILs that are disclosed rather than fixed (see the target-check
+  # comments in `scripts/simulate.ts`), so making it block merges would either
+  # be permanently red or invite someone to quietly relax a band to get green
+  # — which is the exact failure CLAUDE.md's "acceptance criteria are targets
+  # too" is about. It reports; a human decides.
+  balance:
+    name: Balance report
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event_name == 'pull_request'
+
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          # Needs real history to find the merge base to compare against.
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The completion probe is ~85% of the sim's runtime (about 60s of a 72s
+      # run) and is independently seeded, so dropping it leaves every other
+      # number bit-identical while taking a seed from ~72s to ~10s. That is
+      # what makes five seeds on two refs affordable. `balance-report.ts`
+      # omits the checks that depend on it rather than reporting them red.
+      - name: Measure this branch
+        env:
+          COMPLETION_PLAYERS: 1
+          COMPLETION_CAP: 1
+        run: |
+          mkdir -p /tmp/balance/head
+          for seed in 1 2 3 4 5; do
+            npx tsx scripts/simulate.ts --seed "$seed" \
+              --report-json "/tmp/balance/head/seed$seed.json" > /dev/null
+          done
+
+      # The base ref will not have `--report-json` until the commit adding it
+      # lands, and a branch cut before that never will. A failure here is
+      # therefore expected and non-fatal: the report degrades to head-only and
+      # says on the comment that it did.
+      - name: Measure the merge base
+        continue-on-error: true
+        env:
+          COMPLETION_PLAYERS: 1
+          COMPLETION_CAP: 1
+        run: |
+          mkdir -p /tmp/balance/base
+          # Explicit SHA rather than `checkout -`: for a pull_request event the
+          # action has already left us on a detached merge commit, and coming
+          # back via @{-1} is a worse thing to depend on than a variable.
+          head_sha="$(git rev-parse HEAD)"
+          base="$(git merge-base HEAD "origin/${{ github.base_ref }}")"
+          echo "Merge base: $base"
+          git checkout --quiet --detach "$base"
+          for seed in 1 2 3 4 5; do
+            npx tsx scripts/simulate.ts --seed "$seed" \
+              --report-json "/tmp/balance/base/seed$seed.json" > /dev/null || true
+          done
+          git checkout --quiet --force "$head_sha"
+
+      - name: Render the comment
+        run: |
+          npx tsx scripts/balance-report.ts \
+            --head /tmp/balance/head \
+            --base /tmp/balance/base \
+            --out /tmp/balance/comment.md
+          cat /tmp/balance/comment.md >> "$GITHUB_STEP_SUMMARY"
+
+      # Skipped for forks, where `pull_request` hands out a read-only token and
+      # the API call would fail. Deliberately NOT solved with
+      # `pull_request_target`: that runs with a write token against the base
+      # ref while checking out the PR's code, which hands a fork's branch the
+      # ability to post as this repo. The step summary above still carries the
+      # numbers for a fork PR.
+      - name: Post or update the comment
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('/tmp/balance/comment.md', 'utf8');
+            const marker = '<!-- balance-report -->';
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              { owner, repo, issue_number, per_page: 100 },
+            );
+            const mine = comments.find(
+              (c) => c.user.type === 'Bot' && c.body.includes(marker),
+            );
+
+            if (mine) {
+              await github.rest.issues.updateComment({
+                owner, repo, comment_id: mine.id, body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number, body,
+              });
+            }

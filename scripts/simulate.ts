@@ -7,7 +7,14 @@
  *
  *   npx tsx scripts/simulate.ts [--runs 2000] [--seed 1] [--eras <RUN_LENGTHS>]
  *                               [--policy random|safe|greedy|adaptive|courtier|lich]
- *                               [--fixtures] [--json]
+ *                               [--fixtures] [--json] [--report-json <path>]
+ *
+ * `--json` prints the population distribution and stops, for cheap slice-to-
+ * slice diffing. `--report-json <path>` is the other one: it writes the WHOLE
+ * report — population shares, every dedicated cohort's seeker rate, and each
+ * target check — to a file after the normal run, and `scripts/balance-report.ts`
+ * turns a set of those into the PR comment. Both columns travel together on
+ * purpose; see the comment on the writer at the bottom of this file.
  *
  * IT PLAYS THE REAL CATALOG BY DEFAULT. A harness that reports on
  * `src/engine/__fixtures__/content.ts` while the player plays `src/content/`
@@ -31,6 +38,7 @@ import type {
   RunState,
   TierId,
 } from '../src/types';
+import { writeFileSync } from 'node:fs';
 import type { ContentBundle } from '../src/engine';
 import { TIERS, tierFor } from '../src/theme/tokens';
 import { ascensionReady, createRun, defenseOf, nextOffer, resolveChoice } from '../src/engine';
@@ -2538,6 +2546,89 @@ function main(): void {
   console.log(rule());
   console.log(allPass ? 'All balance targets met.' : 'One or more balance targets missed.');
   console.log('');
+
+  /*
+   * `--report-json <path>`: the same numbers this report just printed, in a
+   * shape something else can diff.
+   *
+   * NOT the same thing as `--json`, and deliberately not folded into it. That
+   * flag returns before the cohort probes are built, because its job is
+   * diffing population distributions cheaply; this one runs last and needs
+   * every probe, so merging them would silently make `--json` pay for a
+   * thousand extra runs (its own comment says so).
+   *
+   * Writes to a FILE rather than stdout so the human report above stays
+   * readable when both are wanted — which is the CI case, where the log is
+   * what a person opens when the comment says something surprising.
+   *
+   * The seeker rates are the point. A population share answers "how often
+   * does this happen to somebody who is not trying", and for the eleven
+   * cohort-shaped endings that number is near zero BY CONSTRUCTION — the
+   * dedicated cohorts are kept out of the population on purpose (see
+   * `POPULATION`). Reporting only the population column would recreate
+   * CLAUDE.md failure mode 5 in a new place: a reader would conclude an
+   * ending is dead when it is merely unmeasured. Both columns, always.
+   */
+  const reportPath = arg('report-json', '');
+  if (reportPath) {
+    const seekerRate = (cohort: RunResult[], ending: EndingId) =>
+      cohort.length > 0 ? cohort.filter((r) => r.ending === ending).length / cohort.length : 0;
+
+    const seekers: Record<string, { cohort: string; runs: number; rate: number }> = {};
+    for (const faction of PARIAH_TARGETS) {
+      const cohort = probe.get(faction) ?? [];
+      seekers[REPRISAL_BY_FACTION[faction]] = {
+        cohort: `pariah_${faction}`,
+        runs: cohort.length,
+        rate: seekerRate(cohort, REPRISAL_BY_FACTION[faction]),
+      };
+    }
+    for (const faction of COURTIER_TARGETS) {
+      const cohort = leadership.get(faction) ?? [];
+      seekers[LEADERSHIP_BY_FACTION[faction]] = {
+        cohort: `courtier_${faction}`,
+        runs: cohort.length,
+        rate: seekerRate(cohort, LEADERSHIP_BY_FACTION[faction]),
+      };
+    }
+    seekers.good_wizard = {
+      cohort: 'saint',
+      runs: saint.length,
+      rate: seekerRate(saint, 'good_wizard'),
+    };
+    seekers.arch_lich = {
+      cohort: 'redeemed',
+      runs: redeemed.length,
+      rate: seekerRate(redeemed, 'arch_lich'),
+    };
+    seekers.lichdom = { cohort: 'lich', runs: lich.length, rate: seekerRate(lich, 'lichdom') };
+
+    const population: Record<string, { n: number; share: number }> = {};
+    for (const ending of content.endings) {
+      const n = byEnding.get(ending.id) ?? 0;
+      population[ending.id] = { n, share: total > 0 ? n / total : 0 };
+    }
+
+    writeFileSync(
+      reportPath,
+      `${JSON.stringify(
+        {
+          seed: baseSeed,
+          runs: total,
+          // So a reader of the aggregated output can tell whether the
+          // completion figures in `checks` were actually measured or were
+          // run at a token player count to keep CI inside its budget.
+          completionPlayers: COMPLETION_PLAYERS,
+          completionCap: COMPLETION_CAP,
+          population,
+          seekers,
+          checks: checks.map(([label, pass, value]) => ({ label, pass, value })),
+        },
+        null,
+        2,
+      )}\n`,
+    );
+  }
 }
 
 main();
