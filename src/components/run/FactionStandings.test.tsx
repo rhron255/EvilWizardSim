@@ -47,6 +47,23 @@ describe('FactionStandings · collapsed by default', () => {
   });
 });
 
+describe('FactionStandings · the per-row note', () => {
+  it('is hidden while collapsed — DecisionPanel\'s ambient line already says it', () => {
+    show(demoRun);
+    const strip = screen.getByRole('list', { name: 'Faction standing' });
+    expect(
+      within(strip).queryByText(/offers surface more often|escorted over the border/),
+    ).toBeNull();
+  });
+
+  it('comes back once expanded, where reading all six is the point', async () => {
+    show(demoRun);
+    await userEvent.click(screen.getByRole('button', { name: /show all six factions/i }));
+    const strip = screen.getByRole('list', { name: 'Faction standing' });
+    expect(within(strip).getByText(/offers surface more often/)).toBeInTheDocument();
+  });
+});
+
 describe('FactionStandings · the reprisal alarm', () => {
   it('warns about whichever faction is closest to acting, even while collapsed', () => {
     show(demoRun);

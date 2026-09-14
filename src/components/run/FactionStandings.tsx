@@ -15,6 +15,14 @@
  * trigger for the second most common ending. It also moves by CONTAGION, so
  * it can be pushed to lethal by cards that never named the faction —
  * `allegiances.ts` has the full history.
+ *
+ * The per-row note is dropped while collapsed. `DecisionPanel`'s ambient
+ * threat line already names the same standing-driven consequence for
+ * whichever faction is actually closest to acting (`nextThreatFor`), so a
+ * second copy of that sentence sitting under one of only two visible rows
+ * read as repetition rather than disclosure. Expanding restores it: reading
+ * all six is exactly the "tell me everything" moment the note earns its
+ * space back for.
  */
 
 import { useId, useState } from 'react';
@@ -67,7 +75,7 @@ export function FactionStandings({ run, factions }: FactionStandingsProps) {
                 />
               )}
             </span>
-            <span className={styles.allegianceNote}>{a.note}</span>
+            {expanded && <span className={styles.allegianceNote}>{a.note}</span>}
           </li>
         ))}
       </ul>
