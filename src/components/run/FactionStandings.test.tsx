@@ -65,9 +65,42 @@ describe('FactionStandings · the per-row note', () => {
 });
 
 describe('FactionStandings · the reprisal alarm', () => {
-  it('warns about whichever faction is closest to acting, even while collapsed', () => {
+  /**
+   * Codex review, PR #38: `reprisalWarningFor` and `DecisionPanel`'s ambient
+   * `nextThreatFor` are built on the same `reprisalStatus` computation, so
+   * whenever they name the SAME faction — the typical state once every
+   * reprisal is live in the decline, which is exactly what demoRun is — they
+   * render byte-identical sentences. Printing this alarm too would just be
+   * the ambient line twice on one screen.
+   */
+  it('stays silent when it would only repeat the ambient line DecisionPanel already shows', () => {
     show(demoRun);
-    expect(screen.getByText(/The Crown/)).toBeInTheDocument();
+    // demoRun: Crownlands (-61) is both the global-lowest standing
+    // (`nextThreatFor`) AND the nearest LIVE one (`reprisalWarningFor`) —
+    // the same faction, so this alarm has nothing to add.
+    expect(screen.queryByText(/The Crown/)).toBeNull();
+  });
+
+  it('still warns when it names a DIFFERENT faction than the ambient line', () => {
+    // Verdant Choir sits lowest overall but is not live yet
+    // (`erasSinceProphecy: 0`), so `nextThreatFor` names it while
+    // `reprisalWarningFor` — live factions only — names the Pale Academy
+    // instead. Two different sentences, so this alarm earns its line.
+    const divergent = {
+      ...demoRun,
+      erasSinceProphecy: 0,
+      notoriety: 50,
+      factionStanding: {
+        ashen_covenant: 10,
+        gilded_hand: 10,
+        pale_academy: -40,
+        verdant_choir: -60,
+        crownlands: 0,
+        worm_below: 10,
+      },
+    } as RunState;
+    show(divergent);
+    expect(screen.getByText(/The Academy/)).toBeInTheDocument();
   });
 
   it('says nothing at all when no faction is anywhere near acting', () => {

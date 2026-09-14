@@ -26,7 +26,13 @@
  */
 
 import { useId, useState } from 'react';
-import { allegiancesFor, extremeAllegiances, reprisalSentence, reprisalWarningFor } from './allegiances';
+import {
+  allegiancesFor,
+  extremeAllegiances,
+  nextThreatFor,
+  reprisalSentence,
+  reprisalWarningFor,
+} from './allegiances';
 import type { Faction, RunState } from '../../types';
 import styles from './FactionStandings.module.css';
 
@@ -43,10 +49,23 @@ export function FactionStandings({ run, factions }: FactionStandingsProps) {
   const listId = useId();
 
   const allegiances = allegiancesFor(run, factions);
-  const reprisal = reprisalWarningFor(run);
   const extremes = extremeAllegiances(allegiances);
   const shown = expanded ? allegiances : extremes;
   const collapsible = allegiances.length > extremes.length;
+
+  // Both this alarm and `DecisionPanel`'s ambient `nextThreatFor` line are
+  // built on the SAME `reprisalStatus` computation for a given faction, so
+  // whenever they name the same one, `reprisalSentence` renders the exact
+  // same string for both — an armed reprisal is the common case for
+  // whichever faction sits nearest once every reprisal is live in the
+  // decline, so this was not a rare coincidence but the typical state (Codex
+  // review, PR #38). Suppressed here rather than in `DecisionPanel`, because
+  // the ambient line is unconditional by design (issue #18) and this alarm
+  // is the one gated on proximity — the gated line is the one with room to
+  // stand down when it would only repeat the other.
+  const reprisal = reprisalWarningFor(run);
+  const threat = nextThreatFor(run);
+  const showReprisal = reprisal !== null && reprisal.factionId !== threat?.factionId;
 
   return (
     <section className={styles.section}>
@@ -94,15 +113,15 @@ export function FactionStandings({ run, factions }: FactionStandingsProps) {
       )}
 
       {/* The alarm, not the ambient line — that lives in `DecisionPanel` as
-          `nextThreatFor`. This is the SAME computation with the proximity
-          gates layered on, so the two can never disagree about which faction
-          is closest. Unconditional on `expanded`: the one faction closest to
-          acting is worth a line even when it isn't one of the two extremes
-          shown above it (a faction can be closing in without yet being the
-          single highest or lowest standing on the board). */}
-      {reprisal && (
-        <p className={styles.reprisal} data-armed={reprisal.armed ? 'true' : undefined}>
-          {reprisalSentence(reprisal)}
+          `nextThreatFor`. Unconditional on `expanded`: the one faction
+          closest to acting is worth a line even when it isn't one of the two
+          extremes shown above it (a faction can be closing in without yet
+          being the single highest or lowest standing on the board). Silent
+          when it would just repeat the ambient line verbatim — see
+          `showReprisal` above. */}
+      {showReprisal && (
+        <p className={styles.reprisal} data-armed={reprisal!.armed ? 'true' : undefined}>
+          {reprisalSentence(reprisal!)}
         </p>
       )}
     </section>

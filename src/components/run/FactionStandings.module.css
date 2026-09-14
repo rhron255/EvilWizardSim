@@ -148,6 +148,7 @@
    -------------------------------------------------------------------------- */
 
 .toggle {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--ew-space-2);
@@ -163,6 +164,17 @@
   color: var(--ew-ink);
   cursor: pointer;
   transition: border-color var(--ew-fast) var(--ew-ease), background-color var(--ew-fast) var(--ew-ease);
+}
+
+/* The pill's own box is ~25px tall — legible, but well under the ~44px
+   touch target a phone needs (DecisionPanel's `.statButton::after` hits the
+   same problem for the same reason). An invisible pseudo-element extends the
+   hit area without inflating the pill visually — the "compact visual
+   treatment, full-size tap target" split. */
+.toggle::after {
+  content: '';
+  position: absolute;
+  inset: -10px -8px;
 }
 
 .toggle:hover,
