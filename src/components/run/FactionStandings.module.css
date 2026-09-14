@@ -1,7 +1,12 @@
 .section {
   display: flex;
   flex-direction: column;
-  gap: var(--ew-space-2);
+  gap: var(--ew-space-3);
+  /* Same rhythm the masthead's own `.header` closes on — this section sits
+     between the masthead and the decision content below, and a bare flex gap
+     read as one undifferentiated block rather than three. */
+  padding-bottom: var(--ew-space-4);
+  border-bottom: 1px solid var(--ew-line);
 }
 
 /* --------------------------------------------------------------------------
@@ -130,4 +135,68 @@
 
 .reprisal[data-armed='true'] {
   color: var(--ew-danger);
+}
+
+/* --------------------------------------------------------------------------
+   The collapse toggle. Text-first (the arrow alone would fail a phone, which
+   has no hover to fall back on for an icon-only control) — the label says
+   what tapping it does, the arrow just echoes the direction. Drawn as a
+   bordered pill rather than a plain text link: a bare `ink-faint` line
+   under six numeric rows did not read as tappable at a glance, and this is
+   the one thing on the section a player must be able to find without
+   reading every row first.
+   -------------------------------------------------------------------------- */
+
+.toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--ew-space-2);
+  align-self: flex-start;
+  margin: 0;
+  padding: var(--ew-space-1) var(--ew-space-3);
+  border: 1px solid var(--ew-line-strong);
+  border-radius: var(--ew-radius-pill);
+  font-size: var(--ew-size-xs);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ew-ink);
+  cursor: pointer;
+  transition: border-color var(--ew-fast) var(--ew-ease), background-color var(--ew-fast) var(--ew-ease);
+}
+
+/* The pill's own box is ~25px tall — legible, but well under the ~44px
+   touch target a phone needs (DecisionPanel's `.statButton::after` hits the
+   same problem for the same reason). An invisible pseudo-element extends the
+   hit area without inflating the pill visually — the "compact visual
+   treatment, full-size tap target" split. */
+.toggle::after {
+  content: '';
+  position: absolute;
+  inset: -10px -8px;
+}
+
+.toggle:hover,
+.toggle:focus-visible {
+  color: var(--ew-ink-bright);
+  border-color: var(--ew-ink-faint);
+  background: color-mix(in srgb, var(--ew-ink-faint) 12%, transparent);
+}
+
+.toggleArrow {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  /* Chevron pointing down (collapsed — "there is more below"), rotated to
+     point up once expanded. Drawn from borders rather than a glyph so it
+     inherits `currentColor` and stays crisp at any zoom level. */
+  transform: rotate(45deg);
+  transition: transform var(--ew-fast) var(--ew-ease);
+}
+
+.toggleArrow[data-open='true'] {
+  transform: rotate(-135deg);
 }

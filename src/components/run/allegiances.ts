@@ -195,6 +195,41 @@ export function allegiancesFor(run: RunState, factions: Faction[]): Allegiance[]
 }
 
 /**
+ * The two rows worth showing when `FactionStandings` is collapsed: whoever
+ * this career has pleased most, and whoever it has angered most.
+ *
+ * Deterministic on purpose, the same way `nearestReprisalFaction` and
+ * `patronFaction` are: a tie is common (every faction starts at 0, and
+ * contagion moves several at once), so "highest wins, ties broken by array
+ * order" — `allegiances` is already in `FACTION_ORDER` — is a stated rule
+ * rather than a property of iteration order nobody chose. The two returned
+ * rows are then re-sorted back into `allegiances`' own order, so the
+ * collapsed pair reads left-to-right the same way the full six do; expanding
+ * never reshuffles a row the player has already looked at.
+ *
+ * Picks two DISTINCT rows even when every standing is tied (a fresh career):
+ * the maximum is taken first, and the minimum is chosen only from what is
+ * left, so a six-way tie shows the first two factions in `FACTION_ORDER`
+ * rather than the same one twice.
+ */
+export function extremeAllegiances(allegiances: Allegiance[]): Allegiance[] {
+  if (allegiances.length <= 2) return allegiances;
+
+  let maxIndex = 0;
+  for (let i = 1; i < allegiances.length; i++) {
+    if (allegiances[i].standing > allegiances[maxIndex].standing) maxIndex = i;
+  }
+
+  let minIndex = -1;
+  for (let i = 0; i < allegiances.length; i++) {
+    if (i === maxIndex) continue;
+    if (minIndex === -1 || allegiances[i].standing < allegiances[minIndex].standing) minIndex = i;
+  }
+
+  return [maxIndex, minIndex].sort((a, b) => a - b).map((i) => allegiances[i]);
+}
+
+/**
  * The standing condition closest to ending this run, surfaced separately so
  * the header can warn about it without the player having to read six rows.
  * `null` when no reprisal is a live threat.

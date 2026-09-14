@@ -22,7 +22,14 @@ import {
   SEAL_MIN_NOTORIETY,
 } from '../../engine';
 import type { Faction, FactionId, Phase, RunState } from '../../types';
-import { allegiancesFor, nextThreatFor, patronFor, reprisalSentence, reprisalWarningFor } from './allegiances';
+import {
+  allegiancesFor,
+  extremeAllegiances,
+  nextThreatFor,
+  patronFor,
+  reprisalSentence,
+  reprisalWarningFor,
+} from './allegiances';
 
 const run = (
   standing: number | Partial<Record<FactionId, number>>,
@@ -348,5 +355,51 @@ describe('the patron line', () => {
   it('returns null rather than a half sentence for a cast missing the faction', () => {
     const devoted = run({ ashen_covenant: DEVOTION_STANDING + PATRON_MARGIN }, 10);
     expect(patronFor(devoted, FACTIONS.filter((f) => f.id !== 'ashen_covenant'))).toBeNull();
+  });
+});
+
+/**
+ * The two rows `FactionStandings` shows when collapsed (issue #36 follow-up):
+ * whoever this career has pleased most, and whoever it has angered most.
+ */
+describe('the two most extreme standings', () => {
+  const FACTIONS: Faction[] = [
+    { id: 'ashen_covenant', name: 'The Ashen Covenant', blurb: '', demands: '', hostileTo: [], adjective: '' },
+    { id: 'gilded_hand', name: 'The Gilded Hand', blurb: '', demands: '', hostileTo: [], adjective: '' },
+    { id: 'pale_academy', name: 'The Pale Academy', blurb: '', demands: '', hostileTo: [], adjective: '' },
+    { id: 'verdant_choir', name: 'The Verdant Choir', blurb: '', demands: '', hostileTo: [], adjective: '' },
+    { id: 'crownlands', name: 'The Crownlands', blurb: '', demands: '', hostileTo: [], adjective: '' },
+    { id: 'worm_below', name: 'The Worm Below', blurb: '', demands: '', hostileTo: [], adjective: '' },
+  ];
+
+  it('picks the single highest and single lowest standing', () => {
+    const rows = allegiancesFor(
+      run({ ashen_covenant: 46, gilded_hand: 12, pale_academy: -38, crownlands: -61, worm_below: 4 }, 10),
+      FACTIONS,
+    );
+    const extremes = extremeAllegiances(rows);
+    expect(extremes.map((r) => r.id)).toEqual(['ashen_covenant', 'crownlands']);
+  });
+
+  it('re-sorts the pair back into FACTION_ORDER, regardless of which is higher', () => {
+    // Crownlands (max) sits AFTER Ashen Covenant (min) in FACTION_ORDER —
+    // the returned pair must still read in that order, not max-then-min.
+    const rows = allegiancesFor(run({ ashen_covenant: -70, crownlands: 70 }, 10), FACTIONS);
+    const extremes = extremeAllegiances(rows);
+    expect(extremes.map((r) => r.id)).toEqual(['ashen_covenant', 'crownlands']);
+  });
+
+  it('never returns the same faction twice when every standing is tied', () => {
+    const rows = allegiancesFor(run(0, 10), FACTIONS);
+    const extremes = extremeAllegiances(rows);
+    expect(extremes).toHaveLength(2);
+    expect(extremes[0]!.id).not.toBe(extremes[1]!.id);
+    // Ties broken by FACTION_ORDER, same rule the engine's own tie-breaks use.
+    expect(extremes.map((r) => r.id)).toEqual(['ashen_covenant', 'gilded_hand']);
+  });
+
+  it('is a no-op for two factions or fewer', () => {
+    const rows = allegiancesFor(run({ ashen_covenant: 10 }, 10), FACTIONS.slice(0, 2));
+    expect(extremeAllegiances(rows)).toEqual(rows);
   });
 });

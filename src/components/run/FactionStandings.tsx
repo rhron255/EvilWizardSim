@@ -1,18 +1,38 @@
 /**
- * All six faction standings, with a readable note on each (issue #36).
+ * All six faction standings, with a readable note on each (issue #36),
+ * collapsed by default to the two most extreme rows (issue #36 follow-up).
  *
  * This used to be the Career tab's opening section, one tap away from the
  * choice cards. Removing the tab split (issue #36) means it now sits where
  * the tab controls themselves used to: directly below the masthead, above
- * the decision content, on the one screen that exists now.
+ * the decision content, on the one screen that exists now — which means all
+ * six rows compete with the choice cards for the same screen budget CLAUDE.md
+ * calls out as scarce on a phone. Showing only the best and worst standing by
+ * default, with the rest one tap away, keeps that promise the way the old
+ * Career tab used to, without bringing back a second screen.
  *
  * Standing was invisible in the run screen for a long time while being the
  * trigger for the second most common ending. It also moves by CONTAGION, so
  * it can be pushed to lethal by cards that never named the faction —
  * `allegiances.ts` has the full history.
+ *
+ * The per-row note is dropped while collapsed. `DecisionPanel`'s ambient
+ * threat line already names the same standing-driven consequence for
+ * whichever faction is actually closest to acting (`nextThreatFor`), so a
+ * second copy of that sentence sitting under one of only two visible rows
+ * read as repetition rather than disclosure. Expanding restores it: reading
+ * all six is exactly the "tell me everything" moment the note earns its
+ * space back for.
  */
 
-import { allegiancesFor, reprisalSentence, reprisalWarningFor } from './allegiances';
+import { useId, useState } from 'react';
+import {
+  allegiancesFor,
+  extremeAllegiances,
+  nextThreatFor,
+  reprisalSentence,
+  reprisalWarningFor,
+} from './allegiances';
 import type { Faction, RunState } from '../../types';
 import styles from './FactionStandings.module.css';
 
@@ -22,13 +42,35 @@ export type FactionStandingsProps = {
 };
 
 export function FactionStandings({ run, factions }: FactionStandingsProps) {
+  // Local state, not lifted: this component is mounted for the whole run now
+  // that there is no second tab to unmount it — see the doc comment `Ledger`
+  // used to carry for why that would once have mattered.
+  const [expanded, setExpanded] = useState(false);
+  const listId = useId();
+
   const allegiances = allegiancesFor(run, factions);
+  const extremes = extremeAllegiances(allegiances);
+  const shown = expanded ? allegiances : extremes;
+  const collapsible = allegiances.length > extremes.length;
+
+  // Both this alarm and `DecisionPanel`'s ambient `nextThreatFor` line are
+  // built on the SAME `reprisalStatus` computation for a given faction, so
+  // whenever they name the same one, `reprisalSentence` renders the exact
+  // same string for both — an armed reprisal is the common case for
+  // whichever faction sits nearest once every reprisal is live in the
+  // decline, so this was not a rare coincidence but the typical state (Codex
+  // review, PR #38). Suppressed here rather than in `DecisionPanel`, because
+  // the ambient line is unconditional by design (issue #18) and this alarm
+  // is the one gated on proximity — the gated line is the one with room to
+  // stand down when it would only repeat the other.
   const reprisal = reprisalWarningFor(run);
+  const threat = nextThreatFor(run);
+  const showReprisal = reprisal !== null && reprisal.factionId !== threat?.factionId;
 
   return (
     <section className={styles.section}>
-      <ul className={styles.allegiances} aria-label="Faction standing">
-        {allegiances.map((a) => (
+      <ul className={styles.allegiances} aria-label="Faction standing" id={listId}>
+        {shown.map((a) => (
           <li
             key={a.id}
             className={styles.allegiance}
@@ -52,18 +94,34 @@ export function FactionStandings({ run, factions }: FactionStandingsProps) {
                 />
               )}
             </span>
-            <span className={styles.allegianceNote}>{a.note}</span>
+            {expanded && <span className={styles.allegianceNote}>{a.note}</span>}
           </li>
         ))}
       </ul>
 
+      {collapsible && (
+        <button
+          type="button"
+          className={styles.toggle}
+          aria-expanded={expanded}
+          aria-controls={listId}
+          onClick={() => setExpanded((v) => !v)}
+        >
+          {expanded ? 'Show fewer factions' : 'Show all six factions'}
+          <span className={styles.toggleArrow} data-open={expanded ? 'true' : undefined} aria-hidden="true" />
+        </button>
+      )}
+
       {/* The alarm, not the ambient line — that lives in `DecisionPanel` as
-          `nextThreatFor`. This is the SAME computation with the proximity
-          gates layered on, so the two can never disagree about which faction
-          is closest. */}
-      {reprisal && (
-        <p className={styles.reprisal} data-armed={reprisal.armed ? 'true' : undefined}>
-          {reprisalSentence(reprisal)}
+          `nextThreatFor`. Unconditional on `expanded`: the one faction
+          closest to acting is worth a line even when it isn't one of the two
+          extremes shown above it (a faction can be closing in without yet
+          being the single highest or lowest standing on the board). Silent
+          when it would just repeat the ambient line verbatim — see
+          `showReprisal` above. */}
+      {showReprisal && (
+        <p className={styles.reprisal} data-armed={reprisal!.armed ? 'true' : undefined}>
+          {reprisalSentence(reprisal!)}
         </p>
       )}
     </section>
