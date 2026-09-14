@@ -2400,9 +2400,43 @@ function main(): void {
        * `good_wizard` are deliberately the two rarest routes in the game
        * (the former is the intersection of two other endings' own gates,
        * the latter needs two hidden counters no card ever mentions per
-       * CLAUDE.md rule 1's Good Wizard amendment) — every OTHER ending's own
-       * dedicated-cohort rate should sit above both, or one of them has
-       * quietly become rarer than the ending it is supposed to gate.
+       * CLAUDE.md rule 1's Good Wizard amendment) — every OTHER
+       * DEDICATED-COHORT ending's own rate should sit above both, or one of
+       * them has quietly become rarer than the ending it is supposed to gate.
+       *
+       * "Dedicated-cohort" is doing real work in that sentence, and the label
+       * below says so — it used to say "every other ending", which a P2 code
+       * review correctly flagged as broader than what `otherEndingRates`
+       * actually checks. It checks eleven endings, not the other fifteen.
+       * SIX are deliberately excluded, and not by oversight:
+       *
+       *   - `sealed_in_gem` has no seeker cohort at all — the Academy is the
+       *     one reprisal reachable by ordinary population play (see
+       *     `PARIAH_TARGETS`'s own comment), so there is no rate to compare.
+       *   - `ascension`, `consumed_by_pact` are chased by a POLICY inside
+       *     the population (`ascendant`, `reckless` — see
+       *     `ENDING_CHASE_ORDER`), not a held-out cohort that plays for
+       *     nothing else. `consumed_by_pact` even has its own population-
+       *     policy-cohort check further down ("Consumed by the pact, among
+       *     the reckless"), which is a DIFFERENT kind of number from the
+       *     eleven below: measured inside a run that is also being scored
+       *     on notoriety and survival, not a wizard with one goal. Folding
+       *     it in here would compare a seeker rate against a rate that was
+       *     never trying to be one.
+       *   - `slain_by_chosen_one`, `retired_to_swamp`, `betrayed_by_
+       *     apprentice` have no seeker cohort, dedicated or otherwise —
+       *     nobody in the population or its probes is optimising FOR the
+       *     hero, the swamp, or a mutiny; they are what is left over.
+       *
+       * Extending `otherEndingRates` to include these would not close a gap,
+       * it would introduce a false one: `ascension`'s population share
+       * (1.1-1.8%, wiki-authored) already overlaps `good_wizard`'s own
+       * seeker-rate noise band (1.1-1.9%) by design — two numbers with
+       * different provenance that were never meant to be ordered against
+       * each other. Comparing them would make this check fail for a reason
+       * that has nothing to do with Ashen Covenant, the Crownlands, or any
+       * dedicated seeker's experience, which is what this check exists to
+       * protect.
        *
        * Checked per-member against `min(otherRates)`, not against an
        * average of the eleven — a tier-average version was proposed and
@@ -2445,7 +2479,7 @@ function main(): void {
        * ending shows up as a zero that survives every seed — which is what
        * `contract_writer` looked like, and no longer does.
        */
-      'Rarity ordering: arch_lich < good_wizard < every other ending',
+      'Rarity ordering: arch_lich < good_wizard < every other dedicated-cohort ending',
       archLichRate < goodWizardRate && goodWizardRate < minOtherRate,
       // Leading space: this label already exceeds `pad`'s 48-column width
       // (like several others in this file), so `padLeft` below has nothing
@@ -2602,6 +2636,29 @@ function main(): void {
       rate: seekerRate(redeemed, 'arch_lich'),
     };
     seekers.lichdom = { cohort: 'lich', runs: lich.length, rate: seekerRate(lich, 'lichdom') };
+
+    /*
+     * `ascension` and `consumed_by_pact` are chased by a POLICY inside the
+     * population (`ascendant`, `reckless` — see `ENDING_CHASE_ORDER`), not a
+     * held-out cohort playing for nothing else, so they render as `—` in the
+     * balance comment without this: a P2 review correctly caught the gap.
+     * `consumed_by_pact`'s slice is the exact filter the "Consumed by the
+     * pact, among the reckless" target check already uses, reused rather
+     * than resampled; `ascension` has no existing check to match, but
+     * `ENDING_CHASE_ORDER` already treats `ascendant` as its nearest
+     * analogue, and this reuses that pairing rather than inventing a new one.
+     * Both are named for the POLICY, not a probe, in the `cohort` field —
+     * deliberately unlike `pariah_`/`courtier_` — because it is a slice of
+     * the same 2000-run population rather than a dedicated run at a fixed
+     * size, and the label should not imply otherwise.
+     */
+    for (const [endingId, policy] of [
+      ['ascension', 'ascendant'],
+      ['consumed_by_pact', 'reckless'],
+    ] as const) {
+      const cohort = results.filter((r) => r.policy === policy);
+      seekers[endingId] = { cohort: policy, runs: cohort.length, rate: seekerRate(cohort, endingId) };
+    }
 
     const population: Record<string, { n: number; share: number }> = {};
     for (const ending of content.endings) {
