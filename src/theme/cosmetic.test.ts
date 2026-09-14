@@ -141,7 +141,6 @@ describe('a seed plays the same under any theme', () => {
       runsCompleted: 4,
       bestNotoriety: 60,
       tutorialSeen: true,
-      tabsHintSeen: true,
       lastWizardName: 'Malvorn',
       selectedThemeId: 'default',
     };
@@ -164,7 +163,6 @@ describe('a seed plays the same under any theme', () => {
       runsCompleted: 0,
       bestNotoriety: 0,
       tutorialSeen: true,
-      tabsHintSeen: true,
       lastWizardName: '',
       selectedThemeId: 'default',
     };
@@ -181,7 +179,6 @@ describe('a seed plays the same under any theme', () => {
       runsCompleted: 0,
       bestNotoriety: 0,
       tutorialSeen: true,
-      tabsHintSeen: true,
       lastWizardName: '',
       selectedThemeId: 'default',
     };

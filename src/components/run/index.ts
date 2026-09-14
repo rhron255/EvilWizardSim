@@ -12,29 +12,17 @@ export type { OfferPanelProps } from './OfferPanel';
 export { NotorietyBadge } from './NotorietyBadge';
 export type { NotorietyBadgeProps } from './NotorietyBadge';
 
-export { Ledger } from './Ledger';
-export type { LedgerProps } from './Ledger';
-
-export { LedgerRow } from './LedgerRow';
-export type { LedgerRowProps } from './LedgerRow';
-
 export { Masthead } from './Masthead';
 export type { MastheadProps } from './Masthead';
 
-export { Tabs } from './Tabs';
-export type { TabItem, TabsProps } from './Tabs';
+export { FactionStandings } from './FactionStandings';
+export type { FactionStandingsProps } from './FactionStandings';
 
-export { DecisionTab } from './DecisionTab';
-export type { DecisionTabProps } from './DecisionTab';
-
-export { CareerTab } from './CareerTab';
-export type { CareerTabProps } from './CareerTab';
+export { DecisionPanel } from './DecisionPanel';
+export type { DecisionPanelProps } from './DecisionPanel';
 
 export { FirstRunGuide } from './FirstRunGuide';
 export type { FirstRunGuideProps } from './FirstRunGuide';
-
-export { TabsHint } from './TabsHint';
-export type { TabsHintProps } from './TabsHint';
 
 export { ResolutionOverlay } from './ResolutionOverlay';
 export type { ResolutionOverlayProps } from './ResolutionOverlay';

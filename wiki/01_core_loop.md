@@ -75,14 +75,18 @@ Rules:
   and, critically, an **empty trophy slot** for the run's unattainable
   prize, visible from the first era to the last.
 
-**Revised for issue #18.** This section originally called the ledger "always
-visible above the choice cards", on a single stacked screen. It no longer is:
-the run screen split into a Decision tab (the choice cards, plus the ambient
-stakes a player needs to choose) and a Career tab (the ledger, full faction
-standing, full stats), because the stacked layout pushed the cards themselves
-below the fold on a phone. The ledger's importance — append-only, the record
-that makes quitting expensive — is what the split preserves; the placement is
-what it gave up.
+**Revised for issue #18, then issue #36.** This section originally called the
+ledger "always visible above the choice cards", on a single stacked screen.
+Issue #18 split the run screen into a Decision tab (the choice cards, plus
+the ambient stakes a player needs to choose) and a Career tab (the ledger,
+full faction standing, full stats), because the stacked layout pushed the
+cards themselves below the fold on a phone. Issue #36 removed that split
+again and, with it, the ledger from the run UI entirely: the six faction
+standings moved to sit directly below the masthead instead, and the decision
+content renders below them on the one screen that exists now. The ledger as
+described above is no longer part of the run screen; `RunState.eras` still
+carries the same per-era record underneath, but nothing currently renders it
+as a table.
 
 ### 4. Ascent Phase
 

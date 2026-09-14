@@ -11,11 +11,11 @@ biography. It is built and playable.
 **Mobile is the target audience.** 393×852 (iPhone 14/15) is the reference
 device, not a breakpoint to degrade toward — if a change looks right at 1440px
 and cramped on a phone, it is wrong. Screen budget is the scarce resource there:
-the run screen is a masthead above a Decision | Career tablist (issue #18),
-and Decision holds the choice cards — so anything added to the masthead, or to
-Decision's own content above the cards, pushes the actual interaction further
-down the page. The ledger (rule 2) lives on Career now, one tap away rather
-than stacked above the cards on the same screen.
+the run screen is a masthead, the six faction standings, and the decision
+content, one continuous screen with no tabs (issue #36 removed the brief
+Decision | Career split issue #18 introduced, and the ledger along with it) —
+so anything added above the choice cards pushes the actual interaction
+further down the page.
 
 The reward structure is modelled on **ליגיונר** (legionnaire.xyz). `wiki/` holds
 the design rationale; `wiki/06_reference_analysis.md` explains *why* the
@@ -112,6 +112,15 @@ These come from a game that worked at scale. They look arbitrary in isolation.
 2. **The ledger appends and never resets.** The accumulating table is what makes
    abandoning a run expensive. Its Deeds column is the only prose in it — if
    rows start reading alike, the ledger has stopped saying anything.
+   *Amended for issue #36.* The ledger is no longer rendered anywhere in the
+   run UI — the tab it lived on (Career) is gone, and there is no second
+   screen for it to move to instead. The underlying data survives: every era
+   still writes a `deedSummary` onto `RunState.eras` (`src/engine/deeds.ts`),
+   because `scripts/simulate.ts` still measures deed-line repetition as a
+   balance signal even with no UI reading it. What is gone is only the
+   always-visible, append-only TABLE this rule was written to protect. If a
+   future change resurfaces a visible history of a run, the "rows must not
+   read alike" bar still applies to it.
 3. **One scarce colour, earned inside the run.** Near-monochrome warm dark; the
    Notoriety tier badge is the only chromatic reward *the game hands you during
    a career*. Adding a second accent to that vocabulary breaks the pillar.

@@ -93,7 +93,6 @@ export function emptyCollection(): Collection {
     runsCompleted: 0,
     bestNotoriety: 0,
     tutorialSeen: false,
-    tabsHintSeen: false,
     lastWizardName: '',
     selectedThemeId: DEFAULT_THEME_ID,
   };
@@ -131,11 +130,12 @@ function finiteNumber(value: unknown, fallback: number): number {
  * an input boundary: accepting a locked but known id here would let a
  * hand-edited save bypass the selector and wear a theme it has not unlocked.
  *
- * v3 -> v4 added `tabsHintSeen`. Unlike `tutorialSeen`'s migration, there is
- * no runsCompleted-based branch here: the swipe gesture it teaches did not
- * exist before this field did, so every save on disk — brand new or a
- * thousand runs deep — has equally never seen it. Absent means "never
- * shown", full stop.
+ * v3 -> v4 added `tabsHintSeen`, for a swipe-between-tabs gesture.
+ *
+ * v4 -> v5 removed `tabsHintSeen` (issue #36): the run screen dropped its
+ * tab split entirely, so there is no gesture left to teach. A v4 save
+ * carrying the field just has it dropped on the floor here, same as any
+ * other field a build no longer reads.
  */
 export function migrateCollection(raw: unknown): Collection {
   if (!raw || typeof raw !== 'object') return emptyCollection();
@@ -156,7 +156,6 @@ export function migrateCollection(raw: unknown): Collection {
     bestNotoriety: Math.max(0, Math.min(99, Math.round(finiteNumber(data.bestNotoriety, 0)))),
     tutorialSeen:
       typeof data.tutorialSeen === 'boolean' ? data.tutorialSeen : runsCompleted > 0,
-    tabsHintSeen: typeof data.tabsHintSeen === 'boolean' ? data.tabsHintSeen : false,
     // Added alongside `tutorialSeen` in the same unreleased v2, so no save in
     // the wild has ever been without it; absence just means "never named one".
     lastWizardName: typeof data.lastWizardName === 'string' ? data.lastWizardName.slice(0, 40) : '',
@@ -205,7 +204,6 @@ export function recordRun(c: Collection, run: RunState, content: ContentBundle):
     runsCompleted: c.runsCompleted + (run.ending ? 1 : 0),
     bestNotoriety: Math.max(c.bestNotoriety, peakNotoriety(run)),
     tutorialSeen: c.tutorialSeen,
-    tabsHintSeen: c.tabsHintSeen,
     // A finished career re-confirms the name, so the next creation screen
     // opens on the wizard the player actually played.
     lastWizardName: run.wizardName || c.lastWizardName,

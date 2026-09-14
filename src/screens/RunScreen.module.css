@@ -135,11 +135,10 @@
   padding: var(--ew-space-7) var(--ew-space-5) var(--ew-space-8);
 }
 
-/* Phone budget. The masthead sits above the tabs (issue #18), so the choice
-   cards — the Decision tab's own content — can only be pulled up the page by
-   the masthead costing less; the Career tab's ledger and standing detail no
-   longer compete with them for the same screen at all. This file owns the
-   masthead-to-tabs gap. */
+/* Phone budget. The masthead sits above the faction standings and decision
+   content (issue #36 collapsed what was once a Decision/Career tab split
+   into one screen), so the choice cards can only be pulled up the page by
+   everything above them costing less. This file owns the gaps between them. */
 @media (max-width: 700px) {
   .column {
     gap: var(--ew-space-3);

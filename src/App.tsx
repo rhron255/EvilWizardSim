@@ -124,15 +124,12 @@ export default function App() {
             onContinue={game.continueAfterResolution}
             defense={defense}
             themeId={themeId}
-            showTabsHint={game.showTabsHint}
-            onDismissTabsHint={game.dismissTabsHint}
           />
           {/* A sibling, not a screen: the guide opens with the masthead and
-              the Decision tab behind it, so both have to be mounted while it
-              is read. The ledger and the allegiance strip it also narrates
-              are one tap away on the Career tab (issue #18) rather than
-              visible on the same screen — the guide's copy describes the
-              mechanic, not a component the player is looking at. */}
+              the run screen's own content behind it, so both have to be
+              mounted while it is read. It sits as a modal scrim over that
+              content — the guide's copy describes the mechanic, not a
+              component the player is looking at. */}
           {game.showFirstRunGuide && <FirstRunGuide onDismiss={game.dismissFirstRunGuide} />}
         </>
       );

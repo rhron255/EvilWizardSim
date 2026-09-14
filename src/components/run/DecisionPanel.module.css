@@ -1,9 +1,9 @@
-/* The focused play surface. A plain stacked column — the grid-spanning tricks
+/* The decision content. A plain stacked column — the grid-spanning tricks
    in the old header existed because stats/allegiances/siege shared ONE grid
    with the identity block; here each section is its own block, so it does
    not need them. */
 
-.tab {
+.panel {
   display: flex;
   flex-direction: column;
   gap: var(--ew-space-3);

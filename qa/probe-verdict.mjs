@@ -24,8 +24,8 @@ for (const [scene, label] of [
   await page.waitForTimeout(1900);
 
   out[label] = await page.evaluate(() => {
-    // `[data-outcome]` also matches every ledger row, and the ledger comes
-    // first in the DOM — scope to the overlay.
+    // Scope to the overlay in case `[data-outcome]` ever matches more than
+    // one element on the page.
     const card = document.querySelector('[role="dialog"] [data-outcome]');
     const word = card.querySelector('p');
     const cs = getComputedStyle(word);

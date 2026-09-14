@@ -1,13 +1,14 @@
 /**
- * The focused play surface (issue #18) — everything a player needs to make
- * THIS era's choice, and nothing that only matters at the end of a life.
+ * The run screen's decision content (issue #18, reduced to a single screen by
+ * issue #36) — everything a player needs to make THIS era's choice.
  *
  * Ambient status first (who is nearest to acting against you, who you have
  * courted), then the compact resources, then the decline-only wards-vs-hero
- * comparison, then the offer itself. The six-faction detail, the armed
- * reprisal alarm and the complete ledger live one tap away on the Career tab
- * instead — this tab stays short on purpose, because the choice cards are the
- * point and everything above them is screen budget borrowed from that.
+ * comparison, then the offer itself. It renders directly below
+ * `FactionStandings` on `RunScreen` now — there is no second screen for any
+ * of this to live on instead, so this stays short on its own merits: the
+ * choice cards are the point and everything above them is screen budget
+ * borrowed from that.
  */
 
 import { useId, useState } from 'react';
@@ -16,9 +17,9 @@ import type { Artifact, Faction, Offer, RunState } from '../../types';
 import { nextThreatFor, patronFor, reprisalSentence } from './allegiances';
 import { lichSentence, siegeFor, stakesFor } from './stakes';
 import { OfferPanel } from './OfferPanel';
-import styles from './DecisionTab.module.css';
+import styles from './DecisionPanel.module.css';
 
-export type DecisionTabProps = {
+export type DecisionPanelProps = {
   run: RunState;
   factions: Faction[];
   offer: Offer | null;
@@ -28,7 +29,7 @@ export type DecisionTabProps = {
   defense?: DefenseReadout | null;
 };
 
-export function DecisionTab({
+export function DecisionPanel({
   run,
   factions,
   offer,
@@ -36,7 +37,7 @@ export function DecisionTab({
   disabled,
   onChoose,
   defense,
-}: DecisionTabProps) {
+}: DecisionPanelProps) {
   // Captions are tap-to-reveal on a phone (they cost ~200px) and always shown
   // from 720px up — same trade the header made, carried over unchanged.
   const [openStat, setOpenStat] = useState<string | null>(null);
@@ -49,12 +50,12 @@ export function DecisionTab({
   const siege = defense == null ? null : siegeFor(run, defense);
 
   return (
-    <div className={styles.tab}>
+    <div className={styles.panel}>
       <div className={styles.status}>
         {/* Unconditional — the ambient line the header's own reprisal warning
             never was. A player planning a career benefits from knowing who is
-            closest even while that faction is in good health; the Career
-            tab's armed warning stays the alarm that only speaks up close. */}
+            closest even while that faction is in good health; `FactionStandings`'
+            armed warning stays the alarm that only speaks up close. */}
         {threat && (
           <p className={styles.threat} data-armed={threat.armed ? 'true' : undefined}>
             {reprisalSentence(threat)}

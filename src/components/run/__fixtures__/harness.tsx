@@ -66,8 +66,8 @@ export function Harness() {
       }
     : base;
 
-  // Appending on continue is what exercises the row-append animation and the
-  // ledger's scroll-to-newest; the real orchestrator will do the same thing.
+  // Appending on continue exercises the same era-advance path the real
+  // orchestrator uses.
   function continueEra() {
     if (resolution) {
       const next = resolution.eraRecord;
@@ -110,8 +110,6 @@ export function Harness() {
       resolution={resolution}
       lairs={demoLairs}
       themeId="default"
-      showTabsHint={false}
-      onDismissTabsHint={() => {}}
       artifacts={demoArtifacts}
       factions={demoFactions}
       onChoose={choose}
