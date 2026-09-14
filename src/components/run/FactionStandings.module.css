@@ -131,3 +131,45 @@
 .reprisal[data-armed='true'] {
   color: var(--ew-danger);
 }
+
+/* --------------------------------------------------------------------------
+   The collapse toggle. Text-first (the arrow alone would fail a phone, which
+   has no hover to fall back on for an icon-only control) — the label says
+   what tapping it does, the arrow just echoes the direction.
+   -------------------------------------------------------------------------- */
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--ew-space-2);
+  align-self: flex-start;
+  margin: 0;
+  padding: 0;
+  font-size: var(--ew-size-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ew-ink-faint);
+  cursor: pointer;
+}
+
+.toggle:hover,
+.toggle:focus-visible {
+  color: var(--ew-ink-dim);
+}
+
+.toggleArrow {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  /* Chevron pointing down (collapsed — "there is more below"), rotated to
+     point up once expanded. Drawn from borders rather than a glyph so it
+     inherits `currentColor` and stays crisp at any zoom level. */
+  transform: rotate(45deg);
+  transition: transform var(--ew-fast) var(--ew-ease);
+}
+
+.toggleArrow[data-open='true'] {
+  transform: rotate(-135deg);
+}

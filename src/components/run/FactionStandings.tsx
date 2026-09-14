@@ -1,10 +1,15 @@
 /**
- * All six faction standings, with a readable note on each (issue #36).
+ * All six faction standings, with a readable note on each (issue #36),
+ * collapsed by default to the two most extreme rows (issue #36 follow-up).
  *
  * This used to be the Career tab's opening section, one tap away from the
  * choice cards. Removing the tab split (issue #36) means it now sits where
  * the tab controls themselves used to: directly below the masthead, above
- * the decision content, on the one screen that exists now.
+ * the decision content, on the one screen that exists now — which means all
+ * six rows compete with the choice cards for the same screen budget CLAUDE.md
+ * calls out as scarce on a phone. Showing only the best and worst standing by
+ * default, with the rest one tap away, keeps that promise the way the old
+ * Career tab used to, without bringing back a second screen.
  *
  * Standing was invisible in the run screen for a long time while being the
  * trigger for the second most common ending. It also moves by CONTAGION, so
@@ -12,7 +17,8 @@
  * `allegiances.ts` has the full history.
  */
 
-import { allegiancesFor, reprisalSentence, reprisalWarningFor } from './allegiances';
+import { useId, useState } from 'react';
+import { allegiancesFor, extremeAllegiances, reprisalSentence, reprisalWarningFor } from './allegiances';
 import type { Faction, RunState } from '../../types';
 import styles from './FactionStandings.module.css';
 
@@ -22,13 +28,22 @@ export type FactionStandingsProps = {
 };
 
 export function FactionStandings({ run, factions }: FactionStandingsProps) {
+  // Local state, not lifted: this component is mounted for the whole run now
+  // that there is no second tab to unmount it — see the doc comment `Ledger`
+  // used to carry for why that would once have mattered.
+  const [expanded, setExpanded] = useState(false);
+  const listId = useId();
+
   const allegiances = allegiancesFor(run, factions);
   const reprisal = reprisalWarningFor(run);
+  const extremes = extremeAllegiances(allegiances);
+  const shown = expanded ? allegiances : extremes;
+  const collapsible = allegiances.length > extremes.length;
 
   return (
     <section className={styles.section}>
-      <ul className={styles.allegiances} aria-label="Faction standing">
-        {allegiances.map((a) => (
+      <ul className={styles.allegiances} aria-label="Faction standing" id={listId}>
+        {shown.map((a) => (
           <li
             key={a.id}
             className={styles.allegiance}
@@ -57,10 +72,26 @@ export function FactionStandings({ run, factions }: FactionStandingsProps) {
         ))}
       </ul>
 
+      {collapsible && (
+        <button
+          type="button"
+          className={styles.toggle}
+          aria-expanded={expanded}
+          aria-controls={listId}
+          onClick={() => setExpanded((v) => !v)}
+        >
+          {expanded ? 'Show fewer factions' : 'Show all six factions'}
+          <span className={styles.toggleArrow} data-open={expanded ? 'true' : undefined} aria-hidden="true" />
+        </button>
+      )}
+
       {/* The alarm, not the ambient line — that lives in `DecisionPanel` as
           `nextThreatFor`. This is the SAME computation with the proximity
           gates layered on, so the two can never disagree about which faction
-          is closest. */}
+          is closest. Unconditional on `expanded`: the one faction closest to
+          acting is worth a line even when it isn't one of the two extremes
+          shown above it (a faction can be closing in without yet being the
+          single highest or lowest standing on the board). */}
       {reprisal && (
         <p className={styles.reprisal} data-armed={reprisal.armed ? 'true' : undefined}>
           {reprisalSentence(reprisal)}
