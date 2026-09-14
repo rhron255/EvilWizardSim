@@ -150,6 +150,39 @@ These come from a game that worked at scale. They look arbitrary in isolation.
    rather than reading ~40 runs out of the population, where one career moves
    a rate by two and a half points.
 
+## Styling conventions
+
+Concrete CSS/markup patterns worth reusing, as distinct from the load-bearing
+design pillars above — these are "how", not "why". Established while building
+the run screen's section layout (issue #36) and the faction-standings collapse
+that followed it.
+
+1. **Adjacent sections get a border, not just a gap.** A flex `gap` alone reads
+   as one undifferentiated block once a screen has more than one section
+   stacked on it. Close a section the way `Masthead`'s `.header` does —
+   `padding-bottom: var(--ew-space-4); border-bottom: 1px solid var(--ew-line);`
+   — so the eye can tell where one section ends and the next begins.
+   `FactionStandings.module.css`'s `.section` follows the same rule for
+   exactly this reason: it sits between the masthead and the decision content
+   and needs to read as its own thing, not a continuation of either.
+2. **A control the player must find at a glance needs visual weight of its
+   own.** `--ew-ink-faint` is the tone reserved for captions and labels — text
+   nobody is required to act on. A tappable control rendered in that same tone
+   reads as one more caption, not as an affordance, and gets missed. Give it a
+   border, a pill radius, and the brighter `--ew-ink` (with `--ew-ink-bright`
+   on hover/focus) instead of `--ew-ink-faint` — see `FactionStandings`'s
+   expand/collapse toggle for the pattern.
+3. **Don't restate a disclosure that's already on screen.** Rule 1 above
+   requires a threshold be shown *somewhere*; it does not require it printed
+   twice in the same view. If two elements on one screen state the same
+   standing/threshold/consequence, drop whichever copy is not the ambient
+   line for it — repetition where the player is already looking reads as
+   noise, not as extra safety. (`FactionStandings`'s collapsed rows drop their
+   own note text because `DecisionPanel`'s next-threat line already states it
+   for whichever faction is actually closest; the note comes back once
+   expanded, where reading all six is the point and nothing above is deputizing
+   for it any more.)
+
 ## Failure modes this repo has actually produced
 
 Every one of these shipped, typechecked cleanly, and was found by a player or by
