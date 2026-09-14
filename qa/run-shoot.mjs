@@ -1,4 +1,4 @@
-// Screenshot driver for the run-loop UI (ledger / offers / badge / overlay).
+// Screenshot driver for the run-loop UI (offers / badge / overlay).
 // Separate from qa/shoot.mjs, which belongs to the meta screens.
 // Usage: node qa/run-shoot.mjs [tag]
 import { chromium } from 'playwright';

@@ -1,8 +1,8 @@
 /**
- * The Decision tab (issue #18) — the focused play surface. Three things this
- * covers that `WizardHeader.test.tsx` never had to: the next-threat line is
- * now UNCONDITIONAL (it used to be an armed-only warning), the patron line is
- * new entirely, and both have to render alongside the offer without the
+ * The run screen's decision content (issue #18). Three things this covers
+ * that `WizardHeader.test.tsx` never had to: the next-threat line is now
+ * UNCONDITIONAL (it used to be an armed-only warning), the patron line is new
+ * entirely, and both have to render alongside the offer without the
  * disclosure guarantees the old header carried regressing.
  */
 import { describe, expect, it } from 'vitest';
@@ -12,7 +12,7 @@ import type { DefenseReadout } from '../../engine';
 import { DEF_LICH } from '../../engine';
 import type { Offer, RunState } from '../../types';
 import { demoArtifacts, demoEarlyRun, demoFactions, demoOffer, demoRun } from './__fixtures__/demo';
-import { DecisionTab } from './DecisionTab';
+import { DecisionPanel } from './DecisionPanel';
 
 const wards = (total: number): DefenseReadout => ({
   total,
@@ -31,7 +31,7 @@ const show = (
   disabled = false,
 ) =>
   render(
-    <DecisionTab
+    <DecisionPanel
       run={run}
       factions={demoFactions}
       offer={offer}
@@ -43,14 +43,14 @@ const show = (
   );
 
 // The compact resources' labels ("Followers", "Loyalty", "Pact Debt"…) are
-// not unique text on this tab any more — the offer's own effect chips print
-// the same words (`+22 Followers`). Every query here is scoped to the stats
+// not unique text on this panel — the offer's own effect chips print the
+// same words (`+22 Followers`). Every query here is scoped to the stats
 // `<dl>` itself rather than the whole document.
 const statsList = (container: HTMLElement) => container.querySelector('dl')!;
 const stat = (container: HTMLElement, label: string) =>
   within(statsList(container)).getByText(label).closest('div')!;
 
-describe('DecisionTab · disclosure', () => {
+describe('DecisionPanel · disclosure', () => {
   it('prints every stat that can end a run', () => {
     const { container } = show(demoRun);
     for (const label of ['Followers', 'Relics', 'Apprentices', 'Loyalty', 'Pact Debt']) {
@@ -72,7 +72,7 @@ describe('DecisionTab · disclosure', () => {
   });
 });
 
-describe('DecisionTab · the next-threat line', () => {
+describe('DecisionPanel · the next-threat line', () => {
   it('names whichever faction is closest to acting, unconditionally', () => {
     // demoRun: the Crownlands sit lowest (−61) in the decline at 81 Notoriety —
     // the same case WizardHeader's warning test used to pin.
@@ -104,7 +104,7 @@ describe('DecisionTab · the next-threat line', () => {
 
   /**
    * Reported from play: the Verdant Choir sat at −50 (5 points from ending
-   * the run) while the Decision tab named "The Academy is 75 from the gem" —
+   * the run) while this panel named "The Academy is 75 from the gem" —
    * the Academy is live in every phase, so a `'live'`-only scan reported it
    * as "the" threat while the far closer, not-yet-live Choir went completely
    * unmentioned. Fixed by scanning every faction by standing regardless of
@@ -134,7 +134,7 @@ describe('DecisionTab · the next-threat line', () => {
   });
 });
 
-describe('DecisionTab · the patron line', () => {
+describe('DecisionPanel · the patron line', () => {
   it('says "None yet" when no faction has cleared the devotion bar and margin', () => {
     // demoRun's highest standing (Ashen Covenant, 46) sits under
     // DEVOTION_STANDING (50).
@@ -161,7 +161,7 @@ describe('DecisionTab · the patron line', () => {
   });
 });
 
-describe('DecisionTab · the wards readout', () => {
+describe('DecisionPanel · the wards readout', () => {
   it('appears in the decline, where a hero exists to compare against', () => {
     show(demoRun, wards(120));
     expect(screen.getByText('Wards')).toBeInTheDocument();
@@ -179,7 +179,7 @@ describe('DecisionTab · the wards readout', () => {
   });
 });
 
-describe('DecisionTab · the lich says so', () => {
+describe('DecisionPanel · the lich says so', () => {
   it('states both things the rite changed, for as long as they are true', () => {
     const lich = { ...demoRun, isLich: true } as RunState;
     show(lich);
@@ -194,7 +194,7 @@ describe('DecisionTab · the lich says so', () => {
   });
 });
 
-describe('DecisionTab · the offer', () => {
+describe('DecisionPanel · the offer', () => {
   it('renders the offer and its choices', () => {
     show(demoRun);
     expect(screen.getByRole('heading', { name: demoOffer.title })).toBeInTheDocument();

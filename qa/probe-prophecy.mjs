@@ -20,7 +20,7 @@ await dismissFirstRunGuide(page);
 
 const OPTIONS = 'button[data-option-index]:not([disabled])';
 
-// The interstitial is the only screen with no ledger and no offer options.
+// The interstitial is the only screen with no offer options at all.
 const onInterstitial = async () => {
   const opts = await page.locator(OPTIONS).count().catch(() => 0);
   if (opts > 0) return false;

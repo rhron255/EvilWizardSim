@@ -11,11 +11,12 @@
  *
  * Issue #18 shrank `<header>` to just the masthead — identity and the
  * Notoriety badge/trophy. The stats and allegiance strip this probe used to
- * measure inside it now live in the Decision/Career tabpanels below the
- * header instead, so they are out of `bands`' scope entirely rather than
- * silently absent from it; the first-card check at the bottom (the actual
- * acceptance criterion) is unaffected either way, since it scans the whole
- * page rather than `<header>` specifically.
+ * measure inside it now live below the header instead (issue #36 collapsed
+ * what was briefly a Decision/Career tab split back into one screen), so they
+ * are out of `bands`' scope entirely rather than silently absent from it; the
+ * first-card check at the bottom (the actual acceptance criterion) is
+ * unaffected either way, since it scans the whole page rather than `<header>`
+ * specifically.
  */
 import { chromium } from 'playwright';
 import { dismissFirstRunGuide } from './first-run.mjs';
