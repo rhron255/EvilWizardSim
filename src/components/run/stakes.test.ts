@@ -166,7 +166,7 @@ describe('the hero rail', () => {
  * The caption credits whatever is actually holding the hero off.
  *
  * It used to hardcode the lair, which was right for most runs and wrong for
- * the one that matters most: a lich's `Undeath` is worth 60, more than the
+ * the one that matters most: a lich's `Undeath` is worth 90, more than the
  * entire ten-rung lair ladder, and the caption went on crediting a lair that
  * might be worth 8. Taking the rite is the biggest defensive swing in the
  * game and the readout said nothing about it — `DEF_LICH` was disclosed

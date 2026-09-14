@@ -34,6 +34,21 @@
  *
  * The mirror of this is what the leadership half of issue #14 needs — the same
  * table read up the page — so this measures both directions.
+ *
+ * ## What it was then used to fix
+ *
+ * The `haters` and `spill*` columns turned out to be the lever, not the `own`
+ * column everyone reaches for first. `liquidated` was the rarest ending in the
+ * game because the Hand had ONE hater; giving it a second (the Ashen Covenant,
+ * in `src/content/factions.ts`) moved its up/down 0.95 -> 0.70 and its ending
+ * 1.0-2.0% -> 2.5-5.0% without authoring a single new card.
+ *
+ * Read the table in BOTH directions when you use it. A faction's haters are
+ * the routes DOWN that its own reprisal needs; a faction's `hostileTo` is the
+ * collateral its own COURTIER inflicts, and pointing that at a fragile faction
+ * makes its crown unreachable — which is what `contract_writer` was. Neither
+ * column is visible from the other, and this probe only prints the first, so
+ * check `factions.ts` for the second before concluding anything.
  */
 import { factions, offers } from '../src/content';
 import { CONTAGION_GAIN, CONTAGION_LOSS } from '../src/engine/constants';

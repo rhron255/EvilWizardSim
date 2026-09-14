@@ -37,7 +37,7 @@ constraints below exist, and is the thing to read before relaxing any of them.
 | `src/components/run/` | The run loop: ledger, offer panel, notoriety badge. |
 | `src/components/meta/` | Set-piece parts: lair grid, artifact grid, sigil. |
 | `src/screens/` | Screen composition. |
-| `scripts/` | `validate-content.ts`, `simulate.ts` (balance harness). |
+| `scripts/` | `validate-content.ts`, `simulate.ts` (balance harness), `balance-report.ts` (renders the PR comment). |
 | `qa/` | Playwright probes. Screenshots are gitignored. |
 | `wiki/` | Design intent and rationale. |
 
@@ -52,6 +52,15 @@ npm run lint             # eslint, zero warnings tolerated
 npm run validate:content # faction refs, option counts, disclosed effects
 npm run sim              # 2000-run balance report; --fixtures for engine-only
 ```
+
+CI posts the balance numbers on every PR as one comment that updates in place
+(`.github/workflows/ci.yml` → `balance`). It runs `simulate.ts --report-json`
+over five seeds on the branch and on its merge base, and
+`scripts/balance-report.ts` renders the diff. Two things it deliberately does
+NOT do: gate the merge (the sim has disclosed standing FAILs, so blocking on it
+would invite someone to relax a band to get green), and report a movement
+smaller than the spread the seeds themselves show (a two-career swing on a
+200-run cohort is not a signal — it reads `±noise`).
 
 **The gate is all four of `typecheck`, `test`, `lint`, `validate:content`.**
 Balance changes additionally need `npm run sim`. Visual changes need a real

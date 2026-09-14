@@ -221,8 +221,9 @@ export const pactOffers: Offer[] = [
         effects: [
           { t: 'standing', factionId: 'ashen_covenant', v: -10 },
           { t: 'followers', v: -15 },
+          { t: 'notoriety', v: 10 },
         ],
-        resultText: 'It waits until dawn, folds the chair, and takes fifteen of your household as a gesture.',
+        resultText: 'It waits until dawn, folds the chair, and takes fifteen of your household as a gesture. By morning the whole province has heard that you did not sit.',
       },
     ],
   },
@@ -284,8 +285,11 @@ export const pactOffers: Offer[] = [
       {
         kind: 'certain',
         label: 'Decline the schedule',
-        effects: [{ t: 'standing', factionId: 'ashen_covenant', v: -12 }],
-        resultText: 'The clerk marks it declined, which takes some time, and does it in front of you.',
+        effects: [
+          { t: 'standing', factionId: 'ashen_covenant', v: -12 },
+          { t: 'notoriety', v: 8 },
+        ],
+        resultText: 'The clerk marks it declined, which takes some time, and does it in front of you, and in front of the queue behind you.',
       },
     ],
   },
@@ -427,8 +431,11 @@ export const pactOffers: Offer[] = [
       {
         kind: 'certain',
         label: 'Bar the reliquary door',
-        effects: [{ t: 'standing', factionId: 'ashen_covenant', v: -15 }],
-        resultText: 'The door holds. The ledger, being a ledger, is patient about doors.',
+        effects: [
+          { t: 'standing', factionId: 'ashen_covenant', v: -15 },
+          { t: 'notoriety', v: 10 },
+        ],
+        resultText: 'The door holds, and the street outside learns why it was tested.',
       },
     ],
   },
@@ -511,9 +518,9 @@ export const pactOffers: Offer[] = [
         label: 'Decline, and keep what you owe',
         effects: [
           { t: 'standing', factionId: 'ashen_covenant', v: -8 },
-          { t: 'notoriety', v: -4 },
+          { t: 'notoriety', v: 8 },
         ],
-        resultText: 'You decline in daylight, politely, and the visits resume that winter.',
+        resultText: 'You decline in daylight, politely, in front of everyone the offer was meant to impress, and the visits resume that winter.',
       },
     ],
   },

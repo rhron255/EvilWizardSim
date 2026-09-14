@@ -7,7 +7,14 @@
  *
  *   npx tsx scripts/simulate.ts [--runs 2000] [--seed 1] [--eras <RUN_LENGTHS>]
  *                               [--policy random|safe|greedy|adaptive|courtier|lich]
- *                               [--fixtures] [--json]
+ *                               [--fixtures] [--json] [--report-json <path>]
+ *
+ * `--json` prints the population distribution and stops, for cheap slice-to-
+ * slice diffing. `--report-json <path>` is the other one: it writes the WHOLE
+ * report — population shares, every dedicated cohort's seeker rate, and each
+ * target check — to a file after the normal run, and `scripts/balance-report.ts`
+ * turns a set of those into the PR comment. Both columns travel together on
+ * purpose; see the comment on the writer at the bottom of this file.
  *
  * IT PLAYS THE REAL CATALOG BY DEFAULT. A harness that reports on
  * `src/engine/__fixtures__/content.ts` while the player plays `src/content/`
@@ -31,6 +38,7 @@ import type {
   RunState,
   TierId,
 } from '../src/types';
+import { writeFileSync } from 'node:fs';
 import type { ContentBundle } from '../src/engine';
 import { TIERS, tierFor } from '../src/theme/tokens';
 import { ascensionReady, createRun, defenseOf, nextOffer, resolveChoice } from '../src/engine';
@@ -162,6 +170,40 @@ type Policy =
   | 'redeemed'
   | PariahPolicy
   | CourtierPolicy;
+
+/**
+ * Priority order for "which ending should a completionist chase next" —
+ * rarest known ending first, using the SAME dedicated-seeker mapping the
+ * probes below already rely on (`reprisalProbe`, `leadershipProbe`,
+ * `saintProbe`, `lichProbe`, `redeemedProbe`). An ending with `undefined` here
+ * has no dedicated seeker because ordinary play already reaches it often
+ * enough that no cohort in this file has ever needed one (the three generic
+ * age/threat/loyalty outcomes, and the Pale Academy's reprisal — see
+ * `PARIAH_TARGETS`'s own doc comment for why the Academy is excluded from
+ * that list). `completionProbe` below falls back to the population mix for
+ * those.
+ */
+const ENDING_CHASE_ORDER: ReadonlyArray<readonly [EndingId, Policy | undefined]> = [
+  ['arch_lich', 'redeemed'],
+  ['lichdom', 'lich'],
+  ['consumed', 'pariah_worm_below'],
+  ['exiled_and_overrun', 'pariah_crownlands'],
+  ['turned_to_fertilizer', 'pariah_verdant_choir'],
+  ['liquidated', 'pariah_gilded_hand'],
+  ['eternally_repurposed', 'pariah_ashen_covenant'],
+  ['good_wizard', 'saint'],
+  ['overthrown_the_kingdom', 'courtier_crownlands'],
+  ['archdruid', 'courtier_verdant_choir'],
+  ['archmage', 'courtier_pale_academy'],
+  ['grand_arbiter', 'courtier_gilded_hand'],
+  ['contract_writer', 'courtier_ashen_covenant'],
+  ['ascension', 'ascendant'],
+  ['consumed_by_pact', 'reckless'],
+  ['sealed_in_gem', undefined],
+  ['slain_by_chosen_one', undefined],
+  ['betrayed_by_apprentice', undefined],
+  ['retired_to_swamp', undefined],
+];
 
 /**
  * Population mix — an attempt at a realistic spread of how people actually
@@ -768,18 +810,32 @@ function chooseOption(policy: Policy, run: RunState, offer: Offer, roll: number)
     // after. The weight is high on purpose: this models the self-imposed
     // single-faction run that wiki/06 identifies as real player behaviour,
     // not a player who merely likes the Worm slightly more than average.
-    // `redeemed` courts the same way, but ONLY through the ascent — it needs
-    // the SAME rite `lich` does, and the boost's job is getting standing past
-    // the rite's gate before decline starts, not keeping it there afterward.
-    // Measured: applying it unconditionally, the way `lich` does, drowned out
-    // `saint`'s goodAct weight (20 per unit) on every offer that also moved
-    // Worm standing — a 200-run cohort took the rite in 11 runs and averaged
-    // 0.15 goodActs, `virtue_resolution_the_quiet_ledger` never once seen.
-    // Once the ascent is over the rite is either already taken (`becomeLich`
-    // and `ending: lichdom` are separately worth +40 in `scoreEffects`, which
-    // is incentive enough on its own) or the run failed to qualify and is a
-    // saint from here — either way, decline is `saint`'s job alone.
-    if (policy === 'lich' || (policy === 'redeemed' && run.phase === 'ascent')) {
+    // `redeemed` courts the same way, but the boost's job is getting standing
+    // past the rite's gate, not keeping it there afterward — so it turns off
+    // the moment `DEVOTION_STANDING` is cleared OR the rite is taken,
+    // whichever phase either happens in.
+    //
+    // Applying it at full `LICH_DEVOTION` for the WHOLE run, the way `lich`
+    // does, was tried first (issue #25) and drowned out `saint`'s goodAct
+    // weight (20 per unit) on every offer that also moved Worm standing — a
+    // 200-run cohort took the rite in 11 runs and averaged 0.15 goodActs,
+    // `virtue_resolution_the_quiet_ledger` never once seen. Cutting it off at
+    // the ascent/decline boundary fixed that, but a `redeemed` wizard who only
+    // builds standing during the ascent often clears the gate too close to
+    // decline's start to leave the weight-6 `scripted_the_long_arrangement`
+    // enough remaining eras to actually be drawn. Letting the boost survive
+    // into decline UNTIL the gate itself closes (rather than until the phase
+    // changes) buys back most of that: MEASURED, `redeemed` 10,000-run
+    // cohort, the rite-taken rate went 3.41% -> ~5.4% with no measurable
+    // change to `virtue_resolution_the_quiet_ledger`'s own reachability,
+    // because it drops to zero the instant the gate is cleared, same as it
+    // always did once the rite itself was taken.
+    if (
+      policy === 'lich' ||
+      (policy === 'redeemed' &&
+        !run.isLich &&
+        (run.factionStanding.worm_below ?? 0) < DEVOTION_STANDING)
+    ) {
       score += wormAffinity(option) * LICH_DEVOTION;
     }
     // The mirror of the line above: one faction, hard, in the other direction.
@@ -1178,16 +1234,33 @@ function leadershipProbe(baseSeed: number): Map<FactionId, RunResult[]> {
 }
 
 /**
- * The Good Wizard's own 200-run cohort probe (issue #23) — the mirror of
+ * The Good Wizard's own cohort probe (issue #23) — the mirror of
  * `reprisalProbe`/`leadershipProbe` for the same reason: one obscure route,
  * measured on a sample built of the player who actually wants it, kept OUT of
  * `POPULATION` so it cannot distort the headline numbers the way the pariah
  * and courtier cohorts were found to.
+ *
+ * `SAINT_PROBE_RUNS`, not `PROBE_RUNS` — raised from 200 (issue #25's
+ * `arch_lich` fix). `good_wizard`'s own rate inside this cohort is ~1.5%, an
+ * expected count of ~3 at 200: thin enough to flicker on its own, and it had
+ * been quietly propped up by `redeemedProbe`'s incidental non-lich-vowed
+ * runs, which used to outnumber this cohort's own good_wizard count several
+ * times over. Making `redeemed` a more committed Worm-courter to fix
+ * `arch_lich` converts a share of THAT pool from `good_wizard` into
+ * `arch_lich` (the same wizard, further along the same route), which dropped
+ * `redeemedProbe`'s backstop out from under `good_wizard` and produced a real
+ * 18/19 miss on "Every authored ending occurs" at seed 5 — not a flake, a
+ * dependency this file had never named. 1,000 raises the expected count to
+ * ~15, the same "order of magnitude clear of flicker" bar `lichdom` and
+ * `arch_lich`'s own dedicated cohorts were fitted to, on its own, without
+ * relying on what any OTHER probe happens to also produce.
  */
+const SAINT_PROBE_RUNS = 1000;
+
 function saintProbe(baseSeed: number): RunResult[] {
   const rng = mulberry32((baseSeed ^ 0x600d1dea) + 1);
   const runs: RunResult[] = [];
-  for (let i = 0; i < PROBE_RUNS; i++) {
+  for (let i = 0; i < SAINT_PROBE_RUNS; i++) {
     runs.push(playRun(baseSeed + 583_637 + i * 5303, pickEraCount(rng()), 'saint'));
   }
   return runs;
@@ -1230,12 +1303,26 @@ function lichProbe(baseSeed: number): RunResult[] {
  * because the branch was unreachable, but because nothing in the population
  * OR the other probes was a player who wanted it, which is exactly the
  * instrument failure CLAUDE.md's failure mode 5 describes.
+ *
+ * Unlike every other probe, this one forces the Long run length rather than
+ * sampling `ERA_LENGTH_WEIGHTS`. `arch_lich` needs two scripted, decline-only
+ * cards to both be drawn AND taken on the same career, and drawing either is
+ * a per-era roll against whatever else is in the decline pool — so how many
+ * decline eras a career gets is not incidental to this probe the way it is to
+ * the others. A real player deliberately chasing the rarest ending in the
+ * game would not leave that up to `pickEraCount`'s 25/50/25 split; they would
+ * pick Long every time, since length "controls length, never difficulty"
+ * (`RUN_LENGTHS`'s own doc comment) and costs the player nothing. Sampling
+ * era length the same way the population does was measuring a seeker who
+ * plays like everyone else in the one respect that costs nothing to fix —
+ * CLAUDE.md failure mode 5's instrument-not-the-game shape. MEASURED: forcing
+ * Long alone (before any constant changed) moved the rite-and-vowed-on-the-
+ * same-career count from 9/10,000 to 45/10,000 at the old `DEF_LICH`.
  */
 function redeemedProbe(baseSeed: number): RunResult[] {
-  const rng = mulberry32((baseSeed ^ 0xa1c4e5ed) + 1);
   const runs: RunResult[] = [];
   for (let i = 0; i < REDEEMED_PROBE_RUNS; i++) {
-    runs.push(playRun(baseSeed + 428_951 + i * 3877, pickEraCount(rng()), 'redeemed'));
+    runs.push(playRun(baseSeed + 428_951 + i * 3877, RUN_LENGTHS[RUN_LENGTHS.length - 1], 'redeemed'));
   }
   return runs;
 }
@@ -1301,6 +1388,113 @@ function collectionCurve(baseSeed: number, players: number, cap: number): Collec
     medianRunsToHalf: median(toHalf),
     medianRunsToFull: median(toFull),
     barrenRunRate: barren / Math.max(1, runsPlayed),
+  };
+}
+
+/**
+ * Cohort size for `completionProbe`. Each "player" is up to `COMPLETION_CAP`
+ * whole runs, so this is far more expensive per player than
+ * `collectionCurve`'s — sized down accordingly, the same tradeoff
+ * `collectionCurve` itself makes (120 players, not 2000). Override via env
+ * for local tuning, the same convention as `LICH_DEVOTION` etc.
+ */
+const COMPLETION_PLAYERS = Number(process.env.COMPLETION_PLAYERS ?? 150);
+/**
+ * Twice the target band's ceiling, so a miss still reports a real number
+ * instead of every player reading `>cap`.
+ */
+const COMPLETION_CAP = Number(process.env.COMPLETION_CAP ?? 2000);
+
+type CompletionCurve = {
+  players: number;
+  cap: number;
+  endingsTotal: number;
+  slots: number;
+  /** Runs until BOTH checklists are empty, one entry per simulated player. `cap + 1` means "not within cap". */
+  runsToComplete: number[];
+  medianRunsToComplete: number;
+  /**
+   * Mean of `runsToComplete`, sentinels included. Unlike the median and the
+   * p90 — order statistics that either land clear of every sentinel or land
+   * exactly ON `cap + 1`, so a display layer can tell the two cases apart by
+   * comparing against `cap` — the arithmetic mean blends real completion
+   * times with `cap + 1` placeholders the instant even ONE player is
+   * censored, producing a precise-looking number that is neither the true
+   * mean nor visibly a sentinel. So this field is only an exact mean when
+   * `censoredCount === 0`; otherwise every censored player's TRUE time is
+   * unknown but at least `cap + 1`, which makes this a valid LOWER BOUND on
+   * the true mean, never the mean itself. Report it as one — see the `>`
+   * prefix in `main`'s FULL COMPLETION section.
+   */
+  meanRunsToComplete: number;
+  p90RunsToComplete: number;
+  /** How many of `runsToComplete` are the `cap + 1` sentinel, not a real completion time. */
+  censoredCount: number;
+};
+
+/**
+ * One continuous meta-progression per simulated player (issue #33): the
+ * player is free to re-target strategy after each acquisition, chasing
+ * whatever's still missing from BOTH the ending checklist and
+ * `content.artifacts`, until both are empty. `collectionCurve` answers the
+ * artifact half of this in isolation; this reuses its exact "fold each run
+ * into a persistent set" mechanic and adds the ending half plus the adaptive
+ * policy switch, because the two checklists are not independent — most
+ * endings and artifacts arrive as SIDE EFFECTS of whichever policy the player
+ * is currently running for the other reason, so summing each item's isolated
+ * expected-wait overstates the true total-to-100%.
+ */
+function completionProbe(baseSeed: number, players: number, cap: number): CompletionCurve {
+  const allEndingIds = new Set(ALL_ENDING_IDS);
+  const slots = content.artifacts.length;
+  const runsToComplete: number[] = [];
+
+  for (let p = 0; p < players; p++) {
+    const rng = mulberry32((baseSeed + p * 104729) ^ 0xc0de5eed);
+    const ownedArtifacts = new Set<string>();
+    const seenEndings = new Set<EndingId>();
+    let doneAt = cap + 1;
+
+    for (let n = 1; n <= cap; n++) {
+      const target = ENDING_CHASE_ORDER.find(
+        ([id]) => allEndingIds.has(id) && !seenEndings.has(id),
+      );
+      const policy: Policy = target ? (target[1] ?? pickPolicy(rng())) : pickPolicy(rng());
+      // `redeemed`'s own probe forces Long for the same reason (arch_lich
+      // needs two decline-only scripted cards on the same career, and era
+      // length costs a real seeker nothing to maximise) — see
+      // `redeemedProbe`'s doc comment.
+      const eraCount =
+        policy === 'redeemed' ? RUN_LENGTHS[RUN_LENGTHS.length - 1] : pickEraCount(rng());
+      const result = playRun(
+        baseSeed + p * 104729 + n * 7919,
+        eraCount,
+        policy,
+        Array.from(ownedArtifacts),
+      );
+
+      seenEndings.add(result.ending);
+      for (const id of result.discoveredIds) ownedArtifacts.add(id);
+
+      if (seenEndings.size >= allEndingIds.size && ownedArtifacts.size >= slots) {
+        doneAt = n;
+        break;
+      }
+    }
+
+    runsToComplete.push(doneAt);
+  }
+
+  return {
+    players,
+    cap,
+    endingsTotal: allEndingIds.size,
+    slots,
+    runsToComplete,
+    medianRunsToComplete: median(runsToComplete),
+    meanRunsToComplete: mean(runsToComplete),
+    p90RunsToComplete: percentile(runsToComplete, 0.9),
+    censoredCount: runsToComplete.filter((v) => v > cap).length,
   };
 }
 
@@ -1383,6 +1577,18 @@ function median(xs: number[]): number {
   const sorted = xs.slice().sort((a, b) => a - b);
   const mid = sorted.length >> 1;
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+/**
+ * `p` in [0, 1]. Nearest-rank, not interpolated — this file's other
+ * distribution readouts (`median`) don't interpolate either, and a tail stat
+ * only needs to say roughly where the slow players land.
+ */
+function percentile(xs: number[], p: number): number {
+  if (xs.length === 0) return 0;
+  const sorted = xs.slice().sort((a, b) => a - b);
+  const idx = Math.min(sorted.length - 1, Math.floor(p * sorted.length));
+  return sorted[idx];
 }
 
 function rule(width = 66): string {
@@ -1485,6 +1691,7 @@ function main(): void {
   const leadership = leadershipProbe(baseSeed);
   const saint = saintProbe(baseSeed);
   const lich = lichProbe(baseSeed);
+  const completion = completionProbe(baseSeed ^ 0xc0111ec7, COMPLETION_PLAYERS, COMPLETION_CAP);
   const redeemed = redeemedProbe(baseSeed);
 
   /** Every career the harness played, for the reachability check only. */
@@ -1786,7 +1993,7 @@ function main(): void {
   // WITHOUT a target — this route has no wiki-authored band, only the
   // reachability rule 6 asks for (issue #23).
   console.log(rule());
-  console.log(`  GOOD WIZARD  (${PROBE_RUNS}-run cohort probe, then the population)`);
+  console.log(`  GOOD WIZARD  (${SAINT_PROBE_RUNS}-run cohort probe, then the population)`);
   console.log(
     `${pad('  ', 20)}${padLeft('cohort', 8)}${padLeft('good', 7)}${padLeft('ill', 6)}${padLeft(`>=rep(${GOOD_WIZARD_REPUTATION_GOOD})`, 12)}${padLeft(`>=res(${GOOD_WIZARD_RESOLUTION_GOOD})`, 12)}${padLeft('resolution', 12)}${padLeft('ending', 9)}${padLeft('pop', 8)}`,
   );
@@ -1901,6 +2108,39 @@ function main(): void {
   const repeatRate = repeatedDeeds / Math.max(1, allDeeds.length);
   const notorietyConjunct = results.filter((r) => r.metNotorietyConjunct).length / total;
   const legendaryConjunct = results.filter((r) => r.metLegendaryConjunct).length / total;
+  /*
+   * Feeds the "Rarity ordering" check below (issue #32). `otherRates` reuses
+   * the exact counts the FACTION REPRISALS, FACTION LEADERSHIP, and LICHDOM
+   * ending report sections already compute — the five `reprisalProbe`
+   * cohorts, the five `leadershipProbe` cohorts, and `lichProbe`'s own
+   * `lichdom` rate — rather than resampling any of them.
+   */
+  const archLichRate =
+    redeemed.length > 0
+      ? redeemed.filter((r) => r.ending === 'arch_lich').length / redeemed.length
+      : 0;
+  const goodWizardRate =
+    saint.length > 0 ? saint.filter((r) => r.ending === 'good_wizard').length / saint.length : 0;
+  const otherEndingRates: Array<[EndingId, number]> = [
+    ...PARIAH_TARGETS.map((faction): [EndingId, number] => {
+      const cohort = probe.get(faction) ?? [];
+      const endingId = REPRISAL_BY_FACTION[faction];
+      const rate =
+        cohort.length > 0 ? cohort.filter((r) => r.ending === endingId).length / cohort.length : 0;
+      return [endingId, rate];
+    }),
+    ...COURTIER_TARGETS.map((faction): [EndingId, number] => {
+      const cohort = leadership.get(faction) ?? [];
+      const endingId = LEADERSHIP_BY_FACTION[faction];
+      const rate =
+        cohort.length > 0 ? cohort.filter((r) => r.ending === endingId).length / cohort.length : 0;
+      return [endingId, rate];
+    }),
+    ['lichdom', lich.length > 0 ? lich.filter((r) => r.ending === 'lichdom').length / lich.length : 0],
+  ];
+  const [minOtherEndingName, minOtherRate] = otherEndingRates.reduce((min, cur) =>
+    cur[1] < min[1] ? cur : min,
+  );
   const checks: Array<[string, boolean, string]> = [
     [
       /*
@@ -2128,6 +2368,154 @@ function main(): void {
       pct(lichSeekerLichdoms, lichSeekerRuns),
     ],
     [
+      /*
+       * `arch_lich`'s own band — there was none before this. It shipped with
+       * no target check at all (unlike `lichdom`, which got one after issue
+       * #24's flicker), and drifted to 0.03% of `redeemed`'s dedicated
+       * cohort — an expected wait of ~3,300 careers, two orders of magnitude
+       * past every other ending — before anyone was checking. `DEF_LICH`'s
+       * doc comment in `constants.ts` has the fix and the measurement.
+       *
+       * PROVENANCE: none in the wiki, same as `lichdom`'s own band — this one
+       * traces to a design conversation about completion time (not an issue
+       * number), which asked for the rarest ending to be findable by a
+       * dedicated seeker inside roughly a thousand careers rather than
+       * several thousand. 0.1-1.0% means an expected wait of 100-1,000
+       * careers; seeds 1-5 land at 0.19-0.33%, comfortably inside with
+       * headroom on both sides rather than pinned to the edge that produced
+       * `lichdom`'s original flicker.
+       */
+      'Arch-Lich reachable by a redeemed-seeker (0.1-1.0% of that cohort)',
+      (() => {
+        const rate = redeemed.filter((r) => r.ending === 'arch_lich').length / redeemed.length;
+        return rate >= 0.001 && rate <= 0.01;
+      })(),
+      pct(redeemed.filter((r) => r.ending === 'arch_lich').length, redeemed.length),
+    ],
+    [
+      /*
+       * PROVENANCE: not the wiki — a design conversation confirmed with the
+       * user (issue #32), narrowed to just this piece after the Ashen
+       * Covenant follow-up below it got deferred. `arch_lich` and
+       * `good_wizard` are deliberately the two rarest routes in the game
+       * (the former is the intersection of two other endings' own gates,
+       * the latter needs two hidden counters no card ever mentions per
+       * CLAUDE.md rule 1's Good Wizard amendment) — every OTHER
+       * DEDICATED-COHORT ending's own rate should sit above both, or one of
+       * them has quietly become rarer than the ending it is supposed to gate.
+       *
+       * "Dedicated-cohort" is doing real work in that sentence, and the label
+       * below says so — it used to say "every other ending", which a P2 code
+       * review correctly flagged as broader than what `otherEndingRates`
+       * actually checks. It checks eleven endings, not the other fifteen.
+       * SIX are deliberately excluded, and not by oversight:
+       *
+       *   - `sealed_in_gem` has no seeker cohort at all — the Academy is the
+       *     one reprisal reachable by ordinary population play (see
+       *     `PARIAH_TARGETS`'s own comment), so there is no rate to compare.
+       *   - `ascension`, `consumed_by_pact` are chased by a POLICY inside
+       *     the population (`ascendant`, `reckless` — see
+       *     `ENDING_CHASE_ORDER`), not a held-out cohort that plays for
+       *     nothing else. `consumed_by_pact` even has its own population-
+       *     policy-cohort check further down ("Consumed by the pact, among
+       *     the reckless"), which is a DIFFERENT kind of number from the
+       *     eleven below: measured inside a run that is also being scored
+       *     on notoriety and survival, not a wizard with one goal. Folding
+       *     it in here would compare a seeker rate against a rate that was
+       *     never trying to be one.
+       *   - `slain_by_chosen_one`, `retired_to_swamp`, `betrayed_by_
+       *     apprentice` have no seeker cohort, dedicated or otherwise —
+       *     nobody in the population or its probes is optimising FOR the
+       *     hero, the swamp, or a mutiny; they are what is left over.
+       *
+       * Extending `otherEndingRates` to include these would not close a gap,
+       * it would introduce a false one: `ascension`'s population share
+       * (1.1-1.8%, wiki-authored) already overlaps `good_wizard`'s own
+       * seeker-rate noise band (1.1-1.9%) by design — two numbers with
+       * different provenance that were never meant to be ordered against
+       * each other. Comparing them would make this check fail for a reason
+       * that has nothing to do with Ashen Covenant, the Crownlands, or any
+       * dedicated seeker's experience, which is what this check exists to
+       * protect.
+       *
+       * Checked per-member against `min(otherRates)`, not against an
+       * average of the eleven — a tier-average version was proposed and
+       * explicitly rejected in that conversation, because an average lets
+       * one cohort (here, Ashen Covenant's) hide under the other ten.
+       *
+       * `otherRates` reuses the exact counts the FACTION REPRISALS, FACTION
+       * LEADERSHIP, and LICHDOM ending sections above already compute —
+       * the five `reprisalProbe` cohorts, the five `leadershipProbe`
+       * cohorts, and `lichProbe`'s own `lichdom` rate — rather than
+       * resampling any of them.
+       *
+       * The three endings this check was written red against are now fixed,
+       * and it PASSES on some seeds and fails on others by a hair. What
+       * changed, all of it in the faction hostility graph rather than in any
+       * card (see `src/content/factions.ts`'s header for the argument and
+       * `qa/probe-standing-routes.ts` for the instrument):
+       *
+       *   `eternally_repurposed`  0.50%      -> 1.0-4.5%
+       *   `contract_writer`       0.50-1.00% -> 2.5-4.5%
+       *   `liquidated`            1.00-2.00% -> 2.5-5.0%
+       *
+       * It still fails on roughly half of seeds, and the reason is now
+       * SAMPLING rather than a broken ending. At `PROBE_RUNS` = 200 a true
+       * ~1.5% cohort rate has an expected count of 3, so the minimum of
+       * eleven such rates is dominated by whichever cohort got unlucky:
+       * seeds 1-4 above put it on `eternally_repurposed` (1.00%),
+       * `archdruid` (1.00-2.00%) and `overthrown_the_kingdom` (1.00-1.50%)
+       * in turn, and `good_wizard` itself moves 1.10-1.60% across the same
+       * seeds on a 1000-run cohort. Two rates three runs apart are not
+       * ordered by anything but luck.
+       *
+       * So do NOT chase whichever ending holds `min(otherRates)` on the seed
+       * in front of you — that is CLAUDE.md failure mode 5 with extra steps,
+       * and it will send you to a different faction every time. The way to
+       * make this check mean something is issue #32's own remaining half:
+       * grow `reprisalProbe`/`leadershipProbe` past 200 runs so the minimum
+       * stops moving between unrelated factions from seed to seed. Until
+       * then, read the per-cohort tables above, where a genuinely dead
+       * ending shows up as a zero that survives every seed — which is what
+       * `contract_writer` looked like, and no longer does.
+       */
+      'Rarity ordering: arch_lich < good_wizard < every other dedicated-cohort ending',
+      archLichRate < goodWizardRate && goodWizardRate < minOtherRate,
+      // Leading space: this label already exceeds `pad`'s 48-column width
+      // (like several others in this file), so `padLeft` below has nothing
+      // to add — without it, the label runs straight into the value with no
+      // separator at all.
+      ` arch_lich ${(archLichRate * 100).toFixed(2)}% < good_wizard ${(goodWizardRate * 100).toFixed(2)}% < ${minOtherEndingName} ${(minOtherRate * 100).toFixed(2)}%`,
+    ],
+    [
+      /*
+       * PROVENANCE: not the wiki — a design conversation confirmed with the
+       * user (issue #33's own text, quoted verbatim): "for each ending &
+       * artifact, while changing strategy after acquiring each ending, the
+       * game takes less than a thousand runs to finish." That is: one
+       * continuous meta-progression across all `completion.endingsTotal`
+       * endings and all `completion.slots` artifacts, free to re-target
+       * after each acquisition — measured by `completionProbe`, not summed
+       * from the isolated per-ending probes above (their isolated
+       * expected-waits are not additive; see `completionProbe`'s own doc
+       * comment for why).
+       *
+       * `medianRunsToComplete <= completion.cap` is not redundant with the
+       * `< 1000` half. When `COMPLETION_CAP` is overridden below 999 (the
+       * same env-override convention as `LICH_DEVOTION` etc., for cheaper
+       * local runs) and at least half the cohort never finishes,
+       * `medianRunsToComplete` IS the `cap + 1` sentinel — e.g. `cap=500`
+       * reports `501`, which still satisfies `< 1000` and would otherwise
+       * mark a mostly-censored cohort as passing the target it never
+       * actually measured.
+       */
+      'Full completion (every ending + every artifact) in under 1000 runs (median)',
+      completion.medianRunsToComplete <= completion.cap && completion.medianRunsToComplete < 1000,
+      completion.medianRunsToComplete > completion.cap
+        ? `>${completion.cap}`
+        : String(completion.medianRunsToComplete),
+    ],
+    [
       // PROVENANCE: wiki/01 § 8 specifies "a grid of lairs held, one card
       // each" as the ending card's centrepiece; a grid of one is not a grid.
       // The 3-5 BAND is not authored anywhere — it is the range that fills
@@ -2162,6 +2550,25 @@ function main(): void {
   row('median runs to the full grid', capped(curve.medianRunsToFull));
   row('runs that add nothing new', `${(curve.barrenRunRate * 100).toFixed(1)}%`);
 
+  // --- full completion, one continuous meta-progression -------------------
+  console.log('');
+  console.log(
+    `FULL COMPLETION  (${completion.players} players, ${completion.endingsTotal} endings + ${completion.slots} artifacts, cap ${completion.cap} runs)`,
+  );
+  console.log(rule());
+  const completionCapped = (v: number) => (v > completion.cap ? `>${completion.cap}` : String(v));
+  row('median runs to full completion', completionCapped(completion.medianRunsToComplete));
+  // A censored player contributes `cap + 1` to the sum, not their (unknown,
+  // larger) true completion time, so the mean is a LOWER BOUND whenever any
+  // player is censored — never an exact figure. See `CompletionCurve.
+  // meanRunsToComplete`'s doc comment for why this differs from the median/
+  // p90 handling above.
+  row(
+    'mean runs to full completion',
+    `${completion.censoredCount > 0 ? '>' : ''}${completion.meanRunsToComplete.toFixed(1)}`,
+  );
+  row('p90 runs to full completion', completionCapped(completion.p90RunsToComplete));
+
   console.log('');
   console.log('TARGET CHECKS');
   console.log(rule());
@@ -2173,6 +2580,112 @@ function main(): void {
   console.log(rule());
   console.log(allPass ? 'All balance targets met.' : 'One or more balance targets missed.');
   console.log('');
+
+  /*
+   * `--report-json <path>`: the same numbers this report just printed, in a
+   * shape something else can diff.
+   *
+   * NOT the same thing as `--json`, and deliberately not folded into it. That
+   * flag returns before the cohort probes are built, because its job is
+   * diffing population distributions cheaply; this one runs last and needs
+   * every probe, so merging them would silently make `--json` pay for a
+   * thousand extra runs (its own comment says so).
+   *
+   * Writes to a FILE rather than stdout so the human report above stays
+   * readable when both are wanted — which is the CI case, where the log is
+   * what a person opens when the comment says something surprising.
+   *
+   * The seeker rates are the point. A population share answers "how often
+   * does this happen to somebody who is not trying", and for the eleven
+   * cohort-shaped endings that number is near zero BY CONSTRUCTION — the
+   * dedicated cohorts are kept out of the population on purpose (see
+   * `POPULATION`). Reporting only the population column would recreate
+   * CLAUDE.md failure mode 5 in a new place: a reader would conclude an
+   * ending is dead when it is merely unmeasured. Both columns, always.
+   */
+  const reportPath = arg('report-json', '');
+  if (reportPath) {
+    const seekerRate = (cohort: RunResult[], ending: EndingId) =>
+      cohort.length > 0 ? cohort.filter((r) => r.ending === ending).length / cohort.length : 0;
+
+    const seekers: Record<string, { cohort: string; runs: number; rate: number }> = {};
+    for (const faction of PARIAH_TARGETS) {
+      const cohort = probe.get(faction) ?? [];
+      seekers[REPRISAL_BY_FACTION[faction]] = {
+        cohort: `pariah_${faction}`,
+        runs: cohort.length,
+        rate: seekerRate(cohort, REPRISAL_BY_FACTION[faction]),
+      };
+    }
+    for (const faction of COURTIER_TARGETS) {
+      const cohort = leadership.get(faction) ?? [];
+      seekers[LEADERSHIP_BY_FACTION[faction]] = {
+        cohort: `courtier_${faction}`,
+        runs: cohort.length,
+        rate: seekerRate(cohort, LEADERSHIP_BY_FACTION[faction]),
+      };
+    }
+    seekers.good_wizard = {
+      cohort: 'saint',
+      runs: saint.length,
+      rate: seekerRate(saint, 'good_wizard'),
+    };
+    seekers.arch_lich = {
+      cohort: 'redeemed',
+      runs: redeemed.length,
+      rate: seekerRate(redeemed, 'arch_lich'),
+    };
+    seekers.lichdom = { cohort: 'lich', runs: lich.length, rate: seekerRate(lich, 'lichdom') };
+
+    /*
+     * `ascension` and `consumed_by_pact` are chased by a POLICY inside the
+     * population (`ascendant`, `reckless` — see `ENDING_CHASE_ORDER`), not a
+     * held-out cohort playing for nothing else, so they render as `—` in the
+     * balance comment without this: a P2 review correctly caught the gap.
+     * `consumed_by_pact`'s slice is the exact filter the "Consumed by the
+     * pact, among the reckless" target check already uses, reused rather
+     * than resampled; `ascension` has no existing check to match, but
+     * `ENDING_CHASE_ORDER` already treats `ascendant` as its nearest
+     * analogue, and this reuses that pairing rather than inventing a new one.
+     * Both are named for the POLICY, not a probe, in the `cohort` field —
+     * deliberately unlike `pariah_`/`courtier_` — because it is a slice of
+     * the same 2000-run population rather than a dedicated run at a fixed
+     * size, and the label should not imply otherwise.
+     */
+    for (const [endingId, policy] of [
+      ['ascension', 'ascendant'],
+      ['consumed_by_pact', 'reckless'],
+    ] as const) {
+      const cohort = results.filter((r) => r.policy === policy);
+      seekers[endingId] = { cohort: policy, runs: cohort.length, rate: seekerRate(cohort, endingId) };
+    }
+
+    const population: Record<string, { n: number; share: number }> = {};
+    for (const ending of content.endings) {
+      const n = byEnding.get(ending.id) ?? 0;
+      population[ending.id] = { n, share: total > 0 ? n / total : 0 };
+    }
+
+    writeFileSync(
+      reportPath,
+      `${JSON.stringify(
+        {
+          seed: baseSeed,
+          runs: total,
+          // So a reader of the aggregated output can tell whether the
+          // completion figures in `checks` were actually measured or were
+          // run at a token player count to keep CI inside its budget.
+          completionPlayers: COMPLETION_PLAYERS,
+          completionCap: COMPLETION_CAP,
+          population,
+          seekers,
+          checks: checks.map(([label, pass, value]) => ({ label, pass, value })),
+        },
+        null,
+        2,
+      )}\n`,
+    );
+  }
 }
 
 main();
