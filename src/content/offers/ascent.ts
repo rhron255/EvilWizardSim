@@ -1689,7 +1689,7 @@ export const ascentOffers: Offer[] = [
 
   {
     id: 'ascent_rumour_from_the_capital',
-    title: 'A Rumour From The Capital',
+    title: 'A Rumour from the Capital',
     body: 'Something is being said in the capital temples about a child, a sword, and a date. The date is not soon. It is, however, a date.',
     phase: 'ascent',
     weight: 1,

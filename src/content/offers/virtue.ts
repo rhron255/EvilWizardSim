@@ -285,8 +285,8 @@ const VIRTUE_OBSCURE: Offer[] = [
 const VIRTUE_REPUTATION: Offer[] = [
   {
     id: 'virtue_reputation_rumor',
-    title: 'A Kinder Rumor',
-    body: 'The story going around the market square has, somehow, gotten gentler than the facts. Nobody seems in a hurry to correct it.',
+    title: 'A Kinder Rumour',
+    body: 'The story going around the market square has, somehow, grown gentler than the facts. Nobody seems in a hurry to correct it.',
     phase: 'any',
     scripted: true,
     requires: [
@@ -297,7 +297,7 @@ const VIRTUE_REPUTATION: Offer[] = [
     options: [
       {
         kind: 'certain',
-        label: 'Let the rumor stand',
+        label: 'Let the rumour stand',
         effects: [
           { t: 'goodAct', v: 1 },
           { t: 'heroThreat', v: -2 },
@@ -312,7 +312,7 @@ const VIRTUE_REPUTATION: Offer[] = [
           { t: 'notoriety', v: 5 },
           { t: 'heroThreat', v: 4 },
         ],
-        resultText: 'The correction is memorable. The rumor does not survive the afternoon.',
+        resultText: 'The correction is memorable. The rumour does not survive the afternoon.',
       },
     ],
   },
