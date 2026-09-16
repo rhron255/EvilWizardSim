@@ -112,7 +112,12 @@
   .statButton::after {
     content: '';
     position: absolute;
-    inset: -6px -8px;
+    /* Row-gap is --ew-space-2 (8px), column-gap is --ew-space-3 (12px) on
+       this breakpoint's .stats grid. Each inset value extends the tap
+       target by at most half its axis's gap, so two adjacent buttons'
+       extended hit areas meet at the gap's midpoint instead of overlapping
+       (issue #50): vertical 4px + 4px = 8px, horizontal 6px + 6px = 12px. */
+    inset: -4px -6px;
   }
 }
 
