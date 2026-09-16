@@ -604,14 +604,6 @@
   padding-top: var(--ew-space-1);
 }
 
-.deed {
-  margin: 0;
-  min-width: 0;
-  font-size: var(--ew-size-xs);
-  color: var(--ew-ink-ghost);
-  line-height: 1.45;
-}
-
 .continue {
   flex: 0 0 auto;
   display: inline-flex;
