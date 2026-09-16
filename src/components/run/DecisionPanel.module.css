@@ -75,7 +75,13 @@
 @media (max-width: 719px) {
   .stats {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--ew-space-2) var(--ew-space-3);
+    /* Row/column gap widened from --ew-space-2/--ew-space-3 (issue #50's
+       first pass) to --ew-space-3/--ew-space-4 so `.statButton::after` can
+       keep its full -6px/-8px extension — the amount `FactionStandings`'s
+       `.toggle::after` comment documents as needed to clear the ~44px phone
+       touch-target floor — without two adjacent buttons' hit areas
+       overlapping. */
+    gap: var(--ew-space-3) var(--ew-space-4);
   }
 
   .statLabel {
@@ -112,12 +118,14 @@
   .statButton::after {
     content: '';
     position: absolute;
-    /* Row-gap is --ew-space-2 (8px), column-gap is --ew-space-3 (12px) on
+    /* Row-gap is --ew-space-3 (12px), column-gap is --ew-space-4 (16px) on
        this breakpoint's .stats grid. Each inset value extends the tap
-       target by at most half its axis's gap, so two adjacent buttons'
+       target by exactly half its axis's gap, so two adjacent buttons'
        extended hit areas meet at the gap's midpoint instead of overlapping
-       (issue #50): vertical 4px + 4px = 8px, horizontal 6px + 6px = 12px. */
-    inset: -4px -6px;
+       (issue #50) while keeping the full extension (vertical 6px, horizontal
+       8px) that brings each button up to the ~44px touch-target floor:
+       vertical 6px + 6px = 12px, horizontal 8px + 8px = 16px. */
+    inset: -6px -8px;
   }
 }
 
