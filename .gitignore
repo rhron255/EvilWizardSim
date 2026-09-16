@@ -9,3 +9,4 @@ qa/screenshots
 *.tsbuildinfo
 .tmp/
 .tmp-*
+.claude/worktrees/
