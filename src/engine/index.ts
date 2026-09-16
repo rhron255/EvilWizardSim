@@ -19,7 +19,6 @@ export {
   buildOfferPool,
   standingWeight,
   pactWeight,
-  hasCertainOption,
   QUIET_ERA_OFFER,
 } from './offers';
 export {
@@ -38,7 +37,6 @@ export { projectedEpithet } from './epithets';
 export {
   checkEndings,
   ascensionReady,
-  legendariesHeld,
   FACTION_ORDER,
   REPRISAL_BY_FACTION,
   nearestReprisalFaction,
