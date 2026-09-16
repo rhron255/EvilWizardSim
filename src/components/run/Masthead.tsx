@@ -1,12 +1,15 @@
 /**
  * Who this is happening to, and the prize it is not happening to.
  *
- * The one piece of the run screen visible above BOTH tabs (issue #18) — era,
- * lair, name, epithet, age, undeath, the Notoriety badge, the Ascension slot.
- * Everything that used to share this header with it (stats, standing, the
- * reprisal warning, the wards readout) now lives inside the Decision or
- * Career tabpanel instead, because none of it is identity: it is what has
- * happened to this wizard, not who they are.
+ * The top identity block of the run screen — era, lair, name, epithet, age,
+ * undeath, the Notoriety badge, the Ascension slot. Issue #18 first split
+ * this out as the one piece visible above both a Decision and a Career tab;
+ * issue #36 removed that split, so there is no longer a tab for it to sit
+ * above — it is simply the header of one continuous screen. Stats, standing,
+ * the reprisal warning and the wards readout render in the sections below it
+ * on that same screen (`FactionStandings`, the decision content), because
+ * none of it is identity: it is what has happened to this wizard, not who
+ * they are.
  *
  * Two deliberate omissions, carried over unchanged from the header this
  * replaces:
