@@ -31,11 +31,15 @@
  *      because the sampler excludes offers already seen. Two consecutive rows
  *      can therefore only match if the player genuinely repeated an action.
  *   3. It reads as one complete, finishable line, never a mid-word fragment.
- *      No UI renders this text any more (issue #36 removed the ledger table
- *      this rule was originally written for), but every era still writes it
- *      to `deedSummary` — the value `scripts/simulate.ts` reads for its
- *      repetition signal — so the content still exists and still deserves to
- *      read cleanly, even with nothing on screen to show it.
+ *      The same string still renders once, on the resolution card the player
+ *      sees right after the choice (`resolveChoice` assigns it to both
+ *      `resolution.text`, which `ResolutionOverlay` prints, and
+ *      `eraRecord.deedSummary`). What issue #36 removed is only the
+ *      persistent, append-only ledger TABLE that used to re-display every
+ *      era's line together afterward — `deedSummary` now has no UI that
+ *      revisits it once its era has passed, but `scripts/simulate.ts` still
+ *      reads it for its repetition signal, so it still deserves to read
+ *      cleanly even though nothing lets a player scroll back through it.
  *   4. The offer title is not repeated back by the option label. "Sanctuary —
  *      take sanctuary." is one word doing two jobs; see `echoes`.
  */
@@ -46,11 +50,14 @@ import type { Offer, OfferOption, Outcome } from '../types';
  * Budget for a SYNTHESIZED line only; authored lines are exempt — an author
  * who writes a long one meant it. This is no longer about fitting a table
  * cell — issue #36 removed the ledger UI (`LedgerRow` included) that this
- * comment used to justify the budget by. `deedSummary` still gets written
- * every era with no UI left to render it (CLAUDE.md's amendment to rule 2),
- * and `scripts/simulate.ts` still reads it for a repetition signal, so a
+ * comment used to justify the budget by. The same line still renders once,
+ * on the resolution card right after the choice (see rule 3 above), and it
+ * is also written every era to `deedSummary`, which now has no UI left to
+ * revisit it once its era has passed (CLAUDE.md's amendment to rule 2) but
+ * which `scripts/simulate.ts` still reads for a repetition signal. Either
+ * way — seen once on the card, or read back only by the harness — a
  * synthesized fallback line still deserves to read as one finished sentence
- * rather than a mid-word fragment, even though nothing on screen shows it.
+ * rather than a mid-word fragment.
  *
  * A playtest report of a mid-word clip in that now-removed ledger table ("The
  * ivy was the outer part. Th…") once prompted a proposal to extend this same
