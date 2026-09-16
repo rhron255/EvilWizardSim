@@ -10,7 +10,8 @@
  *      faction knowledge into routing decisions. So faction is the primary
  *      organising axis, not rarity.
  *
- * The endings get the same treatment: seven slots, three of them probably blank.
+ * The endings get the same treatment: nineteen slots, most of them probably
+ * blank.
  */
 
 import { useMemo, useState } from 'react';
@@ -27,9 +28,11 @@ import {
 import styles from './CollectionScreen.module.css';
 
 /**
- * Spells out small counts for prose ("Seven ways…"). The catalog is on its
- * way to eighteen endings (issue #14), so this covers up to twenty rather
- * than hardcoding the seven it happens to be today.
+ * Spells out small counts for prose ("Nineteen ways…"). The catalog has
+ * already grown past the seven this array was first written for — issue
+ * #14's six faction reprisals, four more faction leaderships, and the Good
+ * Wizard route's two put it at nineteen endings today — so this covers up to
+ * twenty rather than hardcoding a count that keeps moving.
  */
 const COUNT_WORDS = [
   'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',

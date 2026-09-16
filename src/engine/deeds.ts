@@ -30,8 +30,12 @@
  *   2. A line is derived from the option LABEL, which differs from era to era
  *      because the sampler excludes offers already seen. Two consecutive rows
  *      can therefore only match if the player genuinely repeated an action.
- *   3. It fits a table cell. `LedgerRow` clips with an ellipsis, but a column
- *      that is always clipped is a column nobody reads.
+ *   3. It reads as one complete, finishable line, never a mid-word fragment.
+ *      No UI renders this text any more (issue #36 removed the ledger table
+ *      this rule was originally written for), but every era still writes it
+ *      to `deedSummary` — the value `scripts/simulate.ts` reads for its
+ *      repetition signal — so the content still exists and still deserves to
+ *      read cleanly, even with nothing on screen to show it.
  *   4. The offer title is not repeated back by the option label. "Sanctuary —
  *      take sanctuary." is one word doing two jobs; see `echoes`.
  */
@@ -39,19 +43,24 @@
 import type { Offer, OfferOption, Outcome } from '../types';
 
 /**
- * Budget for a synthesized line. `LedgerRow` clips at whatever the column is
- * wide, so this is about the line being *finishable*, not about pixels.
- * Authored lines are exempt — an author who writes a long one meant it.
+ * Budget for a SYNTHESIZED line only; authored lines are exempt — an author
+ * who writes a long one meant it. This is no longer about fitting a table
+ * cell — issue #36 removed the ledger UI (`LedgerRow` included) that this
+ * comment used to justify the budget by. `deedSummary` still gets written
+ * every era with no UI left to render it (CLAUDE.md's amendment to rule 2),
+ * and `scripts/simulate.ts` still reads it for a repetition signal, so a
+ * synthesized fallback line still deserves to read as one finished sentence
+ * rather than a mid-word fragment, even though nothing on screen shows it.
  *
- * A playtest report of a mid-word clip ("The ivy was the outer part. Th…")
- * prompted extending this budget to authored prose. MEASURED FIRST: 86.2% of
- * the 196 authored deed lines in the catalog are longer than 46 characters,
- * median 72. Applying the budget to them would abridge five deed lines in six —
- * gutting rule 2's "only prose in the ledger" to fix its presentation. The clip
- * is a genuine cost of fitting ~72 characters into a phone-width cell, and it
- * is mitigated where it can be: `LedgerRow` carries the full line in `title`.
- * Changing it needs a ledger LAYOUT answer or shorter authored prose, not a
- * truncation rule here.
+ * A playtest report of a mid-word clip in that now-removed ledger table ("The
+ * ivy was the outer part. Th…") once prompted a proposal to extend this same
+ * budget to authored prose too. MEASURED FIRST: 86.2% of the 196 authored
+ * deed lines in the catalog are longer than 46 characters, median 72 —
+ * truncating them would have abridged five deed lines in six, gutting rule
+ * 2's "only prose in the ledger" to fix a table-cell presentation problem
+ * that no longer exists. That measurement is why the exemption above stands:
+ * changing this number needs a reason tied to the content itself, not a
+ * layout complaint about a component this file no longer describes.
  */
 export const DEED_MAX_LENGTH = 46;
 

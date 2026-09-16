@@ -38,10 +38,13 @@ const fail = (where: string, msg: string) => problems.push(`${where}: ${msg}`);
 const warn = (where: string, msg: string) => warnings.push(`${where}: ${msg}`);
 
 /**
- * Above this, an outcome line will be ellipsised in the ledger's Deeds cell.
- * A warning, never a failure — the register the shipped lines are written in
- * runs past it on purpose, and the full text is reachable on the resolution
- * card and on hover. This exists so that is a decision, not a surprise.
+ * Above this, an outcome line is long for `deedSummary` — the field
+ * `scripts/simulate.ts` reads as its deed-line repetition signal (no UI
+ * renders it any more; issue #36 removed the ledger table it once fed). A
+ * warning, never a failure — the register the shipped lines are written in
+ * runs past it on purpose, and the resolution card prints the option's full
+ * text regardless of this budget. This exists so that is a decision, not a
+ * surprise.
  */
 const DEED_CLIP_WARN = 90;
 
@@ -232,9 +235,11 @@ function checkOption(where: string, option: OfferOption) {
   if (!option.successText.trim()) fail(where, 'gamble has an empty successText');
   if (!option.failureText.trim()) fail(where, 'gamble has an empty failureText');
 
-  // Not a failure: the resolution card prints these in full and `LedgerRow`
-  // keeps the whole line in a `title`, so a long one is legible in both
-  // places. It is the Deeds CELL that clips, and the author should know.
+  // Not a failure: the resolution card prints these in full regardless of
+  // length, and it is `deedSummary` — the field `scripts/simulate.ts`
+  // measures for repetition — that this text becomes. No UI clips it any
+  // more (issue #36 removed the ledger table this warning used to describe);
+  // it exists only to flag the author that their line is running long.
   for (const [field, text] of [
     ['successText', option.successText],
     ['failureText', option.failureText],

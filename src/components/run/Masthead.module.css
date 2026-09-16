@@ -1,5 +1,7 @@
 /* Identity first, always. Everything below happens to this name — literally,
-   now: the Decision and Career tabpanels render underneath this header. */
+   now: the faction standings and decision content render underneath this
+   header, on the same continuous run screen (issue #36 removed the tab
+   split this comment once described). */
 
 .header {
   display: grid;
