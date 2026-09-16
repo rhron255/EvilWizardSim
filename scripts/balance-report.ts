@@ -59,7 +59,7 @@ function load(dir: string): Report[] {
     .sort((a, b) => a.seed - b.seed);
 }
 
-type Band = { mean: number; min: number; max: number };
+export type Band = { mean: number; min: number; max: number };
 
 const band = (xs: number[]): Band => ({
   mean: xs.reduce((a, b) => a + b, 0) / xs.length,
@@ -94,10 +94,10 @@ function cell(b: Band | undefined): string {
  * says it more quietly than a row of `±noise` badges, which turned out to be
  * the loudest thing in the table while carrying the least information.
  */
-function delta(head: Band | undefined, base: Band | undefined): string {
+export function delta(head: Band | undefined, base: Band | undefined): string {
   if (!head || !base) return '';
   const d = head.mean - base.mean;
-  const noise = Math.max(base.max - base.min, MIN_MOVE);
+  const noise = Math.max(base.max - base.min, head.max - head.min, MIN_MOVE);
   if (Math.abs(d) <= noise) return '';
   // Fixed precision, NOT scaled to magnitude like the cells: deltas are read
   // against each other down the column, and `+1.00` beside `+2.7` reads as a
@@ -266,4 +266,6 @@ function main() {
   else console.log(md);
 }
 
-main();
+// Guarded so a test can import this module's exports (`delta`, `Band`)
+// without `main()` running and throwing on the missing `--head` arg.
+if (import.meta.url === `file://${process.argv[1]}`) main();

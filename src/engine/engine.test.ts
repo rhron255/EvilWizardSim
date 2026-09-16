@@ -259,6 +259,18 @@ describe('faction standing', () => {
     expect(run.factionStanding.ashen_covenant).toBe(100);
     expect(run.factionStanding.pale_academy).toBe(before);
   });
+
+  it('spills an equal-magnitude gain and loss by an equal magnitude', () => {
+    // Regression for issue #45: applying the sign before rounding put the
+    // rounding bias only on one side of zero. A +2 (at CONTAGION_GAIN=0.5)
+    // and a -2 (at CONTAGION_LOSS=0.25) both land exactly on a .5 tie, so
+    // the old code rounded the enemy penalty up to -1 but the ally benefit
+    // down to 0. Both must now round to the same magnitude, 1.
+    const gain = deltas('ashen_covenant', 2);
+    const loss = deltas('ashen_covenant', -2);
+    expect(gain.pale_academy).toBe(-1);
+    expect(loss.pale_academy).toBe(1);
+  });
 });
 
 describe('lichdom', () => {

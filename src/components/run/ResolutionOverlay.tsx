@@ -76,7 +76,9 @@ export function ResolutionOverlay({
   const cardTier = tierCrossed ?? tierFor(notoriety);
 
   return (
-    // Dismiss anywhere. The button below carries the keyboard affordance.
+    // Dismiss on the scrim (the margin around the card) or the Continue
+    // button below, which also carries the keyboard affordance. The card
+    // body itself does not dismiss — see the stopPropagation note on it.
     <div
       className={styles.scrim}
       onClick={onContinue}
@@ -87,6 +89,14 @@ export function ResolutionOverlay({
       <div
         className={styles.card}
         data-outcome={outcome}
+        /* Issue #47: with the ledger gone (#36), this card is the only place
+           an era's systemic ticks are ever shown. A tap anywhere on its body
+           — including mid-read of "While you were elsewhere" — used to bubble
+           to the scrim and dismiss the whole overlay before it could be read,
+           with no way to bring it back. Stopping it here keeps dismiss-anywhere
+           on the scrim's own margin and the explicit Continue button, and
+           nowhere else. */
+        onClick={(event) => event.stopPropagation()}
         /* Drives the whole reveal schedule. A gamble makes the player watch the
            needle before it names the verdict; a certain choice has nothing to
            watch and keeps the fast reveal. */

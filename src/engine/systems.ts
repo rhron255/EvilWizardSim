@@ -294,13 +294,6 @@ export function tierCrossing(before: number, after: number): Tier | undefined {
   return to;
 }
 
-/** Highest tier reached at any point in the run — used for epithet fallbacks. */
-export function peakTier(run: RunState): Tier {
-  let peak = run.notoriety;
-  for (const era of run.eras) peak = Math.max(peak, era.notoriety);
-  return tierFor(peak);
-}
-
 export function peakNotoriety(run: RunState): number {
   let peak = run.notoriety;
   for (const era of run.eras) peak = Math.max(peak, era.notoriety);
