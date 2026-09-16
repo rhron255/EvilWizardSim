@@ -1452,7 +1452,7 @@ export const declineOffers: Offer[] = [
           { t: 'notoriety', v: -3 },
           { t: 'loyalty', v: 6 },
         ],
-        resultText: 'You outwait it by exactly one week. It was never going to be the one that blinked.',
+        resultText: 'You outwait it. After a week of silence, it gives up first — the only time Worm Below has ever blinked.',
       },
       {
         kind: 'gamble',
