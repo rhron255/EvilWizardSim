@@ -66,6 +66,7 @@ export const ascentOffers: Offer[] = [
           { t: 'loyalty', v: -8 },
           { t: 'notoriety', v: 3 },
         ],
+        resultText: 'She corrects your Latin on day one and your circle on day two.',
       },
       {
         kind: 'certain',
@@ -75,6 +76,7 @@ export const ascentOffers: Offer[] = [
           { t: 'loyalty', v: 12 },
           { t: 'notoriety', v: -1 },
         ],
+        resultText: 'He cannot cast a spell, but he alphabetizes the grimoires unasked.',
       },
       {
         kind: 'certain',
@@ -114,6 +116,7 @@ export const ascentOffers: Offer[] = [
           { t: 'pactDebt', v: 2 },
           { t: 'notoriety', v: 8 },
         ],
+        resultText: 'You sign every page. The vellum, for once, seems satisfied.',
       },
       {
         kind: 'certain',
@@ -122,6 +125,7 @@ export const ascentOffers: Offer[] = [
           { t: 'standing', factionId: 'ashen_covenant', v: 8 },
           { t: 'notoriety', v: 3 },
         ],
+        resultText: 'They let you strike the clause. They redraft three others to compensate.',
       },
       {
         kind: 'gamble',
@@ -158,6 +162,7 @@ export const ascentOffers: Offer[] = [
           { t: 'artifactFrom', factionId: 'gilded_hand', rarity: 'common' },
           { t: 'standing', factionId: 'gilded_hand', v: 10 },
         ],
+        resultText: 'The receipt itemizes it as "one (1) relic, gently used".',
       },
       {
         kind: 'gamble',
@@ -179,6 +184,7 @@ export const ascentOffers: Offer[] = [
         kind: 'certain',
         label: 'Return the catalogue',
         effects: [{ t: 'standing', factionId: 'gilded_hand', v: -5 }],
+        resultText: 'Quill collects it without comment, which is somehow worse than a complaint.',
       },
     ],
   },
@@ -273,6 +279,7 @@ export const ascentOffers: Offer[] = [
           { t: 'notoriety', v: 2 },
           { t: 'loyalty', v: -4 },
         ],
+        resultText: "Your reply is polite. The next letter references it before you've sent it.",
       },
       {
         kind: 'certain',
@@ -281,6 +288,7 @@ export const ascentOffers: Offer[] = [
           { t: 'standing', factionId: 'worm_below', v: -10 },
           { t: 'followers', v: 3 },
         ],
+        resultText: 'The smoke rises from the grate. It goes down instead.',
       },
       {
         kind: 'gamble',
@@ -315,6 +323,7 @@ export const ascentOffers: Offer[] = [
           { t: 'followers', v: 18 },
           { t: 'notoriety', v: 4 },
         ],
+        resultText: 'The coin arrives in a sack too small for the ceremony it gets.',
       },
       {
         kind: 'certain',
@@ -324,6 +333,7 @@ export const ascentOffers: Offer[] = [
           { t: 'notoriety', v: 8 },
           { t: 'heroThreat', v: 2 },
         ],
+        resultText: 'Nobody argues. Somebody, somewhere, starts sharpening something.',
       },
       {
         kind: 'certain',
@@ -363,6 +373,7 @@ export const ascentOffers: Offer[] = [
         kind: 'certain',
         label: 'Ignore the challenge',
         effects: [{ t: 'notoriety', v: -3 }],
+        resultText: 'Vorlag waits at dawn for two hours, alone, in front of a growing crowd.',
       },
       {
         kind: 'certain',
@@ -373,6 +384,7 @@ export const ascentOffers: Offer[] = [
           { t: 'followers', v: 6 },
           { t: 'notoriety', v: 2 },
         ],
+        resultText: 'He accepts, on the condition that his epithet comes with him.',
       },
     ],
   },
@@ -780,6 +792,7 @@ export const ascentOffers: Offer[] = [
           { t: 'pactDebt', v: 2 },
           { t: 'standing', factionId: 'ashen_covenant', v: 12 },
         ],
+        resultText: 'Power arrives by the usual courier. The invoice arrives by a faster one.',
       },
       {
         kind: 'certain',
@@ -788,6 +801,7 @@ export const ascentOffers: Offer[] = [
           { t: 'standing', factionId: 'ashen_covenant', v: -8 },
           { t: 'loyalty', v: 4 },
         ],
+        resultText: "Yull's disappointment is procedural and extremely thorough.",
       },
     ],
   },
@@ -935,6 +949,7 @@ export const ascentOffers: Offer[] = [
           { t: 'followers', v: 10 },
           { t: 'loyalty', v: -8 },
         ],
+        resultText: 'The humming spreads to the livestock within the week.',
       },
       {
         kind: 'certain',
@@ -944,6 +959,7 @@ export const ascentOffers: Offer[] = [
           { t: 'loyalty', v: 10 },
           { t: 'notoriety', v: -1 },
         ],
+        resultText: 'The humming stops. The silence is somehow louder.',
       },
       {
         kind: 'certain',
@@ -953,6 +969,7 @@ export const ascentOffers: Offer[] = [
           { t: 'notoriety', v: 7 },
           { t: 'pactDebt', v: 1 },
         ],
+        resultText: 'You learn the words. You do not learn what they mean, which was rather the point.',
       },
     ],
   },
@@ -1007,6 +1024,7 @@ export const ascentOffers: Offer[] = [
           { t: 'followers', v: -6 },
           { t: 'heroThreat', v: 4 },
         ],
+        resultText: 'The barley goes first, then the wheat, then your name, in that order.',
       },
       {
         kind: 'certain',
@@ -1015,6 +1033,7 @@ export const ascentOffers: Offer[] = [
           { t: 'notoriety', v: 5 },
           { t: 'heroThreat', v: 1 },
         ],
+        resultText: 'Only the barley suffers. The brewers suffer more, and loudly.',
       },
       {
         kind: 'certain',
@@ -1673,6 +1692,7 @@ export const ascentOffers: Offer[] = [
           { t: 'heroThreat', v: -3 },
           { t: 'standing', factionId: 'crownlands', v: 8 },
         ],
+        resultText: 'He wins the second bout, loudly, and rides home entirely satisfied.',
       },
       {
         kind: 'certain',
@@ -1683,6 +1703,7 @@ export const ascentOffers: Offer[] = [
           { t: 'standing', factionId: 'crownlands', v: -10 },
           { t: 'notoriety', v: 3 },
         ],
+        resultText: 'He hangs up the borrowed armour and asks where the quills are kept.',
       },
     ],
   },

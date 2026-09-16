@@ -123,6 +123,7 @@ export const declineOffers: Offer[] = [
           { t: 'followers', v: -30 },
           { t: 'standing', factionId: 'gilded_hand', v: 20 },
         ],
+        resultText: "You pay it in full. Quill's letter of thanks is, if anything, shorter than the bill.",
       },
       {
         kind: 'certain',
@@ -132,6 +133,7 @@ export const declineOffers: Offer[] = [
           { t: 'standing', factionId: 'gilded_hand', v: 15 },
           { t: 'notoriety', v: -2 },
         ],
+        resultText: "One relic changes hands quietly. Quill notes it as 'exposure managed'.",
       },
       {
         kind: 'gamble',
@@ -253,6 +255,7 @@ export const declineOffers: Offer[] = [
           { t: 'notoriety', v: 4 },
           { t: 'pactDebt', v: 1 },
         ],
+        resultText: 'The terms are reasonable, patient, and entirely one-sided.',
       },
       {
         kind: 'certain',
@@ -262,6 +265,7 @@ export const declineOffers: Offer[] = [
           { t: 'loyalty', v: 8 },
           { t: 'notoriety', v: -2 },
         ],
+        resultText: 'It does not seem offended. It seems, if anything, unsurprised.',
       },
       {
         kind: 'gamble',
@@ -615,6 +619,7 @@ export const declineOffers: Offer[] = [
           { t: 'notoriety', v: 6 },
           { t: 'pactDebt', v: 1 },
         ],
+        resultText: 'What you carry back through the door was not, strictly, dreamed.',
       },
       {
         kind: 'certain',
@@ -625,6 +630,7 @@ export const declineOffers: Offer[] = [
           { t: 'loyalty', v: -5 },
           { t: 'standing', factionId: 'worm_below', v: -8 },
         ],
+        resultText: 'Nine days without sleep, and the corridor stops. So does most everything else.',
       },
     ],
   },
@@ -884,6 +890,7 @@ export const declineOffers: Offer[] = [
           { t: 'standing', factionId: 'worm_below', v: 18 },
           { t: 'notoriety', v: 2 },
         ],
+        resultText: 'It stops. It also, unmistakably, wants feeding again.',
       },
       {
         kind: 'certain',
@@ -893,6 +900,7 @@ export const declineOffers: Offer[] = [
           { t: 'standing', factionId: 'worm_below', v: -5 },
           { t: 'followers', v: -5 },
         ],
+        resultText: 'The upper floors hold, for now, and smell faintly of old stone.',
       },
       {
         kind: 'certain',
@@ -903,6 +911,7 @@ export const declineOffers: Offer[] = [
           { t: 'pactDebt', v: 1 },
           { t: 'heroThreat', v: -4 },
         ],
+        resultText: 'You go down further than the letters ever suggested, and come back with terms.',
       },
     ],
   },
@@ -1235,6 +1244,7 @@ export const declineOffers: Offer[] = [
           { t: 'followers', v: 20 },
           { t: 'heroThreat', v: -5 },
         ],
+        resultText: 'The mill turns again. Nobody thanks you exactly, but nobody petitions either.',
       },
       {
         kind: 'certain',
@@ -1243,6 +1253,7 @@ export const declineOffers: Offer[] = [
           { t: 'notoriety', v: 4 },
           { t: 'followers', v: 6 },
         ],
+        resultText: 'The mill turns, sporadically, in a way that keeps everyone talking about you.',
       },
       {
         kind: 'certain',
@@ -1252,6 +1263,7 @@ export const declineOffers: Offer[] = [
           { t: 'followers', v: 10 },
           { t: 'heroThreat', v: 5 },
         ],
+        resultText: 'You take the mill outright. The petition becomes a much shorter document.',
       },
       {
         kind: 'certain',
@@ -1262,6 +1274,7 @@ export const declineOffers: Offer[] = [
           { t: 'heroThreat', v: -12 },
           { t: 'followers', v: -10 },
         ],
+        resultText: 'You grant it, pack what fits, and leave the rest a story for the next tenants.',
       },
     ],
   },
@@ -1429,6 +1442,7 @@ export const declineOffers: Offer[] = [
           { t: 'notoriety', v: 9 },
           { t: 'pactDebt', v: 2 },
         ],
+        resultText: 'You name a want out loud. Something underneath writes it down.',
       },
       {
         kind: 'certain',
@@ -1438,6 +1452,7 @@ export const declineOffers: Offer[] = [
           { t: 'notoriety', v: -3 },
           { t: 'loyalty', v: 6 },
         ],
+        resultText: 'You outwait it. After a week of silence, it gives up first — the only time Worm Below has ever blinked.',
       },
       {
         kind: 'gamble',
@@ -1616,6 +1631,7 @@ export const declineOffers: Offer[] = [
           { t: 'followers', v: 15 },
           { t: 'notoriety', v: -5 },
         ],
+        resultText: 'The paperwork is generous. It is generous the way an exit is generous.',
       },
       {
         kind: 'certain',
@@ -1625,6 +1641,7 @@ export const declineOffers: Offer[] = [
           { t: 'pactDebt', v: 1 },
           { t: 'notoriety', v: 6 },
         ],
+        resultText: "You refuse in writing, at length. Yull files it as 'noted, proceeding'.",
       },
       {
         kind: 'gamble',
