@@ -14,6 +14,7 @@ import type { RunState } from '../types';
 import type { ContentBundle } from './content-port';
 import { FALLBACK_EPITHETS } from './content-port';
 import { tierFor } from '../theme/tokens';
+import { peakNotoriety } from './systems';
 
 export function projectedEpithet(run: RunState, content: ContentBundle): string {
   for (const epithet of content.epithets) {
@@ -26,5 +27,5 @@ export function projectedEpithet(run: RunState, content: ContentBundle): string 
     }
     if (matched) return epithet.text;
   }
-  return FALLBACK_EPITHETS[tierFor(run.notoriety).id];
+  return FALLBACK_EPITHETS[tierFor(peakNotoriety(run)).id];
 }

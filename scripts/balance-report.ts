@@ -19,13 +19,13 @@
  * — and this file would be the thing that invented the target.
  *
  * So every cell is mean plus observed range across the seeds, and a delta is
- * only called a MOVE when it clears the noise the seeds themselves show. The
+ * only called a MOVE when it clears the noise EITHER sample's seeds show. The
  * test is deliberately crude and deliberately stated in the output: a change
- * counts when it is larger than the width of the base's own seed spread (and
- * at least `MIN_MOVE`, so an ending that happened to read identically on
- * every base seed cannot make any difference at all look significant). It is
- * a smell test, not statistics, and the comment says so rather than implying
- * a rigour it does not have.
+ * counts when it is larger than the wider of the base and head seed spreads
+ * (and at least `MIN_MOVE`, so an ending that happened to read identically on
+ * every seed on both sides cannot make any difference at all look
+ * significant). It is a smell test, not statistics, and the comment says so
+ * rather than implying a rigour it does not have.
  *
  * The honest alternative — more seeds — is a runtime decision, not a
  * presentation one. Raise `--seeds` in the workflow if the noise floor is too
@@ -33,6 +33,7 @@
  */
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 type Report = {
   seed: number;
@@ -59,7 +60,7 @@ function load(dir: string): Report[] {
     .sort((a, b) => a.seed - b.seed);
 }
 
-type Band = { mean: number; min: number; max: number };
+export type Band = { mean: number; min: number; max: number };
 
 const band = (xs: number[]): Band => ({
   mean: xs.reduce((a, b) => a + b, 0) / xs.length,
@@ -89,15 +90,16 @@ function cell(b: Band | undefined): string {
 }
 
 /**
- * The delta. EMPTY when the movement is inside the base's own seed spread,
- * because at 200 runs that is what "no change" looks like — and an empty cell
- * says it more quietly than a row of `±noise` badges, which turned out to be
- * the loudest thing in the table while carrying the least information.
+ * The delta. EMPTY when the movement is inside either sample's own seed
+ * spread, because at 200 runs that is what "no change" looks like — and an
+ * empty cell says it more quietly than a row of `±noise` badges, which
+ * turned out to be the loudest thing in the table while carrying the least
+ * information.
  */
-function delta(head: Band | undefined, base: Band | undefined): string {
+export function delta(head: Band | undefined, base: Band | undefined): string {
   if (!head || !base) return '';
   const d = head.mean - base.mean;
-  const noise = Math.max(base.max - base.min, MIN_MOVE);
+  const noise = Math.max(base.max - base.min, head.max - head.min, MIN_MOVE);
   if (Math.abs(d) <= noise) return '';
   // Fixed precision, NOT scaled to magnitude like the cells: deltas are read
   // against each other down the column, and `+1.00` beside `+2.7` reads as a
@@ -243,7 +245,7 @@ function main() {
     '',
     `<sub>Seeds ${seeds}; mean, with the across-seed range in small type.${
       base
-        ? ' **Bold** marks a move larger than the spread the base seeds produced on their own — everything else is blank because at 200 runs per cohort a two-career swing is not a signal, and chasing one is how `DEF_LICH` got distorted twice.'
+        ? ' **Bold** marks a move larger than the wider of the base and head seeds’ own spread — everything else is blank because at 200 runs per cohort a two-career swing is not a signal, and chasing one is how `DEF_LICH` got distorted twice.'
         : ''
     } \`lichdom\` is measured on the \`lich\` cohort and \`arch_lich\` on \`redeemed\`; the rest are the \`pariah_\`/\`courtier_\` cohort for that faction, plus \`saint\` for \`good_wizard\`.</sub>`,
     '',
@@ -266,4 +268,12 @@ function main() {
   else console.log(md);
 }
 
-main();
+// Guarded so a test can import this module's exports (`delta`, `Band`)
+// without `main()` running and throwing on the missing `--head` arg.
+// `pathToFileURL`, not a raw `file://` template: a checkout path with a
+// space or other URL-reserved character comes through `import.meta.url`
+// percent-escaped, so a literal-string comparison against `process.argv[1]`
+// is false even when the script IS the entry point — main() silently never
+// runs, and the documented `npx tsx scripts/balance-report.ts` exits 0
+// having generated nothing.
+if (import.meta.url === pathToFileURL(process.argv[1]).href) main();

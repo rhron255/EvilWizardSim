@@ -264,7 +264,7 @@ export function applyStanding(
   const rate = delta > 0 ? CONTAGION_GAIN : CONTAGION_LOSS;
   for (const enemyId of enemies) {
     if (enemyId === factionId) continue;
-    const spill = -Math.round(delta * rate);
+    const spill = -Math.sign(delta) * Math.round(Math.abs(delta) * rate);
     if (spill === 0) continue;
     const enemyBefore = draft.factionStanding[enemyId] ?? 0;
     const enemyAfter = clamp(enemyBefore + spill, STANDING_MIN, STANDING_MAX);

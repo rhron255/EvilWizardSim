@@ -95,14 +95,14 @@ export const epithets: Epithet[] = [
     when: (r) => r.apprentices.count >= 5 && r.apprentices.loyalty <= 25,
   },
   {
-    id: 'overstaffed',
-    text: 'the Overstaffed',
-    when: (r) => r.apprentices.count >= 5,
-  },
-  {
     id: 'well_served',
     text: 'the Well-Served',
     when: (r) => r.apprentices.count >= 3 && r.apprentices.loyalty >= 75,
+  },
+  {
+    id: 'overstaffed',
+    text: 'the Overstaffed',
+    when: (r) => r.apprentices.count >= 5,
   },
   {
     id: 'signed_without_reading',
