@@ -22,14 +22,7 @@ import {
   SEAL_MIN_NOTORIETY,
 } from '../../engine';
 import type { Faction, FactionId, Phase, RunState } from '../../types';
-import {
-  allegiancesFor,
-  extremeAllegiances,
-  nextThreatFor,
-  patronFor,
-  reprisalSentence,
-  reprisalWarningFor,
-} from './allegiances';
+import { allegiancesFor, extremeAllegiances, nextThreatFor, patronFor, reprisalSentence } from './allegiances';
 
 const run = (
   standing: number | Partial<Record<FactionId, number>>,
@@ -38,11 +31,6 @@ const run = (
 ): RunState =>
   ({
     phase,
-    // `reprisalLiveFor` now keys on `erasSinceProphecy`, not `phase`, so it
-    // catches the prophecy-crossing era `phase` alone cannot distinguish (see
-    // the comment on `reprisalLiveFor`). This file is about the warning's
-    // faction/threshold logic, not that one-era edge, so callers here get the
-    // same live/not-live reading `phase` used to give directly.
     erasSinceProphecy: phase === 'decline' ? 1 : 0,
     factionStanding: {
       ashen_covenant: 0,
@@ -57,13 +45,9 @@ const run = (
   }) as RunState;
 
 const sentence = (standing: number, notoriety: number, phase: Phase = 'decline') =>
-  reprisalSentence(reprisalWarningFor(run(standing, notoriety, phase))!);
+  reprisalSentence(nextThreatFor(run(standing, notoriety, phase))!);
 
-describe('the reprisal warning', () => {
-  it('stays quiet while nobody is anywhere near acting', () => {
-    expect(reprisalWarningFor(run(0, 90))).toBeNull();
-  });
-
+describe('the next-threat sentence', () => {
   it('names the fame that arms it, when fame is the half still missing', () => {
     const line = sentence(SEAL_MAX_STANDING, 20);
     expect(line).toContain(String(SEAL_MIN_NOTORIETY));
@@ -71,26 +55,7 @@ describe('the reprisal warning', () => {
   });
 
   it('names the distance in standing while standing is the half still missing', () => {
-    // Fame within reach of arming, so the sentence is a live warning.
     expect(sentence(SEAL_MAX_STANDING + 9, SEAL_MIN_NOTORIETY - 5)).toContain('9 from the gem');
-  });
-
-  /**
-   * The sentence is the ARMED warning now, not a permanent fixture.
-   *
-   * It used to print from era one — "The Academy is 20 from the gem · it acts
-   * at 55 Notoriety." above a wizard at 11 Notoriety, i.e. a standing line
-   * about a death that nothing in the run could yet cause, sitting on top of
-   * the choice cards on a 852px phone. The continuous half of that disclosure
-   * moved to `sealAt`, a tick drawn on the faction's own bar.
-   */
-  it('stays quiet while fame is nowhere near arming it, because the bar carries the distance', () => {
-    expect(reprisalWarningFor(run(SEAL_MAX_STANDING + 9, 11))).toBeNull();
-  });
-
-  it('warns anyway once standing is already past the line, whatever the fame', () => {
-    // The only thing keeping this run alive is a number the game pushes up.
-    expect(reprisalWarningFor(run(SEAL_MAX_STANDING, 11))).not.toBeNull();
   });
 
   it('says the deliberating is over once standing is past the line', () => {
@@ -111,7 +76,7 @@ describe('the reprisal warning', () => {
  * has to name the faction that would actually act, in that faction's own
  * imagery, or a player driven under the Choir reads a warning about a gem.
  */
-describe('the reprisal warning · all six factions', () => {
+describe('the next-threat sentence · all six factions', () => {
   const FACTIONS: FactionId[] = [
     'ashen_covenant',
     'gilded_hand',
@@ -121,19 +86,17 @@ describe('the reprisal warning · all six factions', () => {
     'worm_below',
   ];
 
-  it('warns about whichever faction is closest, not only the Academy', () => {
+  it('names whichever faction is closest, not only the Academy', () => {
     for (const id of FACTIONS) {
-      const warning = reprisalWarningFor(run({ [id]: SEAL_MAX_STANDING + 6 }, SEAL_MIN_NOTORIETY));
-      expect(warning, `no warning for ${id}`).not.toBeNull();
-      expect(warning!.factionId).toBe(id);
+      const threat = nextThreatFor(run({ [id]: SEAL_MAX_STANDING + 6 }, SEAL_MIN_NOTORIETY));
+      expect(threat, `no threat for ${id}`).not.toBeNull();
+      expect(threat!.factionId).toBe(id);
     }
   });
 
   it('gives each faction its own noun, so no two reprisals read alike', () => {
     const lines = FACTIONS.map((id) =>
-      reprisalSentence(
-        reprisalWarningFor(run({ [id]: SEAL_MAX_STANDING + 6 }, SEAL_MIN_NOTORIETY))!,
-      ),
+      reprisalSentence(nextThreatFor(run({ [id]: SEAL_MAX_STANDING + 6 }, SEAL_MIN_NOTORIETY))!),
     );
     expect(new Set(lines).size).toBe(FACTIONS.length);
     // The Academy's own wording is the one that must not have moved: it is the
@@ -147,7 +110,7 @@ describe('the reprisal warning · all six factions', () => {
     for (const id of FACTIONS) {
       for (const standing of [SEAL_MAX_STANDING + 6, SEAL_MAX_STANDING - 1]) {
         for (const notoriety of [SEAL_MIN_NOTORIETY, SEAL_MIN_NOTORIETY - 6]) {
-          const line = reprisalSentence(reprisalWarningFor(run({ [id]: standing }, notoriety))!);
+          const line = reprisalSentence(nextThreatFor(run({ [id]: standing }, notoriety))!);
           expect(line.length, line).toBeLessThanOrEqual(60);
         }
       }
@@ -162,19 +125,17 @@ describe('the reprisal warning · all six factions', () => {
       { verdant_choir: SEAL_MAX_STANDING - 20, crownlands: SEAL_MAX_STANDING - 4 },
       SEAL_MIN_NOTORIETY,
     );
-    expect(reprisalWarningFor(both)!.factionId).toBe('verdant_choir');
+    expect(nextThreatFor(both)!.factionId).toBe('verdant_choir');
     expect(REPRISAL_BY_FACTION.verdant_choir).toBe('turned_to_fertilizer');
   });
 
-  it('stays silent about a faction whose reprisal cannot fire yet', () => {
-    // Five of the six are decline-only. A red line during the ascent would be
-    // a warning about something the engine will not do.
-    const ascent = run({ verdant_choir: SEAL_MAX_STANDING - 20 }, SEAL_MIN_NOTORIETY, 'ascent');
-    expect(reprisalWarningFor(ascent)).toBeNull();
+  it('names a non-Academy faction in the ascent too, now that every reprisal is live in every phase', () => {
+    const ascent = run({ verdant_choir: SEAL_MAX_STANDING + 6 }, SEAL_MIN_NOTORIETY, 'ascent');
+    expect(nextThreatFor(ascent)!.factionId).toBe('verdant_choir');
 
-    // ...and the Academy still warns in either phase, unchanged.
-    const academy = run({ pale_academy: SEAL_MAX_STANDING - 20 }, SEAL_MIN_NOTORIETY, 'ascent');
-    expect(reprisalWarningFor(academy)!.factionId).toBe('pale_academy');
+    // ...same as the Academy always could, unchanged.
+    const academy = run({ pale_academy: SEAL_MAX_STANDING + 6 }, SEAL_MIN_NOTORIETY, 'ascent');
+    expect(nextThreatFor(academy)!.factionId).toBe('pale_academy');
   });
 });
 
@@ -209,12 +170,12 @@ describe('the reprisal tick', () => {
     expect(rows.find((r) => r.id === 'worm_below')!.note).toContain('appointment');
   });
 
-  it('does not cry lethal during the ascent for a faction that cannot act yet', () => {
+  it('reads as lethal during the ascent too, now that every reprisal is live in every phase', () => {
     const rows = allegiancesFor(
       run({ worm_below: SEAL_MAX_STANDING + 4, pale_academy: SEAL_MAX_STANDING + 4 }, 60, 'ascent'),
       factions,
     );
-    expect(rows.find((r) => r.id === 'worm_below')!.tone).not.toBe('lethal');
+    expect(rows.find((r) => r.id === 'worm_below')!.tone).toBe('lethal');
     expect(rows.find((r) => r.id === 'pale_academy')!.tone).toBe('lethal');
   });
 
@@ -230,60 +191,49 @@ describe('the reprisal tick', () => {
 });
 
 /**
- * The Decision tab's ambient status line (issue #18) — nearest by STANDING,
- * live or not, unlike `reprisalWarningFor`'s live-only alarm below.
+ * The Decision tab's ambient status line (issue #18) — nearest by STANDING.
+ * It speaks unconditionally — no margin or fame gate silences it — because
+ * the ambient line's job is "who is closest", full stop, on every era of the
+ * run.
  */
 describe('the next-threat line', () => {
-  it('speaks even when nobody is anywhere near acting — the gates that silence the warning do not apply', () => {
-    // All six tied at 0 in the decline, where all six are live: the tie
-    // resolves to FACTION_ORDER's first entry, same rule `reprisalWarningFor`
-    // would use if it were not gated silent here by the 55-margin check.
+  it('speaks even when nobody is anywhere near acting', () => {
+    // All six tied at 0: the tie resolves to FACTION_ORDER's first entry.
     expect(nextThreatFor(run(0, 90))).not.toBeNull();
     expect(nextThreatFor(run(0, 90))!.factionId).toBe('ashen_covenant');
-    expect(reprisalWarningFor(run(0, 90))).toBeNull();
-  });
-
-  it('names the same faction reprisalWarningFor would, whenever the closest candidate is live', () => {
-    const close = run(SEAL_MAX_STANDING + 6, SEAL_MIN_NOTORIETY);
-    expect(nextThreatFor(close)!.factionId).toBe(reprisalWarningFor(close)!.factionId);
-    expect(nextThreatFor(close)!.margin).toBe(reprisalWarningFor(close)!.margin);
   });
 
   /**
-   * The reported bug, pinned. A `'live'`-only scan skipped the Verdant
-   * Choir at −50 (5 from −55, genuinely the closest thing to ending the run)
-   * for as long as its reprisal wasn't live yet, and reported the Academy
-   * instead — live in every phase, but sitting at a harmless +20 (75 from
-   * the gem). The ambient line pointed at the wrong faction: not a false
-   * alarm, but a real, close threat going unmentioned while a distant one
-   * was named as "the" threat.
+   * All six reprisals are live in every phase now, exactly as the Academy's
+   * always was — there is no longer a "cannot fire yet" case for the scan to
+   * skip. (A previous version of this file distinguished a `'live'` scan
+   * from an `'any'` scan for exactly that reason; that distinction is gone
+   * along with the phase gate — see `nearestReprisalFaction` in
+   * `src/engine/endings.ts`.)
    */
-  it('names the closer faction by STANDING even when its reprisal cannot fire yet', () => {
-    const notYetLive = run(
+  it('names the closer faction by STANDING, in the ascent as much as the decline', () => {
+    const ascent = run(
       { verdant_choir: -50, pale_academy: 20 },
       SEAL_MIN_NOTORIETY,
       'ascent',
     );
-    const threat = nextThreatFor(notYetLive);
+    const threat = nextThreatFor(ascent);
     expect(threat!.factionId).toBe('verdant_choir');
     expect(threat!.margin).toBe(5);
   });
 
-  it('uses the same armed/fame wording whether or not the closest faction is live', () => {
-    // No separate "cannot fire yet" clause: the sentence reads identically
-    // to a live candidate's, by design (kept simple rather than disclosing
-    // erasSinceProphecy as its own line).
-    const notYetLive = run(
+  it('phrases an ascent-phase threat the same way as a decline-phase one', () => {
+    const ascent = run(
       { verdant_choir: -50, pale_academy: 20 },
       SEAL_MIN_NOTORIETY,
       'ascent',
     );
-    expect(reprisalSentence(nextThreatFor(notYetLive)!)).toBe(
+    expect(reprisalSentence(nextThreatFor(ascent)!)).toBe(
       'The Choir is 5 from the loam · your fame qualifies.',
     );
   });
 
-  it('still prefers a live faction when it really is the closest', () => {
+  it('prefers whichever faction is truly closest by standing', () => {
     const bothClose = run(
       { verdant_choir: -50, pale_academy: -60 },
       SEAL_MIN_NOTORIETY,
@@ -291,20 +241,6 @@ describe('the next-threat line', () => {
     );
     const threat = nextThreatFor(bothClose);
     expect(threat!.factionId).toBe('pale_academy');
-  });
-
-  it("does not let the alarm regress to a faction whose reprisal isn't live", () => {
-    // Same fixture as the bug above: the Choir is closer by standing, but its
-    // reprisal cannot fire yet — the Career tab's ALARM must stay quiet
-    // (Academy's own margin, 75, is nowhere near the 25-point warning gate),
-    // never substitute the Choir just because `nearestReprisalFaction('any')`
-    // would prefer it.
-    const notYetLive = run(
-      { verdant_choir: -50, pale_academy: 20 },
-      SEAL_MIN_NOTORIETY,
-      'ascent',
-    );
-    expect(reprisalWarningFor(notYetLive)).toBeNull();
   });
 });
 

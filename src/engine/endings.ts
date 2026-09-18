@@ -39,7 +39,6 @@ import {
   DEVOTION_STANDING,
   PACT_LIMIT,
   PATRON_MARGIN,
-  SEAL_FACTION,
   SEAL_MAX_STANDING,
   SEAL_MIN_NOTORIETY,
 } from './constants';
@@ -107,38 +106,18 @@ export const LEADERSHIP_BY_FACTION: Record<FactionId, EndingId> = {
 };
 
 /**
- * Whether a faction's reprisal is live at all, in this era.
+ * Which faction is closest to acting — LOWEST STANDING WINS, ties broken by
+ * `FACTION_ORDER`.
  *
- * The Academy's is available in any phase, exactly as the seal always was. The
- * five added with it are DECLINE-ONLY until measurement says otherwise: an
- * ascent-phase dip under −55 would otherwise end a career three eras in, before
- * the prophecy the whole arc is built around, and the ascent is where contagion
- * does its steepest work.
- *
- * Gated on `erasSinceProphecy > 0`, not `phase === 'decline'` — the two look
- * interchangeable but are not, on the ONE era where it matters. `phase` flips
- * to `'decline'` the instant `eraIndex` reaches `prophecyEra`, and
- * `checkEndings` runs immediately on that same transition, before the player
- * has ever been shown the pinned prophecy card for that era (`nextOffer` only
- * pins it once `eraIndex === prophecyEra`). A reprisal gated on `phase` alone
- * could therefore end the run on the exact transition that was supposed to
- * show the prophecy, skipping the beat the whole arc is built around — an
- * unwarned ending, since the header's tone (below) shares this predicate and
- * would have called it non-lethal one era earlier. `erasSinceProphecy > 0`
- * requires one further era to have actually elapsed, i.e. the prophecy card to
- * have been presented and resolved, before a reprisal can fire.
- *
- * Exported because the header's warning has to agree with it — a "lethal" bar
- * for a condition that structurally cannot fire yet is a false alarm, and this
- * is the one predicate that decides.
- */
-export function reprisalLiveFor(factionId: FactionId, run: RunState): boolean {
-  return factionId === SEAL_FACTION || run.erasSinceProphecy > 0;
-}
-
-/**
- * Which faction is closest to acting, live or not — LOWEST STANDING WINS, ties
- * broken by `FACTION_ORDER`.
+ * All six reprisals are live in every phase, exactly as the Academy's always
+ * was — there is no longer a decline-only subset to filter out. (A previous
+ * version gated the other five on `erasSinceProphecy > 0`, on the theory that
+ * an ascent-phase dip under the line should not end a career before the
+ * prophecy the arc is built around. That theory was never applied to the
+ * Academy itself, which has fired in any phase since it was the only
+ * reprisal in the game — so the other five were carrying an exception the
+ * mechanic itself does not justify, not a rule the Academy was exempt from.
+ * Uniform beats special-cased: see `wiki/01_core_loop.md` § 7.)
  *
  * Two factions sit under the threshold at once more often than the arithmetic
  * suggests, because standing moves by contagion: courting the Covenant drives
@@ -146,19 +125,11 @@ export function reprisalLiveFor(factionId: FactionId, run: RunState): boolean {
  * taking the first match would be a seed-dependent nondeterminism bug that no
  * single playthrough would show, so the rule is stated, tested, and shared
  * with the UI rather than left to object key order.
- *
- * `only` narrows the scan to factions whose reprisal is live in this phase;
- * the header passes `false` for the bar tone, which wants the nearest threat
- * whether or not it can fire yet.
  */
-export function nearestReprisalFaction(
-  run: RunState,
-  only: 'live' | 'any' = 'live',
-): FactionId | undefined {
+export function nearestReprisalFaction(run: RunState): FactionId | undefined {
   let candidate: FactionId | undefined;
   let candidateStanding = Infinity;
   for (const factionId of FACTION_ORDER) {
-    if (only === 'live' && !reprisalLiveFor(factionId, run)) continue;
     const standing = run.factionStanding[factionId] ?? 0;
     if (standing < candidateStanding) {
       candidate = factionId;
@@ -190,7 +161,7 @@ export function nearestReprisalFaction(
  */
 export function reprisalEnding(run: RunState, content: ContentBundle): EndingId | undefined {
   if (run.notoriety < SEAL_MIN_NOTORIETY) return undefined;
-  const faction = nearestReprisalFaction(run, 'live');
+  const faction = nearestReprisalFaction(run);
   if (faction === undefined) return undefined;
   if ((run.factionStanding[faction] ?? 0) > SEAL_MAX_STANDING) return undefined;
   const ending = REPRISAL_BY_FACTION[faction];

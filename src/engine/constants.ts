@@ -347,13 +347,19 @@ export const LOYALTY_DRIFT_MIN_APPRENTICES = 2;
  * `endings.ts` maps each faction to what it does about you.
  *
  * The names are historical: this was `sealed_in_gem`'s trigger and nothing
- * else's, so the constants are still called SEAL_*. `SEAL_FACTION` is no
- * longer "the faction that can end a run" — all six can. It is now the one
- * faction whose reprisal is live in EVERY phase, which is what keeps the
- * Academy's rate where it was measured while the five added beside it stay
- * decline-only (`reprisalLiveFor`).
+ * else's, so the constants are still called SEAL_*. The condition is now
+ * uniform across all six factions and all phases — the five reprisals added
+ * beside the Academy's used to be gated `decline-only` (`erasSinceProphecy >
+ * 0`), on the reasoning that an ascent-phase dip under the line would end a
+ * career before the prophecy the whole arc is built around. That reasoning
+ * does not hold up against the Academy's own case, which has fired in every
+ * phase since it was the only reprisal in the game: the Academy is not a
+ * special case that happened to survive, it is the ORIGINAL rule, and the
+ * other five were the ones instrumented with an exception nothing about the
+ * mechanic actually justifies. Making every faction the same as the Academy
+ * always was is the uniform reading; see `wiki/01_core_loop.md` § 7 for the
+ * balance note this reopens.
  */
-export const SEAL_FACTION = 'pale_academy' as const;
 export const SEAL_MAX_STANDING = -55;
 export const SEAL_MIN_NOTORIETY = 55;
 

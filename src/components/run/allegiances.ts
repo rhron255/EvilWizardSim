@@ -34,7 +34,6 @@ import {
   SEAL_MIN_NOTORIETY,
   nearestReprisalFaction,
   patronFaction,
-  reprisalLiveFor,
 } from '../../engine';
 import type { Faction, FactionId, RunState } from '../../types';
 
@@ -141,13 +140,12 @@ const REPRISAL_SUBJECT: Record<FactionId, string> = {
 /**
  * How close a faction has to be before its bar reads as lethal.
  *
- * Phase-gated through the engine's own `reprisalLiveFor`, not a copy of it:
- * five of the six reprisals cannot fire during the ascent, and a red bar for a
- * condition that structurally cannot fire is a false alarm — the inverse of
- * the bug this file exists to fix, and just as dishonest.
+ * All six reprisals are live in every phase now, exactly as the Academy's
+ * always was, so there is no longer a phase gate to consult here — every
+ * faction's bar reads lethal on the same standing-only rule.
  */
-function toneFor(run: RunState, id: FactionId, standing: number): Allegiance['tone'] {
-  if (reprisalLiveFor(id, run) && standing <= SEAL_MAX_STANDING + 12) return 'lethal';
+function toneFor(standing: number): Allegiance['tone'] {
+  if (standing <= SEAL_MAX_STANDING + 12) return 'lethal';
   if (standing <= ARTIFACT_LOCKOUT_STANDING) return 'locked';
   if (standing >= DEVOTION_STANDING) return 'devoted';
   if (standing >= 20) return 'warm';
@@ -177,7 +175,7 @@ function noteFor(run: RunState, id: FactionId, standing: number, tone: Allegianc
 export function allegiancesFor(run: RunState, factions: Faction[]): Allegiance[] {
   return factions.map((f) => {
     const standing = run.factionStanding[f.id] ?? 0;
-    const tone = toneFor(run, f.id, standing);
+    const tone = toneFor(standing);
     return {
       id: f.id,
       name: f.name,
@@ -248,23 +246,6 @@ export type ReprisalWarning = {
   armed: boolean;
 };
 
-/**
- * How close the fame half has to be before the sentence is worth a line.
- *
- * A reprisal needs BOTH halves. A wizard at 11 Notoriety with the Academy 20
- * from the gem cannot be sealed by anything, yet the header printed the
- * sentence anyway from era one — a permanent line about a threat that was not
- * live, directly above the choice cards on a screen where the first card
- * already starts ~630px down.
- *
- * Provenance: this number is a screen-budget judgement, not a wiki figure.
- * What the wiki fixes is the trigger (`SEAL_MAX_STANDING`, `SEAL_MIN_NOTORIETY`);
- * what is disclosed continuously is the standing half, now drawn as a tick on
- * each faction's own bar. The sentence is the ARMED warning, and the first-run
- * guide teaches what a reprisal is.
- */
-const SEAL_FAME_LEAD = 12;
-
 function reprisalStatus(factionId: FactionId, run: RunState): ReprisalWarning {
   const standing = run.factionStanding[factionId] ?? 0;
   return {
@@ -276,57 +257,26 @@ function reprisalStatus(factionId: FactionId, run: RunState): ReprisalWarning {
 }
 
 /**
- * The reprisal nearest to firing BY STANDING, unconditionally — issue #18's
- * Decision-tab "next-threat line". Ascent or decline, live or not, this
- * always names whichever faction `nearestReprisalFaction(run, 'any')` says is
- * closest, because "closest to killing me" is a question about the standing
- * number, not about which factions happen to be armed yet.
+ * The reprisal nearest to firing BY STANDING — issue #18's Decision-tab
+ * "next-threat line". All six reprisals are live in every phase now, exactly
+ * as the Academy's always was, so this always names whichever faction
+ * `nearestReprisalFaction` says is closest, full stop: "closest to killing
+ * me" was always a question about the standing number.
  *
- * Scanning `'any'` here rather than `'live'` is deliberate and was the fix for
- * a real bug: five of the six reprisals only go live once
- * `erasSinceProphecy > 0`, so a `'live'`-only scan skips a faction sitting
- * one point from its threshold — genuinely the closest thing to ending the
- * run — for as long as it isn't live yet, and reports whichever faction IS
- * live instead, however distant. A player reading "The Academy is 75 from
- * the gem" while the Verdant Choir sat at −50 (5 from −55, not yet live) got
- * pointed at the wrong faction entirely: not a false alarm, but the opposite
- * failure — a real, close threat going unmentioned while a distant one was
- * named as "the" threat.
- *
- * `reprisalSentence` below does not distinguish a not-yet-live candidate from
- * a live one in its wording — both read "acts at 55 Notoriety" / "your fame
- * qualifies" — a deliberate simplification over disclosing the
- * `erasSinceProphecy` gate as its own clause.
- *
- * `reprisalWarningFor` below is a DIFFERENT scan — `'live'` only, because
- * that one backs the Career tab's alarm and must never name a faction that
- * structurally cannot act (the false alarm `toneFor` already guards against).
- * The two can therefore legitimately name different factions: the ambient
- * line's job is "who is closest", the alarm's job is "who could actually get
- * you this era".
+ * (A previous version of this file also exported a `reprisalWarningFor`,
+ * scanning `'live'` vs `'any'` separately, because five of the six reprisals
+ * used to be gated `erasSinceProphecy > 0` and a naive scan could name a
+ * faraway-but-live faction over a genuinely closer one that could not fire
+ * yet. That gate is gone — see `nearestReprisalFaction` in
+ * `src/engine/endings.ts` — so the two functions would always have selected
+ * the same faction, which made the second one, and the `FactionStandings`
+ * alarm built on it, dead code rather than a live distinction. Both were
+ * removed rather than left as an unreachable branch.)
  */
 export function nextThreatFor(run: RunState): ReprisalWarning | null {
-  const factionId = nearestReprisalFaction(run, 'any');
+  const factionId = nearestReprisalFaction(run);
   if (factionId === undefined) return null;
   return reprisalStatus(factionId, run);
-}
-
-export function reprisalWarningFor(run: RunState): ReprisalWarning | null {
-  const factionId = nearestReprisalFaction(run, 'live');
-  if (factionId === undefined) return null;
-  const status = reprisalStatus(factionId, run);
-  // Only warn once it is genuinely close; a faction in good health is not news.
-  if (status.margin > 25) return null;
-  // ...and, while standing still has room, only once the OTHER half of the
-  // trigger is within reach. Both conditions have to be live before this is a
-  // warning rather than trivia.
-  //
-  // The exception is not optional: once standing is already at or past the
-  // threshold, the ONLY thing keeping the run alive is a notoriety number that
-  // the whole game pushes upward. That is precisely when the fame half has to
-  // be named, and it is the case `WizardHeader.test.tsx` pins.
-  if (status.margin > 0 && run.notoriety < SEAL_MIN_NOTORIETY - SEAL_FAME_LEAD) return null;
-  return status;
 }
 
 /**
@@ -359,11 +309,10 @@ export function reprisalWarningFor(run: RunState): ReprisalWarning | null {
  * room to spare, without reaching for a faction-specific shortening that
  * would make the six read unevenly.
  *
- * `nextThreatFor` can hand this a not-yet-live candidate (`nearestReprisalFaction`
- * scanned by standing alone, not gated on `erasSinceProphecy`); the trigger
- * clause below reads the same for it as for a live one, on purpose — a
- * separate "cannot fire yet" clause was tried and dropped as more nuance than
- * the line needs.
+ * The "not-yet-armed" trigger clause below (`acts at 55 Notoriety`) still
+ * covers the case where standing is past the line but notoriety is not — the
+ * only half of the trigger that can still be missing, now that every faction's
+ * reprisal is live in every phase.
  */
 export function reprisalSentence(warning: ReprisalWarning): string {
   const distance =
