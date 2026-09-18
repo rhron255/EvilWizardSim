@@ -152,6 +152,10 @@ export const ascentOffers: Offer[] = [
     body: 'A Gilded Hand factor named Hesper Quill leaves a catalogue on your desk without entering the building. Every price is listed in followers.',
     phase: 'ascent',
     factionId: 'gilded_hand',
+    // CLAUDE.md failure mode 14: "Buy something modest" spends followers for a
+    // fixed artifact grant, and followers floor at zero, so a 0-follower wizard
+    // got it free.
+    requires: [{ c: 'minFollowers', v: 15 }],
     weight: 3,
     options: [
       {
@@ -195,6 +199,9 @@ export const ascentOffers: Offer[] = [
     body: 'The Pale Academy would like you to know that giving season has begun, and that your expulsion does not preclude generosity.',
     phase: 'ascent',
     factionId: 'pale_academy',
+    // CLAUDE.md failure mode 14: "Donate generously" spends followers for a
+    // fixed artifact grant, and followers floor at zero.
+    requires: [{ c: 'minFollowers', v: 12 }],
     weight: 3,
     options: [
       {
@@ -479,6 +486,9 @@ export const ascentOffers: Offer[] = [
     body: 'The Gilded Hand is auctioning the estate of a wizard who died owing them money. Lot forty-one is described only as "contents of the study, sold unexamined".',
     phase: 'ascent',
     factionId: 'gilded_hand',
+    // CLAUDE.md failure mode 14: the gamble's success branch spends followers
+    // for a fixed artifact grant, and followers floor at zero.
+    requires: [{ c: 'minFollowers', v: 10 }],
     weight: 2,
     options: [
       {

@@ -99,6 +99,9 @@ export const anyOffers: Offer[] = [
     body: 'A Gilded Hand courier has arrived with a parcel you did not order, an invoice, and a form declining all responsibility for what is inside it.',
     phase: 'any',
     factionId: 'gilded_hand',
+    // CLAUDE.md failure mode 14: "Sign for it" spends followers for a fixed
+    // artifact grant, and followers floor at zero.
+    requires: [{ c: 'minFollowers', v: 12 }],
     weight: 3,
     options: [
       {

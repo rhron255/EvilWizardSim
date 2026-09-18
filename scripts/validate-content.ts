@@ -793,6 +793,53 @@ for (const o of offers) {
 }
 
 /**
+ * Issue #41: the same clamp as above, but for a FIXED grant instead of debt
+ * relief — the shape that let a broke wizard walk out of a concordat with a
+ * legendary for free. `artifactFrom` is a guaranteed grant no matter what the
+ * branch's other effects do, so pairing it with an uncapped followers/
+ * apprentices cost or a `loseArtifact` cost is the same bypass as above, just
+ * buying a relic instead of buying down debt.
+ *
+ * Scoped to `artifactFrom` rather than "any fixed benefit" (standing,
+ * notoriety, …) — those move by degree and a partial payment for a partial
+ * grant is not the bypass this rule exists to catch; `artifactFrom` is the
+ * one effect that is always all-or-nothing.
+ */
+for (const o of offers) {
+  const terminal = o.options.some(
+    (opt) =>
+      opt.kind === 'certain'
+        ? opt.effects.some((e) => e.t === 'ending')
+        : [...opt.onSuccess, ...opt.onFailure].some((e) => e.t === 'ending'),
+  );
+  if (terminal) continue;
+
+  const gates = o.requires ?? [];
+  const stocked = (c: 'minFollowers' | 'minApprentices', need: number) =>
+    gates.some((g) => g.c === c && g.v >= need);
+  const stockedRelic = gates.some((g) => g.c === 'holdsAnyArtifact' || g.c === 'hasArtifact');
+
+  for (const opt of o.options) {
+    const branches = opt.kind === 'certain' ? [opt.effects] : [opt.onSuccess, opt.onFailure];
+    for (const branch of branches) {
+      if (!branch.some((e) => e.t === 'artifactFrom')) continue;
+      const where = `offer "${o.id}" option "${opt.label}"`;
+      for (const e of branch) {
+        if (e.t === 'followers' && e.v < 0 && !stocked('minFollowers', -e.v)) {
+          fail(where, `grants an artifact for ${-e.v} followers with no minFollowers gate — a poorer wizard gets it for less`);
+        }
+        if (e.t === 'apprentices' && e.v < 0 && !stocked('minApprentices', -e.v)) {
+          fail(where, `grants an artifact for ${-e.v} apprentice(s) with no minApprentices gate — a wizard with none gets it for free`);
+        }
+        if (e.t === 'loseArtifact' && !stockedRelic) {
+          fail(where, 'grants an artifact by trading one away, but the offer never requires holding one — an empty reliquary pays nothing');
+        }
+      }
+    }
+  }
+}
+
+/**
  * A CERTAIN way out, at every balance that can be in trouble, in both phases.
  *
  * Two-way gambles classify as `relieves` because they can clear debt, and they
