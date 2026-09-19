@@ -69,7 +69,7 @@ export function FactionStandings({ run, factions }: FactionStandingsProps) {
 
   return (
     <section className={styles.section}>
-      <ul className={styles.allegiances} aria-label="Faction standing" id={listId}>
+      <ul className={styles.allegiances} aria-label="Faction standings" id={listId}>
         {shown.map((a) => (
           <li
             key={a.id}
