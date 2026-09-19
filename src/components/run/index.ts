@@ -29,5 +29,5 @@ export type { ResolutionOverlayProps } from './ResolutionOverlay';
 
 export type { Resolution } from './resolution';
 
-export { describeEffect, effectKey, endingName, formatOdds, signed } from './effectText';
+export { describeEffect, describeGate, effectKey, endingName, formatOdds, signed } from './effectText';
 export type { EffectLine, EffectTone } from './effectText';

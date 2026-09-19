@@ -120,8 +120,7 @@ export const declineOffers: Offer[] = [
         kind: 'certain',
         label: 'Settle in full',
         effects: [
-          { t: 'followers', v: -30 },
-          { t: 'standing', factionId: 'gilded_hand', v: 20 },
+          { t: 'standing', factionId: 'gilded_hand', v: 8 },
         ],
         resultText: "You pay it in full. Quill's letter of thanks is, if anything, shorter than the bill.",
       },
@@ -214,8 +213,7 @@ export const declineOffers: Offer[] = [
         kind: 'certain',
         label: 'Fight the filing',
         effects: [
-          { t: 'followers', v: -18 },
-          { t: 'standing', factionId: 'verdant_choir', v: -20 },
+          { t: 'standing', factionId: 'verdant_choir', v: -28 },
           { t: 'notoriety', v: 4 },
         ],
       },
@@ -436,8 +434,7 @@ export const declineOffers: Offer[] = [
         kind: 'certain',
         label: 'Approve the full repair',
         effects: [
-          { t: 'followers', v: -20 },
-          { t: 'heroThreat', v: -4 },
+          { t: 'heroThreat', v: -1 },
           { t: 'notoriety', v: 2 },
         ],
       },
@@ -530,8 +527,7 @@ export const declineOffers: Offer[] = [
         effects: [
           { t: 'notoriety', v: 12 },
           { t: 'heroThreat', v: 8 },
-          { t: 'standing', factionId: 'crownlands', v: -25 },
-          { t: 'followers', v: -10 },
+          { t: 'standing', factionId: 'crownlands', v: -30 },
         ],
       },
       {
@@ -849,8 +845,7 @@ export const declineOffers: Offer[] = [
         label: 'Undergo the lesser form',
         effects: [
           { t: 'notoriety', v: 7 },
-          { t: 'apprentices', v: -1 },
-          { t: 'standing', factionId: 'ashen_covenant', v: 10 },
+          { t: 'standing', factionId: 'ashen_covenant', v: 6 },
         ],
       },
       {

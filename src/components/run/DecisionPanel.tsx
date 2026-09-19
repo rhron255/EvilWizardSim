@@ -12,7 +12,7 @@
  */
 
 import { useId, useState } from 'react';
-import type { DefenseReadout } from '../../engine';
+import type { ContentBundle, DefenseReadout } from '../../engine';
 import type { Artifact, Faction, Offer, RunState } from '../../types';
 import { nextThreatFor, patronFor, reprisalSentence } from './allegiances';
 import { lichSentence, siegeFor, stakesFor } from './stakes';
@@ -24,6 +24,7 @@ export type DecisionPanelProps = {
   factions: Faction[];
   offer: Offer | null;
   artifacts: Artifact[];
+  content: ContentBundle;
   disabled: boolean;
   onChoose(index: number): void;
   defense?: DefenseReadout | null;
@@ -34,6 +35,7 @@ export function DecisionPanel({
   factions,
   offer,
   artifacts,
+  content,
   disabled,
   onChoose,
   defense,
@@ -127,6 +129,8 @@ export function DecisionPanel({
         {offer ? (
           <OfferPanel
             offer={offer}
+            run={run}
+            content={content}
             artifacts={artifacts}
             factions={factions}
             disabled={disabled}

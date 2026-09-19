@@ -36,7 +36,7 @@ import { applyEffects, draftOf } from './effects';
 import { projectedEpithet } from './epithets';
 import { deedLineFor } from './deeds';
 import { checkEndings } from './endings';
-import { QUIET_ERA_OFFER } from './offers';
+import { isOptionPickable, QUIET_ERA_OFFER } from './offers';
 import { hashString, randomSeed, streamFor } from './rng';
 import {
   ageForEra,
@@ -246,6 +246,13 @@ export function resolveChoice(
     ? clamp(Math.trunc(optionIndex), 0, options.length - 1)
     : 0;
   const option = options[safeIndex];
+
+  // The engine is authoritative over affordability, not just the UI that
+  // greys the option out. A stale click or a UI bug that lets an unpickable
+  // index through must not spend stock the player does not have — same
+  // shape as the finished-run guard above, and the same reason it exists:
+  // a rule enforced in only one layer is CLAUDE.md failure mode 2/3's shape.
+  if (!isOptionPickable(run, option, content)) return { next: run, resolution: inertResolution(run) };
 
   // ---- roll (if any) --------------------------------------------------
   let outcome: Outcome;

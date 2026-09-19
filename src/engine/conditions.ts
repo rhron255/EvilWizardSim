@@ -6,7 +6,7 @@
  * content edit degrades the pool instead of killing the run.
  */
 
-import type { Condition, RunState } from '../types';
+import type { Condition, Effect, OfferOption, RunState } from '../types';
 import type { ContentBundle } from './content-port';
 import { indexOf } from './content-port';
 
@@ -59,4 +59,90 @@ export function conditionsMet(
     if (!conditionMet(run, condition, content)) return false;
   }
   return true;
+}
+
+/**
+ * True if a branch grants something back, as opposed to being a pure
+ * penalty. `impliedGatesOf` below only gates a branch that clears this —
+ * a bet's losing side, or an unconditional cost with nothing returned, is a
+ * loss the player already accepted by picking the option, not a purchase
+ * that can be shorted by a floor clamp. Greying a branch a broke player
+ * cannot fully lose would reduce their agency, the opposite of the point.
+ *
+ * Deliberately excludes `notoriety` — its sign is genuinely ambiguous in
+ * this game, so a notoriety move is never read as "a benefit" here.
+ */
+function grantsBenefit(effects: readonly Effect[]): boolean {
+  return effects.some((e) => {
+    switch (e.t) {
+      case 'artifact':
+      case 'artifactFrom':
+        return true;
+      case 'standing':
+      case 'loyalty':
+      case 'lairTier':
+        return e.v > 0;
+      case 'pactDebt':
+      case 'heroThreat':
+        return e.v < 0;
+      default:
+        return false;
+    }
+  });
+}
+
+/**
+ * What an option's own effects imply the player must currently have, for its
+ * cost not to be shorted by `applyEffects`' floor clamp (CLAUDE.md failure
+ * mode 14: `applyEffects` floors followers/apprentices at zero and
+ * `loseArtifact` no-ops on an empty vault, so a fixed benefit funded by one
+ * of those pays out in full to a player who cannot pay).
+ *
+ * Restricted to the four STOCK balances that actually clamp — followers,
+ * apprentices, a lairTier LOSS, and `loseArtifact` — never notoriety,
+ * standing, pactDebt, heroThreat or loyalty, which have no floor to hide
+ * behind and so are always real costs, partial or not. That is the same
+ * distinction `scripts/validate-content.ts`'s pact-debt-relief check already
+ * draws between a bypassed trade and an ordinary partial loss.
+ *
+ * A branch contributes to the gate only when `grantsBenefit` is true for it
+ * — see that function's doc comment. For a `gamble`, each stat's implied
+ * need is the MAX across `onSuccess` and `onFailure` separately: a player
+ * must be able to cover the worse branch, since a bet is not an exit you can
+ * take only if you win it.
+ */
+export function impliedGatesOf(option: OfferOption): Condition[] {
+  const branches: (readonly Effect[])[] =
+    option.kind === 'certain' ? [option.effects] : [option.onSuccess, option.onFailure];
+
+  let minFollowers = 0;
+  let minApprentices = 0;
+  let minLairTier = 0;
+  let minArtifacts = 0;
+
+  for (const branch of branches) {
+    if (!grantsBenefit(branch)) continue;
+
+    let followers = 0;
+    let apprentices = 0;
+    let lairTier = 0;
+    let artifacts = 0;
+    for (const e of branch) {
+      if (e.t === 'followers' && e.v < 0) followers += -e.v;
+      else if (e.t === 'apprentices' && e.v < 0) apprentices += -e.v;
+      else if (e.t === 'lairTier' && e.v < 0) lairTier += -e.v;
+      else if (e.t === 'loseArtifact') artifacts += 1;
+    }
+    minFollowers = Math.max(minFollowers, followers);
+    minApprentices = Math.max(minApprentices, apprentices);
+    minLairTier = Math.max(minLairTier, lairTier);
+    minArtifacts = Math.max(minArtifacts, artifacts);
+  }
+
+  const gates: Condition[] = [];
+  if (minFollowers > 0) gates.push({ c: 'minFollowers', v: minFollowers });
+  if (minApprentices > 0) gates.push({ c: 'minApprentices', v: minApprentices });
+  if (minLairTier > 0) gates.push({ c: 'minLairTier', v: minLairTier });
+  if (minArtifacts > 0) gates.push({ c: 'minArtifacts', v: minArtifacts });
+  return gates;
 }
