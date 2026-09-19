@@ -149,11 +149,46 @@ idea of what to do about you.
 | Crownlands | Exiled and Overrun |
 | Worm Below | Consumed |
 
-The trigger itself was deliberately **not** retuned in the same change. Only
-the Academy's fires in any phase, as it always has; the other five are decline
-only, so an ascent dip cannot end a career before the prophecy the arc rests
-on. The leadership half of the same issue — devotion, rather than enmity — is
-still to come.
+The trigger itself was deliberately **not** retuned when the five were added.
+For a time, only the Academy's fired in any phase, as it always had; the other
+five were decline-only, so an ascent dip could not end a career before the
+prophecy the arc rests on.
+
+**Amended — the decline-only gate is gone; all six are now uniform.** Reported
+from play: a wizard survived at −66 Verdant Choir standing (well past
+`SEAL_MAX_STANDING`) and 66 Notoriety (well past `SEAL_MIN_NOTORIETY`) simply
+because the prophecy card had not fired yet, which read as a bug from the
+player's seat — a threshold that is disclosed on the bar (`allegiances.ts`)
+but silently does not apply is the same undisclosed-exception shape as failure
+mode 1, just pointed the other way: not a hidden downside, a hidden immunity.
+
+The decline-only reasoning was never applied to the Academy's own case, which
+has fired in *every* phase since it was the only reprisal in the game and
+nobody found that unfair — the Academy is not a special case that survived
+unscathed, it is the ORIGINAL rule, and the other five were the ones carrying
+an exception nothing about the mechanic itself justifies. Six factions with
+one condition should not read five ways one direction and the sixth a
+different way; uniform is the correct reading of "all six carry the same
+condition" (issue #14's own framing), so `reprisalLiveFor` and the `'live'` /
+`'any'` scan split it fed (`nearestReprisalFaction`, `reprisalWarningFor` vs
+`nextThreatFor`) are gone. Every reprisal now fires the moment its two numbers
+cross, in the ascent exactly as in the decline — see
+`src/engine/endings.ts`'s `nearestReprisalFaction`.
+
+One real consequence: `FactionStandings`'s own second alarm line
+(`reprisalWarningFor`) existed only to warn about a faction *other than* the
+one `DecisionPanel`'s ambient line was already naming, which could happen only
+while the two scans disagreed on which faction was live. With one uniform
+scan, they can no longer disagree, so that second alarm was dead code the
+moment the gate came out and was removed rather than left unreachable — see
+`allegiances.ts`.
+
+This reopens the balance question issue #14 deferred: `npm run sim`'s FACTION
+REPRISALS table will read differently once the five ascent-phase deaths are
+possible again, and the population shares recorded elsewhere in this document
+predate the change. Re-run the harness before citing any of those numbers as
+current. The leadership half of the same issue — devotion, rather than
+enmity — is a separate mechanic and was not touched by this.
 
 **Lichdom is an ending, not a prize.** It is the branch that cheats the
 decline phase — the lich's Notoriety does not decay. The cost must be

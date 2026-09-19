@@ -23,16 +23,22 @@
  * read as repetition rather than disclosure. Expanding restores it: reading
  * all six is exactly the "tell me everything" moment the note earns its
  * space back for.
+ *
+ * This section used to carry a second alarm line of its own
+ * (`reprisalWarningFor`), shown only when it named a faction other than
+ * `DecisionPanel`'s ambient `nextThreatFor` line — which could happen back
+ * when five of the six reprisals were decline-only and the two functions
+ * scanned differently ('live' vs 'any'). Now that every reprisal is live in
+ * every phase, both functions always resolve to the same nearest-by-standing
+ * faction, so that alarm could never again name a different one — a
+ * permanently-false condition is dead code, not a rare case, so it was
+ * removed rather than left to rot (styling rule 3: don't restate a
+ * disclosure already on screen — this alarm could no longer say anything
+ * `DecisionPanel`'s line had not already said).
  */
 
 import { useId, useState } from 'react';
-import {
-  allegiancesFor,
-  extremeAllegiances,
-  nextThreatFor,
-  reprisalSentence,
-  reprisalWarningFor,
-} from './allegiances';
+import { allegiancesFor, extremeAllegiances } from './allegiances';
 import type { Faction, RunState } from '../../types';
 import styles from './FactionStandings.module.css';
 
@@ -52,20 +58,6 @@ export function FactionStandings({ run, factions }: FactionStandingsProps) {
   const extremes = extremeAllegiances(allegiances);
   const shown = expanded ? allegiances : extremes;
   const collapsible = allegiances.length > extremes.length;
-
-  // Both this alarm and `DecisionPanel`'s ambient `nextThreatFor` line are
-  // built on the SAME `reprisalStatus` computation for a given faction, so
-  // whenever they name the same one, `reprisalSentence` renders the exact
-  // same string for both — an armed reprisal is the common case for
-  // whichever faction sits nearest once every reprisal is live in the
-  // decline, so this was not a rare coincidence but the typical state (Codex
-  // review, PR #38). Suppressed here rather than in `DecisionPanel`, because
-  // the ambient line is unconditional by design (issue #18) and this alarm
-  // is the one gated on proximity — the gated line is the one with room to
-  // stand down when it would only repeat the other.
-  const reprisal = reprisalWarningFor(run);
-  const threat = nextThreatFor(run);
-  const showReprisal = reprisal !== null && reprisal.factionId !== threat?.factionId;
 
   return (
     <section className={styles.section}>
@@ -110,19 +102,6 @@ export function FactionStandings({ run, factions }: FactionStandingsProps) {
           {expanded ? 'Show fewer factions' : 'Show all six factions'}
           <span className={styles.toggleArrow} data-open={expanded ? 'true' : undefined} aria-hidden="true" />
         </button>
-      )}
-
-      {/* The alarm, not the ambient line — that lives in `DecisionPanel` as
-          `nextThreatFor`. Unconditional on `expanded`: the one faction
-          closest to acting is worth a line even when it isn't one of the two
-          extremes shown above it (a faction can be closing in without yet
-          being the single highest or lowest standing on the board). Silent
-          when it would just repeat the ambient line verbatim — see
-          `showReprisal` above. */}
-      {showReprisal && (
-        <p className={styles.reprisal} data-armed={reprisal!.armed ? 'true' : undefined}>
-          {reprisalSentence(reprisal!)}
-        </p>
       )}
     </section>
   );

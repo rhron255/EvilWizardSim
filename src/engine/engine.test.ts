@@ -465,11 +465,6 @@ describe('faction reprisals', () => {
   ): RunState => ({
     ...start(),
     phase: 'decline',
-    // One era clear of the prophecy transition, not merely `phase: 'decline'`
-    // — `reprisalLiveFor` now keys on this, not on `phase` alone, and a
-    // fixture that left it at `start()`'s default 0 would make every "fires"
-    // test below false-negative the moment that fix landed instead of
-    // exercising it.
     erasSinceProphecy: 1,
     notoriety: SEAL_MIN_NOTORIETY,
     eraIndex: 8,
@@ -554,36 +549,31 @@ describe('faction reprisals', () => {
     expect(checkEndings(run, fixtureContent)).toBeUndefined();
   });
 
-  it('keeps the five new ones out of the ascent, and the Academy in it', () => {
-    const ascent = { phase: 'ascent' as const };
+  /**
+   * Uniform now: all six reprisals fire in every phase, exactly as the
+   * Academy's always did. A previous version gated the other five to
+   * decline-only, on the theory that an ascent-phase dip should not end a
+   * career before the prophecy — but that theory was never applied to the
+   * Academy itself, so it was a special case rather than a rule the Academy
+   * was exempt from. See `wiki/01_core_loop.md` § 7 and the comment on
+   * `nearestReprisalFaction` in `src/engine/endings.ts`.
+   */
+  it('fires in the ascent too, exactly like the Academy always could', () => {
+    const ascent = { phase: 'ascent' as const, erasSinceProphecy: 0 };
     expect(
-      checkEndings(at({ verdant_choir: SEAL_MAX_STANDING - 30 }, ascent), fixtureContent),
-    ).toBeUndefined();
+      checkEndings(at({ verdant_choir: SEAL_MAX_STANDING - 30 }, ascent), withReprisals),
+    ).toBe('turned_to_fertilizer');
     expect(checkEndings(at({ pale_academy: SEAL_MAX_STANDING }, ascent), fixtureContent)).toBe(
       'sealed_in_gem',
     );
   });
 
-  /**
-   * The bug underneath issue #25's review: `phase` flips to `'decline'` the
-   * instant `resolveChoice` advances `eraIndex` to `prophecyEra`, and
-   * `checkEndings` runs on that SAME transition — before the player has ever
-   * been shown the pinned prophecy card for that era. A reprisal gated on
-   * `phase` alone could fire right there, ending the run before the central
-   * beat the whole arc is built around ever appears. `erasSinceProphecy`
-   * stays 0 on exactly that transition (it becomes 1 only once the prophecy
-   * era's own card has been resolved), which is what `reprisalLiveFor` must
-   * key on instead.
-   */
-  it('does not fire on the era that crosses into decline, before the prophecy card is shown', () => {
+  it('fires on the era that crosses into decline, before the prophecy card is shown', () => {
     const crossing = at(
       { crownlands: SEAL_MAX_STANDING },
       { erasSinceProphecy: 0 },
     );
-    expect(checkEndings(crossing, withReprisals)).toBeUndefined();
-    // The very next era, the same standing fires as normal.
-    const oneEraLater = at({ crownlands: SEAL_MAX_STANDING }, { erasSinceProphecy: 1 });
-    expect(checkEndings(oneEraLater, withReprisals)).toBe(REPRISAL_BY_FACTION.crownlands);
+    expect(checkEndings(crossing, withReprisals)).toBe(REPRISAL_BY_FACTION.crownlands);
   });
 
   it('does not outrank the blade', () => {
