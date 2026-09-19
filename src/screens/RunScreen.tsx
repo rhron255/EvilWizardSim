@@ -18,7 +18,7 @@
 
 import type { Artifact, Faction, Lair, Offer, RunState, ThemeId } from '../types';
 import type { Resolution } from '../components/run/resolution';
-import type { DefenseReadout } from '../engine';
+import type { ContentBundle, DefenseReadout } from '../engine';
 import { DecisionPanel, FactionStandings, Masthead, ResolutionOverlay } from '../components/run';
 import { themeAttr } from '../components/meta';
 import { tierColor, tierFor, tierGlow } from '../theme/tokens';
@@ -31,6 +31,7 @@ export type RunScreenProps = {
   lairs: Lair[];
   artifacts: Artifact[];
   factions: Faction[];
+  content: ContentBundle;
   onChoose(i: number): void;
   onContinue(): void;
   /**
@@ -50,6 +51,7 @@ export function RunScreen({
   lairs,
   artifacts,
   factions,
+  content,
   onChoose,
   onContinue,
   defense,
@@ -91,6 +93,7 @@ export function RunScreen({
           factions={factions}
           offer={offer}
           artifacts={artifacts}
+          content={content}
           disabled={Boolean(resolution)}
           onChoose={onChoose}
           defense={defense}

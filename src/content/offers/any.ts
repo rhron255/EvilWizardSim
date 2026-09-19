@@ -19,8 +19,7 @@ export const anyOffers: Offer[] = [
         kind: 'certain',
         label: 'Pay for the pipes',
         effects: [
-          { t: 'followers', v: -8 },
-          { t: 'notoriety', v: -1 },
+          { t: 'notoriety', v: -4 },
         ],
       },
       {
@@ -99,9 +98,6 @@ export const anyOffers: Offer[] = [
     body: 'A Gilded Hand courier has arrived with a parcel you did not order, an invoice, and a form declining all responsibility for what is inside it.',
     phase: 'any',
     factionId: 'gilded_hand',
-    // CLAUDE.md failure mode 14: "Sign for it" spends followers for a fixed
-    // artifact grant, and followers floor at zero.
-    requires: [{ c: 'minFollowers', v: 12 }],
     weight: 3,
     options: [
       {
@@ -340,8 +336,7 @@ export const anyOffers: Offer[] = [
         kind: 'certain',
         label: 'Pay half and argue',
         effects: [
-          { t: 'followers', v: -8 },
-          { t: 'notoriety', v: 3 },
+          { t: 'notoriety', v: 7 },
           { t: 'loyalty', v: -5 },
         ],
       },
@@ -464,8 +459,7 @@ export const anyOffers: Offer[] = [
         label: 'Examine the new one',
         effects: [
           { t: 'notoriety', v: 6 },
-          { t: 'standing', factionId: 'worm_below', v: 8 },
-          { t: 'followers', v: -4 },
+          { t: 'standing', factionId: 'worm_below', v: 5 },
         ],
       },
       {

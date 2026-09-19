@@ -114,18 +114,13 @@ export const declineOffers: Offer[] = [
     body: "The Gilded Hand has reviewed your account in light of recent developments. Hesper Quill's letter uses the word 'exposure' four times and never once about you.",
     phase: 'decline',
     factionId: 'gilded_hand',
-    // CLAUDE.md failure mode 14: "Settle in relics" and the gamble's failure
-    // branch both spend a relic via loseArtifact, which is a no-op on an
-    // empty vault.
-    requires: [{ c: 'holdsAnyArtifact' }],
     weight: 3,
     options: [
       {
         kind: 'certain',
         label: 'Settle in full',
         effects: [
-          { t: 'followers', v: -30 },
-          { t: 'standing', factionId: 'gilded_hand', v: 20 },
+          { t: 'standing', factionId: 'gilded_hand', v: 8 },
         ],
         resultText: "You pay it in full. Quill's letter of thanks is, if anything, shorter than the bill.",
       },
@@ -202,9 +197,6 @@ export const declineOffers: Offer[] = [
     body: 'The Verdant Choir has filed to have your hill returned to its prior condition. Its prior condition was a marsh, and they have the paperwork to prove it.',
     phase: 'decline',
     factionId: 'verdant_choir',
-    // CLAUDE.md failure mode 14: "Concede the lower terraces" spends
-    // followers for a fixed artifact grant, and followers floor at zero.
-    requires: [{ c: 'minFollowers', v: 5 }],
     weight: 2,
     options: [
       {
@@ -221,8 +213,7 @@ export const declineOffers: Offer[] = [
         kind: 'certain',
         label: 'Fight the filing',
         effects: [
-          { t: 'followers', v: -18 },
-          { t: 'standing', factionId: 'verdant_choir', v: -20 },
+          { t: 'standing', factionId: 'verdant_choir', v: -28 },
           { t: 'notoriety', v: 4 },
         ],
       },
@@ -443,8 +434,7 @@ export const declineOffers: Offer[] = [
         kind: 'certain',
         label: 'Approve the full repair',
         effects: [
-          { t: 'followers', v: -20 },
-          { t: 'heroThreat', v: -4 },
+          { t: 'heroThreat', v: -1 },
           { t: 'notoriety', v: 2 },
         ],
       },
@@ -537,8 +527,7 @@ export const declineOffers: Offer[] = [
         effects: [
           { t: 'notoriety', v: 12 },
           { t: 'heroThreat', v: 8 },
-          { t: 'standing', factionId: 'crownlands', v: -25 },
-          { t: 'followers', v: -10 },
+          { t: 'standing', factionId: 'crownlands', v: -30 },
         ],
       },
       {
@@ -648,9 +637,6 @@ export const declineOffers: Offer[] = [
     body: 'The Gilded Hand is quietly selling anything associated with you, at a discount, in bulk. Hesper Quill calls it rebalancing the portfolio and does not make eye contact.',
     phase: 'decline',
     factionId: 'gilded_hand',
-    // CLAUDE.md failure mode 14: "Buy your own reputation back" spends
-    // followers for a fixed artifact grant, and followers floor at zero.
-    requires: [{ c: 'minFollowers', v: 25 }],
     weight: 2,
     options: [
       {
@@ -859,8 +845,7 @@ export const declineOffers: Offer[] = [
         label: 'Undergo the lesser form',
         effects: [
           { t: 'notoriety', v: 7 },
-          { t: 'apprentices', v: -1 },
-          { t: 'standing', factionId: 'ashen_covenant', v: 10 },
+          { t: 'standing', factionId: 'ashen_covenant', v: 6 },
         ],
       },
       {
@@ -1018,12 +1003,7 @@ export const declineOffers: Offer[] = [
     body: 'The Pale Academy will hide you. The terms are a cell, a name that is not yours, and a standing agreement never to be interesting again.',
     phase: 'decline',
     factionId: 'pale_academy',
-    // minFollowers per CLAUDE.md failure mode 14: "Take sanctuary" spends
-    // followers for a fixed rare artifact grant, and followers floor at zero.
-    requires: [
-      { c: 'minStanding', factionId: 'pale_academy', v: 20 },
-      { c: 'minFollowers', v: 30 },
-    ],
+    requires: [{ c: 'minStanding', factionId: 'pale_academy', v: 20 }],
     weight: 2,
     options: [
       {
@@ -1818,10 +1798,6 @@ export const declineOffers: Offer[] = [
     body: 'A woman with too many rings and one enormous empty bag has walked a long way to stand in your hall. She buys, she sells, and she is very clear that she also trades.',
     phase: 'decline',
     factionId: 'gilded_hand',
-    // CLAUDE.md failure mode 14: "Sell her a relic for what you need" uses
-    // loseArtifact, a no-op on an empty vault, and the gamble's success
-    // branch grants an artifact for 8 followers with no gate of its own.
-    requires: [{ c: 'holdsAnyArtifact' }, { c: 'minFollowers', v: 8 }],
     weight: 2,
     options: [
       {

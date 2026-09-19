@@ -32,14 +32,7 @@ export const favorOffers: Offer[] = [
     body: 'Hesper Quill returns the catalogue, this time with a second column of prices, lower than the first and printed in a red the Gilded Hand keeps for people it has decided to keep.',
     phase: 'any',
     factionId: 'gilded_hand',
-    // minFollowers per CLAUDE.md failure mode 14: "Buy at the preferred
-    // price" and both branches of the gamble spend followers for a fixed
-    // artifact grant, and followers floor at zero. Gated to the gamble's
-    // failure branch (14), the higher of the two costs.
-    requires: [
-      { c: 'minStanding', factionId: 'gilded_hand', v: 30 },
-      { c: 'minFollowers', v: 14 },
-    ],
+    requires: [{ c: 'minStanding', factionId: 'gilded_hand', v: 30 }],
     weight: 2,
     options: [
       {

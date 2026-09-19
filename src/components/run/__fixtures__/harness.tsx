@@ -14,6 +14,7 @@ import type { EraRecord, RunState } from '../../../types';
 import type { Resolution } from '../resolution';
 import {
   demoArtifacts,
+  demoContent,
   demoEarlyRun,
   demoFactions,
   demoLairs,
@@ -112,6 +113,7 @@ export function Harness() {
       themeId="default"
       artifacts={demoArtifacts}
       factions={demoFactions}
+      content={demoContent}
       onChoose={choose}
       onContinue={continueEra}
     />

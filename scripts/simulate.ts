@@ -41,7 +41,14 @@ import type {
 import { writeFileSync } from 'node:fs';
 import type { ContentBundle } from '../src/engine';
 import { TIERS, tierFor } from '../src/theme/tokens';
-import { ascensionReady, createRun, defenseOf, nextOffer, resolveChoice } from '../src/engine';
+import {
+  ascensionReady,
+  createRun,
+  defenseOf,
+  isOptionPickable,
+  nextOffer,
+  resolveChoice,
+} from '../src/engine';
 import {
   ASCENSION_LEGENDARIES,
   ASCENSION_MIN_NOTORIETY,
@@ -785,7 +792,17 @@ function devotionAffinity(option: OfferOption, target: FactionId, standing: numb
 const COURTIER_DEVOTION = Number(process.env.COURTIER_DEVOTION ?? 5);
 
 function chooseOption(policy: Policy, run: RunState, offer: Offer, roll: number): number {
-  if (policy === 'random') return Math.floor(roll * offer.options.length);
+  if (policy === 'random') {
+    // Uniform among PICKABLE options only (issue #41 follow-up):
+    // `resolveChoice` now refuses an unpickable index inertly rather than
+    // applying it, so a random draw that ignored affordability could stall
+    // a run on the same era for the rest of its guard budget. `nextOffer`
+    // already guarantees at least one pickable certain option per offer.
+    const pickable = offer.options
+      .map((_, i) => i)
+      .filter((i) => isOptionPickable(run, offer.options[i], content));
+    return pickable[Math.floor(roll * pickable.length)] ?? 0;
+  }
 
   const defense = defenseOf(run, content);
   const threatRatio = defense > 0 ? run.heroThreat / defense : 0;
@@ -802,6 +819,11 @@ function chooseOption(policy: Policy, run: RunState, offer: Offer, roll: number)
     // The "safe" player never gambles — the certain-option guarantee is what
     // makes that a playable strategy at all.
     if (policy === 'safe' && option.kind === 'gamble') return;
+    // Issue #41 follow-up: an option the player cannot currently afford is
+    // never a candidate. `nextOffer` already guarantees at least one
+    // pickable certain option per offer, so this can never empty the field
+    // for a policy that (unlike `safe`) also considers gambles.
+    if (!isOptionPickable(run, option, content)) return;
     let score = optionScore(option, w, takesLichdom, run.pactDebt, takesGoodWizard);
     // A lich-seeker courts ONE faction, hard, because only the Worm Below
     // offers the rite and its gate is `minStanding worm_below 20`. Generic

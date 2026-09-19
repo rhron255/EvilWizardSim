@@ -19,6 +19,7 @@ export {
   buildOfferPool,
   standingWeight,
   pactWeight,
+  isOptionPickable,
   QUIET_ERA_OFFER,
 } from './offers';
 export {
@@ -46,7 +47,7 @@ export {
   patronFaction,
   leadershipEnding,
 } from './endings';
-export { conditionMet, conditionsMet } from './conditions';
+export { conditionMet, conditionsMet, impliedGatesOf } from './conditions';
 export { projectEffects } from './effects';
 
 export {

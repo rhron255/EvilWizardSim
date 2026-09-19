@@ -30,10 +30,10 @@ import type { Condition, FactionId, Offer } from '../../types';
  * `stockGate` exists for the same reason `oaths.ts`'s does (CLAUDE.md failure
  * mode 14): followers, apprentices and lair tier all floor or refuse to move
  * past their minimum, so a price naming one of them costs nothing to a wizard
- * who has none to give, while the fixed legendary still pays out in full. All
- * six routes spend at least one such stock alongside the uncapped currencies
- * (pactDebt, notoriety, hero threat) and are gated accordingly (issue #41 —
- * the original four shipped ungated, which was a bug, not an exemption).
+ * who has none to give, while the fixed legendary still pays out in full. The
+ * Hand's and the Choir's routes (#22) both spend stock this way and are gated;
+ * the original four price the relic in pactDebt, notoriety or hero threat —
+ * currencies with no floor to hide behind — and need no gate.
  */
 
 type Concordat = {
@@ -68,7 +68,6 @@ const CONCORDATS: Concordat[] = [
       ],
       resultText: 'One apprentice signs where indicated. You are not told which page.',
     },
-    stockGate: [{ c: 'minApprentices', v: 1 }],
     declineLabel: 'Leave it on the shelf',
     declineText: 'The Covenant does not argue. It writes the date down.',
   },
@@ -89,7 +88,6 @@ const CONCORDATS: Concordat[] = [
       ],
       resultText: 'They give you a key, a shelf, and a form to fill in about the shelf.',
     },
-    stockGate: [{ c: 'minFollowers', v: 12 }],
     declineLabel: 'Decline, in writing, at length',
     declineText: 'Your letter is filed. It will be quoted at your memorial.',
   },
@@ -110,7 +108,6 @@ const CONCORDATS: Concordat[] = [
       ],
       resultText: 'You now know the name of the Chosen One’s grandmother. So does she.',
     },
-    stockGate: [{ c: 'minFollowers', v: 30 }],
     declineLabel: 'Let him keep it',
     declineText: 'He looks relieved, which tells you what it would have cost you.',
   },
@@ -131,7 +128,6 @@ const CONCORDATS: Concordat[] = [
       ],
       resultText: 'Twenty of your household do not come back up. The ledger calls this interest.',
     },
-    stockGate: [{ c: 'minFollowers', v: 20 }],
     declineLabel: 'Refuse the loan',
     declineText: 'It withdraws without comment. The shelf stays where you can think about it.',
   },

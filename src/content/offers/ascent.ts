@@ -152,10 +152,6 @@ export const ascentOffers: Offer[] = [
     body: 'A Gilded Hand factor named Hesper Quill leaves a catalogue on your desk without entering the building. Every price is listed in followers.',
     phase: 'ascent',
     factionId: 'gilded_hand',
-    // CLAUDE.md failure mode 14: "Buy something modest" spends followers for a
-    // fixed artifact grant, and followers floor at zero, so a 0-follower wizard
-    // got it free.
-    requires: [{ c: 'minFollowers', v: 15 }],
     weight: 3,
     options: [
       {
@@ -199,9 +195,6 @@ export const ascentOffers: Offer[] = [
     body: 'The Pale Academy would like you to know that giving season has begun, and that your expulsion does not preclude generosity.',
     phase: 'ascent',
     factionId: 'pale_academy',
-    // CLAUDE.md failure mode 14: "Donate generously" spends followers for a
-    // fixed artifact grant, and followers floor at zero.
-    requires: [{ c: 'minFollowers', v: 12 }],
     weight: 3,
     options: [
       {
@@ -486,9 +479,6 @@ export const ascentOffers: Offer[] = [
     body: 'The Gilded Hand is auctioning the estate of a wizard who died owing them money. Lot forty-one is described only as "contents of the study, sold unexamined".',
     phase: 'ascent',
     factionId: 'gilded_hand',
-    // CLAUDE.md failure mode 14: the gamble's success branch spends followers
-    // for a fixed artifact grant, and followers floor at zero.
-    requires: [{ c: 'minFollowers', v: 10 }],
     weight: 2,
     options: [
       {
@@ -679,8 +669,7 @@ export const ascentOffers: Offer[] = [
         kind: 'certain',
         label: 'Install the thing',
         effects: [
-          { t: 'notoriety', v: 9 },
-          { t: 'followers', v: -8 },
+          { t: 'notoriety', v: 4 },
           { t: 'heroThreat', v: 2 },
         ],
       },
@@ -828,9 +817,8 @@ export const ascentOffers: Offer[] = [
         kind: 'certain',
         label: 'Take the full policy',
         effects: [
-          { t: 'followers', v: -14 },
           { t: 'heroThreat', v: -6 },
-          { t: 'standing', factionId: 'gilded_hand', v: 12 },
+          { t: 'standing', factionId: 'gilded_hand', v: 6 },
         ],
       },
       {
@@ -996,8 +984,7 @@ export const ascentOffers: Offer[] = [
         label: 'Sign the lease',
         effects: [
           { t: 'notoriety', v: 14 },
-          { t: 'followers', v: -10 },
-          { t: 'heroThreat', v: 5 },
+          { t: 'heroThreat', v: 8 },
         ],
       },
       {
@@ -1186,8 +1173,7 @@ export const ascentOffers: Offer[] = [
         kind: 'certain',
         label: 'Cut it back weekly',
         effects: [
-          { t: 'followers', v: -8 },
-          { t: 'standing', factionId: 'verdant_choir', v: -5 },
+          { t: 'standing', factionId: 'verdant_choir', v: -10 },
         ],
       },
       {
@@ -1240,9 +1226,8 @@ export const ascentOffers: Offer[] = [
         kind: 'certain',
         label: 'Open the tunnels and see who is home',
         effects: [
-          { t: 'standing', factionId: 'worm_below', v: 22 },
+          { t: 'standing', factionId: 'worm_below', v: 16 },
           { t: 'notoriety', v: 6 },
-          { t: 'followers', v: -6 },
         ],
       },
       {
@@ -1541,8 +1526,8 @@ export const ascentOffers: Offer[] = [
         label: 'Build the ironwork',
         effects: [
           { t: 'lairTier', v: 1 },
-          { t: 'followers', v: -15 },
           { t: 'notoriety', v: 6 },
+          { t: 'heroThreat', v: 10 },
         ],
       },
       {

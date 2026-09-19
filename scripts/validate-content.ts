@@ -19,7 +19,7 @@
  * Exits non-zero with a readable list. Silence means the catalog is sound.
  */
 
-import type { Artifact, Condition, Effect, OfferOption, Rarity } from '../src/types';
+import type { Artifact, Condition, Effect, Offer, OfferOption, Rarity } from '../src/types';
 import * as content from '../src/content';
 import {
   DEVOTION_STANDING,
@@ -792,19 +792,64 @@ for (const o of offers) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Every offer needs one CERTAIN option a broke wizard can actually take
+// ---------------------------------------------------------------------------
+
 /**
- * Issue #41: the same clamp as above, but for a FIXED grant instead of debt
- * relief — the shape that let a broke wizard walk out of a concordat with a
- * legendary for free. `artifactFrom` is a guaranteed grant no matter what the
- * branch's other effects do, so pairing it with an uncapped followers/
- * apprentices cost or a `loseArtifact` cost is the same bypass as above, just
- * buying a relic instead of buying down debt.
+ * Issue #41, generalised. The 13 offer-level `requires` gates that commit
+ * added were a hand-maintained mirror of what each option's own effects
+ * already said, and they hid the WHOLE card the instant ONE option was
+ * unaffordable — full-completion time moved from 846.5 to ~1020 median runs
+ * because of it. `src/engine/conditions.ts`'s `impliedGatesOf` and
+ * `src/engine/offers.ts`'s `isOptionPickable` replace that: they derive the
+ * gate from an option's own effects and grey out only the option that needs
+ * it, never the offer.
  *
- * Scoped to `artifactFrom` rather than "any fixed benefit" (standing,
- * notoriety, …) — those move by degree and a partial payment for a partial
- * grant is not the bypass this rule exists to catch; `artifactFrom` is the
- * one effect that is always all-or-nothing.
+ * That per-option repair depends on a catalog guarantee this rule enforces:
+ * every offer keeps at least one CERTAIN option that spends none of the four
+ * balances `applyEffects` floors or no-ops at zero — followers, apprentices,
+ * a lairTier LOSS, or `loseArtifact`. `offers.ts`'s `everyOptionPickable`
+ * check, plus the existing `QUIET_ERA_OFFER` degradation cascade, already
+ * keeps a run playable even when every offer momentarily fails this — a
+ * broke wizard is never stuck with nothing to take. What this rule protects
+ * is narrower and still worth having: without it, an offer whose every
+ * certain option spends stock silently empties out of the pool for anyone
+ * who cannot pay any of them, making it needlessly rare for exactly the
+ * wizards a run is hardest on.
+ *
+ * Standing, notoriety, pactDebt and heroThreat costs are not "stock" here —
+ * they have no floor to hide behind, so paying them is always real (the same
+ * distinction `concordats.ts`'s and `oaths.ts`'s comments already draw).
+ *
+ * An offer's OWN `requires` can make a stock cost real by a different route:
+ * `decline_collections` requires `minFollowers: 35` before it can be drawn at
+ * all, and its "Pay in followers" option spends exactly 35 — so anyone who
+ * ever sees the card can afford it, and the option was never going to clamp.
+ * That is the same guarantee the pact ladder's "certain way out" check below
+ * already relies on when it disqualifies a stock-gated offer as a broke
+ * wizard's exit — read the other way, a gate at least as large as the cost
+ * standing in front of it makes that cost real without a second, stock-free
+ * option to fall back on.
  */
+function hasStockFreeOption(o: Offer): boolean {
+  const gates = o.requires ?? [];
+  const covered = (c: 'minFollowers' | 'minApprentices' | 'minLairTier', need: number) =>
+    gates.some((g) => g.c === c && g.v >= need);
+  const coveredRelic = gates.some((g) => g.c === 'holdsAnyArtifact' || g.c === 'hasArtifact');
+
+  return o.options.some((opt) => {
+    if (opt.kind !== 'certain') return false;
+    return opt.effects.every((e) => {
+      if (e.t === 'followers' && e.v < 0) return covered('minFollowers', -e.v);
+      if (e.t === 'apprentices' && e.v < 0) return covered('minApprentices', -e.v);
+      if (e.t === 'lairTier' && e.v < 0) return covered('minLairTier', -e.v);
+      if (e.t === 'loseArtifact') return coveredRelic;
+      return true;
+    });
+  });
+}
+
 for (const o of offers) {
   const terminal = o.options.some(
     (opt) =>
@@ -814,28 +859,11 @@ for (const o of offers) {
   );
   if (terminal) continue;
 
-  const gates = o.requires ?? [];
-  const stocked = (c: 'minFollowers' | 'minApprentices', need: number) =>
-    gates.some((g) => g.c === c && g.v >= need);
-  const stockedRelic = gates.some((g) => g.c === 'holdsAnyArtifact' || g.c === 'hasArtifact');
-
-  for (const opt of o.options) {
-    const branches = opt.kind === 'certain' ? [opt.effects] : [opt.onSuccess, opt.onFailure];
-    for (const branch of branches) {
-      if (!branch.some((e) => e.t === 'artifactFrom')) continue;
-      const where = `offer "${o.id}" option "${opt.label}"`;
-      for (const e of branch) {
-        if (e.t === 'followers' && e.v < 0 && !stocked('minFollowers', -e.v)) {
-          fail(where, `grants an artifact for ${-e.v} followers with no minFollowers gate — a poorer wizard gets it for less`);
-        }
-        if (e.t === 'apprentices' && e.v < 0 && !stocked('minApprentices', -e.v)) {
-          fail(where, `grants an artifact for ${-e.v} apprentice(s) with no minApprentices gate — a wizard with none gets it for free`);
-        }
-        if (e.t === 'loseArtifact' && !stockedRelic) {
-          fail(where, 'grants an artifact by trading one away, but the offer never requires holding one — an empty reliquary pays nothing');
-        }
-      }
-    }
+  if (!hasStockFreeOption(o)) {
+    fail(
+      `offer "${o.id}"`,
+      'every certain option spends stock (followers/apprentices/lairTier/loseArtifact) — a broke wizard has no way to take this offer at all',
+    );
   }
 }
 
