@@ -584,18 +584,20 @@ function optionScore(
 }
 
 function modeFor(policy: Policy, run: RunState, threatRatio: number): Mode {
-  // A pariah still has to LIVE to the decline and be famous enough to be worth
-  // acting on — the reprisal needs notoriety ≥ SEAL_MIN_NOTORIETY and, for
-  // five of the six factions, the decline phase. So the base play is
-  // `adaptive`; the spite rides on top of it rather than replacing it.
+  // All six reprisals fire in every phase now (they used to be decline-only
+  // for five of the six factions — see `wiki/01_core_loop.md` § 7), so a
+  // pariah no longer needs to survive to the decline for its spite to count;
+  // it needs only notoriety ≥ SEAL_MIN_NOTORIETY, in either phase. The mode
+  // chosen here is still just the BASE play — `chooseOption` adds the
+  // `spiteAffinity` bonus on top unconditionally, in ascent and decline
+  // alike, so the target-tanking behaviour was never gated on phase to begin
+  // with; only the fame/defense trade-off below is.
   if (isPariah(policy)) {
     if (run.phase === 'ascent') return 'notoriety';
     return threatRatio > 0.55 ? 'defense' : 'notoriety';
   }
   // The mirror of the pariah branch above, and the generic `courtier` case
-  // below: build standing through the ascent, defend once threatened. The
-  // leadership check is not decline-gated the way five of the six reprisals
-  // are, so unlike the pariah there is no phase split to make here.
+  // below: build standing through the ascent, defend once threatened.
   if (isCourtier(policy)) {
     return run.phase === 'ascent' ? 'standing' : 'defense';
   }
