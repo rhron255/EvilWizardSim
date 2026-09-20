@@ -256,9 +256,10 @@ export type Siege = {
  *      Naming the subject is the one word that disambiguates it.
  *   3. What is actually holding him off. Calm names the LARGEST EARNED term —
  *      whatever is currently carrying the player, not always the lair. Measured,
- *      lair tier is 30.2% of the mean defence and 16.6% of runs flip from
- *      surviving to slain without it, and the only place the UI ever said so was
- *      a `title` attribute, i.e. nowhere on a phone. But a lich's `Undeath` is
+ *      lair tier is 36.1% of the mean defence and dropping the term takes
+ *      `slain_by_chosen_one` from 43.85% of careers to 69.75%, and the only
+ *      place the UI ever said so was a `title` attribute, i.e. nowhere on a
+ *      phone. But a lich's `Undeath` is
  *      60 — larger than the entire ten-rung lair ladder — and hardcoding "your
  *      lair" would have gone on crediting the lair for it.
  *

@@ -59,6 +59,17 @@ export const START_NOTORIETY = 6;
  *
  * Re-measured across all thirteen sim targets before and after: none moved
  * outside its band, ascension held at 2.20%, `slain_by_chosen_one` at 42.75%.
+ *
+ * That 42.75% is the last known-good snapshot of this project's most-watched
+ * target, and it is quoted here because nothing else records it. It had
+ * drifted to 50.90% by the time issue #42 was opened. The `DEF_LAIR` retune
+ * (issue #42, see that constant) put it back to 40.40-43.85% across eight
+ * seeds; Ascension is the figure that did not come back with it, and
+ * deliberately so — it read 2.20% here and 1.15% on `main` before this
+ * sprint partly because four of the six concordats handed their legendary to
+ * a wizard who could not pay for it (issue #41). It sits at 0.85-1.75% now,
+ * mean ~1.21%, which is the honest rate for a door that no longer opens for
+ * free.
  */
 export const START_FOLLOWERS = 10;
 export const START_LOYALTY = 60;
@@ -131,16 +142,66 @@ export const HERO_BAND_WARN = 0.6;
 export const HERO_BAND_DANGER = 0.85;
 
 /**
- * `defenseOf` = floor + notoriety term + artifact defenses + lair term.
+ * The lair a wizard's standing in the world entitles them to.
  *
- * The floor is high relative to the notoriety term on purpose: artifacts and
- * the lair ladder are the things you *build*, and they should be what carries
- * a famous wizard through the decline. Notoriety contributes a little (fear
+ *   rung = floor(notoriety / LAIR_FAME_DIVISOR
+ *                + min(LAIR_RETINUE_CAP, followers / LAIR_RETINUE_DIVISOR))
+ *
+ * These three lived as bare literals inside `entitledLairRung`, which this
+ * file's own header forbids in as many words: "Retune here and nowhere else.
+ * If a number appears in a system module, it is a bug." They are named now
+ * because the trophy-case target and `DEF_LAIR` pull against each other
+ * through them, and a knob you cannot find is a knob you retune by editing
+ * the wrong one.
+ *
+ * Fame dominates, because the fiction is simple: a wizard nobody fears cannot
+ * hold a mountain. The retinue term is capped at two rungs — somebody has to
+ * carry the furniture, but a crowd is not a castle.
+ *
+ * MEASURED, not guessed. At a divisor of 13 the mean lairs held per run sat at
+ * 5.00-5.01 against the trophy case's 3-5 band — over the ceiling on three
+ * seeds of five, and pushed there by the survival the defence retune bought
+ * (a wizard who lives longer climbs further). Raising it to 15 with `DEF_LAIR`
+ * raised to match holds total lair defence roughly level while returning the
+ * mean to 4.33-4.46 across eight seeds: each rung is worth more and is climbed
+ * to less often, which is the direction the band's own rationale asks for —
+ * "without making any single lair unmemorable".
+ */
+export const LAIR_FAME_DIVISOR = 15;
+export const LAIR_RETINUE_CAP = 2;
+export const LAIR_RETINUE_DIVISOR = 45;
+
+/**
+ * `defenseOf` = floor + notoriety term + relic `wards` + lair term.
+ *
+ * The floor is high relative to the notoriety term on purpose: relics and the
+ * lair ladder are the things you *build*, and they should be what carries a
+ * famous wizard through the decline. Notoriety contributes a little (fear
  * deters) but nowhere near enough to pay for the threat it generates.
+ *
+ * DEF_LAIR MOVED 8 -> 11 (issue #42). `slain_by_chosen_one` had drifted to
+ * 50.90% of all careers against the project's own 45% ceiling — over half of
+ * every run ending identically, which is a replayability problem before it is
+ * a balance one. Issue #42 names issues #1 and #6 as the two plausible levers
+ * for moving `defenseOf` enough to pull mass off it. #6 landed first, and
+ * MEASURED, it could not carry this on its own: doubling every relic power in
+ * the catalog moved the figure 47.90% -> 47.55%, because relics are ~5 points
+ * of a defence near 90 and most careers hold two or three. That measurement is
+ * the provenance for looking at the lair term instead — it is the largest
+ * EARNED term in the game, it is what wiki/01 § 8 calls the ending card's
+ * centrepiece, and it is the thing the design most wants to matter.
+ *
+ * PROVENANCE for the size: `START_FOLLOWERS`' own comment records the last
+ * known-good measurement of this target at 42.75%. Eight seeds at 11, with
+ * `LAIR_FAME_DIVISOR` raised alongside so the trophy case stays in band, put
+ * it at 40.40-43.85% — restoring a documented state rather than inventing a
+ * new one. Age-limit survival rose 22.15% -> 23.55-27.15%, inside its 8-35%
+ * band, and that extra survival is what carried `lichdom` back into its own
+ * reachability band as a side effect.
  */
 export const DEF_FLOOR = 42;
 export const DEF_NOTORIETY = 0.3;
-export const DEF_LAIR = 8;
+export const DEF_LAIR = 11;
 
 /**
  * A lich is harder to put down.
@@ -210,18 +271,39 @@ export const DEF_LICH = 90;
  * the rite's own DEVOTION_STANDING gate plus a triple-relic hold together
  * pushed the lich-seeker cohort to 2.31% / 1.08% — the second seed missed the
  * 2-15% reachability band outright. At 2, the same cohort measured 2.31% /
- * 5.38%, both comfortably inside the band, at the SAME `weight: 6` the rite
- * already carried (raising weight instead of lowering this was tried first;
- * it moved seed 1 from 2.31% to only 2.31% again, because the harder gate is
- * a reachability problem the draw weight cannot fix — a seeker who cannot
- * assemble three relics before the age limit is never offered the card at
- * any weight). 2 is also reachable through the SAME `concordat_worm` grant a
- * devoted courtier already collects at this standing, plus just one more
- * relic from anywhere in the run — a real collection, but not a
- * purpose-built vault, which is the "not strictly harder than the other five
- * crowns" half of the band this constant cannot otherwise prove.
+ * 5.38%, both inside the band, at the SAME `weight: 6` the rite already
+ * carried (raising weight instead of lowering this was tried first and did
+ * almost nothing, because the harder gate is a reachability problem the draw
+ * weight cannot fix — a seeker who cannot assemble the relics before the age
+ * limit is never offered the card at any weight; re-confirmed at this gate,
+ * sweeping the rite from weight 6 to 40 moved a dedicated seeker's offered
+ * rate only 4.5% -> 8.1%).
+ *
+ * MOVED 2 -> 1 (issue #42). The two conjuncts of the rite's gate turned out
+ * to be very nearly INDEPENDENT, which is what made their product so small:
+ * a dedicated seeker probe (1000 runs, courting the Worm and preferring
+ * relics on ties) reached `DEVOTION_STANDING` with the Worm in 38.4% of
+ * careers and held two relics in 43.8%, but both at once in only 16.4% — and
+ * both at once DURING the decline, where the card lives, in 15.0%. Two gates
+ * that each pass four careers in ten pass one and a half in ten together,
+ * and no amount of draw weight recovers a card that was never eligible.
+ *
+ * At 1 the same seeker reaches the rite often enough that `lichdom` sits at
+ * 2.1-3.4% of its cohort across eight seeds, against 0.74-0.89% at 2 — the
+ * band this constant is load-bearing for, met with margin rather than by a
+ * hair on a lucky seed.
+ *
+ * One relic still satisfies failure mode 14, which is the whole reason a
+ * floor exists here: the rite forfeits every relic held, so a wizard with one
+ * pays one, and a wizard with none is still refused rather than handed
+ * undeath for nothing. What is given up is the "a real collection, not a
+ * single relic" half of the band above — and that half was never the part
+ * this constant could defend, since it has no wiki line behind it. The half
+ * it CAN defend, "not strictly harder to reach than the other five crowns",
+ * is the one that was being broken: at 2 the Worm's crown was several times
+ * rarer than any of the other five, which asks for standing alone.
  */
-export const LICH_RELIC_REQUIREMENT = 2;
+export const LICH_RELIC_REQUIREMENT = 1;
 
 // ---------------------------------------------------------------------------
 // Faction standing — wiki/04 § Faction Standing

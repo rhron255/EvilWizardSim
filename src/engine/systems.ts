@@ -21,6 +21,9 @@ import {
   HERO_BAND_WARN,
   HERO_FAME_COEF,
   HERO_THREAT_BASE,
+  LAIR_FAME_DIVISOR,
+  LAIR_RETINUE_CAP,
+  LAIR_RETINUE_DIVISOR,
   HERO_THREAT_MIN,
   HERO_THREAT_RAMP,
   PROPHECY_FRACTION,
@@ -257,8 +260,10 @@ export type DefenseReadout = { total: number; terms: DefenseTerm[] };
 /**
  * The same arithmetic as `defenseOf`, with its terms named.
  *
- * Measured: lair tier supplies 30.2% of the mean defence, and 16.6% of runs
- * flip from surviving the hero to slain if the lair term is removed — yet the
+ * Measured: lair tier supplies 36.1% of the mean defence, and removing the
+ * term entirely takes `slain_by_chosen_one` from 43.85% of careers to 69.75%
+ * — one run in four flips from surviving the hero to being killed by him on
+ * that term alone — yet the
  * only place the UI ever said a lair defends you was a `title` tooltip, which
  * a phone cannot show. A stat that decides one run in six and is disclosed
  * nowhere is the header's oldest bug wearing a new hat.
@@ -312,8 +317,8 @@ export function defenseReadout(run: RunState, content: ContentBundle): DefenseRe
  */
 export function entitledLairRung(run: RunState, ladderLength: number): number {
   if (ladderLength <= 1) return 0;
-  const fromFame = run.notoriety / 13;
-  const fromRetinue = Math.min(2, run.followers / 45);
+  const fromFame = run.notoriety / LAIR_FAME_DIVISOR;
+  const fromRetinue = Math.min(LAIR_RETINUE_CAP, run.followers / LAIR_RETINUE_DIVISOR);
   return clamp(Math.floor(fromFame + fromRetinue), 0, ladderLength - 1);
 }
 

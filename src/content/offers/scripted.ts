@@ -88,10 +88,16 @@ export const scriptedOffers: Offer[] = [
      * at `LICH_RELIC_REQUIREMENT` is the rite's own price gate — the rite
      * already consumes every relic held, so the requirement and the cost are
      * the same relics (CLAUDE.md failure mode 14).
+     *
+     * That relic count is 1 rather than 2 since issue #42. The two conjuncts
+     * are close to independent, so at 2 they multiplied down to 15% of a
+     * dedicated seeker's careers ever seeing this card eligible in the
+     * decline — the reachability problem the constant's own comment now
+     * records in full.
      */
     requires: [
       { c: 'minStanding', factionId: 'worm_below', v: 50 },
-      { c: 'minArtifacts', v: 2 },
+      { c: 'minArtifacts', v: 1 },
     ],
     /**
      * The whole lichdom branch is this one option, so its weight is an

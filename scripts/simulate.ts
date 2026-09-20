@@ -1182,8 +1182,20 @@ function pickEraCount(roll: number): number {
  * Deliberately separate from the headline population: these runs are NOT mixed
  * into the distribution above, because a population made of people all chasing
  * the same rare ending is not a population (CLAUDE.md failure mode 5).
+ *
+ * RAISED 200 -> 1000 (issue #42, and issue #32's own remaining half, which the
+ * rarity-ordering check below has been asking for in writing for two issues).
+ * At 200 a true ~1.5% cohort rate has an expected count of 3, so the minimum
+ * of eleven such rates was decided by whichever cohort got unlucky and moved
+ * to a different faction every seed — the check flickered without anything
+ * about the game changing. At 1000 the minimum stops wandering and starts
+ * naming the same ending across seeds, which is what turned it from noise into
+ * a finding: `lichdom` really was the floor, and is no longer.
+ *
+ * It costs about three seconds on a 44-second report, which is a cheap price
+ * for a check that means something.
  */
-const PROBE_RUNS = 200;
+const PROBE_RUNS = 1000;
 
 /**
  * `arch_lich`'s own cohort size (issue #25), 50x `PROBE_RUNS` and measured,
@@ -2102,9 +2114,27 @@ function main(): void {
   const namedThreatRate = results.filter((r) => r.peakNotoriety >= NAMED_THREAT_MIN).length / total;
   const kingdomRate = results.filter((r) => r.peakNotoriety >= KINGDOM_MIN).length / total;
   const legendRate = results.filter((r) => r.peakNotoriety >= LEGEND_MIN).length / total;
-  const lichSeekers = results.filter((r) => r.policy === 'lich');
-  const lichSeekerRuns = lichSeekers.length;
-  const lichSeekerLichdoms = lichSeekers.filter((r) => r.ending === 'lichdom').length;
+  /*
+   * READ FROM `lichProbe`, not from the population's `lich` slice.
+   *
+   * This check is named "reachable by a lich-seeker" and was measuring
+   * `results.filter(r => r.policy === 'lich')` — whatever share of the 2000-run
+   * population the policy mix happened to hand it, about 130 careers. At a true
+   * rate of 2% that is an expected count of under three, so the check swung
+   * between 0.77% and 2.31% on neighbouring seeds while nothing about the game
+   * changed: CLAUDE.md failure mode 5, a cohort-level effect read off a thin
+   * slice of a population.
+   *
+   * `lichProbe` has existed for exactly this since issue #24 and its own doc
+   * comment says so — "raises the expected count to ~4.6" — but the check was
+   * never pointed at it, so the probe was computed, folded into
+   * `byEndingAnywhere` for the reachability sweep, and otherwise unread
+   * (failure mode 2). The rarity-ordering check below already reads the probe,
+   * which meant one report printed two different lich-seeker rates from two
+   * different samples and called them the same thing.
+   */
+  const lichSeekerRuns = lich.length;
+  const lichSeekerLichdoms = lich.filter((r) => r.ending === 'lichdom').length;
   const lichSeekerLichdomRate = lichSeekerRuns > 0 ? lichSeekerLichdoms / lichSeekerRuns : 0;
   const meanLairs = mean(results.map((r) => r.lairsHeld));
   const repeatRate = repeatedDeeds / Math.max(1, allDeeds.length);

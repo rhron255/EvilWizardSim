@@ -52,10 +52,26 @@ import type { Condition, FactionId, Offer } from '../../types';
  * has none, so with all six gated, a career that never built a household had
  * no route to a legendary at all and Ascension fell out of its band (measured:
  * 1.15% to 0.65%). The Covenant is repriced instead of gated — it deals in
- * signatures rather than coin, so it charges pact debt, fame and the hero's
- * attention, none of which have a floor to hide behind. It is the one
- * concordat a penniless wizard can still walk into, which is what keeps the
- * ascent's top rung reachable from the bottom.
+ * signatures rather than coin, so it charges fame and the hero's attention,
+ * neither of which has a floor to hide behind. It is the one concordat a
+ * penniless wizard can still walk into, which is what keeps the ascent's top
+ * rung reachable from the bottom.
+ *
+ * It charged pact debt too, at first, and that is worth recording because the
+ * fix looked right and measured wrong. Debt is floorless, so it satisfies the
+ * rule above — but every sim policy prices debt convexly against `PACT_LIMIT`
+ * (see CLAUDE.md failure mode 5 on the ceiling-avoiders), so a legendary sold
+ * for debt is one the entire instrument declines to buy. Ascension read
+ * 0.85-1.05% with the debt in the price and 1.10-1.25% with the same relic
+ * priced in fame and threat instead. A price no measurable player will pay is
+ * not a price, it is a closed door with a sign on it.
+ *
+ * The Academy, Crownlands, Worm and Hand keep a stock price and a gate, but
+ * the follower half came down (12/30/20/45 -> 8/12/10/24) with the difference
+ * moved onto the floorless currency each faction actually deals in. The old
+ * numbers were authored when roughly half of every follower cost was silently
+ * never charged; gating made them real, and a price that doubled in practice
+ * needed re-sizing rather than leaving to stand.
  */
 
 type Concordat = {
@@ -84,9 +100,8 @@ const CONCORDATS: Concordat[] = [
       label: 'Take the Testament',
       effects: [
         { t: 'artifactFrom', factionId: 'ashen_covenant', rarity: 'legendary' },
-        { t: 'pactDebt', v: 2 },
-        { t: 'notoriety', v: 8 },
-        { t: 'heroThreat', v: 4 },
+        { t: 'notoriety', v: 10 },
+        { t: 'heroThreat', v: 10 },
       ],
       resultText: 'You sign where indicated. You are not told which page, and you are not offered a copy.',
     },
@@ -106,11 +121,11 @@ const CONCORDATS: Concordat[] = [
         { t: 'artifactFrom', factionId: 'pale_academy', rarity: 'legendary' },
         { t: 'notoriety', v: -10 },
         { t: 'standing', factionId: 'crownlands', v: 10 },
-        { t: 'followers', v: -12 },
+        { t: 'followers', v: -8 },
       ],
       resultText: 'They give you a key, a shelf, and a form to fill in about the shelf.',
     },
-    stockGate: [{ c: 'minFollowers', v: 12 }],
+    stockGate: [{ c: 'minFollowers', v: 8 }],
     declineLabel: 'Decline, in writing, at length',
     declineText: 'Your letter is filed. It will be quoted at your memorial.',
   },
@@ -125,13 +140,13 @@ const CONCORDATS: Concordat[] = [
       label: 'Buy the roll',
       effects: [
         { t: 'artifactFrom', factionId: 'crownlands', rarity: 'legendary' },
-        { t: 'followers', v: -30 },
-        { t: 'heroThreat', v: 6 },
+        { t: 'followers', v: -12 },
+        { t: 'heroThreat', v: 12 },
         { t: 'notoriety', v: 6 },
       ],
       resultText: 'You now know the name of the Chosen One’s grandmother. So does she.',
     },
-    stockGate: [{ c: 'minFollowers', v: 30 }],
+    stockGate: [{ c: 'minFollowers', v: 12 }],
     declineLabel: 'Let him keep it',
     declineText: 'He looks relieved, which tells you what it would have cost you.',
   },
@@ -146,13 +161,13 @@ const CONCORDATS: Concordat[] = [
       label: 'Accept the loan',
       effects: [
         { t: 'artifactFrom', factionId: 'worm_below', rarity: 'legendary' },
-        { t: 'followers', v: -20 },
-        { t: 'pactDebt', v: 2 },
+        { t: 'followers', v: -10 },
+        { t: 'pactDebt', v: 3 },
         { t: 'notoriety', v: 10 },
       ],
-      resultText: 'Twenty of your household do not come back up. The ledger calls this interest.',
+      resultText: 'Ten of your household do not come back up. The ledger calls this interest.',
     },
-    stockGate: [{ c: 'minFollowers', v: 20 }],
+    stockGate: [{ c: 'minFollowers', v: 10 }],
     declineLabel: 'Refuse the loan',
     declineText: 'It withdraws without comment. The shelf stays where you can think about it.',
   },
@@ -167,13 +182,13 @@ const CONCORDATS: Concordat[] = [
       label: 'Buy the Estate',
       effects: [
         { t: 'artifactFrom', factionId: 'gilded_hand', rarity: 'legendary' },
-        { t: 'followers', v: -45 },
+        { t: 'followers', v: -24 },
         { t: 'notoriety', v: 6 },
       ],
       resultText:
-        'Forty-five of your household are logged as “liquidated,” a word the Hand spells correctly on purpose.',
+        'Twenty-four of your household are logged as “liquidated,” a word the Hand spells correctly on purpose.',
     },
-    stockGate: [{ c: 'minFollowers', v: 45 }],
+    stockGate: [{ c: 'minFollowers', v: 24 }],
     declineLabel: 'Let it stay unsold',
     declineText: 'The Hand records the refusal without visible reaction. It does not take refusals personally, which is somehow worse.',
   },
