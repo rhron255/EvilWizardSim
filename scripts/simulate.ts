@@ -975,6 +975,25 @@ type RunResult = {
   virtueTaken: string[];
   finalGoodActs: number;
   finalIllActs: number;
+  /**
+   * Whether the reputation/resolution gate (`minGoodActs`/`maxIllActs`) was
+   * EVER simultaneously true during the run, not just at the end.
+   *
+   * `finalIllActs` alone used to stand in for this, back when illActs could
+   * only ever rise — but issue #43 stopped the Good Wizard vow from being
+   * silently revoked when a later illAct pushes the counter past
+   * `GOOD_WIZARD_ILL_CAP`. That is correct game behaviour (the vow, once
+   * taken, is held to the end) but it broke this reading: a run that validly
+   * cleared the gate, vowed, and only THEN picked up enough illActs to push
+   * `finalIllActs` over the cap would report as never having cleared it,
+   * even though the same report counts its resolution and ending — the
+   * exact "instrument lies" shape CLAUDE.md's failure mode 5 describes, and
+   * the gap a PR reviewer caught on this one (`src/engine/effects.ts`, the
+   * #43 commit). Tracked as a peak flag in `playRun`'s loop, the same
+   * pattern `everAscensionReady` already uses for its own conjunct.
+   */
+  everClearedRep: boolean;
+  everClearedRes: boolean;
   minStanding: Record<FactionId, number>;
   /** The highest each faction's standing ever reached — `minStanding`'s mirror. */
   peakStanding: Record<FactionId, number>;
@@ -1017,6 +1036,8 @@ function playRun(
   let metNotorietyConjunct = false;
   let metLegendaryConjunct = false;
   let everAscensionReady = false;
+  let everClearedRep = false;
+  let everClearedRes = false;
   let becameLich = false;
   const declineDeltas: number[] = [];
   const minStanding = { ...run.factionStanding };
@@ -1050,6 +1071,14 @@ function playRun(
       metLegendaryConjunct = true;
     }
     if (ascensionReady(run, content)) everAscensionReady = true;
+    // The gate, read the moment it's true rather than at run end — see the
+    // doc comment on `everClearedRep`/`everClearedRes` in `RunResult`.
+    if (run.goodActs >= GOOD_WIZARD_REPUTATION_GOOD && run.illActs <= GOOD_WIZARD_ILL_CAP) {
+      everClearedRep = true;
+    }
+    if (run.goodActs >= GOOD_WIZARD_RESOLUTION_GOOD && run.illActs <= GOOD_WIZARD_ILL_CAP) {
+      everClearedRes = true;
+    }
     peakPactDebt = Math.max(peakPactDebt, run.pactDebt);
     if (run.pactDebt > 0) erasCarryingDebt++;
     for (const [id, v] of Object.entries(run.factionStanding) as [FactionId, number][]) {
@@ -1132,6 +1161,8 @@ function playRun(
       .map((e) => e.offerId),
     finalGoodActs: run.goodActs,
     finalIllActs: run.illActs,
+    everClearedRep,
+    everClearedRes,
     minStanding,
     peakStanding,
     lairsHeld: lairIds.size,
@@ -2020,12 +2051,15 @@ function main(): void {
     `${pad('  ', 20)}${padLeft('cohort', 8)}${padLeft('good', 7)}${padLeft('ill', 6)}${padLeft(`>=rep(${GOOD_WIZARD_REPUTATION_GOOD})`, 12)}${padLeft(`>=res(${GOOD_WIZARD_RESOLUTION_GOOD})`, 12)}${padLeft('resolution', 12)}${padLeft('ending', 9)}${padLeft('pop', 8)}`,
   );
   {
-    const clearedRep = saint.filter(
-      (r) => r.finalGoodActs >= GOOD_WIZARD_REPUTATION_GOOD && r.finalIllActs <= GOOD_WIZARD_ILL_CAP,
-    ).length;
-    const clearedRes = saint.filter(
-      (r) => r.finalGoodActs >= GOOD_WIZARD_RESOLUTION_GOOD && r.finalIllActs <= GOOD_WIZARD_ILL_CAP,
-    ).length;
+    // `everClearedRep`/`everClearedRes`, not a `finalGoodActs`/`finalIllActs`
+    // snapshot: issue #43 stopped the vow from being revoked when a LATER
+    // illAct pushes past the cap, so a run can clear the gate, vow, and only
+    // afterward push `finalIllActs` over it — that run still reaches
+    // good_wizard/arch_lich and must still count here as having cleared the
+    // gate, or this chain (gate -> card seen/taken -> ending) stops agreeing
+    // with itself. Flagged by PR review on the #43 commit.
+    const clearedRep = saint.filter((r) => r.everClearedRep).length;
+    const clearedRes = saint.filter((r) => r.everClearedRes).length;
     const resolutionSeen = saint.filter((r) =>
       r.virtueSeen.some((id) => id.startsWith('virtue_resolution_')),
     ).length;
