@@ -33,7 +33,7 @@ constraints below exist, and is the thing to read before relaxing any of them.
 | `src/types.ts` | **The frozen contract.** Every module is written against it. |
 | `src/theme/` | Design tokens (`tokens.ts` for JS, `tokens.css` for `--ew-*`). |
 | `src/engine/` | Run state, offer sampling, resolution, endings, persistence. |
-| `src/content/` | Factions, artifacts, lairs, origins, endings, epithets, ~130 offers. |
+| `src/content/` | Factions, 32 artifacts, lairs, origins, endings, epithets, ~150 offers. |
 | `src/components/run/` | The run loop: ledger, offer panel, notoriety badge. |
 | `src/components/meta/` | Set-piece parts: lair grid, artifact grid, sigil. |
 | `src/screens/` | Screen composition. |
@@ -135,6 +135,15 @@ These come from a game that worked at scale. They look arbitrary in isolation.
    palette's ink-on-panel contrast. The distinction to keep: **the game
    colours what you did; the player colours the room.**
 4. **Comedy in the text, never in the numbers.**
+   *Corollary, from issue #6.* An `Artifact` carries exactly one structured
+   `power`, and the line the player reads is DERIVED from it
+   (`src/components/meta/artifactPower.ts`) rather than authored beside it.
+   `flavorText` is the only authored prose on a relic, which is the rule
+   above made structural: the joke is the only thing an author can write, so
+   the joke cannot drift from the number. Before this, all thirty-two relics
+   carried a `defense: number` and a hand-written `effect: string` saying
+   `Defense +N` — one concept in two fields, which is failure mode 4 waiting
+   for the day the two stopped agreeing.
 5. **No fail state, and no doom meter.** Every ending is a biography. The decline
    works because a number quietly goes the wrong way. Note this bans *announcing
    a losing phase* — it does not ban explaining what a mechanic does.
@@ -297,15 +306,50 @@ plays. Three separate times:
   fix was a `reckless` policy carrying the target as a cohort, with the
   population figure printed beside it untargeted.
 
+- A dedicated probe existed and the check never pointed at it. The lichdom
+  reachability target read `results.filter(r => r.policy === 'lich')` — whatever
+  ~130 careers the population mix happened to hand it, an expected count under
+  three — while `lichProbe` sat beside it building a thousand-run cohort for
+  exactly this purpose and saying so in its own doc comment. One report printed
+  two different lich-seeker rates from two different samples and called them the
+  same thing. The number swung 0.77%-2.31% between neighbouring seeds with
+  nothing about the game changing.
+
 **Check:** when a metric looks impossible, suspect the harness first. Confirm the
 target measures the population you mean (a cohort-level effect measured
 population-wide mostly measures the population mix). Sanity-check any policy
-against an independent throwaway probe before believing it.
+against an independent throwaway probe before believing it. And when a probe
+already exists, `rg` for what reads it — failure mode 2 applies to measurement
+code, where an unread probe is worse than a missing one because the report looks
+complete.
 
 **And ask who the model player is.** A number produced by policies that all play
 better than any human is a measurement of the policies. Any mechanic whose whole
 point is punishing inattention needs a cohort in the population that is not
 paying attention, or the harness will report it as dead content.
+
+### 5b. A price the instrument refuses to pay
+
+`concordat_covenant` handed out a legendary for an apprentice — a cost the
+engine clamps to nothing, so for most wizards the relic was free (failure mode
+14). Gating it would have closed the ascent's only stock-free route to a
+legendary, so it was repriced into currencies with no floor: pact debt, fame
+and the hero's attention. Structurally correct, and Ascension promptly fell
+out of its band.
+
+The reason is not in the content. **Every sim policy prices pact debt convexly
+against `PACT_LIMIT`** — that is the fix recorded in failure mode 5's fourth
+bullet, and it works — so a relic sold for debt is one the entire instrument
+declines to buy. Measured: 0.85-1.05% with debt in the price, 1.10-1.25% with
+the same relic priced in fame and threat. The route was open and nothing
+walked through it.
+
+**Check:** after repricing anything, ask which policy is supposed to accept the
+new price, and confirm one does. A cost every optimiser avoids on principle
+measures identically to a closed door, and it will read as an unreachable
+ending rather than as an unattractive card. This is the mirror of "ask who the
+model player is": the harness cannot price a currency it has been taught to
+fear.
 
 ### 6. Invented targets get chased
 
@@ -479,6 +523,11 @@ two rules only compose while a stock-free exit survives at every level.
 6. New `Effect` variant that is deterministic? Add it to `PROJECTABLE` in
    `src/engine/effects.ts`, or the offer card goes back to printing the
    authored number instead of the real one.
+6b. New `ArtifactPower` member? The compiler will name `artifactPowerText` and
+   `relicPowers`, but not the two things it cannot see: `validate-content.ts`
+   must gain a `POWER_CAP` entry and an `ALL_POWERS` entry, or the power is
+   uncapped and may be carried by nothing at all (failure mode 2 — the engine
+   applies it and no relic grants it).
 7. New content field the UI reads? Make it **required** on the type and let the
    compiler name every fixture. `Ending.hint` found all fourteen call sites
    that way; an optional field would have rendered blank in two of them.
