@@ -20,6 +20,7 @@
  */
 
 import type { Artifact, Faction } from '../../types';
+import { artifactPowerText } from './artifactPower';
 import { ArtifactGlyph, CornerMarks, FactionGlyph } from './glyphs';
 import styles from './ArtifactCard.module.css';
 
@@ -125,7 +126,11 @@ export function ArtifactCard({ artifact, locked, lost, isNew, faction, compact }
 
         {!compact && (
           <p className={styles.effect}>
-            {locked ? <span className={styles.redactionLine} aria-hidden /> : artifact.effect}
+            {locked ? (
+              <span className={styles.redactionLine} aria-hidden />
+            ) : (
+              artifactPowerText(artifact.power)
+            )}
           </p>
         )}
       </div>

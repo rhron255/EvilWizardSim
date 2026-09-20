@@ -10,6 +10,8 @@ import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '../../../theme/tokens.css';
 import { RunScreen } from '../../../screens/RunScreen';
+import type { ContentBundle } from '../../../engine';
+import { relicPowers } from '../../../engine';
 import type { EraRecord, RunState } from '../../../types';
 import type { Resolution } from '../resolution';
 import {
@@ -26,6 +28,25 @@ import {
   demoResolutionTierCross,
   demoRun,
 } from './demo';
+
+/**
+ * Just enough bundle for `relicPowers` to read the demo reliquary.
+ *
+ * The harness screenshots the REAL run screen, so its Relics caption has to be
+ * the real summed one — summing the demo relics here by hand would be a second
+ * implementation of the engine's aggregator, which is the seam CLAUDE.md
+ * failure mode 3 is about. The empty arrays are the parts of a bundle nothing
+ * on this screen reads.
+ */
+const demoBundle: ContentBundle = {
+  factions: demoFactions,
+  artifacts: demoArtifacts,
+  lairs: demoLairs,
+  origins: [],
+  endings: [],
+  offers: [],
+  epithets: [],
+};
 
 const params = new URLSearchParams(window.location.search);
 const scene = params.get('scene') ?? 'run';
@@ -114,6 +135,7 @@ export function Harness() {
       factions={demoFactions}
       onChoose={choose}
       onContinue={continueEra}
+      relics={relicPowers(run, demoBundle)}
     />
   );
 }

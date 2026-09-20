@@ -95,6 +95,26 @@ export const HERO_THREAT_RAMP = 2;
 export const HERO_FAME_COEF = 0.18;
 
 /**
+ * The least the chosen one can gain in a decline era, however many `vigil`
+ * relics are stacked against him.
+ *
+ * Provenance, because a floor invented to make a number behave is exactly
+ * failure mode 6: this one is not a balance target, it is rule 6. `vigil`
+ * subtracts from the gain above, and the gain starts at
+ * `HERO_THREAT_BASE + HERO_FAME_COEF * notoriety` — which for a quiet wizard
+ * early in the decline is around 7. Three `vigil` relics reach that, and
+ * without a floor such a run would hold the hero at a standstill forever:
+ * `slain_by_chosen_one` would stop being reachable for the builds that most
+ * deliberately set out to survive him, and the decline would stop being a
+ * decline. One a era is the smallest number that keeps him arriving.
+ *
+ * It is also the honest reading of the relics themselves. The Orrery sees him
+ * coming and the Unbroken Line names his grandmother; neither claims to
+ * un-prophesy him.
+ */
+export const HERO_THREAT_MIN = 1;
+
+/**
  * How close the hero is, as a fraction of what stands in his way.
  *
  * ONE pair of thresholds, read by two things that must never disagree: the
@@ -340,6 +360,17 @@ export const BETRAYAL_MAX_LOYALTY = 15;
  */
 export const LOYALTY_DRIFT_BASE = 2;
 export const LOYALTY_DRIFT_MIN_APPRENTICES = 2;
+
+/**
+ * The least a school can drift in a decline era, however much `discipline` is
+ * held against it.
+ *
+ * Same shape and same provenance as `HERO_THREAT_MIN`, for the same reason:
+ * `betrayed_by_apprentice` is already the rarest of the original seven, and a
+ * relic that stopped the drift dead would close it outright for anyone holding
+ * one. Ambition slows; it does not become loyalty.
+ */
+export const LOYALTY_DRIFT_MIN = 1;
 
 /**
  * A faction reprisal: standing this far under, and famous enough to be worth

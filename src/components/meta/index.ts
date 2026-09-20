@@ -28,6 +28,8 @@ export { ArtifactGlyph, LairGlyph, FactionGlyph, EndingGlyph, CornerMarks, Flour
 export { lairTenures, roman } from './tenure';
 export type { LairTenure } from './tenure';
 
+export { artifactPowerText, relicPowerSummary } from './artifactPower';
+
 export { formatEffect, formatEffects, isNegative, signed } from './effectText';
 export type { EffectContext } from './effectText';
 

@@ -29,5 +29,8 @@ export type { ResolutionOverlayProps } from './ResolutionOverlay';
 
 export type { Resolution } from './resolution';
 
+export { lichSentence, siegeFor, stakesFor } from './stakes';
+export type { Siege, Stake } from './stakes';
+
 export { describeEffect, effectKey, endingName, formatOdds, signed } from './effectText';
 export type { EffectLine, EffectTone } from './effectText';

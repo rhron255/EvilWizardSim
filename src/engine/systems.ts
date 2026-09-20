@@ -6,9 +6,9 @@
  * Every number comes from `constants.ts`.
  */
 
-import type { FactionId, Phase, RunState, Tier } from '../types';
+import type { ArtifactPower, FactionId, Phase, RunState, Tier } from '../types';
 import { TIERS, tierFor } from '../theme/tokens';
-import type { ContentBundle } from './content-port';
+import type { ContentBundle, ContentIndex } from './content-port';
 import { indexOf } from './content-port';
 import {
   DECAY_BASE,
@@ -21,6 +21,7 @@ import {
   HERO_BAND_WARN,
   HERO_FAME_COEF,
   HERO_THREAT_BASE,
+  HERO_THREAT_MIN,
   HERO_THREAT_RAMP,
   PROPHECY_FRACTION,
   START_AGE,
@@ -99,14 +100,62 @@ export function erasSinceProphecyFor(eraIndex: number, prophecyEra: number): num
 }
 
 /**
+ * Everything the relics in hand are currently worth, summed once, by power.
+ *
+ * Every consumer wants a total rather than a list, and four of the six powers
+ * are read on a hot path (`defenseOf` runs on the ending check). One pass, one
+ * shape, so no caller re-walks `heldArtifactIds` with its own filter — which is
+ * how `defenseOf` and `defenseReadout` came to hold two copies of the same sum
+ * and needed a test pinning them together.
+ *
+ * A lich holds nothing: `becomeLich` forfeits the reliquary, so every power
+ * here reads zero for one without a special case, which is the correct answer
+ * rather than a lucky one.
+ */
+export type RelicPowers = Record<ArtifactPower['p'], number>;
+
+/**
+ * The index-level form. `applyStanding` and `applyEffects` already hold an
+ * index and not a bundle, and handing them a bundle just to look one up again
+ * would be the sort of parallel path this repo keeps being bitten by.
+ */
+export function relicPowersOf(
+  heldArtifactIds: readonly string[],
+  index: ContentIndex,
+): RelicPowers {
+  const out: RelicPowers = { wards: 0, vigil: 0, undimmed: 0, discipline: 0, haggle: 0, grace: 0 };
+  for (const id of heldArtifactIds) {
+    const power = index.artifactById.get(id)?.power;
+    if (power) out[power.p] += power.v;
+  }
+  return out;
+}
+
+export function relicPowers(
+  run: Pick<RunState, 'heldArtifactIds'>,
+  content: ContentBundle,
+): RelicPowers {
+  return relicPowersOf(run.heldArtifactIds, indexOf(content));
+}
+
+/**
  * wiki/04: `decayPerEra = base * (1 + erasSinceProphecy * 0.15)`, zero during
  * ascent, zero for a lich. Rounded, because the ledger shows whole numbers and
  * a fractional slide would read as a rendering bug.
+ *
+ * `undimmed` relics subtract from the slide. Floored at zero rather than
+ * allowed to go negative: a negative decay is notoriety ARRIVING every era
+ * from nowhere, which is a gain the player was never shown on a card. The
+ * relic can stop the erosion; it cannot quietly reverse it.
  */
-export function decayFor(run: Pick<RunState, 'phase' | 'erasSinceProphecy' | 'isLich'>): number {
+export function decayFor(
+  run: Pick<RunState, 'phase' | 'erasSinceProphecy' | 'isLich' | 'heldArtifactIds'>,
+  content: ContentBundle,
+): number {
   if (run.phase !== 'decline') return 0;
   if (run.isLich) return 0;
-  return Math.round(DECAY_BASE * (1 + run.erasSinceProphecy * DECAY_RAMP));
+  const base = DECAY_BASE * (1 + run.erasSinceProphecy * DECAY_RAMP);
+  return Math.max(0, Math.round(base - relicPowers(run, content).undimmed));
 }
 
 /**
@@ -117,12 +166,16 @@ export function decayFor(run: Pick<RunState, 'phase' | 'erasSinceProphecy' | 'is
  * the per-point weight of fame, not a quantity the run ever stores.
  */
 export function threatGainFor(
-  run: Pick<RunState, 'phase' | 'erasSinceProphecy' | 'notoriety'>,
+  run: Pick<RunState, 'phase' | 'erasSinceProphecy' | 'notoriety' | 'heldArtifactIds'>,
+  content: ContentBundle,
 ): number {
   if (run.phase !== 'decline') return 0;
   const gain =
     HERO_THREAT_BASE + HERO_THREAT_RAMP * run.erasSinceProphecy + HERO_FAME_COEF * run.notoriety;
-  return Math.round(gain);
+  // `vigil` relics slow him. `HERO_THREAT_MIN` is why they cannot stop him —
+  // see the constant, and rule 6: every ending has to stay reachable, this one
+  // included.
+  return Math.max(HERO_THREAT_MIN, Math.round(gain - relicPowers(run, content).vigil));
 }
 
 /**
@@ -132,14 +185,16 @@ export function threatGainFor(
  * deliberately contribute nothing — they are ledger filler by design
  * (wiki/02 § three currencies), and giving them defense would collapse two
  * currencies into one.
+ *
+ * "Artifacts held" now means the `wards` ones. Every relic used to contribute
+ * defense and nothing else (issue #6); a relic whose power is `vigil` or
+ * `grace` contributes nothing HERE and does its work on the other side of the
+ * comparison, against the threat rather than for the wards.
  */
 export function defenseOf(run: RunState, content: ContentBundle): number {
   const index = indexOf(content);
 
-  let artifactDefense = 0;
-  for (const id of run.heldArtifactIds) {
-    artifactDefense += index.artifactById.get(id)?.defense ?? 0;
-  }
+  const artifactDefense = relicPowers(run, content).wards;
 
   const rung = index.lairRung.get(run.lairId);
   const lairTier = rung === undefined ? 0 : (index.lairLadder[rung]?.tier ?? 0);
@@ -216,10 +271,7 @@ export type DefenseReadout = { total: number; terms: DefenseTerm[] };
 export function defenseReadout(run: RunState, content: ContentBundle): DefenseReadout {
   const index = indexOf(content);
 
-  let artifactDefense = 0;
-  for (const id of run.heldArtifactIds) {
-    artifactDefense += index.artifactById.get(id)?.defense ?? 0;
-  }
+  const artifactDefense = relicPowers(run, content).wards;
 
   const rung = index.lairRung.get(run.lairId);
   const lairTier = rung === undefined ? 0 : (index.lairLadder[rung]?.tier ?? 0);

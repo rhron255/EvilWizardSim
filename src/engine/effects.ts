@@ -25,7 +25,7 @@ import {
 } from './constants';
 import type { Rng } from './rng';
 import { weightedPick } from './rng';
-import { clamp, clampNotoriety, clampThreat } from './systems';
+import { clamp, clampNotoriety, clampThreat, relicPowersOf } from './systems';
 
 export type EffectApplication = {
   /** Exactly what landed, with post-clamp magnitudes. */
@@ -57,6 +57,40 @@ export function draftOf(run: RunState): RunState {
 const RARITY_RANK: Record<Rarity, number> = { common: 0, rare: 1, legendary: 2 };
 
 /**
+ * `haggle`: the Gilded Hand's thumb on the scale, pointing the player's way.
+ *
+ * COSTS ONLY. A relic that made every follower GAIN larger would be a second
+ * mechanic wearing the same name, and the card would print a number the author
+ * never wrote. `Math.min(0, …)` is what keeps a cost from crossing zero into a
+ * gain: the best a haggler ever does is pay nothing.
+ *
+ * Nothing else has to change for the player to see this. `projectEffects` is
+ * `applyEffects` run against a draft, so the offer card prints the haggled
+ * price before the commit and the resolution prints it after — one number,
+ * arrived at once.
+ */
+function haggled(v: number, draft: RunState, index: ContentIndex): number {
+  if (v >= 0) return v;
+  const haggle = relicPowersOf(draft.heldArtifactIds, index).haggle;
+  return Math.min(0, v + haggle);
+}
+
+/**
+ * `grace`: the same idea pointed at standing, and the reason it is applied
+ * inside `applyStanding` rather than beside it.
+ *
+ * Standing moves by contagion as well as directly, and the spill is where the
+ * undisclosed damage lives — courting the Covenant drives the Academy toward
+ * the seal through cards that never name the Academy. A grace that softened
+ * only the named loss would leave the invisible route at full strength, which
+ * is precisely the half a player cannot plan around.
+ */
+function softened(v: number, grace: number): number {
+  if (v >= 0) return v;
+  return Math.min(0, v + grace);
+}
+
+/**
  * Apply `effects` to `draft` in order, mutating it.
  *
  * `rng` is drawn from only for genuinely random effects (`artifactFrom`,
@@ -83,7 +117,7 @@ export function applyEffects(
 
       case 'followers': {
         const before = draft.followers;
-        draft.followers = Math.max(0, Math.round(before + effect.v));
+        draft.followers = Math.max(0, Math.round(before + haggled(effect.v, draft, index)));
         const delta = draft.followers - before;
         if (delta !== 0) out.applied.push({ t: 'followers', v: delta });
         break;
@@ -253,8 +287,9 @@ export function applyStanding(
   index: ContentIndex,
   applied: Effect[],
 ): number {
+  const grace = relicPowersOf(draft.heldArtifactIds, index).grace;
   const before = draft.factionStanding[factionId] ?? 0;
-  const after = clamp(Math.round(before + v), STANDING_MIN, STANDING_MAX);
+  const after = clamp(Math.round(before + softened(v, grace)), STANDING_MIN, STANDING_MAX);
   const delta = after - before;
   draft.factionStanding = { ...draft.factionStanding, [factionId]: after };
   if (delta !== 0) applied.push({ t: 'standing', factionId, v: delta });
@@ -264,7 +299,7 @@ export function applyStanding(
   const rate = delta > 0 ? CONTAGION_GAIN : CONTAGION_LOSS;
   for (const enemyId of enemies) {
     if (enemyId === factionId) continue;
-    const spill = -Math.sign(delta) * Math.round(Math.abs(delta) * rate);
+    const spill = softened(-Math.sign(delta) * Math.round(Math.abs(delta) * rate), grace);
     if (spill === 0) continue;
     const enemyBefore = draft.factionStanding[enemyId] ?? 0;
     const enemyAfter = clamp(enemyBefore + spill, STANDING_MIN, STANDING_MAX);

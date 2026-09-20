@@ -9,7 +9,8 @@
 
 import { useMemo } from 'react';
 import type { ContentBundle } from './engine';
-import { defenseReadout, projectEffects, useGame } from './engine';
+import { defenseReadout, projectEffects, relicPowers, useGame } from './engine';
+import { siegeFor } from './components/run';
 import {
   artifacts,
   endings,
@@ -66,6 +67,16 @@ export default function App() {
   // read it against, and without the TERMS they never learn that the lair —
   // 30% of the mean defence — is what has been holding the hero off.
   const defense = useMemo(() => (run ? defenseReadout(run, CONTENT) : null), [run]);
+  // Derived HERE, beside the readout it is built from, because `siegeFor` needs
+  // the content bundle to price the hero's next era — `vigil` relics slow him,
+  // so the rate the caption prints is a fact about the reliquary as well as
+  // about the run. Keeping the call at this level leaves `DecisionPanel` with
+  // nothing to compute, which is what it was already closest to being.
+  const siege = useMemo(
+    () => (run && defense ? siegeFor(run, defense, CONTENT) : null),
+    [run, defense],
+  );
+  const relics = useMemo(() => relicPowers(run ?? { heldArtifactIds: [] }, CONTENT), [run]);
 
   /**
    * The offer as it will actually land, for DISPLAY ONLY.
@@ -122,7 +133,8 @@ export default function App() {
             factions={factions}
             onChoose={game.choose}
             onContinue={game.continueAfterResolution}
-            defense={defense}
+            siege={siege}
+            relics={relics}
             themeId={themeId}
           />
           {/* A sibling, not a screen: the guide opens with the masthead and

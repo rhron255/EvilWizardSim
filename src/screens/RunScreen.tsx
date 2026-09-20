@@ -18,7 +18,8 @@
 
 import type { Artifact, Faction, Lair, Offer, RunState, ThemeId } from '../types';
 import type { Resolution } from '../components/run/resolution';
-import type { DefenseReadout } from '../engine';
+import type { RelicPowers } from '../engine';
+import type { Siege } from '../components/run';
 import { DecisionPanel, FactionStandings, Masthead, ResolutionOverlay } from '../components/run';
 import { themeAttr } from '../components/meta';
 import { tierColor, tierFor, tierGlow } from '../theme/tokens';
@@ -38,7 +39,8 @@ export type RunScreenProps = {
    * computed here so the screen stays presentational. Feeds the decline-phase
    * wards readout and its breakdown.
    */
-  defense?: DefenseReadout | null;
+  siege?: Siege | null;
+  relics: RelicPowers;
   /** The cosmetic theme the player is wearing. */
   themeId: ThemeId;
 };
@@ -52,7 +54,8 @@ export function RunScreen({
   factions,
   onChoose,
   onContinue,
-  defense,
+  siege,
+  relics,
   themeId,
 }: RunScreenProps) {
   const tier = tierFor(run.notoriety);
@@ -93,7 +96,8 @@ export function RunScreen({
           artifacts={artifacts}
           disabled={Boolean(resolution)}
           onChoose={onChoose}
-          defense={defense}
+          siege={siege}
+          relics={relics}
         />
       </main>
 

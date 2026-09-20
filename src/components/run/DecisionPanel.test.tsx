@@ -13,6 +13,9 @@ import { DEF_LICH } from '../../engine';
 import type { Offer, RunState } from '../../types';
 import { demoArtifacts, demoEarlyRun, demoFactions, demoOffer, demoRun } from './__fixtures__/demo';
 import { DecisionPanel } from './DecisionPanel';
+import { siegeFor } from './stakes';
+import { relicPowers } from '../../engine';
+import { fixtureContent } from '../../engine/__fixtures__/content';
 
 const wards = (total: number): DefenseReadout => ({
   total,
@@ -38,7 +41,8 @@ const show = (
       artifacts={demoArtifacts}
       disabled={disabled}
       onChoose={() => {}}
-      defense={defense}
+      relics={relicPowers(run, fixtureContent)}
+      siege={defense && siegeFor(run, defense, fixtureContent)}
     />,
   );
 

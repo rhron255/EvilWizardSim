@@ -32,7 +32,8 @@ import {
   PACT_LIMIT,
   threatGainFor,
 } from '../../engine';
-import type { DefenseReadout, DefenseTerm } from '../../engine';
+import type { ContentBundle, DefenseReadout, DefenseTerm, RelicPowers } from '../../engine';
+import { relicPowerSummary } from '../meta/artifactPower';
 import type { RunState } from '../../types';
 
 export type Stake = {
@@ -61,12 +62,33 @@ function followersStake(run: RunState): Stake {
   };
 }
 
-function relicsStake(run: RunState): Stake {
+/**
+ * Relics, and what the ones in hand are actually doing.
+ *
+ * This caption used to read "your defence against the hero", which was true of
+ * every relic in the game because every relic was `Defense +N` and nothing
+ * else. Issue #6 made it false for most of them: a `grace` relic softens
+ * standing losses and adds no wards at all, and a player told their three
+ * relics were defending them would have been reading a header that disagreed
+ * with the wards readout two lines below it.
+ *
+ * So it prints the SUM of what is held, in the same clauses the relic cards
+ * use (`relicPowerSummary`). The captions are tap-to-reveal on a phone and
+ * always shown from 720px up, so this costs no vertical budget — which is why
+ * the run screen can answer "what are my relics doing" without a held-relic
+ * panel above the choice cards.
+ *
+ * The empty state says what relics are FOR rather than what these ones do,
+ * because there are none to describe — the inverse of the pact caption's rule
+ * about not printing a rate that does not exist.
+ */
+function relicsStake(run: RunState, powers: RelicPowers): Stake {
   const n = run.heldArtifactIds.length;
+  const summary = relicPowerSummary(powers);
   return {
     label: 'Relics',
     value: String(n),
-    caption: n === 0 ? 'each one is defence against the hero' : 'your defence against the hero',
+    caption: n === 0 || !summary ? 'each one changes a different number' : summary,
   };
 }
 
@@ -159,10 +181,10 @@ export function lichSentence(run: RunState): string | null {
   return `Undeath adds ${DEF_LICH} Wards · Notoriety no longer decays`;
 }
 
-export function stakesFor(run: RunState): Stake[] {
+export function stakesFor(run: RunState, powers: RelicPowers): Stake[] {
   return [
     followersStake(run),
-    relicsStake(run),
+    relicsStake(run, powers),
     apprenticesStake(run),
     loyaltyStake(run),
     pactStake(run),
@@ -264,7 +286,11 @@ function siegeSentence(
   return `he kills you above ${wards} · his threat +${rate} an era · ${clause}`;
 }
 
-export function siegeFor(run: RunState, defense: DefenseReadout): Siege | null {
+export function siegeFor(
+  run: RunState,
+  defense: DefenseReadout,
+  content: ContentBundle,
+): Siege | null {
   if (run.phase !== 'decline') return null;
   const raw = defense.total > 0 ? run.heroThreat / defense.total : 0;
   const ratio = Math.max(0, Math.min(1, raw));
@@ -273,7 +299,7 @@ export function siegeFor(run: RunState, defense: DefenseReadout): Siege | null {
   const band = heroBand(run.heroThreat, defense.total);
   const tone: Siege['tone'] = band === 'calm' ? 'calm' : band === 'warn' ? 'warn' : 'danger';
   const wards = Math.round(defense.total);
-  const rate = Math.round(threatGainFor(run));
+  const rate = Math.round(threatGainFor(run, content));
   // Largest first, so `terms[0]` is what is keeping the player alive. This is
   // the field's only consumer and the reason it exists — it was computed and
   // rendered nowhere for a while, which is failure mode 2 in miniature.

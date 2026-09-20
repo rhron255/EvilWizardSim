@@ -38,7 +38,8 @@ const show = (
       factions={factions}
       onChoose={() => {}}
       onContinue={onContinue}
-      defense={null}
+      siege={null}
+      relics={{ wards: 0, vigil: 0, undimmed: 0, discipline: 0, haggle: 0, grace: 0 }}
       themeId={themeId}
     />,
   );
