@@ -15,15 +15,31 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { Offer } from '../../types';
-import { demoArtifacts, demoFactions, demoOffer } from './__fixtures__/demo';
+import type { ContentBundle } from '../../engine';
+import type { Offer, RunState } from '../../types';
+import {
+  demoArtifacts,
+  demoContent,
+  demoEarlyRun,
+  demoFactions,
+  demoOffer,
+  demoOfferGated,
+  demoRun,
+} from './__fixtures__/demo';
 import { OfferPanel } from './OfferPanel';
 
-const show = (offer: Offer = demoOffer, disabled = false) => {
+const show = (
+  offer: Offer = demoOffer,
+  disabled = false,
+  run: RunState = demoRun,
+  content: ContentBundle = demoContent,
+) => {
   const onChoose = vi.fn();
   render(
     <OfferPanel
       offer={offer}
+      run={run}
+      content={content}
       artifacts={demoArtifacts}
       factions={demoFactions}
       disabled={disabled}
@@ -107,5 +123,51 @@ describe('OfferPanel · keyboard', () => {
     await user.keyboard('{ArrowDown}{ArrowDown}');
     await user.keyboard('{Enter}');
     expect(onChoose).toHaveBeenCalledWith(1);
+  });
+});
+
+/**
+ * Issue #41 follow-up: a `certain` option that spends stock (Followers) to
+ * fund a fixed benefit must not be presented as choosable to a wizard who
+ * cannot pay for it — `demoOfferGated`'s first option is exactly that shape.
+ * The panel-wide `disabled` tests above cover the resolution-overlay case;
+ * these cover the PER-OPTION case, which is new.
+ */
+describe('OfferPanel · affordability', () => {
+  it('disables an option that spends stock the wizard does not have, and says why', () => {
+    // demoEarlyRun.followers === 2; the gated option costs 30.
+    show(demoOfferGated, false, demoEarlyRun);
+    const gated = screen.getByRole('button', { name: /unaffordable/i });
+    expect(gated).toBeDisabled();
+    expect(
+      within(gated).getByText('Requires 30 Followers · you have 2'),
+    ).toBeInTheDocument();
+  });
+
+  it('does not fire onChoose on a click for an unaffordable option', async () => {
+    const { onChoose, user } = show(demoOfferGated, false, demoEarlyRun);
+    await user.click(screen.getByRole('button', { name: /unaffordable/i }));
+    expect(onChoose).not.toHaveBeenCalled();
+  });
+
+  it('refuses the number-key shortcut for an unaffordable option', async () => {
+    // The gated option sits at index 0, so '1' is the number that would
+    // normally choose it.
+    const { onChoose, user } = show(demoOfferGated, false, demoEarlyRun);
+    await user.keyboard('1');
+    expect(onChoose).not.toHaveBeenCalled();
+  });
+
+  it('leaves the SAME option fully interactive once the wizard can pay', async () => {
+    // demoRun.followers === 1284 — the exact same offer, a wizard who can
+    // afford it. No `aria-label` override on an affordable card, so its
+    // accessible name is its full text content (label + effect list) rather
+    // than the label alone — match on the label text node instead.
+    const { onChoose, user } = show(demoOfferGated, false, demoRun);
+    const affordable = screen.getByText('Buy the Bone Crown outright').closest('button')!;
+    expect(affordable).not.toBeDisabled();
+    expect(affordable).not.toHaveAttribute('aria-label');
+    await user.keyboard('1');
+    expect(onChoose).toHaveBeenCalledWith(0);
   });
 });

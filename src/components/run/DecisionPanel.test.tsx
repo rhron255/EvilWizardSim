@@ -8,10 +8,17 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { DefenseReadout } from '../../engine';
+import type { ContentBundle, DefenseReadout } from '../../engine';
 import { DEF_LICH } from '../../engine';
 import type { Offer, RunState } from '../../types';
-import { demoArtifacts, demoEarlyRun, demoFactions, demoOffer, demoRun } from './__fixtures__/demo';
+import {
+  demoArtifacts,
+  demoContent,
+  demoEarlyRun,
+  demoFactions,
+  demoOffer,
+  demoRun,
+} from './__fixtures__/demo';
 import { DecisionPanel } from './DecisionPanel';
 
 const wards = (total: number): DefenseReadout => ({
@@ -29,6 +36,7 @@ const show = (
   defense: DefenseReadout | null = wards(120),
   offer: Offer | null = demoOffer,
   disabled = false,
+  content: ContentBundle = demoContent,
 ) =>
   render(
     <DecisionPanel
@@ -36,6 +44,7 @@ const show = (
       factions={demoFactions}
       offer={offer}
       artifacts={demoArtifacts}
+      content={content}
       disabled={disabled}
       onChoose={() => {}}
       defense={defense}

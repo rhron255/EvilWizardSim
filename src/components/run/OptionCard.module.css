@@ -100,6 +100,32 @@
   padding-left: 0.05rem;
 }
 
+/* --- Unaffordable (disabled specifically for insufficient stock) -------- */
+
+/* The one faint line a card disabled for affordability shows IN PLACE OF its
+   EffectList/odds rail — never alongside it. That is what makes this card
+   SHORTER than an enabled one rather than taller, which is the point on a
+   screen already fighting for the fold (see the two comments below on the
+   480px/420px breakpoints). `--ew-ink-faint` is the correct tone here per
+   CLAUDE.md's own styling convention #2: that convention reserves faint for
+   text nobody is required to act on, because a TAPPABLE control rendered
+   that faint gets missed — but this card is deliberately not tappable, so
+   the rule that convention protects does not apply against it. */
+.reason {
+  padding-left: 0.05rem;
+  font-size: var(--ew-size-sm);
+  line-height: 1.4;
+  color: var(--ew-ink-faint);
+}
+
+/* Dashed, exactly `ThemeSwatch.module.css`'s `.locked` — the same "this slot
+   is real but you cannot act on it right now" signal, reused rather than
+   reinvented for a second disabled state on this screen. */
+.card[data-unaffordable='true'] {
+  border-style: dashed;
+  box-shadow: none;
+}
+
 /* --- Gamble ------------------------------------------------------------- */
 
 .branches {

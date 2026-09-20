@@ -120,6 +120,7 @@ export default function App() {
             lairs={lairs}
             artifacts={artifacts}
             factions={factions}
+            content={CONTENT}
             onChoose={game.choose}
             onContinue={game.continueAfterResolution}
             defense={defense}

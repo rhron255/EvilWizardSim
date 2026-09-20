@@ -117,8 +117,30 @@ export const HERO_BAND_DANGER = 0.85;
  * the lair ladder are the things you *build*, and they should be what carries
  * a famous wizard through the decline. Notoriety contributes a little (fear
  * deters) but nowhere near enough to pay for the threat it generates.
+ *
+ * MOVED 42 -> 48 (issue #42): `slain_by_chosen_one` had drifted to 51.40% on
+ * `main`, over its own 45% ceiling, most plausibly because the faction
+ * reprisal/crown endings, `good_wizard` and `arch_lich` were all layered on
+ * after this floor was last tuned, diluting the population without any
+ * matching retune of the base hero-vs-defense math. MEASURED (seeds 1-5,
+ * 2000 runs each, on top of #41's offer gating and #43's vow fix, both
+ * landed first): `slain_by_chosen_one` went from failing every seed
+ * (41.65-51.00% before this change, several seeds over 45%) to passing all
+ * five (37.30-44.50%). Ascension stayed inside 1-4% at every seed (1.05-
+ * 1.20%); tried 54 first, which pushed Ascension under its floor on two of
+ * five seeds (0.45%, 0.95%) by making the game too survivable, so 48 is the
+ * larger of the two values that holds both bands rather than a value found by
+ * search. `lichdom`'s own reachability, tracked by the same issue, improved
+ * on average (this floor also guards pre-rite lich-seekers against the same
+ * hero-threat drift) but stayed inside its 2-15% band on only 2 of 5 seeds —
+ * see that check's own comment in `scripts/simulate.ts` for why it is read
+ * off a noisy 200-run cohort and documented as noisier than its band alone
+ * would suggest. Tried raising `DEF_LICH` instead/in addition (80 and 100):
+ * both moved `lichdom` no more predictably than seed noise already does, and
+ * both destabilized Ascension the same way 54 did here — a sign the failures
+ * share a root cause (this floor) rather than needing two separate levers.
  */
-export const DEF_FLOOR = 42;
+export const DEF_FLOOR = 48;
 export const DEF_NOTORIETY = 0.3;
 export const DEF_LAIR = 8;
 

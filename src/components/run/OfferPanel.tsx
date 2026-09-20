@@ -6,21 +6,58 @@
  * (wiki/06_reference_analysis.md, principle 3).
  */
 
-import { useCallback, useEffect, useId, useRef } from 'react';
-import type { Artifact, Faction, Offer } from '../../types';
+import { useCallback, useEffect, useId, useMemo, useRef } from 'react';
+import type { Artifact, Faction, Offer, OfferOption, RunState } from '../../types';
+import type { ContentBundle } from '../../engine';
+import { conditionMet, impliedGatesOf, isOptionPickable } from '../../engine';
+import { describeGate } from './effectText';
 import { OptionCard } from './OptionCard';
 import styles from './OfferPanel.module.css';
 
 export type OfferPanelProps = {
   offer: Offer;
+  run: RunState;
+  content: ContentBundle;
   artifacts: Artifact[];
   factions: Faction[];
   disabled?: boolean;
   onChoose(index: number): void;
 };
 
+type OptionGate = { pickable: boolean; reason?: string };
+
+/**
+ * Whether ONE option can actually be chosen right now, and — if not — why.
+ *
+ * `isOptionPickable` is the source of truth for the boolean. The reason line
+ * is derived separately, by re-walking the same `impliedGatesOf(option)` list
+ * through `conditionMet` to find the first gate that is failing — the two
+ * calls are not the same work twice: `isOptionPickable` only needs to know
+ * IF something fails, this needs to know WHICH one, to describe it.
+ *
+ * `reason` stays `undefined` if `isOptionPickable` says the option cannot be
+ * chosen but no single failing gate can be found (should not happen given the
+ * two functions' documented contracts, but degrading to today's plain
+ * disabled-and-dimmed card — full `EffectList` still shown — is safer than a
+ * blank reason line).
+ */
+function gateFor(
+  run: RunState,
+  option: OfferOption,
+  content: ContentBundle,
+): OptionGate {
+  if (isOptionPickable(run, option, content)) return { pickable: true };
+  const failing = impliedGatesOf(option).find((c) => !conditionMet(run, c, content));
+  return {
+    pickable: false,
+    reason: failing ? describeGate(failing, run, content) : undefined,
+  };
+}
+
 export function OfferPanel({
   offer,
+  run,
+  content,
   artifacts,
   factions,
   disabled = false,
@@ -29,6 +66,11 @@ export function OfferPanel({
   const titleId = useId();
   const listRef = useRef<HTMLDivElement>(null);
   const count = offer.options.length;
+
+  const optionGates = useMemo(
+    () => offer.options.map((option) => gateFor(run, option, content)),
+    [offer.options, run, content],
+  );
 
   const buttons = useCallback((): HTMLButtonElement[] => {
     const el = listRef.current;
@@ -63,7 +105,11 @@ export function OfferPanel({
         const index = Number(event.key) - 1;
         if (index < count) {
           event.preventDefault();
-          onChoose(index);
+          // A disabled `<button>` refuses a click on its own; this path goes
+          // straight through `window`'s keydown listener and never touches
+          // the button, so it needs its own explicit affordability check —
+          // the same one `disabled` on the card enforces for click/Enter.
+          if (optionGates[index]?.pickable) onChoose(index);
         }
         return;
       }
@@ -79,7 +125,7 @@ export function OfferPanel({
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [count, disabled, moveFocus, onChoose]);
+  }, [count, disabled, moveFocus, onChoose, optionGates]);
 
   const faction = offer.factionId ? factions.find((f) => f.id === offer.factionId) : undefined;
 
@@ -94,17 +140,21 @@ export function OfferPanel({
       </header>
 
       <div className={styles.options} role="group" aria-label="Choices" ref={listRef}>
-        {offer.options.map((option, i) => (
-          <OptionCard
-            key={`${offer.id}-${i}-${option.label}`}
-            option={option}
-            index={i}
-            artifacts={artifacts}
-            factions={factions}
-            disabled={disabled}
-            onChoose={onChoose}
-          />
-        ))}
+        {offer.options.map((option, i) => {
+          const gate = optionGates[i];
+          return (
+            <OptionCard
+              key={`${offer.id}-${i}-${option.label}`}
+              option={option}
+              index={i}
+              artifacts={artifacts}
+              factions={factions}
+              disabled={disabled || !gate?.pickable}
+              reason={gate?.reason}
+              onChoose={onChoose}
+            />
+          );
+        })}
       </div>
 
       <p className={styles.hint} aria-hidden="true">
