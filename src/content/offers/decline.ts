@@ -115,6 +115,7 @@ export const declineOffers: Offer[] = [
     phase: 'decline',
     factionId: 'gilded_hand',
     weight: 3,
+    requires: [{ c: 'holdsAnyArtifact' }],
     options: [
       {
         kind: 'certain',
@@ -199,6 +200,7 @@ export const declineOffers: Offer[] = [
     phase: 'decline',
     factionId: 'verdant_choir',
     weight: 2,
+    requires: [{ c: 'minFollowers', v: 5 }],
     options: [
       {
         kind: 'certain',
@@ -642,6 +644,7 @@ export const declineOffers: Offer[] = [
     phase: 'decline',
     factionId: 'gilded_hand',
     weight: 2,
+    requires: [{ c: 'minFollowers', v: 25 }],
     options: [
       {
         kind: 'certain',
@@ -1008,7 +1011,7 @@ export const declineOffers: Offer[] = [
     body: 'The Pale Academy will hide you. The terms are a cell, a name that is not yours, and a standing agreement never to be interesting again.',
     phase: 'decline',
     factionId: 'pale_academy',
-    requires: [{ c: 'minStanding', factionId: 'pale_academy', v: 20 }],
+    requires: [{ c: 'minFollowers', v: 30 }, { c: 'minStanding', factionId: 'pale_academy', v: 20 }],
     weight: 2,
     options: [
       {
@@ -1804,6 +1807,7 @@ export const declineOffers: Offer[] = [
     phase: 'decline',
     factionId: 'gilded_hand',
     weight: 2,
+    requires: [{ c: 'minFollowers', v: 8 }, { c: 'holdsAnyArtifact' }],
     options: [
       {
         kind: 'certain',

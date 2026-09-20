@@ -32,7 +32,7 @@ export const favorOffers: Offer[] = [
     body: 'Hesper Quill returns the catalogue, this time with a second column of prices, lower than the first and printed in a red the Gilded Hand keeps for people it has decided to keep.',
     phase: 'any',
     factionId: 'gilded_hand',
-    requires: [{ c: 'minStanding', factionId: 'gilded_hand', v: 30 }],
+    requires: [{ c: 'minFollowers', v: 14 }, { c: 'minStanding', factionId: 'gilded_hand', v: 30 }],
     weight: 2,
     options: [
       {

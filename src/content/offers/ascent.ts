@@ -17,6 +17,7 @@ export const ascentOffers: Offer[] = [
     body: 'A hilltop tower is going cheap. The previous owner is still on the premises, in the sense that he is now part of the load-bearing masonry.',
     phase: 'ascent',
     weight: 3,
+    requires: [{ c: 'minFollowers', v: 6 }],
     options: [
       {
         kind: 'certain',
@@ -153,6 +154,7 @@ export const ascentOffers: Offer[] = [
     phase: 'ascent',
     factionId: 'gilded_hand',
     weight: 3,
+    requires: [{ c: 'minFollowers', v: 15 }],
     options: [
       {
         kind: 'certain',
@@ -196,6 +198,7 @@ export const ascentOffers: Offer[] = [
     phase: 'ascent',
     factionId: 'pale_academy',
     weight: 3,
+    requires: [{ c: 'minFollowers', v: 12 }],
     options: [
       {
         kind: 'certain',
@@ -480,6 +483,7 @@ export const ascentOffers: Offer[] = [
     phase: 'ascent',
     factionId: 'gilded_hand',
     weight: 2,
+    requires: [{ c: 'minFollowers', v: 10 }],
     options: [
       {
         kind: 'gamble',
@@ -655,6 +659,7 @@ export const ascentOffers: Offer[] = [
     body: 'The moat is stagnant and the smell has reached the village. A contractor proposes either a proper sluice system or, for the same money, something that lives in the water and eats trespassers.',
     phase: 'ascent',
     weight: 2,
+    requires: [{ c: 'minFollowers', v: 20 }],
     options: [
       {
         kind: 'certain',
@@ -1525,6 +1530,7 @@ export const ascentOffers: Offer[] = [
     body: 'Storms come to this valley for six weeks a year. With the right ironwork on the roof, you could keep some.',
     phase: 'ascent',
     weight: 2,
+    requires: [{ c: 'minFollowers', v: 15 }],
     options: [
       {
         kind: 'certain',

@@ -728,64 +728,153 @@ for (const o of offers) {
  * A payment the engine can clamp to nothing is not a payment.
  *
  * `applyEffects` floors followers and apprentices at zero, and `loseArtifact`
- * is a no-op on an empty reliquary. So an option that trades STOCK for debt
- * relief hands a wizard who has none the full relief for whatever they happen
- * to hold — ten followers where the card said forty, an apprentice who does
- * not exist, a relic carried out of a room containing no relics — while its
+ * is a no-op on an empty reliquary. So an option that trades STOCK for a FIXED
+ * benefit hands a wizard who has none the full benefit for whatever they happen
+ * to hold — ten followers where the card said forty, an apprentice who does not
+ * exist, a relic carried out of a room containing no relics — while its
  * `resultText` narrates a payment that did not occur.
  *
  * The offer card stays honest either way: `projectEffects` prints the clamped
  * number, which is what that projection is for. What breaks is the EXCHANGE —
  * a fixed benefit bought with a cost the engine erased — and the prose that
- * describes it. Three cards shipped this way in one file, and a fourth had
- * been in the catalog since before the pact ladder existed.
+ * describes it.
  *
- * Scoped to branches that reduce pact debt on purpose. A partial follower loss
- * elsewhere is a partial loss, not a bypassed trade: nothing fixed is being
- * bought with it.
+ * This check was once scoped to branches that reduce pact debt, on the reading
+ * that "a partial follower loss elsewhere is a partial loss, not a bypassed
+ * trade". Half of that reading was right and half of it hid thirteen live
+ * offers for months (issue #41) — four of the six concordats among them,
+ * which are the game’s only reliable legendary and so the gate on Ascension.
  *
- * The fix is always the same — gate the offer on the stock its option spends.
- * Options carry no gates of their own, so a card offering two different
- * payments has to require both.
+ * The half that was right: a partial payment against a CONTINUOUS benefit
+ * really is a partial trade. A wizard with three followers who pays "−12
+ * followers" for "+6 Gilded Hand" pays what they have and moves standing by
+ * six, and the next card charges them again from a smaller pile. Nothing is
+ * bypassed, and demanding a gate there would put a `minFollowers` on roughly
+ * eighty of the hundred and fifty offers — which is to say, on the catalog’s
+ * ordinary texture.
+ *
+ * The half that was wrong: debt relief was never the special case. It was the
+ * instance that happened to be found first. What actually distinguishes it is
+ * that the thing bought is INDIVISIBLE — you cannot buy three sevenths of a
+ * cleared debt, or of a legendary, or of a lair rung. There is no partial
+ * trade available, so a payment the engine erased buys the whole thing for
+ * nothing.
+ *
+ * So the rule is scoped to indivisibility rather than to pact debt, and it
+ * reads BOTH sides of the trade:
+ *
+ *   • an indivisible BENEFIT (a relic, a lair rung, a cleared point of debt,
+ *     an apprentice) bought with floorable stock must gate on that stock;
+ *   • an indivisible PAYMENT — `loseArtifact`, which surrenders a whole relic
+ *     or silently nothing — must gate on holding one, whatever it buys. There
+ *     is no such thing as handing over part of a relic, so a continuous
+ *     benefit does not make that trade honest the way it does a follower cost.
+ *
+ * Costs are NETTED per currency first, so a card that charges twelve followers
+ * and pays back twenty is read as the gain it is rather than as a trade with a
+ * hole in it.
  */
+
+/**
+ * What a branch pays with, and whether it collects anything fixed in return.
+ *
+ * `benefit` deliberately ignores the currencies being SPENT: a branch that
+ * charges followers and grants followers is one net movement, not a purchase,
+ * and reading it as a purchase would demand a gate on every card that gives
+ * with one hand and takes with the other.
+ */
+type FloorableStock = 'followers' | 'apprentices' | 'relic';
+
+function tradeOf(branch: readonly Effect[]): {
+  costs: { stock: FloorableStock; need: number }[];
+  benefit: boolean;
+} {
+  let followers = 0;
+  let apprentices = 0;
+  let relic = false;
+  for (const e of branch) {
+    if (e.t === 'followers') followers += e.v;
+    else if (e.t === 'apprentices') apprentices += e.v;
+    else if (e.t === 'loseArtifact') relic = true;
+  }
+
+  const costs: { stock: FloorableStock; need: number }[] = [];
+  if (followers < 0) costs.push({ stock: 'followers', need: -followers });
+  if (apprentices < 0) costs.push({ stock: 'apprentices', need: -apprentices });
+  if (relic) costs.push({ stock: 'relic', need: 1 });
+
+  // The indivisible collections. Standing, notoriety, loyalty and hero threat
+  // are all deliberately absent: they are continuous, so a partial payment
+  // buys a partial move and the exchange stays honest. `loseArtifact` is
+  // absent because it is only ever a cost, and the two stock currencies are
+  // absent as benefits because netting has already settled them.
+  const benefit = branch.some(
+    (e) =>
+      e.t === 'artifact' ||
+      e.t === 'artifactFrom' ||
+      (e.t === 'lairTier' && e.v > 0) ||
+      (e.t === 'pactDebt' && e.v < 0),
+  );
+  if (apprentices > 0) {
+    // An apprentice is a person, not a quantity — indivisible in the same way
+    // a relic is, and bought with the same floorable stock.
+    return { costs, benefit: true };
+  }
+
+  return { costs, benefit };
+}
+
 for (const o of offers) {
   // The one exemption, and it is structural rather than a name on a list.
   //
   // A card whose SIBLING option ends the run outright is not trading stock for
-  // relief; it is pricing the whole career. `scripted_the_reckoning` offers
+  // a benefit; it is pricing the whole career. `scripted_the_reckoning` offers
   // "pay everything you have" against "refuse to pay", which is
   // `consumed_by_pact` on the spot. A wizard with nothing to hand over gives
   // nothing and is spared, and that is the card working: the alternative was
   // never a cheaper exit, it was the ending. Gating the reckoning on eighty
-  // followers and a full reliquary would put the pact's own set piece out of
+  // followers and a full reliquary would put the pact’s own set piece out of
   // reach of exactly the careers it was written for.
-  const terminal = o.options.some(
-    (opt) =>
-      opt.kind === 'certain'
-        ? opt.effects.some((e) => e.t === 'ending')
-        : [...opt.onSuccess, ...opt.onFailure].some((e) => e.t === 'ending'),
+  const terminal = o.options.some((opt) =>
+    opt.kind === 'certain'
+      ? opt.effects.some((e) => e.t === 'ending')
+      : [...opt.onSuccess, ...opt.onFailure].some((e) => e.t === 'ending'),
   );
   if (terminal) continue;
 
   const gates = o.requires ?? [];
-  const stocked = (c: 'minFollowers' | 'minApprentices', need: number) =>
-    gates.some((g) => g.c === c && g.v >= need);
-  const stockedRelic = gates.some((g) => g.c === 'holdsAnyArtifact' || g.c === 'hasArtifact');
+  const gated = (stock: FloorableStock, need: number) => {
+    if (stock === 'relic') {
+      return gates.some(
+        (g) =>
+          g.c === 'holdsAnyArtifact' ||
+          g.c === 'hasArtifact' ||
+          (g.c === 'minArtifacts' && g.v >= need),
+      );
+    }
+    const c = stock === 'followers' ? 'minFollowers' : 'minApprentices';
+    return gates.some((g) => g.c === c && g.v >= need);
+  };
 
   for (const opt of o.options) {
     const branches = opt.kind === 'certain' ? [opt.effects] : [opt.onSuccess, opt.onFailure];
     for (const branch of branches) {
-      if (!branch.some((e) => e.t === 'pactDebt' && e.v < 0)) continue;
+      const { costs, benefit } = tradeOf(branch);
+      if (costs.length === 0) continue;
       const where = `offer "${o.id}" option "${opt.label}"`;
-      for (const e of branch) {
-        if (e.t === 'followers' && e.v < 0 && !stocked('minFollowers', -e.v)) {
-          fail(where, `buys debt relief for ${-e.v} followers with no minFollowers gate — a poorer wizard clears the same debt for less`);
-        }
-        if (e.t === 'apprentices' && e.v < 0 && !stocked('minApprentices', -e.v)) {
-          fail(where, `buys debt relief for ${-e.v} apprentice(s) with no minApprentices gate — a wizard with none clears the debt for free`);
-        }
-        if (e.t === 'loseArtifact' && !stockedRelic) {
-          fail(where, 'buys debt relief with a relic but the offer never requires one — an empty reliquary pays nothing');
+      for (const { stock, need } of costs) {
+        // A relic payment is indivisible on its own account, so it is checked
+        // whether or not what it bought was; every other stock is only a
+        // problem when the thing bought cannot be part-paid for.
+        if (stock !== 'relic' && !benefit) continue;
+        if (gated(stock, need)) continue;
+        if (stock === 'relic') {
+          fail(where, 'pays with a relic but the offer never requires one — an empty reliquary pays nothing and still collects');
+        } else {
+          fail(
+            where,
+            `buys a fixed benefit for ${need} ${stock} with no min${stock === 'followers' ? 'Followers' : 'Apprentices'} gate — a wizard with none collects it for free`,
+          );
         }
       }
     }

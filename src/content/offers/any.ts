@@ -100,6 +100,7 @@ export const anyOffers: Offer[] = [
     phase: 'any',
     factionId: 'gilded_hand',
     weight: 3,
+    requires: [{ c: 'minFollowers', v: 12 }],
     options: [
       {
         kind: 'certain',
@@ -324,6 +325,7 @@ export const anyOffers: Offer[] = [
     body: 'The goblin work gang has finished the crypt extension nine months early and thirty per cent over budget, and will not explain either figure.',
     phase: 'any',
     weight: 2,
+    requires: [{ c: 'minFollowers', v: 15 }],
     options: [
       {
         kind: 'certain',

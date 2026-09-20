@@ -30,10 +30,32 @@ import type { Condition, FactionId, Offer } from '../../types';
  * `stockGate` exists for the same reason `oaths.ts`'s does (CLAUDE.md failure
  * mode 14): followers, apprentices and lair tier all floor or refuse to move
  * past their minimum, so a price naming one of them costs nothing to a wizard
- * who has none to give, while the fixed legendary still pays out in full. The
- * Hand's and the Choir's routes (#22) both spend stock this way and are gated;
- * the original four price the relic in pactDebt, notoriety or hero threat —
- * currencies with no floor to hide behind — and need no gate.
+ * who has none to give, while the fixed legendary still pays out in full.
+ *
+ * All six carry one now. This comment used to say the original four priced the
+ * relic "in pactDebt, notoriety or hero threat — currencies with no floor to
+ * hide behind — and need no gate", and that was simply false of four of them:
+ * the Covenant charges an apprentice, the Academy twelve followers, the
+ * Crownlands thirty, the Worm twenty, and none of the four was gated (issue
+ * #41). A wizard with an empty household collected the legendary for the
+ * currencies that DO have no floor and paid nothing for the rest, while
+ * `resultText` narrated the payment — "Twenty of your household do not come
+ * back up. The ledger calls this interest." — to a household of nobody.
+ *
+ * That mattered more here than anywhere else it appeared: the concordats are
+ * the game's only reliable legendary, and a legendary is what Ascension is
+ * gated on. The wizard least able to afford one was buying it cheapest.
+ *
+ * Gating all six would have closed the door it was meant to make honest.
+ * Failure mode 14's two rules only compose while a stock-free route survives:
+ * every concordat priced in followers or apprentices now refuses a wizard who
+ * has none, so with all six gated, a career that never built a household had
+ * no route to a legendary at all and Ascension fell out of its band (measured:
+ * 1.15% to 0.65%). The Covenant is repriced instead of gated — it deals in
+ * signatures rather than coin, so it charges pact debt, fame and the hero's
+ * attention, none of which have a floor to hide behind. It is the one
+ * concordat a penniless wizard can still walk into, which is what keeps the
+ * ascent's top rung reachable from the bottom.
  */
 
 type Concordat = {
@@ -62,11 +84,11 @@ const CONCORDATS: Concordat[] = [
       label: 'Take the Testament',
       effects: [
         { t: 'artifactFrom', factionId: 'ashen_covenant', rarity: 'legendary' },
-        { t: 'apprentices', v: -1 },
-        { t: 'pactDebt', v: 1 },
+        { t: 'pactDebt', v: 2 },
         { t: 'notoriety', v: 8 },
+        { t: 'heroThreat', v: 4 },
       ],
-      resultText: 'One apprentice signs where indicated. You are not told which page.',
+      resultText: 'You sign where indicated. You are not told which page, and you are not offered a copy.',
     },
     declineLabel: 'Leave it on the shelf',
     declineText: 'The Covenant does not argue. It writes the date down.',
@@ -88,6 +110,7 @@ const CONCORDATS: Concordat[] = [
       ],
       resultText: 'They give you a key, a shelf, and a form to fill in about the shelf.',
     },
+    stockGate: [{ c: 'minFollowers', v: 12 }],
     declineLabel: 'Decline, in writing, at length',
     declineText: 'Your letter is filed. It will be quoted at your memorial.',
   },
@@ -108,6 +131,7 @@ const CONCORDATS: Concordat[] = [
       ],
       resultText: 'You now know the name of the Chosen One’s grandmother. So does she.',
     },
+    stockGate: [{ c: 'minFollowers', v: 30 }],
     declineLabel: 'Let him keep it',
     declineText: 'He looks relieved, which tells you what it would have cost you.',
   },
@@ -128,6 +152,7 @@ const CONCORDATS: Concordat[] = [
       ],
       resultText: 'Twenty of your household do not come back up. The ledger calls this interest.',
     },
+    stockGate: [{ c: 'minFollowers', v: 20 }],
     declineLabel: 'Refuse the loan',
     declineText: 'It withdraws without comment. The shelf stays where you can think about it.',
   },
