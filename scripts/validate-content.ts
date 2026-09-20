@@ -137,15 +137,10 @@ for (const artifact of artifacts) {
  * compiler cannot see this one — every member typechecks whether or not
  * anything uses it — so it is asserted here.
  */
-const ALL_POWERS: ArtifactPower['p'][] = [
-  'wards',
-  'vigil',
-  'undimmed',
-  'discipline',
-  'haggle',
-  'grace',
-];
-for (const p of ALL_POWERS) {
+// Derived from `POWER_CAP` rather than listed again: that is already a
+// `Record` over the union, so the compiler names a new member there, and a
+// second hand-written list is a second place to forget one.
+for (const p of Object.keys(POWER_CAP) as ArtifactPower['p'][]) {
   if (!powersSeen.has(p)) {
     fail('artifacts', `no relic carries the "${p}" power — the engine applies it and nothing grants it`);
   }

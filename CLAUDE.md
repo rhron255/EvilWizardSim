@@ -523,11 +523,15 @@ two rules only compose while a stock-free exit survives at every level.
 6. New `Effect` variant that is deterministic? Add it to `PROJECTABLE` in
    `src/engine/effects.ts`, or the offer card goes back to printing the
    authored number instead of the real one.
-6b. New `ArtifactPower` member? The compiler will name `artifactPowerText` and
-   `relicPowers`, but not the two things it cannot see: `validate-content.ts`
-   must gain a `POWER_CAP` entry and an `ALL_POWERS` entry, or the power is
-   uncapped and may be carried by nothing at all (failure mode 2 — the engine
-   applies it and no relic grants it).
+6b. New `ArtifactPower` member? The compiler names every place that has to
+   change — the renderer's switch and its ordering record, the engine's
+   aggregator, the validator's `POWER_CAP`, and the test that sweeps all six.
+   That is deliberate and was not free: two of those were bare `string[]`
+   lists at first, and a bare list is the one enumeration of a union that
+   nothing checks. Keep them `Record`s. The one thing left to a human is
+   authoring a relic that actually carries the new power — the validator fails
+   if nothing does, because a power the engine applies and no relic grants is
+   failure mode 2.
 7. New content field the UI reads? Make it **required** on the type and let the
    compiler name every fixture. `Ending.hint` found all fourteen call sites
    that way; an optional field would have rendered blank in two of them.

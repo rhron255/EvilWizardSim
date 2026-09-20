@@ -10,7 +10,6 @@
 import { useMemo } from 'react';
 import type { ContentBundle } from './engine';
 import { defenseReadout, projectEffects, relicPowers, useGame } from './engine';
-import { siegeFor } from './components/run';
 import {
   artifacts,
   endings,
@@ -25,7 +24,7 @@ import { heroNameFor, prophecyTextFor } from './content/heroes';
 import { TitleScreen } from './screens/TitleScreen';
 import { CreationScreen } from './screens/CreationScreen';
 import { RunScreen } from './screens/RunScreen';
-import { FirstRunGuide } from './components/run';
+import { FirstRunGuide, siegeFor } from './components/run';
 import { ProphecyInterstitial } from './screens/ProphecyInterstitial';
 import { EndingScreen } from './screens/EndingScreen';
 import { CollectionScreen } from './screens/CollectionScreen';
@@ -76,7 +75,14 @@ export default function App() {
     () => (run && defense ? siegeFor(run, defense, CONTENT) : null),
     [run, defense],
   );
-  const relics = useMemo(() => relicPowers(run ?? { heldArtifactIds: [] }, CONTENT), [run]);
+  // Never null, unlike the two above: a wizard always has a reliquary, even an
+  // empty one. `defense` and `siege` are absent before a run and outside the
+  // decline, so they are typed that way; a summed-powers record with every
+  // term at zero is the honest answer here and saves `DecisionPanel` a branch.
+  const relics = useMemo(
+    () => relicPowers({ heldArtifactIds: run?.heldArtifactIds ?? [] }, CONTENT),
+    [run],
+  );
 
   /**
    * The offer as it will actually land, for DISPLAY ONLY.

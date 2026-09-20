@@ -93,17 +93,27 @@ export function artifactPowerText(power: ArtifactPower): string {
  * Zero terms are dropped. Empty when nothing is held, which is the caller's
  * cue to say what relics are FOR rather than what these ones do.
  */
-const POWER_ORDER: ArtifactPower['p'][] = [
-  'wards',
-  'vigil',
-  'undimmed',
-  'discipline',
-  'haggle',
-  'grace',
-];
+/**
+ * A `Record` rather than an array, so the compiler names a new `ArtifactPower`
+ * member here too. As a bare list this was the one enumeration of the six that
+ * nothing checked: a power left out of it would be held, applied by the engine,
+ * printed on its own relic card — and silently missing from the header's
+ * summary, which is the one place a player reads what their whole reliquary is
+ * doing. That is failure mode 2 with the compiler standing right there.
+ */
+const POWER_ORDER: Record<ArtifactPower['p'], number> = {
+  wards: 0,
+  vigil: 1,
+  undimmed: 2,
+  discipline: 3,
+  haggle: 4,
+  grace: 5,
+};
 
 export function relicPowerSummary(powers: RelicPowers): string {
-  return POWER_ORDER.filter((p) => powers[p] > 0)
+  return (Object.keys(POWER_ORDER) as ArtifactPower['p'][])
+    .sort((a, b) => POWER_ORDER[a] - POWER_ORDER[b])
+    .filter((p) => powers[p] > 0)
     .map((p) => phrasingFor(p, powers[p]).clause)
     .join(' · ');
 }
