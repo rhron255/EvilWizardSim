@@ -1198,14 +1198,15 @@ function pickEraCount(roll: number): number {
 const PROBE_RUNS = 1000;
 
 /**
- * `arch_lich`'s own cohort size (issue #25), 50x `PROBE_RUNS` and measured,
+ * `arch_lich`'s own cohort size (issue #25), 10x `PROBE_RUNS` and measured,
  * not matched to it for consistency's sake. `arch_lich` needs the rite AND
  * the vow on the SAME career, and the two pull against each other more than
  * independence would predict — the rite forfeits every artifact and every
  * follower, which is most of `defenseOf`, so a `redeemed` wizard who takes it
  * is walking into the steepest part of the hero ramp naked at the exact
  * moment it also needs to survive to the age limit for the vow to resolve.
- * At `PROBE_RUNS` (200) the expected count is well under 1 and the check
+ * At the `PROBE_RUNS` of the day (200) the expected count was well under 1 and
+ * the check
  * flickers exactly the way `lichdom`'s did before it got its own cohort
  * (issue #24). Measured across eight seeds at this size: 2-10 per run,
  * never zero — an expected count of roughly 5, an order of magnitude clear
@@ -1230,7 +1231,7 @@ function reprisalProbe(baseSeed: number): Map<FactionId, RunResult[]> {
  * `reprisalProbe`'s mirror for the leadership endings (issue #14 slice 2b).
  * Same reasoning: a `courtier_<faction>` cohort inside the 2000-run
  * population would be ~40 runs, where one career either way moves the rate
- * by two and a half points, so reachability is measured on its own 200-run
+ * by two and a half points, so reachability is measured on its own dedicated
  * sample per faction instead. Distinct seed constants from `reprisalProbe`'s
  * so the two probes do not replay each other's careers.
  */
@@ -1294,9 +1295,10 @@ function saintProbe(baseSeed: number): RunResult[] {
  * together, for the same arithmetic reason CLAUDE.md's reprisal-cohort note
  * already names (small expected count, not a broken game). A dedicated
  * `PROBE_RUNS` cohort, kept OUT of `POPULATION` exactly like the other
- * probes so it cannot distort the headline mix, raises the expected count to
- * ~4.6 — not immune to a zero roll, but an order of magnitude less likely to
- * produce one on an arbitrary seed.
+ * probes so it cannot distort the headline mix, raised the expected count to
+ * ~4.6 at the 200 it was written against, and to ~23 at the 1000 `PROBE_RUNS`
+ * became in issue #42 — which is also what let the reachability check above
+ * start reading this cohort instead of the population's thin slice.
  */
 function lichProbe(baseSeed: number): RunResult[] {
   const rng = mulberry32((baseSeed ^ 0xdeadbeef) + 1);
@@ -2274,7 +2276,7 @@ function main(): void {
        * broken one, which is not.
        *
        * THIS IS THE ONLY REACHABILITY ROW, and there used to be a second one
-       * asserting each reprisal turned up inside its own 200-run cohort. It
+       * asserting each reprisal turned up inside its own dedicated cohort. It
        * was deleted rather than tuned: at a 1% cohort rate the expected count
        * is two and one seed in eight produces none, so it went red on seed 2
        * for a reason that was arithmetic rather than a defect. A gate that
@@ -2375,16 +2377,19 @@ function main(): void {
     [
       // Measured WITHIN the cohort that seeks it, not across the population:
       // only ~6% of simulated players take the lich policy at all, so a
-      // population-wide figure mostly measures the population mix. Still read
-      // off the population's ~110-130-run `lich` slice rather than
-      // `lichProbe` — this is a READING, not a gate (see `gate.mjs`'s header
-      // comment), so it is allowed to be noisier than the ending's actual
-      // reachability requires. `lichProbe`'s larger, dedicated 200-run cohort
-      // is what now backs "Every authored ending occurs" below, which is the
-      // check rule 6 actually needs to hold; the population's own slice was
-      // small enough to roll zero rite completions on an ordinary seed
-      // (issue #24), which is what made THAT check flicker, not this one's
-      // band being wrong.
+      // population-wide figure mostly measures the population mix.
+      //
+      // Read off `lichProbe`'s dedicated cohort since issue #42. It used to
+      // read the population's own ~110-130-run `lich` slice, on the argument
+      // that this is a READING rather than a gate and so is allowed to be
+      // noisier than the ending's reachability requires. That was too
+      // generous by an order of magnitude: at a true 2% rate the slice has an
+      // expected count under three, and the figure duly swung 0.77%-2.31%
+      // between neighbouring seeds with nothing about the game changing —
+      // while `lichProbe` sat beside it building the cohort this check was
+      // describing, and the rarity-ordering check below already read it. One
+      // report printed two different lich-seeker rates from two samples and
+      // called them the same thing.
       //
       // The band is 2-15%, and it is deliberately low. The wiki sets no target
       // rate for lichdom; earlier numbers here were invented and then chased,
@@ -2492,24 +2497,33 @@ function main(): void {
        *   `liquidated`            1.00-2.00% -> 2.5-5.0%
        *
        * It still fails on roughly half of seeds, and the reason is now
-       * SAMPLING rather than a broken ending. At `PROBE_RUNS` = 200 a true
-       * ~1.5% cohort rate has an expected count of 3, so the minimum of
-       * eleven such rates is dominated by whichever cohort got unlucky:
-       * seeds 1-4 above put it on `eternally_repurposed` (1.00%),
+       * SAMPLING rather than a broken ending. At the `PROBE_RUNS` of the day
+       * (200) a true ~1.5% cohort rate had an expected count of 3, so the
+       * minimum of eleven such rates was dominated by whichever cohort got
+       * unlucky: seeds 1-4 put it on `eternally_repurposed` (1.00%),
        * `archdruid` (1.00-2.00%) and `overthrown_the_kingdom` (1.00-1.50%)
-       * in turn, and `good_wizard` itself moves 1.10-1.60% across the same
-       * seeds on a 1000-run cohort. Two rates three runs apart are not
-       * ordered by anything but luck.
+       * in turn. Two rates three runs apart are not ordered by anything but
+       * luck.
        *
-       * So do NOT chase whichever ending holds `min(otherRates)` on the seed
-       * in front of you — that is CLAUDE.md failure mode 5 with extra steps,
-       * and it will send you to a different faction every time. The way to
-       * make this check mean something is issue #32's own remaining half:
-       * grow `reprisalProbe`/`leadershipProbe` past 200 runs so the minimum
-       * stops moving between unrelated factions from seed to seed. Until
-       * then, read the per-cohort tables above, where a genuinely dead
-       * ending shows up as a zero that survives every seed — which is what
-       * `contract_writer` looked like, and no longer does.
+       * ISSUE #42 DID THE HALF THIS COMMENT ASKED FOR: `PROBE_RUNS` is 1000
+       * now, and the minimum stopped wandering. That turned the check from
+       * noise into a finding — it named `lichdom` on every seed, `lichdom`
+       * really was the floor, and `LICH_RELIC_REQUIREMENT` is why it no
+       * longer is. The check now passes on 7 of 8 seeds.
+       *
+       * What remains is NOT sampling. `good_wizard` sits at 1.5-1.9% of its
+       * cohort and the rarest crowns at 1.7-2.2%, so their true rates
+       * genuinely overlap and an occasional seed orders them the wrong way.
+       * Tightening `good_wizard`'s own gates was tried and reverted: either
+       * one overshoots, dropping it to 0.1-0.9% where it collides with
+       * `arch_lich` from BELOW and fails this same check from the other side
+       * (measured on unseen seeds 6 and 8). There is no setting that lands it
+       * between the two, which says the remaining fix is raising the crowns —
+       * issue #35's own conclusion — and not lowering `good_wizard` into
+       * near-dead content to satisfy an ordering.
+       *
+       * So still do NOT chase whichever ending holds `min(otherRates)` on the
+       * seed in front of you.
        */
       'Rarity ordering: arch_lich < good_wizard < every other dedicated-cohort ending',
       archLichRate < goodWizardRate && goodWizardRate < minOtherRate,

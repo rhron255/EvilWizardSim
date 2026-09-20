@@ -34,6 +34,7 @@ import {
   HERO_THREAT_RAMP,
   LOYALTY_DRIFT_BASE,
   LOYALTY_DRIFT_MIN,
+  SOFTENED_COST_MIN,
 } from './constants';
 
 const real: ContentBundle = {
@@ -169,11 +170,44 @@ describe('haggle', () => {
     ]);
   });
 
-  it('never turns a cost into a gain', () => {
+  it('never haggles a cost down to nothing, which would be failure mode 14 again', () => {
+    // The floor is the whole reason `SOFTENED_COST_MIN` exists. Without it a
+    // Gilded Hand collector clears `concordat_academy`'s minFollowers gate,
+    // pays zero and takes the legendary, while the card narrates a payment —
+    // which is the exact bug issue #41 closed, reopened by a relic.
     const bundle = withRelics({ p: 'haggle', v: 5 });
     const draft = draftOf(runHolding(bundle, { followers: 40 }));
     applyEffects(draft, [{ t: 'followers', v: -2 }], () => 0, bundle);
-    expect(draft.followers).toBe(40);
+    expect(draft.followers).toBe(40 - SOFTENED_COST_MIN);
+  });
+
+  it('prices the card against the relics held BEFORE it, not the one it is granting', () => {
+    // `artifactFrom` pushes its draw onto the draft mid-list, so a branch that
+    // grants a relic and then charges followers used to discount its own cost
+    // with the relic it was in the middle of handing over — while the offer
+    // card, which cannot project a random draw, printed the undiscounted
+    // number. Seven authored branches had this shape.
+    const bundle: ContentBundle = {
+      ...real,
+      artifacts: [{
+        id: 'test_haggler', name: 'Test Haggler', factionId: 'gilded_hand' as const,
+        rarity: 'common' as const, power: { p: 'haggle' as const, v: 5 },
+        flavorText: 'It knows what you paid.',
+      }],
+    };
+    const run = { ...runHolding(bundle), heldArtifactIds: [], followers: 40,
+      factionStanding: { ...runHolding(bundle).factionStanding, gilded_hand: 40 } };
+    const effects = [
+      { t: 'artifactFrom' as const, factionId: 'gilded_hand' as const },
+      { t: 'followers' as const, v: -12 },
+    ];
+    const draft = draftOf(run);
+    applyEffects(draft, effects, () => 0.5, bundle);
+    // Held nothing when the card was offered, so it costs the printed twelve.
+    expect(draft.followers).toBe(28);
+    // And that is exactly what the card printed.
+    const printed = projectEffects(run, effects, bundle).find((e) => e.t === 'followers');
+    expect(printed).toEqual({ t: 'followers', v: -12 });
   });
 
   it('leaves gains alone — it is a discount, not a multiplier', () => {
@@ -204,6 +238,15 @@ describe('grace', () => {
     expect(namedDelta(withRelics({ p: 'grace', v: 3 }), 10)).toBe(10);
   });
 
+  it('never softens a loss down to nothing, which would close the reprisal endings', () => {
+    // Contagion is CLAUDE.md's named route into `sealed_in_gem` — 18.5% of
+    // runs — and the five faction reprisals are reachable only through
+    // standing going down. An ordinary +8 gain spills −2; two common grace
+    // relics would erase that entirely without the floor.
+    const bundle = withRelics({ p: 'grace', v: 3 });
+    expect(namedDelta(bundle, -2)).toBe(-SOFTENED_COST_MIN);
+  });
+
   it('softens the CONTAGION spill too, which is the half a player cannot see', () => {
     // The Crownlands are hostile to the Worm Below, so courting them spills a
     // loss onto it. That invisible route is the one a player cannot plan
@@ -222,7 +265,8 @@ describe('grace', () => {
       return spill && spill.t === 'standing' ? spill.v : 0;
     };
     const bareSpill = spillOf(bare);
-    expect(bareSpill).toBeLessThan(0);
+    // Large enough that the floor is not what is being measured here.
+    expect(bareSpill).toBeLessThan(-SOFTENED_COST_MIN);
     expect(spillOf(graced)).toBe(bareSpill + 1);
   });
 });

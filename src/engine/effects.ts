@@ -20,6 +20,7 @@ import {
   GOOD_WIZARD_ILL_CAP,
   NOVELTY_BIAS,
   RARITY_DRAW_WEIGHT,
+  SOFTENED_COST_MIN,
   STANDING_MAX,
   STANDING_MIN,
 } from './constants';
@@ -69,10 +70,9 @@ const RARITY_RANK: Record<Rarity, number> = { common: 0, rare: 1, legendary: 2 }
  * price before the commit and the resolution prints it after — one number,
  * arrived at once.
  */
-function haggled(v: number, draft: RunState, index: ContentIndex): number {
+function haggled(v: number, haggle: number): number {
   if (v >= 0) return v;
-  const haggle = relicPowersOf(draft.heldArtifactIds, index).haggle;
-  return Math.min(0, v + haggle);
+  return Math.min(-SOFTENED_COST_MIN, v + haggle);
 }
 
 /**
@@ -87,7 +87,7 @@ function haggled(v: number, draft: RunState, index: ContentIndex): number {
  */
 function softened(v: number, grace: number): number {
   if (v >= 0) return v;
-  return Math.min(0, v + grace);
+  return Math.min(-SOFTENED_COST_MIN, v + grace);
 }
 
 /**
@@ -103,6 +103,22 @@ export function applyEffects(
   content: ContentBundle,
 ): EffectApplication {
   const index = indexOf(content);
+  /*
+   * The reliquary as it stood when the card was OFFERED, read once.
+   *
+   * Not per-effect off the running draft, which is what it was and which made
+   * the card lie. `artifactFrom` pushes its draw onto `draft.heldArtifactIds`
+   * mid-list, so a branch like `[artifactFrom gilded_hand rare, followers -6]`
+   * discounted its own cost with the relic it was in the middle of granting —
+   * and `projectEffects` cannot see that, because it leaves `artifactFrom`
+   * unprojected (the draw is random; resolving it early would spoil or lie).
+   * The card printed −6 and the engine charged −1. Seven authored branches
+   * had this shape, `concordat_hand` among them.
+   *
+   * Reading once here is what makes the projection and the resolution agree:
+   * both price the option against the relics the player already had.
+   */
+  const powers = relicPowersOf(draft.heldArtifactIds, index);
   const out: EffectApplication = { applied: [], artifactsGained: [], artifactsLost: [] };
 
   for (const effect of effects) {
@@ -117,14 +133,14 @@ export function applyEffects(
 
       case 'followers': {
         const before = draft.followers;
-        draft.followers = Math.max(0, Math.round(before + haggled(effect.v, draft, index)));
+        draft.followers = Math.max(0, Math.round(before + haggled(effect.v, powers.haggle)));
         const delta = draft.followers - before;
         if (delta !== 0) out.applied.push({ t: 'followers', v: delta });
         break;
       }
 
       case 'standing': {
-        applyStanding(draft, effect.factionId, effect.v, index, out.applied);
+        applyStanding(draft, effect.factionId, effect.v, index, out.applied, powers.grace);
         break;
       }
 
@@ -286,8 +302,9 @@ export function applyStanding(
   v: number,
   index: ContentIndex,
   applied: Effect[],
+  /** Passed in, never read off `draft` — see the note in `applyEffects`. */
+  grace: number,
 ): number {
-  const grace = relicPowersOf(draft.heldArtifactIds, index).grace;
   const before = draft.factionStanding[factionId] ?? 0;
   const after = clamp(Math.round(before + softened(v, grace)), STANDING_MIN, STANDING_MAX);
   const delta = after - before;

@@ -21,6 +21,7 @@ import type {
   RunState,
 } from '../../../types';
 import type { Resolution } from '../resolution';
+import type { ContentBundle } from '../../../engine';
 
 // ---------------------------------------------------------------------------
 // Factions — the fixed recurring cast
@@ -620,4 +621,28 @@ export const demoResolutionDeterministic: Resolution = {
     deedSummary: 'Burned a Covenant envelope. Paid for the walking anyway.',
     outcome: 'deterministic',
   },
+};
+
+/**
+ * The demo content as a `ContentBundle`.
+ *
+ * Anything rendering these fixtures that needs an engine derivation —
+ * `relicPowers` for the header's Relics caption, `siegeFor` for the wards
+ * readout — has to look the relics up in the bundle the run actually holds.
+ * Handing it `fixtureContent` instead compiles perfectly and silently sums to
+ * zero, because the engine fixture generates ids of the form
+ * `${factionId}_${rarity}_${i}` and `demoRun` holds `bone_crown` and friends.
+ * The `DecisionPanel` tests did exactly that and spent a while asserting the
+ * empty-reliquary caption against a wizard holding five relics.
+ *
+ * Empty arrays are the parts of a bundle nothing on the run screen reads.
+ */
+export const demoBundle: ContentBundle = {
+  factions: demoFactions,
+  artifacts: demoArtifacts,
+  lairs: demoLairs,
+  origins: [],
+  endings: [],
+  offers: [],
+  epithets: [],
 };

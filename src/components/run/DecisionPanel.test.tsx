@@ -11,11 +11,17 @@ import userEvent from '@testing-library/user-event';
 import type { DefenseReadout } from '../../engine';
 import { DEF_LICH } from '../../engine';
 import type { Offer, RunState } from '../../types';
-import { demoArtifacts, demoEarlyRun, demoFactions, demoOffer, demoRun } from './__fixtures__/demo';
+import {
+  demoArtifacts,
+  demoBundle,
+  demoEarlyRun,
+  demoFactions,
+  demoOffer,
+  demoRun,
+} from './__fixtures__/demo';
 import { DecisionPanel } from './DecisionPanel';
 import { siegeFor } from './stakes';
 import { relicPowers } from '../../engine';
-import { fixtureContent } from '../../engine/__fixtures__/content';
 
 const wards = (total: number): DefenseReadout => ({
   total,
@@ -41,8 +47,8 @@ const show = (
       artifacts={demoArtifacts}
       disabled={disabled}
       onChoose={() => {}}
-      relics={relicPowers(run, fixtureContent)}
-      siege={defense && siegeFor(run, defense, fixtureContent)}
+      relics={relicPowers(run, demoBundle)}
+      siege={defense && siegeFor(run, defense, demoBundle)}
     />,
   );
 
@@ -73,6 +79,35 @@ describe('DecisionPanel · disclosure', () => {
     expect(button).toHaveAttribute('aria-expanded', 'false');
     await userEvent.click(button);
     expect(button).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  /**
+   * The Relics caption is the one place a player reads what their WHOLE
+   * reliquary is doing, and it is the only stat whose caption is computed from
+   * something outside the run — the summed powers the panel is handed.
+   *
+   * Pinned through the component rather than through `stakesFor` alone,
+   * because the defect this replaced was a WIRING one: the tests built the
+   * powers from `fixtureContent`, whose generated ids match nothing `demoRun`
+   * holds, so the sum was all zeros and the panel rendered the empty-reliquary
+   * caption for a wizard carrying five relics. Every assertion passed and
+   * none of them touched the feature.
+   */
+  it('prints what the whole reliquary does, not a claim that relics are defence', () => {
+    const { container } = show(demoRun);
+    const caption = stat(container, 'Relics').textContent ?? '';
+    // demoRun holds five relics spanning five different powers.
+    expect(caption).toContain('+3 wards');
+    expect(caption).toContain('follower costs −3');
+    expect(caption).not.toMatch(/defen[cs]e/i);
+    expect(caption).not.toContain('each one changes a different number');
+  });
+
+  it('falls back to what relics are FOR when the wizard holds none', () => {
+    const { container } = show({ ...demoRun, heldArtifactIds: [] });
+    expect(stat(container, 'Relics').textContent ?? '').toContain(
+      'each one changes a different number',
+    );
   });
 });
 

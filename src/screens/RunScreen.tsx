@@ -35,11 +35,25 @@ export type RunScreenProps = {
   onChoose(i: number): void;
   onContinue(): void;
   /**
-   * Current defence, itemised, from the engine. Passed down rather than
-   * computed here so the screen stays presentational. Feeds the decline-phase
-   * wards readout and its breakdown.
+   * The decline-phase wards readout, already derived: wards against threat,
+   * the rate, the terms and the caption. Built by `siegeFor` in `App`, beside
+   * the `defenseReadout` it is made from, because it needs the content bundle
+   * to price the hero's next era — `vigil` relics slow him.
+   *
+   * Null outside the decline, where there is no hero to read against.
    */
   siege?: Siege | null;
+  /**
+   * Every relic power in hand, summed. From `relicPowers` in `App`, the same
+   * place `siege` comes from.
+   *
+   * Required rather than nullable: a wizard always has a reliquary, even an
+   * empty one, so the header's Relics caption never needs a null branch. Build
+   * it from the bundle whose artifacts the run actually holds — a bundle whose
+   * ids do not match `run.heldArtifactIds` sums to all zeros and silently
+   * renders the empty-reliquary caption, which is how the `DecisionPanel`
+   * tests spent a while asserting nothing.
+   */
   relics: RelicPowers;
   /** The cosmetic theme the player is wearing. */
   themeId: ThemeId;

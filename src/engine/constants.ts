@@ -305,6 +305,32 @@ export const DEF_LICH = 90;
  */
 export const LICH_RELIC_REQUIREMENT = 1;
 
+/**
+ * The least a follower cost can be haggled down to, and the least a standing
+ * loss can be softened to.
+ *
+ * Same provenance as `HERO_THREAT_MIN` and `LOYALTY_DRIFT_MIN`: not balance
+ * targets, but the bound that stops a power becoming an off switch. Both were
+ * missing at first and both were real.
+ *
+ * `haggle` without a floor reopens failure mode 14, the exact bug issue #41
+ * closed. The catalog carries 14 points of haggle across the Gilded Hand's
+ * four relics, so a collector holding 8 of them clears `concordat_academy`'s
+ * `minFollowers: 8` gate, pays nothing, and takes the legendary — while its
+ * `resultText` narrates a payment, and `validate-content.ts` cannot see it
+ * because it checks the gate against the AUTHORED cost and has no notion of a
+ * discount. A cost that still costs one follower is a cost.
+ *
+ * `grace` without a floor is rule 6. `CONTAGION_LOSS` is 0.25, so an ordinary
+ * +8 standing gain spills −2 onto each hostile faction; two common grace
+ * relics erase that spill entirely, and `applyStanding` drops a zero spill
+ * without recording it. Contagion is the route CLAUDE.md names into
+ * `sealed_in_gem` — 18.5% of runs — and the five faction reprisals are
+ * reachable only through standing going down. A relic may soften that; it may
+ * not switch off an ending.
+ */
+export const SOFTENED_COST_MIN = 1;
+
 // ---------------------------------------------------------------------------
 // Faction standing — wiki/04 § Faction Standing
 // ---------------------------------------------------------------------------

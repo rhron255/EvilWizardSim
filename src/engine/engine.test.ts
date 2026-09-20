@@ -222,7 +222,7 @@ describe('faction standing', () => {
   const deltas = (fid: Parameters<typeof applyStanding>[1], v: number) => {
     const run = start({}, real);
     const before = { ...run.factionStanding };
-    applyStanding(run, fid, v, indexOf(real), []);
+    applyStanding(run, fid, v, indexOf(real), [], 0);
     const out = {} as Record<keyof typeof before, number>;
     for (const k of Object.keys(before) as (keyof typeof before)[]) {
       out[k] = run.factionStanding[k] - before[k];
@@ -255,7 +255,7 @@ describe('faction standing', () => {
     const run = start({}, real);
     run.factionStanding = { ...run.factionStanding, ashen_covenant: 100 };
     const before = run.factionStanding.pale_academy;
-    applyStanding(run, 'ashen_covenant', 25, indexOf(real), []);
+    applyStanding(run, 'ashen_covenant', 25, indexOf(real), [], 0);
     expect(run.factionStanding.ashen_covenant).toBe(100);
     expect(run.factionStanding.pale_academy).toBe(before);
   });

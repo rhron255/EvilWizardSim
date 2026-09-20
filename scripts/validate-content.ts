@@ -845,7 +845,7 @@ for (const o of offers) {
  * and reading it as a purchase would demand a gate on every card that gives
  * with one hand and takes with the other.
  */
-type FloorableStock = 'followers' | 'apprentices' | 'relic';
+type FloorableStock = 'followers' | 'apprentices' | 'relic' | 'lairTier';
 
 function tradeOf(branch: readonly Effect[]): {
   costs: { stock: FloorableStock; need: number }[];
@@ -853,10 +853,12 @@ function tradeOf(branch: readonly Effect[]): {
 } {
   let followers = 0;
   let apprentices = 0;
+  let lairTier = 0;
   let relic = false;
   for (const e of branch) {
     if (e.t === 'followers') followers += e.v;
     else if (e.t === 'apprentices') apprentices += e.v;
+    else if (e.t === 'lairTier') lairTier += e.v;
     else if (e.t === 'loseArtifact') relic = true;
   }
 
@@ -864,6 +866,11 @@ function tradeOf(branch: readonly Effect[]): {
   if (followers < 0) costs.push({ stock: 'followers', need: -followers });
   if (apprentices < 0) costs.push({ stock: 'apprentices', need: -apprentices });
   if (relic) costs.push({ stock: 'relic', need: 1 });
+  // A rung is floorable in exactly the way the other three are: `moveLair`
+  // clamps at the bottom of the ladder, so a wizard on rung 0 surrenders
+  // nothing and still collects. It is also indivisible — there is no part of
+  // a rung — so it belongs on both sides of the rule.
+  if (lairTier < 0) costs.push({ stock: 'lairTier', need: -lairTier });
 
   // The indivisible collections. Standing, notoriety, loyalty and hero threat
   // are all deliberately absent: they are continuous, so a partial payment
@@ -914,6 +921,7 @@ for (const o of offers) {
           (g.c === 'minArtifacts' && g.v >= need),
       );
     }
+    if (stock === 'lairTier') return gates.some((g) => g.c === 'minLairTier' && g.v >= need);
     const c = stock === 'followers' ? 'minFollowers' : 'minApprentices';
     return gates.some((g) => g.c === c && g.v >= need);
   };
@@ -925,13 +933,16 @@ for (const o of offers) {
       if (costs.length === 0) continue;
       const where = `offer "${o.id}" option "${opt.label}"`;
       for (const { stock, need } of costs) {
-        // A relic payment is indivisible on its own account, so it is checked
-        // whether or not what it bought was; every other stock is only a
-        // problem when the thing bought cannot be part-paid for.
-        if (stock !== 'relic' && !benefit) continue;
+        // A relic and a lair rung are each indivisible on their own account, so
+        // they are checked whether or not what they bought was; followers and
+        // apprentices are only a problem when the thing bought cannot be
+        // part-paid for.
+        if (stock !== 'relic' && stock !== 'lairTier' && !benefit) continue;
         if (gated(stock, need)) continue;
         if (stock === 'relic') {
           fail(where, 'pays with a relic but the offer never requires one — an empty reliquary pays nothing and still collects');
+        } else if (stock === 'lairTier') {
+          fail(where, `gives up ${need} lair rung(s) with no minLairTier gate — a wizard on the bottom rung gives up nothing and still collects`);
         } else {
           fail(
             where,

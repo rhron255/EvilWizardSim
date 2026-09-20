@@ -184,15 +184,16 @@ export function threatGainFor(
 /**
  * What stands between the wizard and the chosen one.
  *
- * wiki/04: "derived from Notoriety, artifacts held, and lair tier". Followers
- * deliberately contribute nothing — they are ledger filler by design
+ * wiki/04: "derived from Notoriety, the `wards` relics held, and lair tier".
+ * Followers deliberately contribute nothing — they are ledger filler by design
  * (wiki/02 § three currencies), and giving them defense would collapse two
  * currencies into one.
  *
- * "Artifacts held" now means the `wards` ones. Every relic used to contribute
- * defense and nothing else (issue #6); a relic whose power is `vigil` or
- * `grace` contributes nothing HERE and does its work on the other side of the
- * comparison, against the threat rather than for the wards.
+ * That wiki line said "artifacts held" until issue #6, and the distinction is
+ * the whole of that change: every relic used to contribute defense and nothing
+ * else, and a relic whose power is `vigil` or `grace` now contributes nothing
+ * HERE, doing its work on the other side of the comparison — against the
+ * threat rather than for the wards.
  */
 export function defenseOf(run: RunState, content: ContentBundle): number {
   const index = indexOf(content);

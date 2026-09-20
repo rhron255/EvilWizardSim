@@ -32,7 +32,8 @@ import type { Condition, FactionId, Offer } from '../../types';
  * past their minimum, so a price naming one of them costs nothing to a wizard
  * who has none to give, while the fixed legendary still pays out in full.
  *
- * All six carry one now. This comment used to say the original four priced the
+ * Five of the six carry one; the Covenant is repriced instead, for the reason
+ * two paragraphs down. This comment used to say the original four priced the
  * relic "in pactDebt, notoriety or hero threat — currencies with no floor to
  * hide behind — and need no gate", and that was simply false of four of them:
  * the Covenant charges an apprentice, the Academy twelve followers, the

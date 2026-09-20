@@ -985,6 +985,7 @@ export const ascentOffers: Offer[] = [
     body: 'A dragon requires somewhere to sleep for a century and has heard you have space. She is willing to discuss rent and unwilling to discuss what happens if you are late with it.',
     phase: 'ascent',
     weight: 1,
+    requires: [{ c: 'minLairTier', v: 1 }],
     options: [
       {
         kind: 'certain',
@@ -1174,7 +1175,7 @@ export const ascentOffers: Offer[] = [
     body: 'The Choir has stopped sending letters. Instead the ivy on your south face has grown eleven feet this month, and it is growing inward.',
     phase: 'ascent',
     factionId: 'verdant_choir',
-    requires: [{ c: 'maxStanding', factionId: 'verdant_choir', v: -10 }],
+    requires: [{ c: 'minLairTier', v: 1 }, { c: 'maxStanding', factionId: 'verdant_choir', v: -10 }],
     weight: 1,
     options: [
       {
@@ -1221,6 +1222,7 @@ export const ascentOffers: Offer[] = [
     phase: 'ascent',
     factionId: 'worm_below',
     weight: 2,
+    requires: [{ c: 'minLairTier', v: 1 }],
     options: [
       {
         kind: 'certain',
@@ -1530,7 +1532,7 @@ export const ascentOffers: Offer[] = [
     body: 'Storms come to this valley for six weeks a year. With the right ironwork on the roof, you could keep some.',
     phase: 'ascent',
     weight: 2,
-    requires: [{ c: 'minFollowers', v: 15 }],
+    requires: [{ c: 'minLairTier', v: 1 }, { c: 'minFollowers', v: 15 }],
     options: [
       {
         kind: 'certain',

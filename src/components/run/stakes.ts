@@ -199,6 +199,21 @@ export function stakesFor(run: RunState, powers: RelicPowers): Stake[] {
  * Showing wards against threat is the same disclosure an offer already makes —
  * it is a comparison, not a countdown, and it appears only once a hero exists,
  * so the ascent stays clean.
+ *
+ * WHICH LEAVES THE ASCENT WITHOUT ONE, and that is deliberate rather than
+ * overlooked. Forty-four branches across the `ascent` and `any` phases charge
+ * hero threat before the prophecy has fired, and none of them can be read
+ * against a total, because there is no hero yet to total. The prophecy is the
+ * set piece where one is born (wiki/01 § 6); putting a wards-against-threat
+ * rail on screen before it would answer the question the prophecy exists to
+ * ask, which is a worse trade than the one it fixes.
+ *
+ * What holds the disclosure rule up in the meantime is the card itself: every
+ * one of those branches prints its `+N Hero Threat` before the commit, and the
+ * number carries forward intact. The denominator arrives with the hero, at the
+ * moment it starts to mean something. If that ever stops feeling like enough,
+ * the fix is a pre-prophecy framing for the stat, NOT this readout moved
+ * earlier.
  */
 export type Siege = {
   wards: number;

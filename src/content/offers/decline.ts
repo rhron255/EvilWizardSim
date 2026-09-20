@@ -200,7 +200,7 @@ export const declineOffers: Offer[] = [
     phase: 'decline',
     factionId: 'verdant_choir',
     weight: 2,
-    requires: [{ c: 'minFollowers', v: 5 }],
+    requires: [{ c: 'minLairTier', v: 1 }, { c: 'minFollowers', v: 5 }],
     options: [
       {
         kind: 'certain',
@@ -433,6 +433,7 @@ export const declineOffers: Offer[] = [
     body: 'The east wing has developed a smell, a draught, and a rumour. Your steward presents three quotes and one resignation letter, undated.',
     phase: 'decline',
     weight: 3,
+    requires: [{ c: 'minLairTier', v: 1 }],
     options: [
       {
         kind: 'certain',
@@ -468,6 +469,7 @@ export const declineOffers: Offer[] = [
     body: 'Vorlag the Unremarkable has spent forty years becoming slightly less unremarkable and has arrived to say so. He has brought a retinue and a prepared statement.',
     phase: 'decline',
     weight: 2,
+    requires: [{ c: 'minLairTier', v: 1 }],
     options: [
       {
         kind: 'gamble',
@@ -884,6 +886,7 @@ export const declineOffers: Offer[] = [
     phase: 'decline',
     factionId: 'worm_below',
     weight: 2,
+    requires: [{ c: 'minLairTier', v: 1 }],
     options: [
       {
         kind: 'certain',
@@ -1052,7 +1055,7 @@ export const declineOffers: Offer[] = [
     body: 'Brambleward Oona sends terms rather than a threat, which from the Choir is the same document with better manners.',
     phase: 'decline',
     factionId: 'verdant_choir',
-    requires: [{ c: 'maxStanding', factionId: 'verdant_choir', v: -20 }],
+    requires: [{ c: 'minLairTier', v: 1 }, { c: 'maxStanding', factionId: 'verdant_choir', v: -20 }],
     weight: 1,
     options: [
       {
@@ -1238,6 +1241,7 @@ export const declineOffers: Offer[] = [
     body: 'The village has petitioned for your removal. They have also, in a separate document, asked whether you would consider staying until the mill is fixed.',
     phase: 'decline',
     weight: 3,
+    requires: [{ c: 'minLairTier', v: 1 }],
     options: [
       {
         kind: 'certain',
@@ -1287,7 +1291,7 @@ export const declineOffers: Offer[] = [
     title: 'One Last Working',
     body: 'You have one working left in you of the old size. It will cost most of what you have, and everyone from here to the sea will feel it in their teeth.',
     phase: 'decline',
-    requires: [{ c: 'minNotoriety', v: 45 }],
+    requires: [{ c: 'minLairTier', v: 1 }, { c: 'minNotoriety', v: 45 }],
     weight: 2,
     options: [
       {
@@ -1484,6 +1488,7 @@ export const declineOffers: Offer[] = [
     phase: 'decline',
     factionId: 'crownlands',
     weight: 2,
+    requires: [{ c: 'minLairTier', v: 1 }],
     options: [
       {
         kind: 'certain',
