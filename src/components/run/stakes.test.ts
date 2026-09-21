@@ -10,14 +10,14 @@
  * mislead a player exactly as badly, in the other direction.
  */
 import { describe, expect, it } from 'vitest';
-import { heroBand, PACT_LIMIT } from '../../engine';
+import { emptyRelicPowers, heroBand, PACT_LIMIT } from '../../engine';
 import { fixtureContent } from '../../engine/__fixtures__/content';
-import type { DefenseReadout } from '../../engine';
+import type { DefenseReadout, RelicPowers } from '../../engine';
 import type { RunState } from '../../types';
 import { siegeFor, stakesFor } from './stakes';
 
 /** A wizard holding nothing — these cases are about the other stats. */
-const NO_RELICS = { wards: 0, vigil: 0, undimmed: 0, discipline: 0, haggle: 0, grace: 0 };
+const NO_RELICS: RelicPowers = emptyRelicPowers();
 
 const run = (over: Partial<RunState> = {}): RunState =>
   ({

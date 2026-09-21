@@ -12,6 +12,8 @@
  * a bug.
  */
 
+import type { ArtifactPower } from '../types';
+
 // ---------------------------------------------------------------------------
 // Era structure
 // ---------------------------------------------------------------------------
@@ -331,6 +333,7 @@ export const LICH_RELIC_REQUIREMENT = 1;
  */
 export const SOFTENED_COST_MIN = 1;
 
+
 // ---------------------------------------------------------------------------
 // Faction standing — wiki/04 § Faction Standing
 // ---------------------------------------------------------------------------
@@ -635,3 +638,35 @@ export const COLLECTION_VERSION = 5;
  * 1 -> 2 (issue #23): added `goodActs`, `illActs`, `goodWizardVowed`.
  */
 export const RUN_SAVE_VERSION = 2;
+
+/**
+ * What each relic power may NOT reduce its quantity below.
+ *
+ * The three constants above are deliberately separate values — they are in
+ * different units (threat per era, loyalty points per era, followers and
+ * standing points) and are independently retunable, so collapsing them would
+ * couple retunes that have nothing to do with each other. What was missing is
+ * a home for the INVARIANT all of them implement: a relic power softens a
+ * quantity, and may not switch it off.
+ *
+ * That rule was written four times across three files and stated nowhere, and
+ * the evidence it needed a name is that it was forgotten twice inside the one
+ * sprint that introduced it — `haggle` shipped able to zero a follower cost
+ * (failure mode 14, reopened) and `grace` able to erase the contagion spill
+ * (rule 6, the reprisal endings). A `Record` over the union means a seventh
+ * power cannot compile without someone deciding its floor.
+ *
+ * `wards` is `null` because it is the one power that ADDS to a total rather
+ * than reducing one; there is nothing for it to floor. `undimmed` is 0 because
+ * its quantity — the decline's notoriety erosion — is the one a relic IS
+ * permitted to stop outright, which is a design decision and now reads as one
+ * instead of as a bare literal in a system module.
+ */
+export const POWER_FLOOR: Record<ArtifactPower['p'], number | null> = {
+  wards: null,
+  vigil: HERO_THREAT_MIN,
+  undimmed: 0,
+  discipline: LOYALTY_DRIFT_MIN,
+  haggle: SOFTENED_COST_MIN,
+  grace: SOFTENED_COST_MIN,
+};

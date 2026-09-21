@@ -26,8 +26,8 @@ import type { Resolution, SystemicChange } from './resolution';
 import {
   DEFAULT_ERA_COUNT,
   LOYALTY_DRIFT_BASE,
-  LOYALTY_DRIFT_MIN,
   LOYALTY_DRIFT_MIN_APPRENTICES,
+  POWER_FLOOR,
   START_FOLLOWERS,
   START_LOYALTY,
   START_NOTORIETY,
@@ -363,7 +363,7 @@ export function resolveChoice(
         // produced rather than the one the constants would have.
         const discipline = relicPowers(draft, content).discipline;
         const drift = -Math.max(
-          LOYALTY_DRIFT_MIN,
+          POWER_FLOOR.discipline ?? 0,
           LOYALTY_DRIFT_BASE + draft.apprentices.count - discipline,
         );
         const before = draft.apprentices.loyalty;

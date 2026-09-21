@@ -1192,8 +1192,19 @@ function pickEraCount(roll: number): number {
  * naming the same ending across seeds, which is what turned it from noise into
  * a finding: `lichdom` really was the floor, and is no longer.
  *
- * It costs about three seconds on a 44-second report, which is a cheap price
- * for a check that means something.
+ * COST, measured in the shape where it is actually paid. Locally it is about
+ * three seconds on a forty-second report, because `completionProbe` dominates
+ * there — but CI runs with `COMPLETION_PLAYERS=1`, which removes that
+ * probe entirely and leaves these ones as essentially the whole job. Measured
+ * on one machine: 39.5s full, 9.0s in the CI shape. The raise adds 8,800
+ * careers per seed (5 reprisal + 5 leadership cohorts + `lichProbe`, +800
+ * each), which is roughly +2-3s of that 9s, ten times over — five seeds on the
+ * branch and five on its merge base. Call it half a minute on every PR.
+ *
+ * Worth it for a check that had been flickering between unrelated factions for
+ * two issues. Not worth doubling again without re-reading the note in
+ * `.github/workflows/ci.yml`, which sizes the whole five-seeds-on-two-refs
+ * decision off the per-seed number this consumed the slack in.
  */
 const PROBE_RUNS = 1000;
 

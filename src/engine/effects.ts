@@ -19,14 +19,14 @@ import {
   CONTAGION_LOSS,
   GOOD_WIZARD_ILL_CAP,
   NOVELTY_BIAS,
+  POWER_FLOOR,
   RARITY_DRAW_WEIGHT,
-  SOFTENED_COST_MIN,
   STANDING_MAX,
   STANDING_MIN,
 } from './constants';
 import type { Rng } from './rng';
 import { weightedPick } from './rng';
-import { clamp, clampNotoriety, clampThreat, relicPowersOf } from './systems';
+import { clamp, clampNotoriety, clampThreat, relicPowers } from './systems';
 
 export type EffectApplication = {
   /** Exactly what landed, with post-clamp magnitudes. */
@@ -58,36 +58,26 @@ export function draftOf(run: RunState): RunState {
 const RARITY_RANK: Record<Rarity, number> = { common: 0, rare: 1, legendary: 2 };
 
 /**
- * `haggle`: the Gilded Hand's thumb on the scale, pointing the player's way.
+ * A cost, reduced by a relic, but never all the way.
  *
- * COSTS ONLY. A relic that made every follower GAIN larger would be a second
- * mechanic wearing the same name, and the card would print a number the author
- * never wrote. `Math.min(0, …)` is what keeps a cost from crossing zero into a
- * gain: the best a haggler ever does is pay nothing.
+ * `haggle` and `grace` are one rule pointed at two currencies, so this is one
+ * function: a COST shrinks toward its `POWER_FLOOR` and stops there. It was
+ * briefly two byte-identical helpers differing only in a parameter name, which
+ * is one rule with two places for a future change to land in — and it would
+ * have typechecked landing in only one.
  *
- * Nothing else has to change for the player to see this. `projectEffects` is
- * `applyEffects` run against a draft, so the offer card prints the haggled
+ * COSTS ONLY. A relic that made every follower GAIN larger, or every standing
+ * gain bigger, would be a second mechanic wearing the same name, and the card
+ * would print a number the author never wrote.
+ *
+ * Nothing else has to change for the player to see either one. `projectEffects`
+ * is `applyEffects` run against a draft, so the offer card prints the softened
  * price before the commit and the resolution prints it after — one number,
  * arrived at once.
  */
-function haggled(v: number, haggle: number): number {
+function soften(v: number, by: number, floor: number): number {
   if (v >= 0) return v;
-  return Math.min(-SOFTENED_COST_MIN, v + haggle);
-}
-
-/**
- * `grace`: the same idea pointed at standing, and the reason it is applied
- * inside `applyStanding` rather than beside it.
- *
- * Standing moves by contagion as well as directly, and the spill is where the
- * undisclosed damage lives — courting the Covenant drives the Academy toward
- * the seal through cards that never name the Academy. A grace that softened
- * only the named loss would leave the invisible route at full strength, which
- * is precisely the half a player cannot plan around.
- */
-function softened(v: number, grace: number): number {
-  if (v >= 0) return v;
-  return Math.min(-SOFTENED_COST_MIN, v + grace);
+  return Math.min(-floor, v + by);
 }
 
 /**
@@ -118,7 +108,7 @@ export function applyEffects(
    * Reading once here is what makes the projection and the resolution agree:
    * both price the option against the relics the player already had.
    */
-  const powers = relicPowersOf(draft.heldArtifactIds, index);
+  const powers = relicPowers(draft, content);
   const out: EffectApplication = { applied: [], artifactsGained: [], artifactsLost: [] };
 
   for (const effect of effects) {
@@ -133,7 +123,7 @@ export function applyEffects(
 
       case 'followers': {
         const before = draft.followers;
-        draft.followers = Math.max(0, Math.round(before + haggled(effect.v, powers.haggle)));
+        draft.followers = Math.max(0, Math.round(before + soften(effect.v, powers.haggle, POWER_FLOOR.haggle ?? 0)));
         const delta = draft.followers - before;
         if (delta !== 0) out.applied.push({ t: 'followers', v: delta });
         break;
@@ -306,7 +296,7 @@ export function applyStanding(
   grace: number,
 ): number {
   const before = draft.factionStanding[factionId] ?? 0;
-  const after = clamp(Math.round(before + softened(v, grace)), STANDING_MIN, STANDING_MAX);
+  const after = clamp(Math.round(before + soften(v, grace, POWER_FLOOR.grace ?? 0)), STANDING_MIN, STANDING_MAX);
   const delta = after - before;
   draft.factionStanding = { ...draft.factionStanding, [factionId]: after };
   if (delta !== 0) applied.push({ t: 'standing', factionId, v: delta });
@@ -316,7 +306,12 @@ export function applyStanding(
   const rate = delta > 0 ? CONTAGION_GAIN : CONTAGION_LOSS;
   for (const enemyId of enemies) {
     if (enemyId === factionId) continue;
-    const spill = softened(-Math.sign(delta) * Math.round(Math.abs(delta) * rate), grace);
+    // Softened here as well as above, because the spill is where the
+    // undisclosed damage lives: courting the Covenant drives the Academy
+    // toward the seal through cards that never name the Academy. A grace that
+    // covered only the named loss would leave the invisible route at full
+    // strength, which is precisely the half a player cannot plan around.
+    const spill = soften(-Math.sign(delta) * Math.round(Math.abs(delta) * rate), grace, POWER_FLOOR.grace ?? 0);
     if (spill === 0) continue;
     const enemyBefore = draft.factionStanding[enemyId] ?? 0;
     const enemyAfter = clamp(enemyBefore + spill, STANDING_MIN, STANDING_MAX);

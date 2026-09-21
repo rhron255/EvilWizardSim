@@ -8,7 +8,7 @@
 
 import type { ArtifactPower, FactionId, Phase, RunState, Tier } from '../types';
 import { TIERS, tierFor } from '../theme/tokens';
-import type { ContentBundle, ContentIndex } from './content-port';
+import type { ContentBundle } from './content-port';
 import { indexOf } from './content-port';
 import {
   DECAY_BASE,
@@ -21,11 +21,11 @@ import {
   HERO_BAND_WARN,
   HERO_FAME_COEF,
   HERO_THREAT_BASE,
+  HERO_THREAT_RAMP,
   LAIR_FAME_DIVISOR,
   LAIR_RETINUE_CAP,
   LAIR_RETINUE_DIVISOR,
-  HERO_THREAT_MIN,
-  HERO_THREAT_RAMP,
+  POWER_FLOOR,
   PROPHECY_FRACTION,
   START_AGE,
   YEARS_PER_ERA,
@@ -117,28 +117,22 @@ export function erasSinceProphecyFor(eraIndex: number, prophecyEra: number): num
  */
 export type RelicPowers = Record<ArtifactPower['p'], number>;
 
-/**
- * The index-level form. `applyStanding` and `applyEffects` already hold an
- * index and not a bundle, and handing them a bundle just to look one up again
- * would be the sort of parallel path this repo keeps being bitten by.
- */
-export function relicPowersOf(
-  heldArtifactIds: readonly string[],
-  index: ContentIndex,
-): RelicPowers {
-  const out: RelicPowers = { wards: 0, vigil: 0, undimmed: 0, discipline: 0, haggle: 0, grace: 0 };
-  for (const id of heldArtifactIds) {
-    const power = index.artifactById.get(id)?.power;
-    if (power) out[power.p] += power.v;
-  }
-  return out;
+/** Every term at zero — the honest reading of an empty reliquary. */
+export function emptyRelicPowers(): RelicPowers {
+  return { wards: 0, vigil: 0, undimmed: 0, discipline: 0, haggle: 0, grace: 0 };
 }
 
 export function relicPowers(
   run: Pick<RunState, 'heldArtifactIds'>,
   content: ContentBundle,
 ): RelicPowers {
-  return relicPowersOf(run.heldArtifactIds, indexOf(content));
+  const index = indexOf(content);
+  const out = emptyRelicPowers();
+  for (const id of run.heldArtifactIds) {
+    const power = index.artifactById.get(id)?.power;
+    if (power) out[power.p] += power.v;
+  }
+  return out;
 }
 
 /**
@@ -146,10 +140,11 @@ export function relicPowers(
  * ascent, zero for a lich. Rounded, because the ledger shows whole numbers and
  * a fractional slide would read as a rendering bug.
  *
- * `undimmed` relics subtract from the slide. Floored at zero rather than
- * allowed to go negative: a negative decay is notoriety ARRIVING every era
- * from nowhere, which is a gain the player was never shown on a card. The
- * relic can stop the erosion; it cannot quietly reverse it.
+ * `undimmed` relics subtract from the slide, down to `POWER_FLOOR.undimmed` —
+ * zero, and the only power whose floor IS zero. Not negative: a negative decay
+ * is notoriety ARRIVING every era from nowhere, which is a gain the player was
+ * never shown on a card. The relic can stop the erosion; it cannot quietly
+ * reverse it.
  */
 export function decayFor(
   run: Pick<RunState, 'phase' | 'erasSinceProphecy' | 'isLich' | 'heldArtifactIds'>,
@@ -158,7 +153,7 @@ export function decayFor(
   if (run.phase !== 'decline') return 0;
   if (run.isLich) return 0;
   const base = DECAY_BASE * (1 + run.erasSinceProphecy * DECAY_RAMP);
-  return Math.max(0, Math.round(base - relicPowers(run, content).undimmed));
+  return Math.max(POWER_FLOOR.undimmed ?? 0, Math.round(base - relicPowers(run, content).undimmed));
 }
 
 /**
@@ -175,10 +170,9 @@ export function threatGainFor(
   if (run.phase !== 'decline') return 0;
   const gain =
     HERO_THREAT_BASE + HERO_THREAT_RAMP * run.erasSinceProphecy + HERO_FAME_COEF * run.notoriety;
-  // `vigil` relics slow him. `HERO_THREAT_MIN` is why they cannot stop him —
-  // see the constant, and rule 6: every ending has to stay reachable, this one
-  // included.
-  return Math.max(HERO_THREAT_MIN, Math.round(gain - relicPowers(run, content).vigil));
+  // `vigil` relics slow him; `POWER_FLOOR.vigil` is why they cannot stop him.
+  // Rule 6: every ending has to stay reachable, this one included.
+  return Math.max(POWER_FLOOR.vigil ?? 0, Math.round(gain - relicPowers(run, content).vigil));
 }
 
 /**

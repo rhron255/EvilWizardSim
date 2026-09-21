@@ -24,7 +24,7 @@ import type { ContentBundle } from './content-port';
 import * as content from '../content';
 import { createRun, resolveChoice } from './run';
 import { applyEffects, draftOf, projectEffects } from './effects';
-import { decayFor, defenseOf, relicPowers, threatGainFor } from './systems';
+import { decayFor, defenseOf, emptyRelicPowers, relicPowers, threatGainFor } from './systems';
 import {
   DECAY_BASE,
   DECAY_RAMP,
@@ -91,9 +91,7 @@ describe('relicPowers', () => {
   it('reads zero for a wizard holding nothing', () => {
     const bundle = withRelics({ p: 'wards', v: 5 });
     const run = { ...runHolding(bundle), heldArtifactIds: [] };
-    expect(relicPowers(run, bundle)).toEqual({
-      wards: 0, vigil: 0, undimmed: 0, discipline: 0, haggle: 0, grace: 0,
-    });
+    expect(relicPowers(run, bundle)).toEqual(emptyRelicPowers());
   });
 });
 
@@ -304,8 +302,6 @@ describe('a lich', () => {
   it('keeps no power, because the rite forfeits the reliquary', () => {
     const bundle = withRelics({ p: 'wards', v: 9 }, { p: 'vigil', v: 3 });
     const run = runHolding(bundle, { isLich: true, heldArtifactIds: [] });
-    expect(relicPowers(run, bundle)).toEqual({
-      wards: 0, vigil: 0, undimmed: 0, discipline: 0, haggle: 0, grace: 0,
-    });
+    expect(relicPowers(run, bundle)).toEqual(emptyRelicPowers());
   });
 });

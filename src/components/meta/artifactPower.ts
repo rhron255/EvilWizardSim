@@ -30,10 +30,17 @@
  * `ArtifactPower` member must fail to compile here instead of rendering blank
  * on a card (failure mode 2, and the same defect issue #44 records in
  * `isNegative`).
+ *
+ * Signs come from `signed()` next door rather than being typed here. The minus
+ * is U+2212, not a hyphen, because it optically matches the plus — a rule
+ * `effectText.ts` states in its own header and owns the constant for. This
+ * file hand-typed the glyph in three clauses, which made it a third satellite
+ * of the duplication issue #44 is already about.
  */
 
 import type { ArtifactPower } from '../../types';
 import type { RelicPowers } from '../../engine';
+import { signed } from './effectText';
 
 type Phrasing = {
   /** Full sentence, for the relic's own card. */
@@ -45,7 +52,7 @@ type Phrasing = {
 function phrasingFor(p: ArtifactPower['p'], v: number): Phrasing {
   switch (p) {
     case 'wards':
-      return { sentence: `Wards +${v}.`, clause: `+${v} wards` };
+      return { sentence: `Wards ${signed(v)}.`, clause: `${signed(v)} wards` };
     case 'vigil':
       return {
         sentence: `Hero threat rises ${v} slower an era.`,
@@ -64,12 +71,12 @@ function phrasingFor(p: ArtifactPower['p'], v: number): Phrasing {
     case 'haggle':
       return {
         sentence: `Every follower cost is ${v} smaller.`,
-        clause: `follower costs −${v}`,
+        clause: `follower costs ${signed(-v)}`,
       };
     case 'grace':
       return {
         sentence: `Every standing loss is ${v} smaller.`,
-        clause: `standing losses −${v}`,
+        clause: `standing losses ${signed(-v)}`,
       };
     default: {
       const exhaustive: never = p;
@@ -100,6 +107,12 @@ export function artifactPowerText(power: ArtifactPower): string {
  * printed on its own relic card — and silently missing from the header's
  * summary, which is the one place a player reads what their whole reliquary is
  * doing. That is failure mode 2 with the compiler standing right there.
+ *
+ * THE NUMBERS ARE THE ORDER, not the order the keys happen to be written in.
+ * `Object.keys` does return insertion order for string keys, so the sort below
+ * is currently a no-op — which is the point at which two encodings can quietly
+ * disagree. Renumber to reorder; the literal's reading order only mirrors the
+ * values for legibility, and the sort is what actually decides.
  */
 const POWER_ORDER: Record<ArtifactPower['p'], number> = {
   wards: 0,

@@ -12,6 +12,7 @@
  * the switch is thrown, and a switch that stops being thrown is exactly the
  * kind of silent regression this repo keeps producing.
  */
+import { emptyRelicPowers } from '../engine';
 import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import { artifacts } from '../content/artifacts';
@@ -39,7 +40,7 @@ const show = (
       onChoose={() => {}}
       onContinue={onContinue}
       siege={null}
-      relics={{ wards: 0, vigil: 0, undimmed: 0, discipline: 0, haggle: 0, grace: 0 }}
+      relics={emptyRelicPowers()}
       themeId={themeId}
     />,
   );

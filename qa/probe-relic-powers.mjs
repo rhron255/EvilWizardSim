@@ -30,10 +30,6 @@ const URL = arg('--url', 'http://localhost:5173');
 const W = 393;
 const H = 852;
 
-/** The six sentence shapes `artifactPowerText` can produce. */
-const POWER_LINE =
-  /^(Wards \+\d+\.|Hero threat rises \d+ slower an era\.|Notoriety decays \d+ slower an era\.|Apprentice loyalty falls \d+ slower an era\.|Every follower cost is \d+ smaller\.|Every standing loss is \d+ smaller\.)$/;
-
 const problems = [];
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 2 });
@@ -43,17 +39,42 @@ page.on('pageerror', (e) => errors.push(String(e)));
 
 // --- 1. the collection grid, with every relic discovered -------------------
 await page.goto(URL, { waitUntil: 'networkidle' });
-const ids = await page.evaluate(async () => {
-  const mod = await import('/src/content/artifacts.ts');
-  return mod.artifacts.map((a) => a.id);
+
+/*
+ * The expected line for each relic, DERIVED by the same function the app uses.
+ *
+ * This was a hand-written regex reproducing all six sentence shapes — a second
+ * registry of the prose that `ArtifactPower` exists to have only one of. Reword
+ * a sentence and the probe reported "0 cards printed a power line" rather than
+ * a mismatch, and it could not catch a card printing the WRONG relic's line at
+ * all. The dev server already serves the project's TypeScript, so the probe can
+ * simply ask.
+ */
+const { ids, expected, version } = await page.evaluate(async () => {
+  const [artifacts, power, constants] = await Promise.all([
+    import('/src/content/artifacts.ts'),
+    import('/src/components/meta/artifactPower.ts'),
+    import('/src/engine/constants.ts'),
+  ]);
+  return {
+    ids: artifacts.artifacts.map((a) => a.id),
+    expected: Object.fromEntries(
+      artifacts.artifacts.map((a) => [a.name, power.artifactPowerText(a.power)]),
+    ),
+    version: constants.COLLECTION_VERSION,
+  };
 });
-await page.evaluate((ids) => {
+const POWER_LINES = new Set(Object.values(expected));
+// `version` comes from `COLLECTION_VERSION` above rather than a number typed
+// here: a stale one is a record the persistence layer may migrate or discard,
+// and the probe would then measure an empty collection and call it a pass.
+await page.evaluate(({ ids, version }) => {
   const k = 'evil-wizard-sim:collection';
   const cur = JSON.parse(localStorage.getItem(k) || '{}');
   localStorage.setItem(
     k,
     JSON.stringify({
-      version: cur.version ?? 1,
+      version,
       discoveredArtifactIds: ids,
       endingsSeen: cur.endingsSeen ?? [],
       runsCompleted: cur.runsCompleted ?? 1,
@@ -63,7 +84,7 @@ await page.evaluate((ids) => {
       selectedThemeId: cur.selectedThemeId ?? 'default',
     }),
   );
-}, ids);
+}, { ids, version });
 await page.reload({ waitUntil: 'networkidle' });
 await page.click('text=/collection/i').catch(() => {});
 await page.waitForTimeout(800);
@@ -87,11 +108,15 @@ const cards = await page.$$eval('article[data-rarity]', (nodes) => {
   return out;
 });
 
-const powered = cards.filter((c) => POWER_LINE.test(c.text));
+const powered = cards.filter((c) => POWER_LINES.has(c.text));
 if (powered.length !== ids.length) {
   problems.push(`${powered.length} relic cards printed a power line, expected ${ids.length}`);
 }
 for (const c of powered) {
+  // The card must print ITS OWN relic's line, not merely a line that exists.
+  if (expected[c.name] && c.text !== expected[c.name]) {
+    problems.push(`"${c.name}" prints "${c.text}", expected "${expected[c.name]}"`);
+  }
   if (c.clipped) problems.push(`clipped on "${c.name}": ${c.text}`);
   if (c.escaped) problems.push(`escapes its card on "${c.name}": ${c.text}`);
   if (c.offscreen) problems.push(`offscreen at ${W}px on "${c.name}": ${c.text}`);
@@ -100,12 +125,22 @@ for (const c of powered) {
 // --- 2. the acquisition row, where the relic is handed over ----------------
 await page.goto(`${URL}/qa/run-harness.html?scene=resolution`, { waitUntil: 'networkidle' });
 await page.waitForTimeout(1400);
-const handover = await page.evaluate((src) => {
-  const RE = new RegExp(src);
+const handover = await page.evaluate(async () => {
+  /*
+   * Derived from the HARNESS's own fixtures, not the shipped catalog: the
+   * scene renders `demoArtifacts`, whose magnitudes are chosen to show every
+   * power and do not all exist in `src/content`. Asking the real catalog what
+   * to expect here is how this check first went red against a working page.
+   */
+  const [power, demo] = await Promise.all([
+    import('/src/components/meta/artifactPower.ts'),
+    import('/src/components/run/__fixtures__/demo.ts'),
+  ]);
+  const known = new Set(demo.demoArtifacts.map((a) => power.artifactPowerText(a.power)));
   for (const n of document.querySelectorAll('span,p,div')) {
     if (n.children.length) continue;
     const t = (n.textContent ?? '').trim();
-    if (!RE.test(t)) continue;
+    if (!known.has(t)) continue;
     const cs = getComputedStyle(n);
     const flavour = n.nextElementSibling ? getComputedStyle(n.nextElementSibling) : null;
     const r = n.getBoundingClientRect();
@@ -120,7 +155,7 @@ const handover = await page.evaluate((src) => {
     };
   }
   return null;
-}, POWER_LINE.source);
+});
 
 if (!handover) {
   problems.push('the resolution card handed over a relic without saying what it does');

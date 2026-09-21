@@ -61,19 +61,21 @@ export default function App() {
   // The chosen one is drawn from the run seed, so a seed is a rematch.
   const heroName = useMemo(() => (run ? heroNameFor(run.seed) : ''), [run]);
 
-  // The denominator for the decline-phase wards readout, itemised. Offers
-  // already print `+9 Hero Threat`; without this the player has no scale to
-  // read it against, and without the TERMS they never learn that the lair —
-  // 30% of the mean defence — is what has been holding the hero off.
-  const defense = useMemo(() => (run ? defenseReadout(run, CONTENT) : null), [run]);
-  // Derived HERE, beside the readout it is built from, because `siegeFor` needs
-  // the content bundle to price the hero's next era — `vigil` relics slow him,
-  // so the rate the caption prints is a fact about the reliquary as well as
-  // about the run. Keeping the call at this level leaves `DecisionPanel` with
-  // nothing to compute, which is what it was already closest to being.
+  // The decline-phase wards readout, whole. Offers already print `+9 Hero
+  // Threat`; without this the player has no scale to read it against, and
+  // without the TERMS they never learn that the lair — 36% of the mean
+  // defence — is what has been holding the hero off.
+  //
+  // Derived HERE rather than in the panel, because `siegeFor` needs the content
+  // bundle to price the hero's next era: `vigil` relics slow him, so the rate
+  // the caption prints is a fact about the reliquary as well as about the run.
+  // Keeping the call at this level leaves `DecisionPanel` with nothing to
+  // compute, which is what it was already closest to being. The itemised
+  // readout is an argument rather than a second memo — nothing else reads it,
+  // and `siegeFor` keeps taking it so the tests can inject one.
   const siege = useMemo(
-    () => (run && defense ? siegeFor(run, defense, CONTENT) : null),
-    [run, defense],
+    () => (run ? siegeFor(run, defenseReadout(run, CONTENT), CONTENT) : null),
+    [run],
   );
   // Never null, unlike the two above: a wizard always has a reliquary, even an
   // empty one. `defense` and `siege` are absent before a run and outside the

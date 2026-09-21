@@ -81,11 +81,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # The completion probe is ~85% of the sim's runtime (about 60s of a 72s
-      # run) and is independently seeded, so dropping it leaves every other
-      # number bit-identical while taking a seed from ~72s to ~10s. That is
-      # what makes five seeds on two refs affordable. `balance-report.ts`
-      # omits the checks that depend on it rather than reporting them red.
+      # The completion probe is most of the sim's runtime and is independently
+      # seeded, so dropping it leaves every other number bit-identical while
+      # taking a seed from ~40s to ~9s. That is what makes five seeds on two
+      # refs affordable. `balance-report.ts` omits the checks that depend on it
+      # rather than reporting them red.
+      #
+      # Re-measured after issue #42 raised `PROBE_RUNS` 200 -> 1000, which is
+      # paid in full here: the probes ARE the job once completion is off, so
+      # that raise cost ~2-3s of the ~9s, ten times over. The per-seed figure
+      # this comment argues from has ~9s of headroom against the old ~10s, and
+      # a second raise of that size would spend it.
       - name: Measure this branch
         env:
           COMPLETION_PLAYERS: 1

@@ -847,6 +847,69 @@ for (const o of offers) {
  */
 type FloorableStock = 'followers' | 'apprentices' | 'relic' | 'lairTier';
 
+/**
+ * The four stocks the engine can clamp to nothing, and everything that follows
+ * from each one — in ONE table.
+ *
+ * It was four parallel constructs: an accumulator apiece in `tradeOf`, a
+ * per-stock branch in `gated`, a nested ternary for the message, and a
+ * negative special-case list (`stock !== 'relic' && stock !== 'lairTier'`)
+ * standing in for the real predicate, which is `indivisiblePayment`. Worse,
+ * the set was enumerated a third time in the pact-ladder walk below — and that
+ * copy was already out of step, listing only the two currencies and the two
+ * relic conditions, so the two gates THIS SPRINT introduced (`minLairTier`,
+ * `minArtifacts`) counted as passable by a wizard with nothing left to sell.
+ * That is the guarantee the ladder walk exists to hold, quietly weakened by
+ * the change that made the gates necessary.
+ *
+ * One table, and a fifth floorable stock has to be declared everywhere at
+ * once — the same reason `POWER_CAP` above is a `Record` and not a list.
+ */
+const FLOORABLE: Record<
+  FloorableStock,
+  {
+    /** Conditions that gate on this stock, and so bar a wizard who has none. */
+    gates: Condition['c'][];
+    /** True when the payment itself cannot be part-made, like a whole relic. */
+    indivisiblePayment: boolean;
+    /** How the failure reads. `need` is the magnitude the branch spends. */
+    message: (need: number) => string;
+  }
+> = {
+  followers: {
+    gates: ['minFollowers'],
+    indivisiblePayment: false,
+    message: (n) =>
+      `buys a fixed benefit for ${n} followers with no minFollowers gate — a wizard with none collects it for free`,
+  },
+  apprentices: {
+    gates: ['minApprentices'],
+    indivisiblePayment: false,
+    message: (n) =>
+      `buys a fixed benefit for ${n} apprentice(s) with no minApprentices gate — a wizard with none collects it for free`,
+  },
+  relic: {
+    gates: ['holdsAnyArtifact', 'hasArtifact', 'minArtifacts'],
+    indivisiblePayment: true,
+    message: () =>
+      'pays with a relic but the offer never requires one — an empty reliquary pays nothing and still collects',
+  },
+  lairTier: {
+    // `moveLair` clamps at the bottom of the ladder, so a rung surrendered on
+    // rung 0 costs nothing — and there is no part of a rung, so it is
+    // indivisible on its own account like a relic.
+    gates: ['minLairTier'],
+    indivisiblePayment: true,
+    message: (n) =>
+      `gives up ${n} lair rung(s) with no minLairTier gate — a wizard on the bottom rung gives up nothing and still collects`,
+  },
+};
+
+/** Every condition that gates on stock, read off the table rather than listed. */
+const STOCK_GATE_CONDITIONS = new Set<Condition['c']>(
+  Object.values(FLOORABLE).flatMap((f) => f.gates),
+);
+
 function tradeOf(branch: readonly Effect[]): {
   costs: { stock: FloorableStock; need: number }[];
   benefit: boolean;
@@ -866,29 +929,22 @@ function tradeOf(branch: readonly Effect[]): {
   if (followers < 0) costs.push({ stock: 'followers', need: -followers });
   if (apprentices < 0) costs.push({ stock: 'apprentices', need: -apprentices });
   if (relic) costs.push({ stock: 'relic', need: 1 });
-  // A rung is floorable in exactly the way the other three are: `moveLair`
-  // clamps at the bottom of the ladder, so a wizard on rung 0 surrenders
-  // nothing and still collects. It is also indivisible — there is no part of
-  // a rung — so it belongs on both sides of the rule.
   if (lairTier < 0) costs.push({ stock: 'lairTier', need: -lairTier });
 
-  // The indivisible collections. Standing, notoriety, loyalty and hero threat
-  // are all deliberately absent: they are continuous, so a partial payment
-  // buys a partial move and the exchange stays honest. `loseArtifact` is
-  // absent because it is only ever a cost, and the two stock currencies are
-  // absent as benefits because netting has already settled them.
-  const benefit = branch.some(
-    (e) =>
-      e.t === 'artifact' ||
-      e.t === 'artifactFrom' ||
-      (e.t === 'lairTier' && e.v > 0) ||
-      (e.t === 'pactDebt' && e.v < 0),
-  );
-  if (apprentices > 0) {
-    // An apprentice is a person, not a quantity — indivisible in the same way
-    // a relic is, and bought with the same floorable stock.
-    return { costs, benefit: true };
-  }
+  // The indivisible collections, netted first. Standing, notoriety, loyalty and
+  // hero threat are all deliberately absent: they are continuous, so a partial
+  // payment buys a partial move and the exchange stays honest. `loseArtifact`
+  // is absent because it is only ever a cost, and an apprentice counts because
+  // a person is indivisible in the way a relic is.
+  const benefit =
+    apprentices > 0 ||
+    lairTier > 0 ||
+    branch.some(
+      (e) =>
+        e.t === 'artifact' ||
+        e.t === 'artifactFrom' ||
+        (e.t === 'pactDebt' && e.v < 0),
+    );
 
   return { costs, benefit };
 }
@@ -912,19 +968,13 @@ for (const o of offers) {
   if (terminal) continue;
 
   const gates = o.requires ?? [];
-  const gated = (stock: FloorableStock, need: number) => {
-    if (stock === 'relic') {
-      return gates.some(
-        (g) =>
-          g.c === 'holdsAnyArtifact' ||
-          g.c === 'hasArtifact' ||
-          (g.c === 'minArtifacts' && g.v >= need),
-      );
-    }
-    if (stock === 'lairTier') return gates.some((g) => g.c === 'minLairTier' && g.v >= need);
-    const c = stock === 'followers' ? 'minFollowers' : 'minApprentices';
-    return gates.some((g) => g.c === c && g.v >= need);
-  };
+  /** Gated when a condition names this stock and demands at least `need`. */
+  const gated = (stock: FloorableStock, need: number) =>
+    gates.some((g) => {
+      if (!FLOORABLE[stock].gates.includes(g.c)) return false;
+      // `holdsAnyArtifact` carries no magnitude; the rest must clear `need`.
+      return !('v' in g) || g.v >= need;
+    });
 
   for (const opt of o.options) {
     const branches = opt.kind === 'certain' ? [opt.effects] : [opt.onSuccess, opt.onFailure];
@@ -933,22 +983,12 @@ for (const o of offers) {
       if (costs.length === 0) continue;
       const where = `offer "${o.id}" option "${opt.label}"`;
       for (const { stock, need } of costs) {
-        // A relic and a lair rung are each indivisible on their own account, so
-        // they are checked whether or not what they bought was; followers and
-        // apprentices are only a problem when the thing bought cannot be
+        // An indivisible PAYMENT is checked whether or not what it bought was;
+        // a divisible one is only a problem when the thing bought cannot be
         // part-paid for.
-        if (stock !== 'relic' && stock !== 'lairTier' && !benefit) continue;
+        if (!FLOORABLE[stock].indivisiblePayment && !benefit) continue;
         if (gated(stock, need)) continue;
-        if (stock === 'relic') {
-          fail(where, 'pays with a relic but the offer never requires one — an empty reliquary pays nothing and still collects');
-        } else if (stock === 'lairTier') {
-          fail(where, `gives up ${need} lair rung(s) with no minLairTier gate — a wizard on the bottom rung gives up nothing and still collects`);
-        } else {
-          fail(
-            where,
-            `buys a fixed benefit for ${need} ${stock} with no min${stock === 'followers' ? 'Followers' : 'Apprentices'} gate — a wizard with none collects it for free`,
-          );
-        }
+        fail(where, FLOORABLE[stock].message(need));
       }
     }
   }
@@ -983,8 +1023,10 @@ for (const phase of ['ascent', 'decline'] as const) {
       // safe while a stock-free exit survives at the same balance.
       for (const c of o.requires ?? []) {
         if (c.c === 'minPactDebt' && c.v > debt) return false;
-        if (c.c === 'minFollowers' || c.c === 'minApprentices') return false;
-        if (c.c === 'holdsAnyArtifact' || c.c === 'hasArtifact') return false;
+        // Read off `FLOORABLE` rather than listed again here, which is how
+        // `minLairTier` and `minArtifacts` came to be missing from this copy
+        // while the rule above was busy requiring them.
+        if (STOCK_GATE_CONDITIONS.has(c.c)) return false;
       }
       return o.options.some(
         (opt) => opt.kind === 'certain' && opt.effects.some((e) => e.t === 'pactDebt' && e.v < 0),

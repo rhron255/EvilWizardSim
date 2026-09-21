@@ -12,6 +12,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ArtifactPower } from '../../types';
 import type { RelicPowers } from '../../engine';
+import { emptyRelicPowers } from '../../engine';
 import { artifactPowerText, relicPowerSummary } from './artifactPower';
 
 /** Every member, named once. The compiler keeps this exhaustive. */
@@ -24,9 +25,7 @@ const ONE_OF_EACH: Record<ArtifactPower['p'], ArtifactPower> = {
   grace: { p: 'grace', v: 2 },
 };
 
-const NOTHING: RelicPowers = {
-  wards: 0, vigil: 0, undimmed: 0, discipline: 0, haggle: 0, grace: 0,
-};
+const NOTHING: RelicPowers = emptyRelicPowers();
 
 describe('artifactPowerText', () => {
   it('gives every power a sentence that names its own magnitude', () => {
