@@ -2520,7 +2520,10 @@ function main(): void {
        * now, and the minimum stopped wandering. That turned the check from
        * noise into a finding — it named `lichdom` on every seed, `lichdom`
        * really was the floor, and `LICH_RELIC_REQUIREMENT` is why it no
-       * longer is. The check now passes on 7 of 8 seeds.
+       * longer is. The check now passes on 6 of 8 seeds, against 2 of 5 before
+       * — and where it still fails it is by a hair rather than by a faction
+       * having no route: seed 2 reads `archdruid` 1.60% against `good_wizard`
+       * 1.60%, a TIE that a strict `<` rejects, on cohorts of 16 careers each.
        *
        * What remains is NOT sampling. `good_wizard` sits at 1.5-1.9% of its
        * cohort and the rarest crowns at 1.7-2.2%, so their true rates
