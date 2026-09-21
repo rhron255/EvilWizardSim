@@ -91,7 +91,7 @@ export const scriptedOffers: Offer[] = [
      */
     requires: [
       { c: 'minStanding', factionId: 'worm_below', v: 50 },
-      { c: 'minArtifacts', v: 2 },
+      { c: 'minArtifacts', v: 1 },
     ],
     /**
      * The whole lichdom branch is this one option, so its weight is an

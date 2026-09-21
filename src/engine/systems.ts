@@ -22,6 +22,9 @@ import {
   HERO_FAME_COEF,
   HERO_THREAT_BASE,
   HERO_THREAT_RAMP,
+  LAIR_FAME_DIVISOR,
+  LAIR_RETINUE_CAP,
+  LAIR_RETINUE_DIVISOR,
   POWER_FLOOR,
   PROPHECY_FRACTION,
   START_AGE,
@@ -309,8 +312,8 @@ export function defenseReadout(run: RunState, content: ContentBundle): DefenseRe
  */
 export function entitledLairRung(run: RunState, ladderLength: number): number {
   if (ladderLength <= 1) return 0;
-  const fromFame = run.notoriety / 13;
-  const fromRetinue = Math.min(2, run.followers / 45);
+  const fromFame = run.notoriety / LAIR_FAME_DIVISOR;
+  const fromRetinue = Math.min(LAIR_RETINUE_CAP, run.followers / LAIR_RETINUE_DIVISOR);
   return clamp(Math.floor(fromFame + fromRetinue), 0, ladderLength - 1);
 }
 

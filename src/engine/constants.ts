@@ -169,7 +169,64 @@ export const HERO_BAND_DANGER = 0.85;
  */
 export const DEF_FLOOR = 48;
 export const DEF_NOTORIETY = 0.3;
-export const DEF_LAIR = 8;
+
+/**
+ * The lair a wizard's standing in the world entitles them to.
+ *
+ *   rung = floor(notoriety / LAIR_FAME_DIVISOR
+ *                + min(LAIR_RETINUE_CAP, followers / LAIR_RETINUE_DIVISOR))
+ *
+ * These three lived as bare literals inside `entitledLairRung`, which this
+ * file's own header forbids in as many words: "Retune here and nowhere else.
+ * If a number appears in a system module, it is a bug." They are named now
+ * because the trophy-case target and `DEF_LAIR` pull against each other
+ * through them, and a knob you cannot find is a knob you retune by editing
+ * the wrong one.
+ *
+ * Fame dominates, because the fiction is simple: a wizard nobody fears cannot
+ * hold a mountain. The retinue term is capped at two rungs — somebody has to
+ * carry the furniture, but a crowd is not a castle.
+ *
+ * MOVED `LAIR_FAME_DIVISOR` 13 -> 14 and `DEF_LAIR` 8 -> 11 (issue #42,
+ * second half — `DEF_FLOOR`'s own move above landed first and was not
+ * enough on its own). On top of `DEF_FLOOR = 48`, `slain_by_chosen_one` and
+ * the trophy case were STILL both failing (seeds 1-2: 46.85-47.75%, over the
+ * 45% ceiling; mean lairs held 5.07-5.08, over the 5.0 ceiling) and lichdom
+ * reachability was failing harder than before (0.60-1.00%, under the 2%
+ * floor) — the higher hero-vs-defense floor made the decline survivable
+ * enough that climbing the lair ladder on the OLD, easier terms pushed
+ * `mean lairs held` over its own ceiling, which is what let the hero close
+ * the gap on the wizards it could still catch.
+ *
+ * MEASURED (seeds 1-2, `LICH_RELIC_REQUIREMENT` held at 1 throughout — see
+ * that constant's own doc comment for why the drop is load-bearing
+ * independent of this change): raising `DEF_LAIR` alone (8 -> 10, divisor
+ * unchanged) fixed slain (40.40-40.80%) and lichdom (2.20-2.80%) but left
+ * the trophy case failing WORSE, not better (5.08-5.10) — a higher lair
+ * defense makes climbing more attractive, so wizards sat in high lairs
+ * longer. Raising the divisor alone (13 -> 15, `DEF_LAIR` at 10) fixed the
+ * trophy case with room to spare (4.48-4.55) but pushed slain back toward
+ * its ceiling (44.40-45.05%, failing on one of two seeds) — a slower ladder
+ * leaves wizards in low-defense lairs longer, so the hero catches more of
+ * them again. The two constants pull against each other through the exact
+ * mechanism the comment above names, which is why this was two knobs swept
+ * together rather than one found by search.
+ *
+ * At `DEF_LAIR = 11, LAIR_FAME_DIVISOR = 14`: slain 39.85-40.10% (5 points
+ * of headroom under the ceiling), mean lairs held 4.75-4.80 (0.20-0.25
+ * under the ceiling), lichdom 2.50-2.70% (comfortable margin over the 2%
+ * floor), Ascension 1.15-1.25% (inside 1-4%) — every band this issue tracks
+ * passing on both seeds with real margin, not a value sitting on an edge.
+ * `DEF_LAIR = 10` with the same divisor (14) also passed everything
+ * (slain 42.50%, lairs 4.75-4.79, lich 2.20-2.40, asc 1.10-1.25) with
+ * smaller margins on slain and lichdom; 11 was kept over 10 for the wider
+ * headroom rather than because 10 failed anything.
+ */
+export const LAIR_FAME_DIVISOR = 14;
+export const LAIR_RETINUE_CAP = 2;
+export const LAIR_RETINUE_DIVISOR = 45;
+
+export const DEF_LAIR = 11;
 
 /**
  * A lich is harder to put down.
@@ -249,8 +306,22 @@ export const DEF_LICH = 90;
  * relic from anywhere in the run — a real collection, but not a
  * purpose-built vault, which is the "not strictly harder than the other five
  * crowns" half of the band this constant cannot otherwise prove.
+ *
+ * MOVED 2 -> 1 (issue #42's `DEF_FLOOR`/`DEF_LAIR` retune, above): raising
+ * the hero-threat floor a lich-seeker must survive to reach the rite at all
+ * pushed this cohort's reachability back under its own floor even at the new
+ * `DEF_LAIR = 11, LAIR_FAME_DIVISOR = 14` (1.30%, seed 1) — the same seeker
+ * now has to outlast a harder decline before the second relic is even
+ * possible. MEASURED (seeds 1-2, `DEF_LAIR = 11, LAIR_FAME_DIVISOR = 14`
+ * held constant both ways, so this isolates the relic count alone): at 2,
+ * 1.30% / (untested — 1 was already known to fail seed 1, so seed 2 was not
+ * run); at 1, 2.50% / 2.70%, both inside the 2-15% band with real margin. A
+ * single relic is still a real cost — the rite forfeits it along with every
+ * follower — and is still reachable through the same `concordat_worm` grant
+ * named above with nothing else required, which keeps Lich from becoming
+ * strictly EASIER than the other five crowns rather than merely not harder.
  */
-export const LICH_RELIC_REQUIREMENT = 2;
+export const LICH_RELIC_REQUIREMENT = 1;
 
 /**
  * The least a follower cost can be haggled down to, and the least a standing
