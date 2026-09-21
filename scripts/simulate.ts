@@ -1982,11 +1982,12 @@ function main(): void {
   console.log(rule());
   console.log(`  FACTION LEADERSHIP  (${PROBE_RUNS}-run cohort probes, then the population)`);
   console.log(
-    `${pad('  faction', 20)}${padLeft('cohort', 8)}${padLeft('peak', 7)}${padLeft(`>=${DEVOTION_STANDING + PATRON_MARGIN}`, 9)}${padLeft('oath', 12)}${padLeft('crown', 10)}${padLeft('pop', 8)}`,
+    `${pad('  faction', 20)}${padLeft('cohort', 8)}${padLeft('peak', 7)}${padLeft(`>=${DEVOTION_STANDING}`, 9)}${padLeft(`>=${DEVOTION_STANDING + PATRON_MARGIN}`, 9)}${padLeft('oath', 12)}${padLeft('crown', 10)}${padLeft('pop', 8)}`,
   );
   for (const faction of COURTIER_TARGETS) {
     const endingId = LEADERSHIP_BY_FACTION[faction];
     const cohort = leadership.get(faction) ?? [];
+    const devoted = cohort.filter((r) => r.peakStanding[faction] >= DEVOTION_STANDING).length;
     const cleared = cohort.filter(
       (r) => r.peakStanding[faction] >= DEVOTION_STANDING + PATRON_MARGIN,
     ).length;
@@ -1998,6 +1999,7 @@ function main(): void {
           cohort.length ? mean(cohort.map((r) => r.peakStanding[faction])).toFixed(0) : '-',
           7,
         ) +
+        padLeft(cohort.length ? pct(devoted, cohort.length) : '-', 9) +
         padLeft(cohort.length ? pct(cleared, cohort.length) : '-', 9) +
         padLeft(
           cohort.length
@@ -2537,7 +2539,42 @@ function main(): void {
        * near-dead content to satisfy an ordering.
        *
        * So still do NOT chase whichever ending holds `min(otherRates)` on the
-       * seed in front of you.
+       * seed in front of you. MEASURED, and this is the part issue #35 does
+       * not yet say: the floor is not one faction's problem any more. #35
+       * diagnosed `overthrown_the_kingdom` as the floor and the Crownlands'
+       * card economy as the cause, which was true when it was written. On
+       * current code the five crowns read 1.6-3.4% and the minimum lands on a
+       * DIFFERENT faction seed to seed (`archdruid` on 2, `overthrown_the_
+       * kingdom` on 3), because they are all drawn from the same narrow band.
+       *
+       * The band is narrow for a reason that is one level down from any of
+       * them, and the `>=devotion` column above is where it shows: a courtier
+       * who spends an entire career on ONE faction reaches `DEVOTION_STANDING`
+       * in 7.5-26% of runs, and its crown needs that AND a `PATRON_MARGIN`
+       * lead AND surviving to the age limit. `qa/probe-standing-routes.ts`
+       * says why — the authored catalog is NET NEGATIVE on standing for four
+       * of the six factions (up:down of 0.39 Crownlands, 0.62 Academy, 0.70
+       * Hand, 0.77 Choir; only the Covenant at 1.13 and the Worm at 1.20 are
+       * above water). A dedicated courtier is swimming upstream for four of
+       * the five crownable factions.
+       *
+       * Two levers were measured against this and BOTH were rejected, so that
+       * the next person does not re-measure them:
+       *
+       *   - `PATRON_MARGIN` 20 -> 15 -> 12 moves the crown floor 1.60% ->
+       *     1.60% -> 1.70%. It is not the binding condition; reaching
+       *     `DEVOTION_STANDING` at all is.
+       *   - Tightening `good_wizard`'s own gates overshoots in one step:
+       *     either gate drops it from 1.5-1.9% to 0.1-0.9%, where it collides
+       *     with `arch_lich` from BELOW and fails this same check from the
+       *     other side (seeds 6 and 8).
+       *
+       * What is left is the standing economy itself, which is a content
+       * rebalance across four factions and roughly a hundred offer branches —
+       * and standing drives `sealed_in_gem` (a fifth of all runs), all six
+       * reprisals, the concordats and the lich rite, so it is a bigger change
+       * than the feature this check was tightened during. It belongs to #35
+       * with these numbers attached, not to a passing edit.
        */
       'Rarity ordering: arch_lich < good_wizard < every other dedicated-cohort ending',
       archLichRate < goodWizardRate && goodWizardRate < minOtherRate,
