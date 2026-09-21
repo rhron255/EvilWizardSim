@@ -2024,11 +2024,12 @@ function main(): void {
   console.log(rule());
   console.log(`  FACTION LEADERSHIP  (${PROBE_RUNS}-run cohort probes, then the population)`);
   console.log(
-    `${pad('  faction', 20)}${padLeft('cohort', 8)}${padLeft('peak', 7)}${padLeft(`>=${DEVOTION_STANDING + PATRON_MARGIN}`, 9)}${padLeft('oath', 12)}${padLeft('crown', 10)}${padLeft('pop', 8)}`,
+    `${pad('  faction', 20)}${padLeft('cohort', 8)}${padLeft('peak', 7)}${padLeft(`>=${DEVOTION_STANDING}`, 9)}${padLeft(`>=${DEVOTION_STANDING + PATRON_MARGIN}`, 9)}${padLeft('oath', 12)}${padLeft('crown', 10)}${padLeft('pop', 8)}`,
   );
   for (const faction of COURTIER_TARGETS) {
     const endingId = LEADERSHIP_BY_FACTION[faction];
     const cohort = leadership.get(faction) ?? [];
+    const devoted = cohort.filter((r) => r.peakStanding[faction] >= DEVOTION_STANDING).length;
     const cleared = cohort.filter(
       (r) => r.peakStanding[faction] >= DEVOTION_STANDING + PATRON_MARGIN,
     ).length;
@@ -2040,6 +2041,7 @@ function main(): void {
           cohort.length ? mean(cohort.map((r) => r.peakStanding[faction])).toFixed(0) : '-',
           7,
         ) +
+        padLeft(cohort.length ? pct(devoted, cohort.length) : '-', 9) +
         padLeft(cohort.length ? pct(cleared, cohort.length) : '-', 9) +
         padLeft(
           cohort.length
@@ -2550,25 +2552,46 @@ function main(): void {
        *   `contract_writer`       0.50-1.00% -> 2.5-4.5%
        *   `liquidated`            1.00-2.00% -> 2.5-5.0%
        *
-       * It still fails on roughly half of seeds, and the reason is now
-       * SAMPLING rather than a broken ending. At `PROBE_RUNS` = 200 a true
-       * ~1.5% cohort rate has an expected count of 3, so the minimum of
-       * eleven such rates is dominated by whichever cohort got unlucky:
-       * seeds 1-4 above put it on `eternally_repurposed` (1.00%),
-       * `archdruid` (1.00-2.00%) and `overthrown_the_kingdom` (1.00-1.50%)
-       * in turn, and `good_wizard` itself moves 1.10-1.60% across the same
-       * seeds on a 1000-run cohort. Two rates three runs apart are not
-       * ordered by anything but luck.
+       * It still fails, but the reason changed under this rewrite. At the
+       * OLD `PROBE_RUNS` = 200, a true ~1.5% cohort rate has an expected
+       * count of 3, so the minimum of eleven such rates was dominated by
+       * whichever cohort got unlucky — seeds 1-4 put it on
+       * `eternally_repurposed` (1.00%), `archdruid` (1.00-2.00%) and
+       * `overthrown_the_kingdom` (1.00-1.50%) in turn, a different faction
+       * every time. That was CLAUDE.md failure mode 5, and issue #32's own
+       * remaining half was to grow these cohorts past 200 runs so the
+       * minimum would stop wandering between unrelated factions from seed
+       * to seed. `PROBE_RUNS` is 1000 now (issue #42) and the wandering
+       * stopped: seeds 1-2 both land the minimum on the SAME faction,
+       * `overthrown_the_kingdom` (1.30-1.50%).
        *
-       * So do NOT chase whichever ending holds `min(otherRates)` on the seed
-       * in front of you — that is CLAUDE.md failure mode 5 with extra steps,
-       * and it will send you to a different faction every time. The way to
-       * make this check mean something is issue #32's own remaining half:
-       * grow `reprisalProbe`/`leadershipProbe` past 200 runs so the minimum
-       * stops moving between unrelated factions from seed to seed. Until
-       * then, read the per-cohort tables above, where a genuinely dead
-       * ending shows up as a zero that survives every seed — which is what
-       * `contract_writer` looked like, and no longer does.
+       * **Issue #35's original diagnosis, confirmed rather than
+       * superseded.** It named `overthrown_the_kingdom` as the floor and
+       * the Crownlands' card economy as the cause. The `>=devotion` column
+       * on the FACTION LEADERSHIP table above sits one level below `crown`
+       * and shows why: a dedicated Crownlands courtier reaches
+       * `DEVOTION_STANDING` AT ALL in only 5.80-6.50% of careers, against
+       * 14.70-26.20% for the other four crownable factions — `crown`'s own
+       * gate (`>=devotion + PATRON_MARGIN`, the oath card, surviving to the
+       * age limit) is downstream of a bottleneck that sits well before it.
+       * `qa/probe-standing-routes.ts` says the mechanism is unchanged from
+       * when #35 was first written: the Crownlands' authored up:down ratio
+       * is still 0.39, still the worst of the six by a wide margin (next
+       * worst is Pale Academy at 0.63; Ashen Covenant and Worm Below both
+       * clear 1.0). A dedicated Crownlands courtier is swimming upstream
+       * against the catalog itself, not losing a coin flip in the draw.
+       *
+       * So still do NOT chase whichever ending holds `min(otherRates)` on
+       * the seed in front of you — with the sampling fixed, that would now
+       * mean rebalancing the Crownlands specifically, which is the wrong
+       * scope for this check. Rebalancing four factions' worth of standing
+       * economy is a content change across roughly a hundred offer
+       * branches, and standing also drives `sealed_in_gem` (a fifth of all
+       * runs), every reprisal, the concordats and the lich rite — a bigger
+       * change than the instrument fix that surfaced it this clearly, and
+       * one that needs its own pass rather than a drive-by retune buried in
+       * a balance-instrument change. It belongs to #35, with these numbers
+       * attached.
        */
       'Rarity ordering: arch_lich < good_wizard < every other dedicated-cohort ending',
       archLichRate < goodWizardRate && goodWizardRate < minOtherRate,
