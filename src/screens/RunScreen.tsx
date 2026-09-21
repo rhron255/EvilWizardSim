@@ -18,7 +18,8 @@
 
 import type { Artifact, Faction, Lair, Offer, RunState, ThemeId } from '../types';
 import type { Resolution } from '../components/run/resolution';
-import type { ContentBundle, DefenseReadout } from '../engine';
+import type { ContentBundle, RelicPowers } from '../engine';
+import type { Siege } from '../components/run';
 import { DecisionPanel, FactionStandings, Masthead, ResolutionOverlay } from '../components/run';
 import { themeAttr } from '../components/meta';
 import { tierColor, tierFor, tierGlow } from '../theme/tokens';
@@ -35,11 +36,22 @@ export type RunScreenProps = {
   onChoose(i: number): void;
   onContinue(): void;
   /**
-   * Current defence, itemised, from the engine. Passed down rather than
-   * computed here so the screen stays presentational. Feeds the decline-phase
-   * wards readout and its breakdown.
+   * The decline-phase wards readout, already derived: wards against threat,
+   * the rate, the terms and the caption. Built by `siegeFor` in `App`, beside
+   * the `defenseReadout` it is made from, because it needs the content bundle
+   * to price the hero's next era — `vigil` relics slow him.
+   *
+   * Null outside the decline, where there is no hero to read against.
    */
-  defense?: DefenseReadout | null;
+  siege?: Siege | null;
+  /**
+   * Every relic power in hand, summed. From `relicPowers` in `App`, the same
+   * place `siege` comes from.
+   *
+   * Required rather than nullable: a wizard always has a reliquary, even an
+   * empty one, so the header's Relics caption never needs a null branch.
+   */
+  relics: RelicPowers;
   /** The cosmetic theme the player is wearing. */
   themeId: ThemeId;
 };
@@ -54,7 +66,8 @@ export function RunScreen({
   content,
   onChoose,
   onContinue,
-  defense,
+  siege,
+  relics,
   themeId,
 }: RunScreenProps) {
   const tier = tierFor(run.notoriety);
@@ -96,7 +109,8 @@ export function RunScreen({
           content={content}
           disabled={Boolean(resolution)}
           onChoose={onChoose}
-          defense={defense}
+          siege={siege}
+          relics={relics}
         />
       </main>
 

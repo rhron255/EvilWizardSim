@@ -547,6 +547,16 @@
   border-radius: var(--ew-radius-pill);
 }
 
+/* What it does, above what it is like. Upright and in the readable ink, so it
+   reads as a fact rather than as more flavour — the line under it is the joke
+   and is italic and faint on purpose, and the two must not look alike. */
+.relicPower {
+  margin-top: 0.1rem;
+  font-size: var(--ew-size-xs);
+  color: var(--ew-ink);
+  line-height: 1.4;
+}
+
 .relicFlavor {
   font-size: var(--ew-size-xs);
   font-style: italic;

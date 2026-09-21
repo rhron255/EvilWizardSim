@@ -29,5 +29,11 @@ export type { ResolutionOverlayProps } from './ResolutionOverlay';
 
 export type { Resolution } from './resolution';
 
+/* `App` derives the siege beside the wards readout it is built from, so this
+   is the one thing outside `run/` that reaches into `stakes`. Everything else
+   there is `DecisionPanel`'s own business and is imported directly. */
+export { siegeFor } from './stakes';
+export type { Siege } from './stakes';
+
 export { describeEffect, describeGate, effectKey, endingName, formatOdds, signed } from './effectText';
 export type { EffectLine, EffectTone } from './effectText';

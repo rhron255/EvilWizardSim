@@ -31,15 +31,15 @@ describe('the rule-1 exception: nothing but good_wizard reads the counters', () 
     const base = start({ phase: 'decline', erasSinceProphecy: 3, notoriety: 40, heroThreat: 20 });
     const baseline = {
       defense: defenseOf(base, content),
-      threat: threatGainFor(base),
-      decay: decayFor(base),
+      threat: threatGainFor(base, content),
+      decay: decayFor(base, content),
     };
     for (const goodActs of [0, 1, 4, 8, 50]) {
       for (const illActs of [0, 1, 3, 20]) {
         const run = { ...base, goodActs, illActs };
         expect(defenseOf(run, content)).toBe(baseline.defense);
-        expect(threatGainFor(run)).toBe(baseline.threat);
-        expect(decayFor(run)).toBe(baseline.decay);
+        expect(threatGainFor(run, content)).toBe(baseline.threat);
+        expect(decayFor(run, content)).toBe(baseline.decay);
       }
     }
   });

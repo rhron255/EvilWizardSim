@@ -6,7 +6,7 @@
  * Every number comes from `constants.ts`.
  */
 
-import type { FactionId, Phase, RunState, Tier } from '../types';
+import type { ArtifactPower, FactionId, Phase, RunState, Tier } from '../types';
 import { TIERS, tierFor } from '../theme/tokens';
 import type { ContentBundle } from './content-port';
 import { indexOf } from './content-port';
@@ -22,6 +22,7 @@ import {
   HERO_FAME_COEF,
   HERO_THREAT_BASE,
   HERO_THREAT_RAMP,
+  POWER_FLOOR,
   PROPHECY_FRACTION,
   START_AGE,
   YEARS_PER_ERA,
@@ -99,14 +100,57 @@ export function erasSinceProphecyFor(eraIndex: number, prophecyEra: number): num
 }
 
 /**
+ * Everything the relics in hand are currently worth, summed once, by power.
+ *
+ * Every consumer wants a total rather than a list, and four of the six powers
+ * are read on a hot path (`defenseOf` runs on the ending check). One pass, one
+ * shape, so no caller re-walks `heldArtifactIds` with its own filter — which is
+ * how `defenseOf` and `defenseReadout` came to hold two copies of the same sum
+ * and needed a test pinning them together.
+ *
+ * A lich holds nothing: `becomeLich` forfeits the reliquary, so every power
+ * here reads zero for one without a special case, which is the correct answer
+ * rather than a lucky one.
+ */
+export type RelicPowers = Record<ArtifactPower['p'], number>;
+
+/** Every term at zero — the honest reading of an empty reliquary. */
+export function emptyRelicPowers(): RelicPowers {
+  return { wards: 0, vigil: 0, undimmed: 0, discipline: 0, haggle: 0, grace: 0 };
+}
+
+export function relicPowers(
+  run: Pick<RunState, 'heldArtifactIds'>,
+  content: ContentBundle,
+): RelicPowers {
+  const index = indexOf(content);
+  const out = emptyRelicPowers();
+  for (const id of run.heldArtifactIds) {
+    const power = index.artifactById.get(id)?.power;
+    if (power) out[power.p] += power.v;
+  }
+  return out;
+}
+
+/**
  * wiki/04: `decayPerEra = base * (1 + erasSinceProphecy * 0.15)`, zero during
  * ascent, zero for a lich. Rounded, because the ledger shows whole numbers and
  * a fractional slide would read as a rendering bug.
+ *
+ * `undimmed` relics subtract from the slide, down to `POWER_FLOOR.undimmed` —
+ * zero, and the only power whose floor IS zero. Not negative: a negative decay
+ * is notoriety ARRIVING every era from nowhere, which is a gain the player was
+ * never shown on a card. The relic can stop the erosion; it cannot quietly
+ * reverse it.
  */
-export function decayFor(run: Pick<RunState, 'phase' | 'erasSinceProphecy' | 'isLich'>): number {
+export function decayFor(
+  run: Pick<RunState, 'phase' | 'erasSinceProphecy' | 'isLich' | 'heldArtifactIds'>,
+  content: ContentBundle,
+): number {
   if (run.phase !== 'decline') return 0;
   if (run.isLich) return 0;
-  return Math.round(DECAY_BASE * (1 + run.erasSinceProphecy * DECAY_RAMP));
+  const base = DECAY_BASE * (1 + run.erasSinceProphecy * DECAY_RAMP);
+  return Math.max(POWER_FLOOR.undimmed ?? 0, Math.round(base - relicPowers(run, content).undimmed));
 }
 
 /**
@@ -117,29 +161,35 @@ export function decayFor(run: Pick<RunState, 'phase' | 'erasSinceProphecy' | 'is
  * the per-point weight of fame, not a quantity the run ever stores.
  */
 export function threatGainFor(
-  run: Pick<RunState, 'phase' | 'erasSinceProphecy' | 'notoriety'>,
+  run: Pick<RunState, 'phase' | 'erasSinceProphecy' | 'notoriety' | 'heldArtifactIds'>,
+  content: ContentBundle,
 ): number {
   if (run.phase !== 'decline') return 0;
   const gain =
     HERO_THREAT_BASE + HERO_THREAT_RAMP * run.erasSinceProphecy + HERO_FAME_COEF * run.notoriety;
-  return Math.round(gain);
+  // `vigil` relics slow him; `POWER_FLOOR.vigil` is why they cannot stop him.
+  // Rule 6: every ending has to stay reachable, this one included.
+  return Math.max(POWER_FLOOR.vigil ?? 0, Math.round(gain - relicPowers(run, content).vigil));
 }
 
 /**
  * What stands between the wizard and the chosen one.
  *
- * wiki/04: "derived from Notoriety, artifacts held, and lair tier". Followers
- * deliberately contribute nothing — they are ledger filler by design
+ * wiki/04: "derived from Notoriety, the `wards` relics held, and lair tier".
+ * Followers deliberately contribute nothing — they are ledger filler by design
  * (wiki/02 § three currencies), and giving them defense would collapse two
  * currencies into one.
+ *
+ * That wiki line said "artifacts held" until issue #6, and the distinction is
+ * the whole of that change: every relic used to contribute defense and nothing
+ * else, and a relic whose power is `vigil` or `grace` now contributes nothing
+ * HERE, doing its work on the other side of the comparison — against the
+ * threat rather than for the wards.
  */
 export function defenseOf(run: RunState, content: ContentBundle): number {
   const index = indexOf(content);
 
-  let artifactDefense = 0;
-  for (const id of run.heldArtifactIds) {
-    artifactDefense += index.artifactById.get(id)?.defense ?? 0;
-  }
+  const artifactDefense = relicPowers(run, content).wards;
 
   const rung = index.lairRung.get(run.lairId);
   const lairTier = rung === undefined ? 0 : (index.lairLadder[rung]?.tier ?? 0);
@@ -202,8 +252,10 @@ export type DefenseReadout = { total: number; terms: DefenseTerm[] };
 /**
  * The same arithmetic as `defenseOf`, with its terms named.
  *
- * Measured: lair tier supplies 30.2% of the mean defence, and 16.6% of runs
- * flip from surviving the hero to slain if the lair term is removed — yet the
+ * Measured: lair tier supplies 36.1% of the mean defence, and removing the
+ * term entirely takes `slain_by_chosen_one` from 43.85% of careers to 69.75%
+ * — one run in four flips from surviving the hero to being killed by him on
+ * that term alone — yet the
  * only place the UI ever said a lair defends you was a `title` tooltip, which
  * a phone cannot show. A stat that decides one run in six and is disclosed
  * nowhere is the header's oldest bug wearing a new hat.
@@ -216,10 +268,7 @@ export type DefenseReadout = { total: number; terms: DefenseTerm[] };
 export function defenseReadout(run: RunState, content: ContentBundle): DefenseReadout {
   const index = indexOf(content);
 
-  let artifactDefense = 0;
-  for (const id of run.heldArtifactIds) {
-    artifactDefense += index.artifactById.get(id)?.defense ?? 0;
-  }
+  const artifactDefense = relicPowers(run, content).wards;
 
   const rung = index.lairRung.get(run.lairId);
   const lairTier = rung === undefined ? 0 : (index.lairLadder[rung]?.tier ?? 0);

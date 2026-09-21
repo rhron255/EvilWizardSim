@@ -14,6 +14,7 @@ import {
   loadChangelogAck,
   pendingChangelogEntries,
   projectEffects,
+  relicPowers,
   saveChangelogAck,
   useGame,
 } from './engine';
@@ -34,7 +35,7 @@ import { BUILD_VERSION } from './version';
 import { TitleScreen } from './screens/TitleScreen';
 import { CreationScreen } from './screens/CreationScreen';
 import { RunScreen } from './screens/RunScreen';
-import { FirstRunGuide } from './components/run';
+import { FirstRunGuide, siegeFor } from './components/run';
 import { ChangelogPopup } from './components/meta';
 import { ProphecyInterstitial } from './screens/ProphecyInterstitial';
 import { EndingScreen } from './screens/EndingScreen';
@@ -95,11 +96,27 @@ export default function App() {
   // The chosen one is drawn from the run seed, so a seed is a rematch.
   const heroName = useMemo(() => (run ? heroNameFor(run.seed) : ''), [run]);
 
-  // The denominator for the decline-phase wards readout, itemised. Offers
-  // already print `+9 Hero Threat`; without this the player has no scale to
-  // read it against, and without the TERMS they never learn that the lair —
-  // 30% of the mean defence — is what has been holding the hero off.
-  const defense = useMemo(() => (run ? defenseReadout(run, CONTENT) : null), [run]);
+  // The decline-phase wards readout, whole. Offers already print `+9 Hero
+  // Threat`; without this the player has no scale to read it against, and
+  // without the TERMS they never learn that the lair is what has been
+  // holding the hero off.
+  //
+  // Derived HERE rather than in the panel, because `siegeFor` needs the
+  // content bundle to price the hero's next era: `vigil` relics slow him, so
+  // the rate the caption prints is a fact about the reliquary as well as
+  // about the run.
+  const siege = useMemo(
+    () => (run ? siegeFor(run, defenseReadout(run, CONTENT), CONTENT) : null),
+    [run],
+  );
+  // Never null, unlike `siege` above: a wizard always has a reliquary, even
+  // an empty one. `siege` is absent outside the decline, so it is typed that
+  // way; a summed-powers record with every term at zero is the honest answer
+  // here.
+  const relics = useMemo(
+    () => relicPowers({ heldArtifactIds: run?.heldArtifactIds ?? [] }, CONTENT),
+    [run],
+  );
 
   /**
    * The offer as it will actually land, for DISPLAY ONLY.
@@ -157,7 +174,8 @@ export default function App() {
             content={CONTENT}
             onChoose={game.choose}
             onContinue={game.continueAfterResolution}
-            defense={defense}
+            siege={siege}
+            relics={relics}
             themeId={themeId}
           />
           {/* A sibling, not a screen: the guide opens with the masthead and

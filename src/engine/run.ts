@@ -27,6 +27,7 @@ import type { Resolution, SystemicChange } from './resolution';
 import {
   DEFAULT_ERA_COUNT,
   LOYALTY_DRIFT_BASE,
+  LOYALTY_DRIFT_MIN,
   LOYALTY_DRIFT_MIN_APPRENTICES,
   START_FOLLOWERS,
   START_LOYALTY,
@@ -53,6 +54,7 @@ import {
   phaseFor,
   promoteLair,
   prophecyEraFor,
+  relicPowers,
   threatGainFor,
   tierCrossing,
 } from './systems';
@@ -313,10 +315,10 @@ export function resolveChoice(
   // why decay and hero threat are not among them.
   const systemic: SystemicChange[] = [];
   if (!endingFromEffect) {
-    const decay = decayFor(draft);
+    const decay = decayFor(draft, content);
     if (decay !== 0) draft.notoriety = clampNotoriety(draft.notoriety - decay);
 
-    const threatGain = threatGainFor(draft);
+    const threatGain = threatGainFor(draft, content);
     if (threatGain !== 0) {
       draft.heroThreat = clampThreat(draft.heroThreat + threatGain);
     }
@@ -361,7 +363,14 @@ export function resolveChoice(
       //
       // Ambition grows as the master visibly weakens, and faster in a crowd.
       if (draft.apprentices.count >= LOYALTY_DRIFT_MIN_APPRENTICES) {
-        const drift = -(LOYALTY_DRIFT_BASE + draft.apprentices.count);
+        // `discipline` relics slow the drift without stopping it — the floor
+        // is `LOYALTY_DRIFT_MIN`, so a school always has somewhere to go and
+        // `betrayed_by_apprentice` stays reachable for a wizard holding one.
+        const discipline = relicPowers(draft, content).discipline;
+        const drift = -Math.max(
+          LOYALTY_DRIFT_MIN,
+          LOYALTY_DRIFT_BASE + draft.apprentices.count - discipline,
+        );
         const before = draft.apprentices.loyalty;
         const after = clamp(before + drift, 0, 100);
         draft.apprentices = { ...draft.apprentices, loyalty: after };
