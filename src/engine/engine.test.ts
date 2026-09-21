@@ -124,19 +124,32 @@ describe('determinism', () => {
 
 describe('notoriety decay', () => {
   it('is zero during the ascent', () => {
-    expect(decayFor({ phase: 'ascent', erasSinceProphecy: 0, isLich: false })).toBe(0);
-    expect(decayFor({ phase: 'ascent', erasSinceProphecy: 5, isLich: false })).toBe(0);
+    expect(
+      decayFor({ phase: 'ascent', erasSinceProphecy: 0, isLich: false, heldArtifactIds: [] }, fixtureContent),
+    ).toBe(0);
+    expect(
+      decayFor({ phase: 'ascent', erasSinceProphecy: 5, isLich: false, heldArtifactIds: [] }, fixtureContent),
+    ).toBe(0);
   });
 
   it('compounds with eras since the prophecy', () => {
-    const at = (n: number) => decayFor({ phase: 'decline', erasSinceProphecy: n, isLich: false });
+    const at = (n: number) =>
+      decayFor(
+        { phase: 'decline', erasSinceProphecy: n, isLich: false, heldArtifactIds: [] },
+        fixtureContent,
+      );
     expect(at(0)).toBeGreaterThan(0);
     expect(at(4)).toBeGreaterThan(at(0));
     expect(at(8)).toBeGreaterThan(at(4));
   });
 
   it('is frozen for a lich — the branch that cheats the decline', () => {
-    expect(decayFor({ phase: 'decline', erasSinceProphecy: 6, isLich: true })).toBe(0);
+    expect(
+      decayFor(
+        { phase: 'decline', erasSinceProphecy: 6, isLich: true, heldArtifactIds: [] },
+        fixtureContent,
+      ),
+    ).toBe(0);
   });
 });
 
@@ -323,7 +336,7 @@ describe('lichdom', () => {
     expect(next.isLich).toBe(true);
     expect(next.heldArtifactIds).toEqual([]);
     expect(next.followers).toBe(0);
-    expect(decayFor(next)).toBe(0);
+    expect(decayFor(next, fixtureContent)).toBe(0);
   });
 
   it('continues the run rather than ending it on the spot', () => {

@@ -10,6 +10,8 @@ import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '../../../theme/tokens.css';
 import { RunScreen } from '../../../screens/RunScreen';
+import { defenseReadout, relicPowers } from '../../../engine';
+import { siegeFor } from '../stakes';
 import type { EraRecord, RunState } from '../../../types';
 import type { Resolution } from '../resolution';
 import {
@@ -116,6 +118,8 @@ export function Harness() {
       content={demoContent}
       onChoose={choose}
       onContinue={continueEra}
+      siege={siegeFor(run, defenseReadout(run, demoContent), demoContent)}
+      relics={relicPowers(run, demoContent)}
     />
   );
 }

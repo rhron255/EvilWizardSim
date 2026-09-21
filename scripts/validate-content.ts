@@ -19,7 +19,15 @@
  * Exits non-zero with a readable list. Silence means the catalog is sound.
  */
 
-import type { Artifact, Condition, Effect, Offer, OfferOption, Rarity } from '../src/types';
+import type {
+  Artifact,
+  ArtifactPower,
+  Condition,
+  Effect,
+  Offer,
+  OfferOption,
+  Rarity,
+} from '../src/types';
 import * as content from '../src/content';
 import {
   DEVOTION_STANDING,
@@ -77,13 +85,69 @@ assertUniqueIds('epithets', epithets.map((e) => e.id));
 // The fixed cast
 // ---------------------------------------------------------------------------
 
+/**
+ * The most a single relic may carry of each power.
+ *
+ * PROVENANCE, since an invented ceiling is failure mode 6: these are not tuned
+ * targets, they are typo guards, and each is set where the power stops being a
+ * modifier and becomes an off switch.
+ *
+ * Four of the six are PER-ERA and so compound across a decline of roughly
+ * eight — a `vigil: 20` reads as a plausible authoring mistake for `2` and
+ * would hold the chosen one at `HERO_THREAT_MIN` for an entire career from one
+ * relic, which is rule 6's problem (an ending must stay reachable) rather than
+ * a tuning preference. The per-era caps sit just above the largest authored
+ * value so the guard is tight enough to catch a slipped digit.
+ *
+ * `wards` is flat and therefore the safest, so it gets the loosest cap — it is
+ * still bounded because the whole ten-rung lair ladder is `DEF_LAIR * 9`, and
+ * a single relic worth more than a sizeable fraction of that is a mistake
+ * whatever the intent.
+ */
+const POWER_CAP: Record<ArtifactPower['p'], number> = {
+  wards: 12,
+  vigil: 4,
+  undimmed: 4,
+  discipline: 4,
+  haggle: 6,
+  grace: 4,
+};
+
+const powersSeen = new Set<ArtifactPower['p']>();
+
 for (const artifact of artifacts) {
   const where = `artifact "${artifact.id}"`;
   if (!factionIds.has(artifact.factionId)) fail(where, `unknown factionId "${artifact.factionId}"`);
   if (!artifact.name.trim()) fail(where, 'empty name');
   if (!artifact.flavorText.trim()) fail(where, 'no flavor text — flavor is the art budget');
-  if (!Number.isFinite(artifact.defense) || artifact.defense < 0) {
-    fail(where, `defense must be a non-negative number, got ${artifact.defense}`);
+
+  const { p, v } = artifact.power;
+  powersSeen.add(p);
+  // `ArtifactPower` documents `v` as a positive magnitude, never signed — the
+  // engine owns the direction, because four of the six make a number the
+  // player dislikes smaller and a sign convention would be one field with two
+  // readings (failure mode 4). A zero is the other half of that: a relic whose
+  // power does nothing is a relic with no power, and it would render as
+  // "Wards +0." on the card.
+  if (!Number.isInteger(v) || v <= 0) {
+    fail(where, `power "${p}" must be a positive whole magnitude, got ${v}`);
+  } else if (v > POWER_CAP[p]) {
+    fail(where, `power "${p}" is ${v}, above the ${POWER_CAP[p]} cap — see POWER_CAP`);
+  }
+}
+
+/**
+ * Every power the engine knows how to apply must be reachable from content.
+ *
+ * A union member wired through `defenseOf`, `decayFor`, `applyEffects` and the
+ * card renderer, that no relic in the catalog actually carries, is a feature
+ * that cannot be encountered. The compiler cannot see this one — every member
+ * typechecks whether or not anything uses it — so it is asserted here.
+ */
+const ALL_POWERS = Object.keys(POWER_CAP) as ArtifactPower['p'][];
+for (const p of ALL_POWERS) {
+  if (!powersSeen.has(p)) {
+    fail('artifacts', `no relic carries the "${p}" power — the engine applies it and nothing grants it`);
   }
 }
 
@@ -551,7 +615,10 @@ function checkAscensionPrice(where: string, text: string | undefined, impliedSub
 }
 
 for (const a of artifacts) {
-  checkAscensionPrice(`artifact "${a.id}"`, a.effect);
+  // Only `flavorText` is authored prose now. The relic's mechanical line is
+  // derived from `power` by `artifactPowerText`, and a closed union of six
+  // sentence templates cannot mention Ascension — the check that used to run
+  // over the old authored `effect` string had nothing left to read.
   checkAscensionPrice(`artifact "${a.id}"`, a.flavorText);
 }
 for (const e of endings) {

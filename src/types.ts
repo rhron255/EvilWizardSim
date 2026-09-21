@@ -297,17 +297,72 @@ export type Faction = {
   adjective: string;
 };
 
+/**
+ * What a relic DOES.
+ *
+ * Structured for the same reason `Effect` is: the renderer has to be able to
+ * print it, so it cannot be prose. `Artifact` used to carry a `defense: number`
+ * and a hand-written `effect: string` summarising it, which is the shape
+ * CLAUDE.md failure mode 4 is about — one concept, two fields, kept in step by
+ * an author remembering to. Every one of the thirty-two read `Defense +N`, so
+ * the drift never showed; the collection grid was one stat in thirty-two
+ * costumes (issue #6), and a playtester who collected three relics across a
+ * full run reported them as "different names, identical function".
+ *
+ * There is one `power` per relic and no `defense` field at all. `wards` IS the
+ * old defense term, now one member of a union rather than a privileged field,
+ * and the player-facing line is DERIVED from the structure
+ * (`src/components/meta/artifactPower.ts`) rather than authored beside it —
+ * so the prose cannot disagree with the number, because there is no longer a
+ * second place to say it.
+ *
+ * Every member modifies a system that already exists. That is deliberate and
+ * it is what keeps disclosure honest without inventing a channel for it:
+ *
+ *   `wards`      → `defenseOf`. Shown as the wards readout's Relics term.
+ *   `vigil`      → `threatGainFor`. The header already prints that rate as
+ *                  "his threat +N an era", so it corrects itself.
+ *   `undimmed`   → `decayFor`. Named on the relic and nowhere else, because
+ *                  wiki/04 wants the decline's erosion unannounced (rule 5).
+ *                  Explaining what a relic does is not a doom meter.
+ *   `discipline` → the decline's loyalty drift. Already reported as a
+ *                  `loyaltyDrift` systemic row, which carries the softened
+ *                  number for free.
+ *   `haggle`     → follower COSTS, inside `applyEffects`. Needs no new
+ *                  disclosure at all: `projectEffects` is `applyEffects` run
+ *                  against a draft, so the offer card prints the real price.
+ *   `grace`      → standing LOSSES, inside `applyStanding`. Same mechanism,
+ *                  including the contagion spill.
+ *
+ * `v` is always a positive magnitude, never signed. Four of the six make a
+ * number the player dislikes SMALLER, and authoring those as negatives would
+ * mean every consumer had to remember which direction its own member ran in —
+ * a sign convention is exactly the second reading failure mode 4 warns about.
+ * The engine applies the direction; content states the size.
+ */
+export type ArtifactPower =
+  /** Defense against the chosen one. The original, and still the plainest. */
+  | { p: 'wards'; v: number }
+  /** The chosen one gains `v` less threat each decline era. */
+  | { p: 'vigil'; v: number }
+  /** Notoriety decays `v` less each decline era. */
+  | { p: 'undimmed'; v: number }
+  /** Apprentice loyalty drifts `v` less each decline era. */
+  | { p: 'discipline'; v: number }
+  /** Every follower cost is `v` smaller. */
+  | { p: 'haggle'; v: number }
+  /** Every standing LOSS is `v` smaller, contagion spill included. */
+  | { p: 'grace'; v: number };
+
 export type Artifact = {
   id: string;
   name: string;
   /** Every artifact belongs to a faction — this is what makes routing legible. */
   factionId: FactionId;
   rarity: Rarity;
-  /** Player-facing mechanical summary. */
-  effect: string;
+  /** Exactly one. The player-facing line is derived from it, never authored. */
+  power: ArtifactPower;
   flavorText: string;
-  /** Defense contribution toward surviving hero threat. */
-  defense: number;
 };
 
 export type Lair = {

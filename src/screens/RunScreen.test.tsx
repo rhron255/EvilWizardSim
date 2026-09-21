@@ -15,6 +15,7 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import type { ContentBundle } from '../engine';
+import { emptyRelicPowers } from '../engine';
 import { artifacts, endings, epithets, factions, lairs, offers, origins } from '../content';
 import { demoRun, demoOffer } from '../components/run/__fixtures__/demo';
 import type { Resolution } from '../components/run/resolution';
@@ -42,7 +43,8 @@ const show = (
       content={content}
       onChoose={() => {}}
       onContinue={onContinue}
-      defense={null}
+      siege={null}
+      relics={emptyRelicPowers()}
       themeId={themeId}
     />,
   );

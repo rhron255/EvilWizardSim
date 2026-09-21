@@ -20,6 +20,14 @@ defending what you built.
 There is **no fail state**. Every ending is a biography. A wizard who dies
 obscure in a swamp at two hundred still produced a story.
 
+Across careers you fill two trophy cases: the nineteen endings, and the
+thirty-two relics. Each relic carries exactly one **power**, and the six are
+not variations on a theme — one adds wards against the chosen one, one slows
+his approach, one holds your name against the decline's erosion, one steadies
+a school, one argues your follower costs down, and one softens what a faction
+takes from you when you disappoint it. Which ones you are carrying changes how
+the back half of a career plays, not just how big a number is.
+
 It is built **mobile-first**: 393x852 is the reference device, not a
 breakpoint to degrade toward.
 
@@ -48,7 +56,9 @@ they come from analysis of a game that worked at scale, recorded in
   cosmetic **themes** — chosen by the player between runs, never handed out
   mid-career, and forbidden from touching the tier colour.
 - **Comedy in the text, never in the numbers.** Flavor text is funny; stat
-  changes are straight-faced.
+  changes are straight-faced. A relic's mechanical line is *derived* from its
+  structured power rather than written beside it, so the joke and the number
+  cannot come apart: `flavorText` is the only authored prose on an artifact.
 - **No doom meter.** The decline works because a number is quietly going the
   wrong way, not because it is announced. The erosion stays unnarrated; the
   lethal counters do not. The prophecy hands off with one line — the hero

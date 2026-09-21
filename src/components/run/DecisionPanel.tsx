@@ -12,10 +12,11 @@
  */
 
 import { useId, useState } from 'react';
-import type { ContentBundle, DefenseReadout } from '../../engine';
+import type { ContentBundle, RelicPowers } from '../../engine';
 import type { Artifact, Faction, Offer, RunState } from '../../types';
 import { nextThreatFor, patronFor, reprisalSentence } from './allegiances';
-import { lichSentence, siegeFor, stakesFor } from './stakes';
+import type { Siege } from './stakes';
+import { lichSentence, stakesFor } from './stakes';
 import { OfferPanel } from './OfferPanel';
 import styles from './DecisionPanel.module.css';
 
@@ -27,7 +28,9 @@ export type DecisionPanelProps = {
   content: ContentBundle;
   disabled: boolean;
   onChoose(index: number): void;
-  defense?: DefenseReadout | null;
+  siege?: Siege | null;
+  /** Summed across the reliquary, so the panel stays presentational. */
+  relics: RelicPowers;
 };
 
 export function DecisionPanel({
@@ -38,7 +41,8 @@ export function DecisionPanel({
   content,
   disabled,
   onChoose,
-  defense,
+  siege,
+  relics,
 }: DecisionPanelProps) {
   // Captions are tap-to-reveal on a phone (they cost ~200px) and always shown
   // from 720px up — same trade the header made, carried over unchanged.
@@ -47,9 +51,8 @@ export function DecisionPanel({
 
   const threat = nextThreatFor(run);
   const patron = patronFor(run, factions);
-  const stakes = stakesFor(run);
+  const stakes = stakesFor(run, relics);
   const lich = lichSentence(run);
-  const siege = defense == null ? null : siegeFor(run, defense);
 
   return (
     <div className={styles.panel}>

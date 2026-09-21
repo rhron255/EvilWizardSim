@@ -33,7 +33,7 @@ constraints below exist, and is the thing to read before relaxing any of them.
 | `src/types.ts` | **The frozen contract.** Every module is written against it. |
 | `src/theme/` | Design tokens (`tokens.ts` for JS, `tokens.css` for `--ew-*`). |
 | `src/engine/` | Run state, offer sampling, resolution, endings, persistence. |
-| `src/content/` | Factions, artifacts, lairs, origins, endings, epithets, ~130 offers. |
+| `src/content/` | Factions, 32 artifacts, lairs, origins, endings, epithets, ~150 offers. |
 | `src/components/run/` | The run loop: ledger, offer panel, notoriety badge. |
 | `src/components/meta/` | Set-piece parts: lair grid, artifact grid, sigil. |
 | `src/screens/` | Screen composition. |
@@ -135,6 +135,15 @@ These come from a game that worked at scale. They look arbitrary in isolation.
    palette's ink-on-panel contrast. The distinction to keep: **the game
    colours what you did; the player colours the room.**
 4. **Comedy in the text, never in the numbers.**
+   *Corollary, from issue #6.* An `Artifact` carries exactly one structured
+   `power`, and the line the player reads is DERIVED from it
+   (`src/components/meta/artifactPower.ts`) rather than authored beside it.
+   `flavorText` is the only authored prose on a relic, which is the rule
+   above made structural: the joke is the only thing an author can write, so
+   the joke cannot drift from the number. Before this, all thirty-two relics
+   carried a `defense: number` and a hand-written `effect: string` saying
+   `Defense +N` — one concept in two fields, which is failure mode 4 waiting
+   for the day the two stopped agreeing.
 5. **No fail state, and no doom meter.** Every ending is a biography. The decline
    works because a number quietly goes the wrong way. Note this bans *announcing
    a losing phase* — it does not ban explaining what a mechanic does.
@@ -479,6 +488,15 @@ two rules only compose while a stock-free exit survives at every level.
 6. New `Effect` variant that is deterministic? Add it to `PROJECTABLE` in
    `src/engine/effects.ts`, or the offer card goes back to printing the
    authored number instead of the real one.
+6b. New `ArtifactPower` member? The compiler names every place that has to
+   change — the renderer's switch and its ordering record, the engine's
+   aggregator, the validator's `POWER_CAP`, and the test that sweeps all six.
+   That is deliberate and was not free: two of those were bare `string[]`
+   lists at first, and a bare list is the one enumeration of a union that
+   nothing checks. Keep them `Record`s. The one thing left to a human is
+   authoring a relic that actually carries the new power — the validator fails
+   if nothing does, because a power the engine applies and no relic grants is
+   failure mode 2.
 7. New content field the UI reads? Make it **required** on the type and let the
    compiler name every fixture. `Ending.hint` found all fourteen call sites
    that way; an optional field would have rendered blank in two of them.

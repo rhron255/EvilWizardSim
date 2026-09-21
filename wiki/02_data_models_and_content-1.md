@@ -80,9 +80,20 @@ type Artifact = {
   name: string;
   factionId: FactionId;       // every artifact belongs to a faction
   rarity: 'common' | 'rare' | 'legendary';
-  effect: string;
+  power: ArtifactPower;       // exactly one; the card's line is DERIVED from it
   flavorText: string;
 };
+```
+
+> **Updated by issue #6.** This shape carried a `defense: number` and an
+> authored `effect: string` describing it. All thirty-two relics said
+> `Defense +N`, so the grid was one stat in thirty-two costumes and the two
+> fields could not visibly disagree. `power` replaces both, and the
+> player-facing line is derived rather than authored, so there is no second
+> place to state it. See `ArtifactPower` in `src/types.ts` for the six
+> members and the system each one modifies.
+
+```ts
 
 type Offer = {
   id: string;
@@ -156,6 +167,13 @@ the behavior that produces hundred-run players.
 - Rarity mix proposal: 16 common, 10 rare, 4 legendary. (Now 6 legendary / 32
   total — see the #22 update below.)
 - Legendary artifacts gate the Ascension ending.
+- **Each carries exactly one `power` (issue #6).** Six kinds, each modifying a
+  system that already exists — `wards` (defence), `vigil` (the hero's rate),
+  `undimmed` (the decay), `discipline` (apprentice drift), `haggle` (follower
+  costs) and `grace` (standing losses). A power follows from the relic's own
+  flavour rather than filling a quota, and each faction's legendary carries
+  that faction's signature. `wards` is the old `Defense +N` under a name the
+  header already uses.
 
 ### How fast the grid actually fills — measured
 

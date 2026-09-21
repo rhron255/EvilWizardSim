@@ -32,8 +32,10 @@ export {
   prophecyEraFor,
   decayFor,
   threatGainFor,
+  relicPowers,
+  emptyRelicPowers,
 } from './systems';
-export type { DefenseReadout, DefenseTerm, HeroBand } from './systems';
+export type { DefenseReadout, DefenseTerm, HeroBand, RelicPowers } from './systems';
 export { projectedEpithet } from './epithets';
 export {
   checkEndings,
