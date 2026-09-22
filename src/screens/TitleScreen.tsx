@@ -119,7 +119,7 @@ export function TitleScreen({
           </div>
           <span className={styles.ledgerRule} aria-hidden />
           <div className={styles.ledgerItem}>
-            <span className={styles.ledgerLabel}>Best rank</span>
+            <span className={styles.ledgerLabel}>Best Rank</span>
             <span className={styles.ledgerValue}>{veteran ? tier.name : '—'}</span>
           </div>
         </footer>

@@ -98,7 +98,7 @@ describe('synthesizeDeed', () => {
 
   it('drops the title prefix when the pair would not fit', () => {
     const line = synthesizeDeed(
-      offer('A Rumour From The Capital'),
+      offer('A Rumour from the Capital'),
       certain('Note it and continue'),
     );
     expect(line).toBe('Note it and continue.');

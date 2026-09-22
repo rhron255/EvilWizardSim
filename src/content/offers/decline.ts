@@ -1447,7 +1447,7 @@ export const declineOffers: Offer[] = [
           { t: 'notoriety', v: -3 },
           { t: 'loyalty', v: 6 },
         ],
-        resultText: 'You outwait it. After a week of silence, it gives up first — the only time Worm Below has ever blinked.',
+        resultText: 'You outwait it. After a week of silence, it gives up first — the only time the Worm Below has ever blinked.',
       },
       {
         kind: 'gamble',
@@ -1832,7 +1832,7 @@ export const declineOffers: Offer[] = [
   },
   {
     id: 'decline_the_good_omen',
-    title: 'A Good Omen, For Once',
+    title: 'A Good Omen, for Once',
     body: 'A comet has parked itself over your tower for a week, and the villagers — who have never once read an omen in your favour — have decided this one is about your ascendancy. It is not, but it could be.',
     phase: 'decline',
     weight: 2,

@@ -76,7 +76,7 @@ export const ascentOffers: Offer[] = [
           { t: 'loyalty', v: 12 },
           { t: 'notoriety', v: -1 },
         ],
-        resultText: 'He cannot cast a spell, but he alphabetizes the grimoires unasked.',
+        resultText: 'He cannot cast a spell, but he alphabetises the grimoires unasked.',
       },
       {
         kind: 'certain',
@@ -162,7 +162,7 @@ export const ascentOffers: Offer[] = [
           { t: 'artifactFrom', factionId: 'gilded_hand', rarity: 'common' },
           { t: 'standing', factionId: 'gilded_hand', v: 10 },
         ],
-        resultText: 'The receipt itemizes it as "one (1) relic, gently used".',
+        resultText: 'The receipt itemises it as "one (1) relic, gently used".',
       },
       {
         kind: 'gamble',
@@ -1705,7 +1705,7 @@ export const ascentOffers: Offer[] = [
 
   {
     id: 'ascent_rumour_from_the_capital',
-    title: 'A Rumour From The Capital',
+    title: 'A Rumour from the Capital',
     body: 'Something is being said in the capital temples about a child, a sword, and a date. The date is not soon. It is, however, a date.',
     phase: 'ascent',
     weight: 1,
