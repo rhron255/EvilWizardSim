@@ -23,6 +23,7 @@ export type TitleScreenProps = {
   onResume(): void;
   onViewCollection(): void;
   onViewThemes(): void;
+  onViewChangelog(): void;
 };
 
 export function TitleScreen({
@@ -33,6 +34,7 @@ export function TitleScreen({
   onResume,
   onViewCollection,
   onViewThemes,
+  onViewChangelog,
 }: TitleScreenProps) {
   const found = collection.discoveredArtifactIds.length;
   const tier = tierOf(collection.bestNotoriety);
@@ -96,6 +98,10 @@ export function TitleScreen({
           <button type="button" className={styles.door} onClick={onViewThemes}>
             <span>Themes</span>
             <span className={styles.doorNote}>{themeFor(collection.selectedThemeId).name}</span>
+          </button>
+
+          <button type="button" className={styles.door} onClick={onViewChangelog}>
+            <span>Changelog</span>
           </button>
         </nav>
 

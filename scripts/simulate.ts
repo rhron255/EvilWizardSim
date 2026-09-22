@@ -41,7 +41,14 @@ import type {
 import { writeFileSync } from 'node:fs';
 import type { ContentBundle } from '../src/engine';
 import { TIERS, tierFor } from '../src/theme/tokens';
-import { ascensionReady, createRun, defenseOf, nextOffer, resolveChoice } from '../src/engine';
+import {
+  ascensionReady,
+  createRun,
+  defenseOf,
+  isOptionPickable,
+  nextOffer,
+  resolveChoice,
+} from '../src/engine';
 import {
   ASCENSION_LEGENDARIES,
   ASCENSION_MIN_NOTORIETY,
@@ -584,18 +591,20 @@ function optionScore(
 }
 
 function modeFor(policy: Policy, run: RunState, threatRatio: number): Mode {
-  // A pariah still has to LIVE to the decline and be famous enough to be worth
-  // acting on — the reprisal needs notoriety ≥ SEAL_MIN_NOTORIETY and, for
-  // five of the six factions, the decline phase. So the base play is
-  // `adaptive`; the spite rides on top of it rather than replacing it.
+  // All six reprisals fire in every phase now (they used to be decline-only
+  // for five of the six factions — see `wiki/01_core_loop.md` § 7), so a
+  // pariah no longer needs to survive to the decline for its spite to count;
+  // it needs only notoriety ≥ SEAL_MIN_NOTORIETY, in either phase. The mode
+  // chosen here is still just the BASE play — `chooseOption` adds the
+  // `spiteAffinity` bonus on top unconditionally, in ascent and decline
+  // alike, so the target-tanking behaviour was never gated on phase to begin
+  // with; only the fame/defense trade-off below is.
   if (isPariah(policy)) {
     if (run.phase === 'ascent') return 'notoriety';
     return threatRatio > 0.55 ? 'defense' : 'notoriety';
   }
   // The mirror of the pariah branch above, and the generic `courtier` case
-  // below: build standing through the ascent, defend once threatened. The
-  // leadership check is not decline-gated the way five of the six reprisals
-  // are, so unlike the pariah there is no phase split to make here.
+  // below: build standing through the ascent, defend once threatened.
   if (isCourtier(policy)) {
     return run.phase === 'ascent' ? 'standing' : 'defense';
   }
@@ -785,7 +794,17 @@ function devotionAffinity(option: OfferOption, target: FactionId, standing: numb
 const COURTIER_DEVOTION = Number(process.env.COURTIER_DEVOTION ?? 5);
 
 function chooseOption(policy: Policy, run: RunState, offer: Offer, roll: number): number {
-  if (policy === 'random') return Math.floor(roll * offer.options.length);
+  if (policy === 'random') {
+    // Uniform among PICKABLE options only (issue #41 follow-up):
+    // `resolveChoice` now refuses an unpickable index inertly rather than
+    // applying it, so a random draw that ignored affordability could stall
+    // a run on the same era for the rest of its guard budget. `nextOffer`
+    // already guarantees at least one pickable certain option per offer.
+    const pickable = offer.options
+      .map((_, i) => i)
+      .filter((i) => isOptionPickable(run, offer.options[i], content));
+    return pickable[Math.floor(roll * pickable.length)] ?? 0;
+  }
 
   const defense = defenseOf(run, content);
   const threatRatio = defense > 0 ? run.heroThreat / defense : 0;
@@ -802,6 +821,11 @@ function chooseOption(policy: Policy, run: RunState, offer: Offer, roll: number)
     // The "safe" player never gambles — the certain-option guarantee is what
     // makes that a playable strategy at all.
     if (policy === 'safe' && option.kind === 'gamble') return;
+    // Issue #41 follow-up: an option the player cannot currently afford is
+    // never a candidate. `nextOffer` already guarantees at least one
+    // pickable certain option per offer, so this can never empty the field
+    // for a policy that (unlike `safe`) also considers gambles.
+    if (!isOptionPickable(run, option, content)) return;
     let score = optionScore(option, w, takesLichdom, run.pactDebt, takesGoodWizard);
     // A lich-seeker courts ONE faction, hard, because only the Worm Below
     // offers the rite and its gate is `minStanding worm_below 20`. Generic
@@ -953,6 +977,25 @@ type RunResult = {
   virtueTaken: string[];
   finalGoodActs: number;
   finalIllActs: number;
+  /**
+   * Whether the reputation/resolution gate (`minGoodActs`/`maxIllActs`) was
+   * EVER simultaneously true during the run, not just at the end.
+   *
+   * `finalIllActs` alone used to stand in for this, back when illActs could
+   * only ever rise — but issue #43 stopped the Good Wizard vow from being
+   * silently revoked when a later illAct pushes the counter past
+   * `GOOD_WIZARD_ILL_CAP`. That is correct game behaviour (the vow, once
+   * taken, is held to the end) but it broke this reading: a run that validly
+   * cleared the gate, vowed, and only THEN picked up enough illActs to push
+   * `finalIllActs` over the cap would report as never having cleared it,
+   * even though the same report counts its resolution and ending — the
+   * exact "instrument lies" shape CLAUDE.md's failure mode 5 describes, and
+   * the gap a PR reviewer caught on this one (`src/engine/effects.ts`, the
+   * #43 commit). Tracked as a peak flag in `playRun`'s loop, the same
+   * pattern `everAscensionReady` already uses for its own conjunct.
+   */
+  everClearedRep: boolean;
+  everClearedRes: boolean;
   minStanding: Record<FactionId, number>;
   /** The highest each faction's standing ever reached — `minStanding`'s mirror. */
   peakStanding: Record<FactionId, number>;
@@ -995,6 +1038,8 @@ function playRun(
   let metNotorietyConjunct = false;
   let metLegendaryConjunct = false;
   let everAscensionReady = false;
+  let everClearedRep = false;
+  let everClearedRes = false;
   let becameLich = false;
   const declineDeltas: number[] = [];
   const minStanding = { ...run.factionStanding };
@@ -1028,6 +1073,14 @@ function playRun(
       metLegendaryConjunct = true;
     }
     if (ascensionReady(run, content)) everAscensionReady = true;
+    // The gate, read the moment it's true rather than at run end — see the
+    // doc comment on `everClearedRep`/`everClearedRes` in `RunResult`.
+    if (run.goodActs >= GOOD_WIZARD_REPUTATION_GOOD && run.illActs <= GOOD_WIZARD_ILL_CAP) {
+      everClearedRep = true;
+    }
+    if (run.goodActs >= GOOD_WIZARD_RESOLUTION_GOOD && run.illActs <= GOOD_WIZARD_ILL_CAP) {
+      everClearedRes = true;
+    }
     peakPactDebt = Math.max(peakPactDebt, run.pactDebt);
     if (run.pactDebt > 0) erasCarryingDebt++;
     for (const [id, v] of Object.entries(run.factionStanding) as [FactionId, number][]) {
@@ -1110,6 +1163,8 @@ function playRun(
       .map((e) => e.offerId),
     finalGoodActs: run.goodActs,
     finalIllActs: run.illActs,
+    everClearedRep,
+    everClearedRes,
     minStanding,
     peakStanding,
     lairsHeld: lairIds.size,
@@ -1998,12 +2053,15 @@ function main(): void {
     `${pad('  ', 20)}${padLeft('cohort', 8)}${padLeft('good', 7)}${padLeft('ill', 6)}${padLeft(`>=rep(${GOOD_WIZARD_REPUTATION_GOOD})`, 12)}${padLeft(`>=res(${GOOD_WIZARD_RESOLUTION_GOOD})`, 12)}${padLeft('resolution', 12)}${padLeft('ending', 9)}${padLeft('pop', 8)}`,
   );
   {
-    const clearedRep = saint.filter(
-      (r) => r.finalGoodActs >= GOOD_WIZARD_REPUTATION_GOOD && r.finalIllActs <= GOOD_WIZARD_ILL_CAP,
-    ).length;
-    const clearedRes = saint.filter(
-      (r) => r.finalGoodActs >= GOOD_WIZARD_RESOLUTION_GOOD && r.finalIllActs <= GOOD_WIZARD_ILL_CAP,
-    ).length;
+    // `everClearedRep`/`everClearedRes`, not a `finalGoodActs`/`finalIllActs`
+    // snapshot: issue #43 stopped the vow from being revoked when a LATER
+    // illAct pushes past the cap, so a run can clear the gate, vow, and only
+    // afterward push `finalIllActs` over it — that run still reaches
+    // good_wizard/arch_lich and must still count here as having cleared the
+    // gate, or this chain (gate -> card seen/taken -> ending) stops agreeing
+    // with itself. Flagged by PR review on the #43 commit.
+    const clearedRep = saint.filter((r) => r.everClearedRep).length;
+    const clearedRes = saint.filter((r) => r.everClearedRes).length;
     const resolutionSeen = saint.filter((r) =>
       r.virtueSeen.some((id) => id.startsWith('virtue_resolution_')),
     ).length;

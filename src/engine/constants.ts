@@ -117,8 +117,30 @@ export const HERO_BAND_DANGER = 0.85;
  * the lair ladder are the things you *build*, and they should be what carries
  * a famous wizard through the decline. Notoriety contributes a little (fear
  * deters) but nowhere near enough to pay for the threat it generates.
+ *
+ * MOVED 42 -> 48 (issue #42): `slain_by_chosen_one` had drifted to 51.40% on
+ * `main`, over its own 45% ceiling, most plausibly because the faction
+ * reprisal/crown endings, `good_wizard` and `arch_lich` were all layered on
+ * after this floor was last tuned, diluting the population without any
+ * matching retune of the base hero-vs-defense math. MEASURED (seeds 1-5,
+ * 2000 runs each, on top of #41's offer gating and #43's vow fix, both
+ * landed first): `slain_by_chosen_one` went from failing every seed
+ * (41.65-51.00% before this change, several seeds over 45%) to passing all
+ * five (37.30-44.50%). Ascension stayed inside 1-4% at every seed (1.05-
+ * 1.20%); tried 54 first, which pushed Ascension under its floor on two of
+ * five seeds (0.45%, 0.95%) by making the game too survivable, so 48 is the
+ * larger of the two values that holds both bands rather than a value found by
+ * search. `lichdom`'s own reachability, tracked by the same issue, improved
+ * on average (this floor also guards pre-rite lich-seekers against the same
+ * hero-threat drift) but stayed inside its 2-15% band on only 2 of 5 seeds —
+ * see that check's own comment in `scripts/simulate.ts` for why it is read
+ * off a noisy 200-run cohort and documented as noisier than its band alone
+ * would suggest. Tried raising `DEF_LICH` instead/in addition (80 and 100):
+ * both moved `lichdom` no more predictably than seed noise already does, and
+ * both destabilized Ascension the same way 54 did here — a sign the failures
+ * share a root cause (this floor) rather than needing two separate levers.
  */
-export const DEF_FLOOR = 42;
+export const DEF_FLOOR = 48;
 export const DEF_NOTORIETY = 0.3;
 export const DEF_LAIR = 8;
 
@@ -347,13 +369,19 @@ export const LOYALTY_DRIFT_MIN_APPRENTICES = 2;
  * `endings.ts` maps each faction to what it does about you.
  *
  * The names are historical: this was `sealed_in_gem`'s trigger and nothing
- * else's, so the constants are still called SEAL_*. `SEAL_FACTION` is no
- * longer "the faction that can end a run" — all six can. It is now the one
- * faction whose reprisal is live in EVERY phase, which is what keeps the
- * Academy's rate where it was measured while the five added beside it stay
- * decline-only (`reprisalLiveFor`).
+ * else's, so the constants are still called SEAL_*. The condition is now
+ * uniform across all six factions and all phases — the five reprisals added
+ * beside the Academy's used to be gated `decline-only` (`erasSinceProphecy >
+ * 0`), on the reasoning that an ascent-phase dip under the line would end a
+ * career before the prophecy the whole arc is built around. That reasoning
+ * does not hold up against the Academy's own case, which has fired in every
+ * phase since it was the only reprisal in the game: the Academy is not a
+ * special case that happened to survive, it is the ORIGINAL rule, and the
+ * other five were the ones instrumented with an exception nothing about the
+ * mechanic actually justifies. Making every faction the same as the Academy
+ * always was is the uniform reading; see `wiki/01_core_loop.md` § 7 for the
+ * balance note this reopens.
  */
-export const SEAL_FACTION = 'pale_academy' as const;
 export const SEAL_MAX_STANDING = -55;
 export const SEAL_MIN_NOTORIETY = 55;
 
@@ -482,6 +510,8 @@ export const GOOD_WIZARD_ILL_CAP = 1;
 
 export const COLLECTION_KEY = 'evil-wizard-sim:collection';
 export const RUN_KEY = 'evil-wizard-sim:run';
+/** The last build version acknowledged through the changelog popup (issue #67). */
+export const CHANGELOG_ACK_KEY = 'evil-wizard-sim:changelog-ack';
 /** Bump when `Collection`'s shape changes, and extend `migrateCollection`. */
 export const COLLECTION_VERSION = 5;
 /**

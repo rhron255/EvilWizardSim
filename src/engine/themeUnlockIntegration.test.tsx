@@ -11,6 +11,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import type { ContentBundle } from './index';
+import { isOptionPickable } from './index';
 import { COLLECTION_KEY } from './constants';
 import { useGame } from './useGame';
 import { fixtureContent } from './__fixtures__/content';
@@ -20,7 +21,16 @@ const content: ContentBundle = fixtureContent;
 beforeEach(() => localStorage.clear());
 afterEach(() => localStorage.clear());
 
-/** Play until the run ends, always taking the first option. */
+/**
+ * Play until the run ends, preferring the first option.
+ *
+ * `resolveChoice` refuses an unpickable index inertly (issue #41 follow-up),
+ * same as it already does for a finished run — so blindly choosing index 0
+ * regardless of state could resolve nothing and spin in place. Every real
+ * caller already has to check pickability before choosing; this helper does
+ * the same, falling back to the first pickable certain option `nextOffer`
+ * already guarantees exists.
+ */
 function playToEnding(game: { current: ReturnType<typeof useGame> }) {
   for (let i = 0; i < 200; i++) {
     const g = game.current;
@@ -37,8 +47,17 @@ function playToEnding(game: { current: ReturnType<typeof useGame> }) {
       act(() => g.acknowledgeProphecy());
       continue;
     }
-    if (g.offer) {
-      act(() => g.choose(0));
+    if (g.offer && g.run) {
+      const offer = g.offer;
+      const run = g.run;
+      const preferred = offer.options[0];
+      const index =
+        preferred && isOptionPickable(run, preferred, content)
+          ? 0
+          : offer.options.findIndex(
+              (o) => o.kind === 'certain' && isOptionPickable(run, o, content),
+            );
+      act(() => g.choose(index));
       continue;
     }
     break;

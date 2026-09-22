@@ -64,8 +64,28 @@ export function isNegative(e: Effect): boolean {
        numbers. */
     case 'becomeLich':
       return true;
-    default:
+    case 'artifact':
+    case 'artifactFrom':
+    case 'vowGoodWizard':
       return false;
+    /**
+     * Dead code by construction — see the matching case in `formatEffect`
+     * below for why `goodAct`/`illAct` never reach a renderer (issue #23's
+     * rule-1 exception). Neither moves a disclosed number either way.
+     */
+    case 'goodAct':
+    case 'illAct':
+      return false;
+    case 'ending':
+      return false;
+    default: {
+      // If this line stops compiling, a member was added to `Effect` and it
+      // was never taught to this switch — it would otherwise silently render
+      // in the "not negative" color. Mirrors the guard in run/effectText.ts's
+      // describeEffect.
+      const exhaustive: never = e;
+      return Boolean(exhaustive);
+    }
   }
 }
 

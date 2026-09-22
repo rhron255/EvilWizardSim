@@ -19,7 +19,7 @@ export {
   buildOfferPool,
   standingWeight,
   pactWeight,
-  hasCertainOption,
+  isOptionPickable,
   QUIET_ERA_OFFER,
 } from './offers';
 export {
@@ -38,17 +38,15 @@ export { projectedEpithet } from './epithets';
 export {
   checkEndings,
   ascensionReady,
-  legendariesHeld,
   FACTION_ORDER,
   REPRISAL_BY_FACTION,
   nearestReprisalFaction,
   reprisalEnding,
-  reprisalLiveFor,
   LEADERSHIP_BY_FACTION,
   patronFaction,
   leadershipEnding,
 } from './endings';
-export { conditionMet, conditionsMet } from './conditions';
+export { conditionMet, conditionsMet, impliedGatesOf } from './conditions';
 export { projectEffects } from './effects';
 
 export {
@@ -60,7 +58,15 @@ export {
   saveInProgressRun,
   loadInProgressRun,
   clearInProgressRun,
+  loadChangelogAck,
+  saveChangelogAck,
 } from './persistence';
+
+export {
+  sortedChangelogVersions,
+  changelogHasVersion,
+  pendingChangelogEntries,
+} from './changelog';
 
 export { RUN_LENGTHS, DEFAULT_ERA_COUNT, YEARS_PER_ERA, START_AGE } from './constants';
 
@@ -85,7 +91,6 @@ export {
   BETRAYAL_MIN_APPRENTICES,
   SEAL_MAX_STANDING,
   SEAL_MIN_NOTORIETY,
-  SEAL_FACTION,
   ARTIFACT_LOCKOUT_STANDING,
   DEVOTION_STANDING,
   PATRON_MARGIN,

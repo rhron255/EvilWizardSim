@@ -20,6 +20,15 @@ export type OptionCardProps = {
   artifacts: Artifact[];
   factions: Faction[];
   disabled?: boolean;
+  /**
+   * Set only when `disabled` is true BECAUSE the option is currently
+   * unaffordable (per `impliedGatesOf`/`isOptionPickable` in the engine) —
+   * never merely because a resolution overlay is up. Its presence, not
+   * `disabled` alone, decides whether the card renders the short
+   * reason-line variant in place of its `EffectList`/odds rail, and states
+   * the reason in the `aria-label` (mirrors `ThemeSwatch`'s locked swatch).
+   */
+  reason?: string;
   onChoose(index: number): void;
 };
 
@@ -29,6 +38,7 @@ export function OptionCard({
   artifacts,
   factions,
   disabled = false,
+  reason,
   onChoose,
 }: OptionCardProps) {
   const isGamble = option.kind === 'gamble';
@@ -39,7 +49,9 @@ export function OptionCard({
       type="button"
       className={styles.card}
       data-kind={option.kind}
+      data-unaffordable={reason ? 'true' : undefined}
       disabled={disabled}
+      aria-label={reason ? `${option.label} — unaffordable: ${reason}` : undefined}
       onClick={() => onChoose(index)}
       data-option-index={index}
     >
@@ -50,7 +62,9 @@ export function OptionCard({
       <span className={styles.body}>
         <span className={styles.label}>{option.label}</span>
 
-        {option.kind === 'certain' ? (
+        {reason ? (
+          <span className={styles.reason}>{reason}</span>
+        ) : option.kind === 'certain' ? (
           <span className={styles.certain}>
             <EffectList effects={option.effects} artifacts={artifacts} factions={factions} />
           </span>

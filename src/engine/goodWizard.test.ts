@@ -100,21 +100,22 @@ describe('the rule-1 exception: nothing but good_wizard reads the counters', () 
   });
 
   /**
-   * Codex's follow-up finding: the vow is "held to the end" (per `virtue_
-   * resolution_the_quiet_ledger`'s own resultText), not a one-time gate
-   * check spent at the moment it was taken. That offer's own `requires`
-   * caps illActs at `GOOD_WIZARD_ILL_CAP`, but nothing enforced the cap
-   * AFTER the vow — a wizard who vowed at illActs 0 or 1 and then picked an
-   * illAct-tagged option elsewhere in the pool (the ungated `virtue_
-   * obscure_*` offers every run sees, saint or not) kept `good_wizard`/
-   * `arch_lich` regardless of how many more harmful choices followed.
+   * Issue #43: a prior fix (Codex's) revoked the vow whenever a later
+   * illAct pushed `illActs` past `GOOD_WIZARD_ILL_CAP`, silently — the vow's
+   * own resultText calls it "held to the end," `vowGoodWizard`'s doc comment
+   * in `types.ts` calls it "fully disclosed... knowingly committing," and
+   * CLAUDE.md's rule-1 exception permits this route to only ever ADD an
+   * ending, never close a door. Revoking an already-disclosed commitment
+   * closes exactly that door, so the fix is to stop revoking: the cap still
+   * governs whether the vow can be TAKEN (`virtue_resolution_the_quiet_
+   * ledger`'s own `requires` enforces that), it just no longer un-takes it.
    */
-  it('revokes the vow once a subsequent illAct exceeds the cap', () => {
+  it('keeps the vow even once a later illAct pushes illActs past the cap', () => {
     const run = start({ goodWizardVowed: true, illActs: 1 });
     const draft = draftOf(run);
     applyEffects(draft, [{ t: 'illAct', v: 1 }], () => 0.5, content);
     expect(draft.illActs).toBe(2);
-    expect(draft.goodWizardVowed).toBe(false);
+    expect(draft.goodWizardVowed).toBe(true);
   });
 
   it('leaves the vow intact while a later illAct still keeps illActs within the cap', () => {
@@ -125,7 +126,7 @@ describe('the rule-1 exception: nothing but good_wizard reads the counters', () 
     expect(draft.goodWizardVowed).toBe(true);
   });
 
-  it('a revoked vow loses arch_lich at the age limit too, falling back to lichdom', () => {
+  it('a vowed lich still reaches arch_lich at the age limit even after illActs exceeds the cap', () => {
     const run = start({
       phase: 'decline',
       eraIndex: 16,
@@ -136,8 +137,8 @@ describe('the rule-1 exception: nothing but good_wizard reads the counters', () 
     });
     const draft = draftOf(run);
     applyEffects(draft, [{ t: 'illAct', v: 1 }], () => 0.5, content);
-    expect(draft.goodWizardVowed).toBe(false);
-    expect(checkEndings(draft, content)).toBe('lichdom');
+    expect(draft.goodWizardVowed).toBe(true);
+    expect(checkEndings(draft, content)).toBe('arch_lich');
   });
 
   it('does not touch goodWizardVowed when it was never true', () => {

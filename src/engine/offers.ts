@@ -18,10 +18,10 @@
  * least-recently-seen-first before the fallback ever fires.
  */
 
-import type { Offer, RunState } from '../types';
+import type { Offer, OfferOption, RunState } from '../types';
 import type { ContentBundle } from './content-port';
 import { indexOf } from './content-port';
-import { conditionsMet } from './conditions';
+import { conditionMet, conditionsMet, impliedGatesOf } from './conditions';
 import {
   FACTION_OFFER_GAP,
   PACT_RELIEF_COEF,
@@ -68,6 +68,61 @@ export function hasCertainOption(offer: Offer): boolean {
 /** Offers with no options at all are unplayable; treat them as absent. */
 function isStructurallyPlayable(offer: Offer): boolean {
   return offer.options.length >= 2 && offer.options.length <= 4 && hasCertainOption(offer);
+}
+
+/**
+ * Whether ONE option can actually be chosen right now — every condition
+ * `impliedGatesOf` derives from the option's own effects (CLAUDE.md failure
+ * mode 14) evaluated through the same `conditionMet` every `requires` gate
+ * already uses. No second cost walker: the derivation lives in
+ * `conditions.ts`, this just asks it.
+ */
+export function isOptionPickable(run: RunState, option: OfferOption, content: ContentBundle): boolean {
+  return impliedGatesOf(option).every((c) => conditionMet(run, c, content));
+}
+
+/**
+ * The run-aware companion to `isStructurallyPlayable`. Folded into
+ * `buildOfferPool`'s eligibility filter (step 1) rather than applied after,
+ * so the existing degradation cascade (faction force → recycle → the
+ * `QUIET_ERA_OFFER` fallback, all below) inherits this for free — see that
+ * function's own comments for why an empty `eligible` was already a solved
+ * problem before affordability existed. `QUIET_ERA_OFFER`'s two options cost
+ * nothing, so it is provably always pickable and the cascade still
+ * terminates: a run too broke for anything else gets an honest quiet era
+ * instead of a stuck pool.
+ *
+ * Requires EVERY option to be pickable, not merely one — narrower than it
+ * first looks, and narrower than an earlier version of this function, which
+ * only asked for one pickable CERTAIN option and let the rest sit greyed in
+ * the UI. That version measurably regressed the game: `buildOfferPool`'s
+ * step 2 marks an offer `seenOfferIds` the instant it is DRAWN, whether or
+ * not its interesting option was affordable, so a card shown before the
+ * player could pay for the good option got declined (the only pickable
+ * path) and was then gone for the rest of the run — not just for the six
+ * concordats issue #41 named, but for every option anywhere in the 150+
+ * offer catalog with a cost paired with a benefit, at a scale that moved
+ * population-wide numbers. MEASURED across seeds 1-5: Ascension fell to
+ * 0.55-0.85% (below its 1-4% floor, worse than doing nothing), and full
+ * completion rose to 1096-1205 median runs — worse on both counts than the
+ * blunt whole-offer `requires` gate this redesign set out to replace.
+ *
+ * So the offer stays out of the pool until every option is affordable,
+ * which is close in EFFECT to that original blunt gate for the offers it
+ * targeted — the real win kept from the redesign is that the gate is
+ * DERIVED from each option's own effects rather than a second, hand-authored
+ * copy of the same fact (CLAUDE.md failure modes 3/4), so it cannot drift,
+ * and `validate-content.ts`'s `hasStockFreeOption` rule now catches this
+ * shape catalog-wide instead of only where someone remembered to gate it.
+ * A genuinely better fix exists — not marking `seenOfferIds` at all when
+ * the only reason the interesting option went untaken was unaffordability,
+ * so the SAME card can be revisited once the player can pay rather than
+ * being gated pre-emptively — but it touches `resolveChoice`'s era-append
+ * path and needs its own measurement pass; left as a follow-up rather than
+ * shipped unverified.
+ */
+function everyOptionPickable(run: RunState, offer: Offer, content: ContentBundle): boolean {
+  return offer.options.every((option) => isOptionPickable(run, option, content));
 }
 
 /**
@@ -178,7 +233,8 @@ export function buildOfferPool(
       !ENGINE_PLACED_OFFER_IDS.has(offer.id) &&
       isStructurallyPlayable(offer) &&
       (offer.phase === 'any' || offer.phase === run.phase) &&
-      conditionsMet(run, offer.requires, content),
+      conditionsMet(run, offer.requires, content) &&
+      everyOptionPickable(run, offer, content),
   );
   debug.eligible = eligible.length;
 

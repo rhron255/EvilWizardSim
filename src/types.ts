@@ -515,4 +515,44 @@ export type Screen =
   | 'prophecy'
   | 'ending'
   | 'collection'
-  | 'themes';
+  | 'themes'
+  | 'changelog';
+
+// ---------------------------------------------------------------------------
+// Changelog (issue #67)
+// ---------------------------------------------------------------------------
+
+/**
+ * One shipped update, keyed by its build version in `src/content/changelog.ts`.
+ *
+ * `summary` is the single line the launch popup shows for this version;
+ * `details` is the fuller list the Changelog screen prints. Both are static,
+ * authored prose — there is no server, so nothing here is ever fetched.
+ */
+export type ChangelogEntry = {
+  summary: string;
+  details: string[];
+};
+
+/**
+ * Keyed by build version, a full ISO 8601 UTC timestamp
+ * ("YYYY-MM-DDTHH:mm:ssZ") rather than a bare date — this project can ship
+ * more than one public build in a day, and a date-only key collides the
+ * moment that happens (two entries silently fighting over one object key).
+ * Versions sort newest-first as PLAIN STRINGS because every field in the
+ * format is fixed-width and zero-padded, which `sortedChangelogVersions`
+ * relies on — do not change the format without checking it. The time
+ * component exists to keep keys unique, not to be read by a player; the UI
+ * shows only the date part, via `formatChangelogVersion` in
+ * `src/engine/changelog.ts`.
+ */
+export type Changelog = Record<string, ChangelogEntry>;
+
+/**
+ * One version's entry, paired with the key it was filed under — the shape
+ * `pendingChangelogEntries` (`src/engine/changelog.ts`) returns. Lives on the
+ * contract rather than in either the data file or the logic file so
+ * `ChangelogPopup` (presentational, imports neither `src/content/` nor
+ * `src/engine/`) can still name the shape it renders.
+ */
+export type PendingChangelogEntry = { version: string; entry: ChangelogEntry };

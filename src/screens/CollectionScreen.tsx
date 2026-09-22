@@ -10,7 +10,8 @@
  *      faction knowledge into routing decisions. So faction is the primary
  *      organising axis, not rarity.
  *
- * The endings get the same treatment: seven slots, three of them probably blank.
+ * The endings get the same treatment: nineteen slots, most of them probably
+ * blank.
  */
 
 import { useMemo, useState } from 'react';
@@ -27,9 +28,14 @@ import {
 import styles from './CollectionScreen.module.css';
 
 /**
- * Spells out small counts for prose ("Seven ways…"). The catalog is on its
- * way to eighteen endings (issue #14), so this covers up to twenty rather
- * than hardcoding the seven it happens to be today.
+ * Spells out small counts for prose ("Nineteen ways…"). The catalog has
+ * already grown past the seven this array was first written for. `lichdom`
+ * and `sealed_in_gem` were already among that original seven — as the Worm
+ * Below's leadership ending and the Pale Academy's reprisal, respectively —
+ * so issue #14 added five MORE faction reprisals and five more faction
+ * leaderships on top of those two, plus the Good Wizard route's two
+ * (`good_wizard`, `arch_lich`): 7 + 5 + 5 + 2 = nineteen endings today. This
+ * covers up to twenty rather than hardcoding a count that keeps moving.
  */
 const COUNT_WORDS = [
   'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',

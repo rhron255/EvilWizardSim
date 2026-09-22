@@ -20,6 +20,7 @@ import type {
   Offer,
   RunState,
 } from '../../../types';
+import type { ContentBundle } from '../../../engine';
 import type { Resolution } from '../resolution';
 
 // ---------------------------------------------------------------------------
@@ -534,6 +535,55 @@ export const demoOfferB: Offer = {
       ],
     },
   ],
+};
+
+/**
+ * The issue #41 shape, in miniature: a `certain` option that spends stock
+ * (30 Followers) to fund a FIXED benefit (a named artifact grant, not a
+ * random draw). Exists so the per-option pickability tests have a real
+ * unaffordable option to exercise, without touching `demoOffer`/`demoOfferB`
+ * — both used elsewhere (the visual harness, screenshots) where changing
+ * their semantics would be an unrelated regression.
+ */
+export const demoOfferGated: Offer = {
+  id: 'gated_reliquary',
+  title: 'The Reliquary Keeper Names a Price',
+  body: 'Everything has a price here. Some of the prices are followers.',
+  phase: 'any',
+  factionId: 'gilded_hand',
+  options: [
+    {
+      kind: 'certain',
+      label: 'Buy the Bone Crown outright',
+      effects: [
+        { t: 'followers', v: -30 },
+        { t: 'artifact', artifactId: 'bone_crown' },
+      ],
+      resultText: 'Thirty followers walk out. The crown stays.',
+    },
+    {
+      kind: 'certain',
+      label: 'Admire it and leave',
+      effects: [{ t: 'notoriety', v: 2 }],
+      resultText: 'You admire it. It is put away.',
+    },
+  ],
+};
+
+/**
+ * The `ContentBundle` half of these fixtures. Only `OfferPanel`/`OptionCard`
+ * need it (to evaluate per-option pickability), so it stays deliberately
+ * small rather than a full catalog — `origins`/`endings`/`epithets` are
+ * untouched by that evaluation and stay empty.
+ */
+export const demoContent: ContentBundle = {
+  factions: demoFactions,
+  artifacts: demoArtifacts,
+  lairs: demoLairs,
+  origins: [],
+  endings: [],
+  offers: [demoOffer, demoOfferB, demoOfferGated],
+  epithets: [],
 };
 
 // ---------------------------------------------------------------------------

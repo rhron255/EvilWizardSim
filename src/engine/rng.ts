@@ -61,12 +61,6 @@ export function hashString(s: string): number {
   return deriveSeed(0, s);
 }
 
-/** Integer in [min, max] inclusive. */
-export function randInt(rng: Rng, min: number, max: number): number {
-  if (max <= min) return min;
-  return min + Math.floor(rng() * (max - min + 1));
-}
-
 /** Uniform pick. Returns undefined only for an empty list. */
 export function pick<T>(rng: Rng, items: readonly T[]): T | undefined {
   if (items.length === 0) return undefined;
@@ -99,16 +93,6 @@ export function weightedPick<T>(
     if (roll < 0) return items[i];
   }
   return items[items.length - 1];
-}
-
-/** Fisher-Yates on a copy. */
-export function shuffle<T>(rng: Rng, items: readonly T[]): T[] {
-  const out = items.slice();
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
 }
 
 /**

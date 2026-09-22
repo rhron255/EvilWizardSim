@@ -221,7 +221,7 @@ describe('ResolutionOverlay · dismissing exactly once', () => {
   });
 
   it('still dismisses when the scrim itself is clicked', async () => {
-    // The stopPropagation must not cost the dismiss-anywhere affordance.
+    // The stopPropagation must not cost the scrim's dismiss affordance.
     const user = userEvent.setup();
     const onContinue = vi.fn();
     render(
@@ -235,5 +235,32 @@ describe('ResolutionOverlay · dismissing exactly once', () => {
 
     await user.click(screen.getByRole('dialog'));
     expect(onContinue).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Regression for issue #47. The ledger's removal (#36) left this overlay as
+   * the only place an era's systemic ticks are ever shown, and a tap anywhere
+   * on the card — including mid-read of "While you were elsewhere" — used to
+   * bubble to the scrim and dismiss it, with nothing recovering the tick
+   * afterward.
+   */
+  it('does not dismiss on a tap inside the card body', async () => {
+    const user = userEvent.setup();
+    const onContinue = vi.fn();
+    render(
+      <ResolutionOverlay
+        resolution={{
+          ...demoResolutionSuccess,
+          systemic: [{ t: 'loyaltyDrift', v: -5, loyalty: 22 }],
+        }}
+        artifacts={artifacts}
+        factions={factions}
+        onContinue={onContinue}
+      />,
+    );
+
+    await user.click(screen.getByText(demoResolutionSuccess.text));
+    await user.click(screen.getByText('While you were elsewhere'));
+    expect(onContinue).not.toHaveBeenCalled();
   });
 });

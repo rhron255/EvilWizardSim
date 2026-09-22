@@ -6,6 +6,9 @@ dist-ssr
 .vite
 coverage
 qa/screenshots
+qa/diag-*.txt
+qa/*.stderr
+qa/slice*.json
 *.tsbuildinfo
 .tmp/
 .tmp-*

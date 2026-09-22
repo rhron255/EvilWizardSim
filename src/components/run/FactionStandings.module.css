@@ -125,18 +125,6 @@
 .allegiance[data-tone='lethal'] .allegianceValue { color: var(--ew-danger); }
 .allegiance[data-tone='lethal'] .allegianceFill { background: var(--ew-danger); }
 
-.reprisal {
-  margin: 0;
-  font-size: var(--ew-size-sm);
-  line-height: 1.4;
-  color: var(--ew-ink-faint);
-  text-wrap: pretty;
-}
-
-.reprisal[data-armed='true'] {
-  color: var(--ew-danger);
-}
-
 /* --------------------------------------------------------------------------
    The collapse toggle. Text-first (the arrow alone would fail a phone, which
    has no hover to fall back on for an icon-only control) — the label says

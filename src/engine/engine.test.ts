@@ -31,6 +31,7 @@ import {
   PACT_LIMIT,
   PACT_RELIEF_MAX,
   PACT_TEMPT_MAX,
+  isOptionPickable,
   QUIET_ERA_OFFER,
   REPRISAL_BY_FACTION,
   resolveChoice,
@@ -44,7 +45,7 @@ import { applyStanding } from './effects';
 import { indexOf } from './content-port';
 import { fixtureContent } from './__fixtures__/content';
 import * as C from '../content';
-import type { Collection, Effect, FactionId, RunState } from '../types';
+import type { Collection, Effect, FactionId, Offer, RunState } from '../types';
 
 const real: ContentBundle = {
   factions: C.factions,
@@ -62,13 +63,34 @@ const start = (over: Partial<Parameters<typeof createRun>[0]> = {}, content = fi
     content,
   );
 
-/** Play a whole run with a fixed option index, returning every state visited. */
+/**
+ * Prefer option `pick`, falling back to the first pickable certain option.
+ *
+ * `resolveChoice` is now authoritative over affordability (issue #41
+ * follow-up): an index whose option is not currently pickable resolves
+ * inertly — same as the finished-run guard — rather than throwing or
+ * substituting a different choice. A test loop that keeps sending the same
+ * unpickable index therefore never advances, which is correct engine
+ * behaviour but would make a blind "always pick N" helper spin forever once
+ * the real catalog has any offer where option `pick` can be unaffordable.
+ * Every real caller (the UI, the sim bots) already has to check pickability
+ * before choosing; this does the same, falling back to the first pickable
+ * certain option `buildOfferPool` already guarantees exists.
+ */
+function pickableIndex(run: RunState, offer: Offer, pick: number, content: ContentBundle): number {
+  const preferred = offer.options[pick];
+  if (preferred && isOptionPickable(run, preferred, content)) return pick;
+  return offer.options.findIndex((o) => o.kind === 'certain' && isOptionPickable(run, o, content));
+}
+
+/** Play a whole run, preferring a fixed option index, returning every state visited. */
 function playOut(seed: number, pick: number, content: ContentBundle): RunState[] {
   let run = start({ seed }, content);
   const seen = [run];
   for (let i = 0; i < 60 && !run.ending; i++) {
     const offer = nextOffer(run, content);
-    run = resolveChoice(run, offer, pick, content).next;
+    const index = pickableIndex(run, offer, pick, content);
+    run = resolveChoice(run, offer, index, content).next;
     seen.push(run);
   }
   return seen;
@@ -130,7 +152,11 @@ describe('the odds rules', () => {
           offer.options.some((o) => o.kind === 'certain'),
           `offer "${offer.id}" (seed ${seed}) forced a gamble`,
         ).toBe(true);
-        run = resolveChoice(run, offer, 0, real).next;
+        // pickableIndex, not a blind 0: an unpickable index resolves inertly
+        // (issue #41 follow-up) and would replay the SAME offer for the rest
+        // of this seed's budget, silently testing far less breadth than the
+        // loop bound suggests rather than failing outright.
+        run = resolveChoice(run, offer, pickableIndex(run, offer, 0, real), real).next;
       }
     }
   });
@@ -258,6 +284,18 @@ describe('faction standing', () => {
     applyStanding(run, 'ashen_covenant', 25, indexOf(real), []);
     expect(run.factionStanding.ashen_covenant).toBe(100);
     expect(run.factionStanding.pale_academy).toBe(before);
+  });
+
+  it('spills an equal-magnitude gain and loss by an equal magnitude', () => {
+    // Regression for issue #45: applying the sign before rounding put the
+    // rounding bias only on one side of zero. A +2 (at CONTAGION_GAIN=0.5)
+    // and a -2 (at CONTAGION_LOSS=0.25) both land exactly on a .5 tie, so
+    // the old code rounded the enemy penalty up to -1 but the ally benefit
+    // down to 0. Both must now round to the same magnitude, 1.
+    const gain = deltas('ashen_covenant', 2);
+    const loss = deltas('ashen_covenant', -2);
+    expect(gain.pale_academy).toBe(-1);
+    expect(loss.pale_academy).toBe(1);
   });
 });
 
@@ -453,11 +491,6 @@ describe('faction reprisals', () => {
   ): RunState => ({
     ...start(),
     phase: 'decline',
-    // One era clear of the prophecy transition, not merely `phase: 'decline'`
-    // — `reprisalLiveFor` now keys on this, not on `phase` alone, and a
-    // fixture that left it at `start()`'s default 0 would make every "fires"
-    // test below false-negative the moment that fix landed instead of
-    // exercising it.
     erasSinceProphecy: 1,
     notoriety: SEAL_MIN_NOTORIETY,
     eraIndex: 8,
@@ -542,36 +575,31 @@ describe('faction reprisals', () => {
     expect(checkEndings(run, fixtureContent)).toBeUndefined();
   });
 
-  it('keeps the five new ones out of the ascent, and the Academy in it', () => {
-    const ascent = { phase: 'ascent' as const };
+  /**
+   * Uniform now: all six reprisals fire in every phase, exactly as the
+   * Academy's always did. A previous version gated the other five to
+   * decline-only, on the theory that an ascent-phase dip should not end a
+   * career before the prophecy — but that theory was never applied to the
+   * Academy itself, so it was a special case rather than a rule the Academy
+   * was exempt from. See `wiki/01_core_loop.md` § 7 and the comment on
+   * `nearestReprisalFaction` in `src/engine/endings.ts`.
+   */
+  it('fires in the ascent too, exactly like the Academy always could', () => {
+    const ascent = { phase: 'ascent' as const, erasSinceProphecy: 0 };
     expect(
-      checkEndings(at({ verdant_choir: SEAL_MAX_STANDING - 30 }, ascent), fixtureContent),
-    ).toBeUndefined();
+      checkEndings(at({ verdant_choir: SEAL_MAX_STANDING - 30 }, ascent), withReprisals),
+    ).toBe('turned_to_fertilizer');
     expect(checkEndings(at({ pale_academy: SEAL_MAX_STANDING }, ascent), fixtureContent)).toBe(
       'sealed_in_gem',
     );
   });
 
-  /**
-   * The bug underneath issue #25's review: `phase` flips to `'decline'` the
-   * instant `resolveChoice` advances `eraIndex` to `prophecyEra`, and
-   * `checkEndings` runs on that SAME transition — before the player has ever
-   * been shown the pinned prophecy card for that era. A reprisal gated on
-   * `phase` alone could fire right there, ending the run before the central
-   * beat the whole arc is built around ever appears. `erasSinceProphecy`
-   * stays 0 on exactly that transition (it becomes 1 only once the prophecy
-   * era's own card has been resolved), which is what `reprisalLiveFor` must
-   * key on instead.
-   */
-  it('does not fire on the era that crosses into decline, before the prophecy card is shown', () => {
+  it('fires on the era that crosses into decline, before the prophecy card is shown', () => {
     const crossing = at(
       { crownlands: SEAL_MAX_STANDING },
       { erasSinceProphecy: 0 },
     );
-    expect(checkEndings(crossing, withReprisals)).toBeUndefined();
-    // The very next era, the same standing fires as normal.
-    const oneEraLater = at({ crownlands: SEAL_MAX_STANDING }, { erasSinceProphecy: 1 });
-    expect(checkEndings(oneEraLater, withReprisals)).toBe(REPRISAL_BY_FACTION.crownlands);
+    expect(checkEndings(crossing, withReprisals)).toBe(REPRISAL_BY_FACTION.crownlands);
   });
 
   it('does not outrank the blade', () => {
@@ -971,10 +999,96 @@ describe('offer sampling', () => {
     while (run.eraIndex < run.prophecyEra && !run.ending) {
       const offer = nextOffer(run, real);
       before.push(offer.id);
-      run = resolveChoice(run, offer, 0, real).next;
+      run = resolveChoice(run, offer, pickableIndex(run, offer, 0, real), real).next;
     }
     expect(before).not.toContain('prophecy');
     if (!run.ending) expect(nextOffer(run, real).id).toBe('prophecy');
+  });
+});
+
+describe('affordability (issue #41 follow-up)', () => {
+  // A minimal, synthetic catalog rather than the real one: these tests need
+  // to construct the EXACT boundary (an offer whose only certain option is
+  // currently unaffordable), which is fragile to chase through 150+ authored
+  // offers and would drift as content changes. Reuses fixtureContent's
+  // factions/artifacts/lairs (satisfies `indexOf`'s lookups) with a
+  // deliberately narrow `offers` list.
+  // The ONLY certain option costs stock; the second option is a gamble, which
+  // does not count toward `everyOptionPickable` — so this offer's pool
+  // eligibility depends entirely on whether the certain option is affordable.
+  const costlyOffer: Offer = {
+    id: 'test_costly',
+    title: 'T',
+    body: 'b',
+    phase: 'any',
+    options: [
+      {
+        kind: 'certain',
+        label: 'Spend followers for a relic',
+        effects: [
+          { t: 'followers', v: -30 },
+          { t: 'artifactFrom', factionId: 'ashen_covenant' },
+        ],
+      },
+      {
+        kind: 'gamble',
+        label: 'Risk it',
+        odds: 0.5,
+        onSuccess: [{ t: 'notoriety', v: 5 }],
+        onFailure: [{ t: 'notoriety', v: -5 }],
+        successText: 's',
+        failureText: 'f',
+      },
+    ],
+  };
+
+  const costlyOnlyContent: ContentBundle = { ...fixtureContent, offers: [costlyOffer] };
+
+  it('excludes an offer from the pool when its only certain option is currently unaffordable', () => {
+    const broke = start({ seed: 1 }, costlyOnlyContent);
+    expect(broke.followers).toBeLessThan(30);
+    const { pool } = buildOfferPool(broke, costlyOnlyContent);
+    expect(pool.map((o) => o.id)).not.toContain('test_costly');
+  });
+
+  it('falls back to the QUIET_ERA_OFFER, never an empty pool, when every offer is unaffordable', () => {
+    // The whole catalog is `costlyOffer` alone, and this run cannot afford
+    // it — `everyOptionPickable` folded into `eligible` (offers.ts)
+    // should compose with the existing degradation cascade (faction force →
+    // recycle → QUIET_ERA_OFFER) exactly the way it already does for an
+    // empty pool from phase/requires reasons, rather than needing a second
+    // fallback path.
+    const broke = start({ seed: 1 }, costlyOnlyContent);
+    const { pool, debug } = buildOfferPool(broke, costlyOnlyContent);
+    expect(debug.fallback).toBe(true);
+    expect(pool).toEqual([QUIET_ERA_OFFER]);
+  });
+
+  it('includes the SAME offer once the wizard can actually pay for its only certain option', () => {
+    const richRun = { ...start({ seed: 1 }, costlyOnlyContent), followers: 100 };
+    const { pool } = buildOfferPool(richRun, costlyOnlyContent);
+    expect(pool.map((o) => o.id)).toContain('test_costly');
+  });
+
+  it('resolveChoice refuses an unpickable option index — the run is returned unchanged', () => {
+    const broke = start({ seed: 1 }, costlyOnlyContent);
+    const { next, resolution } = resolveChoice(broke, costlyOffer, 0, costlyOnlyContent);
+    expect(next).toEqual(broke);
+    expect(resolution.appliedEffects).toEqual([]);
+    expect(next.followers).toBe(broke.followers);
+  });
+
+  it('MUTATION TEST: resolveChoice DOES apply the same unpickable choice once the guard is bypassed', () => {
+    // Anchors the test above to the guard actually doing something (CLAUDE.md
+    // failure mode 11) — not to `resolveChoice`'s own idea of what "inert"
+    // means. Calling with a run that CAN afford it proves the exact same
+    // option, absent the affordability problem, really does spend the
+    // followers and grant the relic — i.e. the guard above is what changed
+    // the outcome, not some unrelated reason the option never applies.
+    const rich = { ...start({ seed: 1 }, costlyOnlyContent), followers: 100 };
+    const { next } = resolveChoice(rich, costlyOffer, 0, costlyOnlyContent);
+    expect(next.followers).toBe(70);
+    expect(next.heldArtifactIds.length).toBe(rich.heldArtifactIds.length + 1);
   });
 });
 

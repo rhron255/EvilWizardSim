@@ -17,7 +17,6 @@ import {
   DEVOTION_STANDING,
   CONTAGION_GAIN,
   CONTAGION_LOSS,
-  GOOD_WIZARD_ILL_CAP,
   NOVELTY_BIAS,
   RARITY_DRAW_WEIGHT,
   STANDING_MAX,
@@ -193,24 +192,20 @@ export function applyEffects(
 
       case 'illAct': {
         draft.illActs = Math.max(0, draft.illActs + effect.v);
-        // The vow is a promise the career keeps to the end ("held to the
-        // end", per `virtue_resolution_the_quiet_ledger`'s own resultText),
-        // not a one-time gate check spent at the moment it was taken. That
-        // offer's own `requires` caps illActs at `GOOD_WIZARD_ILL_CAP`, but
-        // nothing enforced the cap AFTER the vow — a wizard who vowed at
-        // illActs 0 or 1 and then picked an illAct-tagged option elsewhere in
-        // the pool (`virtue_obscure_*` offers are ordinary-reading and
-        // ungated, so every run sees them, saint or not) kept `good_wizard`/
-        // `arch_lich` regardless of how many more harmful choices followed,
-        // contradicting the card's own gate and its own promise.
-        //
-        // Revoked here, silently — as silently as the counters that gate it.
-        // Rule 1's amendment permits this route to only ever ADD an ending;
-        // un-adding it the moment its OWN condition stops holding is the same
-        // door the counters already gate, not a new one.
-        if (draft.goodWizardVowed && draft.illActs > GOOD_WIZARD_ILL_CAP) {
-          draft.goodWizardVowed = false;
-        }
+        // The vow, once taken, is held to the end — literally, per
+        // `virtue_resolution_the_quiet_ledger`'s own resultText, and per
+        // `vowGoodWizard`'s doc comment in `types.ts`, which calls it "fully
+        // disclosed... the player is knowingly committing." `illActs` rising
+        // past `GOOD_WIZARD_ILL_CAP` after the vow used to silently flip
+        // `goodWizardVowed` back to false (issue #43) — a disclosed
+        // commitment revoked by an ordinary, unrelated later choice, with
+        // nothing on screen ever saying so. That is closing a door the vow
+        // was explicitly taken to keep open, which is the one thing rule 1's
+        // amendment says this route may never do (see the doc comment on
+        // `Effect`'s `goodAct`/`illAct` in `types.ts`). The cap still governs
+        // whether the vow can be TAKEN — `virtue_resolution_the_quiet_
+        // ledger`'s own `requires` enforces that — it just no longer un-takes
+        // it afterward.
         break;
       }
 
@@ -264,7 +259,7 @@ export function applyStanding(
   const rate = delta > 0 ? CONTAGION_GAIN : CONTAGION_LOSS;
   for (const enemyId of enemies) {
     if (enemyId === factionId) continue;
-    const spill = -Math.round(delta * rate);
+    const spill = -Math.sign(delta) * Math.round(Math.abs(delta) * rate);
     if (spill === 0) continue;
     const enemyBefore = draft.factionStanding[enemyId] ?? 0;
     const enemyAfter = clamp(enemyBefore + spill, STANDING_MIN, STANDING_MAX);

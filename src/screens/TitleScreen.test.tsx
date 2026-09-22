@@ -23,6 +23,7 @@ const show = (collection: Collection, hasResumableRun = false) => {
     onResume: vi.fn(),
     onViewCollection: vi.fn(),
     onViewThemes: vi.fn(),
+    onViewChangelog: vi.fn(),
   };
   render(
     <TitleScreen
@@ -94,5 +95,13 @@ describe('TitleScreen · the collection door', () => {
     const door = within(menu()).getByRole('button', { name: /collection/i });
     // Split across sibling spans, so match on the container's text.
     expect(door.textContent?.replace(/\s+/g, '')).toContain(`0/${artifacts.length}`);
+  });
+});
+
+describe('TitleScreen · the changelog door', () => {
+  it('is available regardless of the player having any career at all', async () => {
+    const { onViewChangelog } = show(demoEmptyCollection);
+    await userEvent.click(within(menu()).getByRole('button', { name: /changelog/i }));
+    expect(onViewChangelog).toHaveBeenCalledTimes(1);
   });
 });

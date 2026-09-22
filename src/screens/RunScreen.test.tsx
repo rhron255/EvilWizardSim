@@ -14,13 +14,16 @@
  */
 import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
-import { artifacts } from '../content/artifacts';
-import { factions } from '../content/factions';
-import { lairs } from '../content/lairs';
+import type { ContentBundle } from '../engine';
+import { artifacts, endings, epithets, factions, lairs, offers, origins } from '../content';
 import { demoRun, demoOffer } from '../components/run/__fixtures__/demo';
 import type { Resolution } from '../components/run/resolution';
 import type { RunState, ThemeId } from '../types';
 import { RunScreen } from './RunScreen';
+
+// Mirrors `App.tsx`'s own `CONTENT` — the real catalog, frozen once here
+// rather than rebuilt per test.
+const content: ContentBundle = { factions, artifacts, lairs, origins, endings, offers, epithets };
 
 const show = (
   run: RunState,
@@ -36,6 +39,7 @@ const show = (
       lairs={lairs}
       artifacts={artifacts}
       factions={factions}
+      content={content}
       onChoose={() => {}}
       onContinue={onContinue}
       defense={null}

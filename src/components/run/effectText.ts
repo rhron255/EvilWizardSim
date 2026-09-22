@@ -24,8 +24,9 @@
  * which makes the second one look like a different class of thing.
  */
 
-import { BETRAYAL_MAX_LOYALTY, DEF_LICH } from '../../engine';
-import type { Artifact, Effect, EndingId, Faction, FactionId } from '../../types';
+import { BETRAYAL_MAX_LOYALTY, DEF_LICH, indexOf } from '../../engine';
+import type { ContentBundle } from '../../engine';
+import type { Artifact, Condition, Effect, EndingId, Faction, FactionId, RunState } from '../../types';
 import type { SystemicChange } from './resolution';
 import { heroApproachLine } from '../../content/heroes';
 
@@ -342,4 +343,89 @@ export function systemicKey(change: SystemicChange, index: number): string {
 export function formatOdds(odds: number): string {
   const pct = Math.round(Math.max(0, Math.min(1, odds)) * 100);
   return `${Math.min(99, Math.max(1, pct))}%`;
+}
+
+// ---------------------------------------------------------------------------
+// Affordability gate reasons (issue #41 follow-up)
+// ---------------------------------------------------------------------------
+
+/**
+ * The one line a disabled `OptionCard` shows in place of its `EffectList`/odds
+ * rail, when the reason it is disabled is that the player cannot currently pay
+ * for it.
+ *
+ * `impliedGatesOf` (`src/engine/conditions.ts`) derives, from an option's own
+ * effects, the `Condition[]` a player must satisfy for a "spend stock for a
+ * fixed benefit" trade not to be shorted by the floor clamp CLAUDE.md's
+ * failure mode 14 describes. This is that condition, turned into prose — and
+ * it reuses `plural` and the Title-Cased stat vocabulary `describeEffect`
+ * above already owns, rather than re-declaring a second copy of it in a
+ * separate file (CLAUDE.md: "a shared field whose name permits two readings
+ * is a silent bug" — the same rule applies to a shared VOCABULARY).
+ *
+ * `impliedGatesOf` is documented to only ever emit four of `Condition`'s
+ * fourteen variants — `minFollowers`, `minApprentices`, `minLairTier`,
+ * `minArtifacts` — because those are the only ones tied to stock an option's
+ * effects can actually spend. Every other variant (standing, notoriety, pact
+ * debt, era index, the Good Wizard counters, and the artifact-IDENTITY gates
+ * `hasArtifact`/`holdsAnyArtifact`, which are offer-`requires` concerns, not
+ * per-option affordability ones) is routed through the `never`-guarded
+ * default below rather than quietly falling through a bare
+ * `default: return '…'`. That bare-default shape is exactly what issue #44
+ * fixed in `components/meta/effectText.ts`'s `isNegative`: a case that
+ * slipped past it rendered wrong instead of failing to compile. Here, a
+ * fifteenth `Condition` variant — or `impliedGatesOf` starting to emit one of
+ * the ten grouped below — fails typecheck at this switch instead of silently
+ * printing the generic fallback for something this function was never taught
+ * to describe.
+ */
+export function describeGate(condition: Condition, run: RunState, content: ContentBundle): string {
+  switch (condition.c) {
+    case 'minFollowers':
+      return `Requires ${condition.v} ${plural(condition.v, 'Follower', 'Followers')} · you have ${run.followers}`;
+
+    case 'minApprentices':
+      return `Requires ${condition.v} ${plural(condition.v, 'Apprentice', 'Apprentices')} · you have ${run.apprentices.count}`;
+
+    case 'minLairTier': {
+      // Mirrors `conditionMet`'s own `minLairTier` branch in
+      // `src/engine/conditions.ts` — the same rung-to-tier lookup, read
+      // through the engine's own cached index rather than a second one.
+      const index = indexOf(content);
+      const rung = index.lairRung.get(run.lairId);
+      const tier = rung === undefined ? 0 : (index.lairLadder[rung]?.tier ?? 0);
+      return `Requires Lair Tier ${condition.v} · you have Tier ${tier}`;
+    }
+
+    case 'minArtifacts':
+      return `Requires ${condition.v} ${plural(condition.v, 'relic', 'relics')} · you have ${run.heldArtifactIds.length}`;
+
+    case 'minNotoriety':
+    case 'maxNotoriety':
+    case 'minStanding':
+    case 'maxStanding':
+    case 'minPactDebt':
+    case 'minEraIndex':
+    case 'hasArtifact':
+    case 'holdsAnyArtifact':
+    case 'minGoodActs':
+    case 'maxIllActs':
+      return 'Requirements not currently met.';
+
+    default: {
+      // If this line stops compiling, a Condition variant exists that no
+      // case above names — either a genuinely new one, or `impliedGatesOf`
+      // starting to emit one of the ten just above (which this switch
+      // currently treats as unreachable, not as one of its four real
+      // cases). Mirrors the guard in `components/meta/effectText.ts`'s
+      // `isNegative` (issue #44) — note the ten cases directly above are
+      // NOT chained into this `default`, on purpose: TypeScript does not
+      // narrow a discriminant to `never` inside a `default` that shares a
+      // fallthrough group with other `case` labels, only inside one that is
+      // reached solely by elimination of every named case above it.
+      const exhaustive: never = condition;
+      void exhaustive;
+      return 'Requirements not currently met.';
+    }
+  }
 }
