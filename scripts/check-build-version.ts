@@ -10,7 +10,8 @@
  * hook rather than by editing the `build` script string itself.
  */
 
-import { CHANGELOG, changelogHasVersion } from '../src/content/changelog';
+import { CHANGELOG } from '../src/content/changelog';
+import { changelogHasVersion } from '../src/engine/changelog';
 import { BUILD_VERSION } from '../src/version';
 
 if (!changelogHasVersion(CHANGELOG, BUILD_VERSION)) {

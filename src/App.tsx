@@ -9,7 +9,14 @@
 
 import { useMemo, useState } from 'react';
 import type { ContentBundle } from './engine';
-import { defenseReadout, loadChangelogAck, projectEffects, saveChangelogAck, useGame } from './engine';
+import {
+  defenseReadout,
+  loadChangelogAck,
+  pendingChangelogEntries,
+  projectEffects,
+  saveChangelogAck,
+  useGame,
+} from './engine';
 import {
   artifacts,
   endings,
@@ -21,7 +28,7 @@ import {
   CREATION_EPITHETS,
 } from './content';
 import { heroNameFor, prophecyTextFor } from './content/heroes';
-import { CHANGELOG, pendingChangelogEntries } from './content/changelog';
+import { CHANGELOG } from './content/changelog';
 import { BUILD_VERSION } from './version';
 import { TitleScreen } from './screens/TitleScreen';
 import { CreationScreen } from './screens/CreationScreen';
@@ -245,6 +252,7 @@ export default function App() {
       {pendingChangelog.length > 0 && (
         <ChangelogPopup
           entries={pendingChangelog}
+          themeId={themeId}
           onDismiss={acknowledgeChangelog}
           onViewChangelog={() => {
             acknowledgeChangelog();

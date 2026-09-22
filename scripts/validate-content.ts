@@ -21,7 +21,8 @@
 
 import type { Artifact, Condition, Effect, Offer, OfferOption, Rarity } from '../src/types';
 import * as content from '../src/content';
-import { CHANGELOG, changelogHasVersion } from '../src/content/changelog';
+import { CHANGELOG } from '../src/content/changelog';
+import { changelogHasVersion } from '../src/engine/changelog';
 import { BUILD_VERSION } from '../src/version';
 import {
   DEVOTION_STANDING,

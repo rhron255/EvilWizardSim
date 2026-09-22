@@ -8,8 +8,8 @@
  */
 
 import type { Changelog, Collection } from '../types';
-import { sortedChangelogVersions } from '../content/changelog';
-import { themeAttr, tierVars } from '../components/meta';
+import { sortedChangelogVersions } from '../engine';
+import { formatChangelogVersion, themeAttr, tierVars } from '../components/meta';
 import styles from './ChangelogScreen.module.css';
 
 export type ChangelogScreenProps = {
@@ -44,7 +44,7 @@ export function ChangelogScreen({ changelog, collection, onBack }: ChangelogScre
             const entry = changelog[version];
             return (
               <li key={version} className={styles.entry}>
-                <span className={styles.version}>{version}</span>
+                <span className={styles.version}>{formatChangelogVersion(version)}</span>
                 <p className={styles.summary}>{entry.summary}</p>
                 <ul className={styles.details}>
                   {entry.details.map((line, i) => (

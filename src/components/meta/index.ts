@@ -58,3 +58,5 @@ export { hashString, makeRng, rngFor, pickInt, pickFrom } from './hash';
 
 export { ChangelogPopup } from './ChangelogPopup';
 export type { ChangelogPopupProps } from './ChangelogPopup';
+
+export { formatChangelogVersion } from './changelogFormat';

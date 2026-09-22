@@ -484,16 +484,19 @@ two rules only compose while a stock-free exit survives at every level.
    compiler name every fixture. `Ending.hint` found all fourteen call sites
    that way; an optional field would have rendered blank in two of them.
 8. Shipping a player-visible change (a new mechanic, a balance retune, a UI
-   fix worth announcing)? Bump `BUILD_VERSION` in `src/version.ts` to today's
-   date and add a matching entry to `CHANGELOG` in `src/content/changelog.ts`
-   (issue #67) — a one-line `summary` for the launch popup, plus the fuller
-   `details` for the Changelog screen. This is not optional busywork: the
-   build itself enforces it. `npm run prebuild` (which `npm run build` runs
-   automatically) and `npm run validate:content` both fail if `BUILD_VERSION`
-   has no matching key, so a change that skips this step does not ship, it
-   just fails later with a less informative error. A change with nothing
-   worth telling a player about (an internal refactor, a test-only fix) does
-   not need a bump — do not invent filler entries to satisfy the check.
+   fix worth announcing)? Bump `BUILD_VERSION` in `src/version.ts` to the
+   current UTC timestamp ("YYYY-MM-DDTHH:mm:ssZ" — a bare date collides the
+   moment two builds ship the same day, which is why the key is a full
+   timestamp and not just a date) and add a matching entry to `CHANGELOG` in
+   `src/content/changelog.ts` (issue #67) — a one-line `summary` for the
+   launch popup, plus the fuller `details` for the Changelog screen. This is
+   not optional busywork: the build itself enforces it. `npm run prebuild`
+   (which `npm run build` runs automatically) and `npm run validate:content`
+   both fail if `BUILD_VERSION` has no matching key, so a change that skips
+   this step does not ship, it just fails later with a less informative
+   error. A change with nothing worth telling a player about (an internal
+   refactor, a test-only fix) does not need a bump — do not invent filler
+   entries to satisfy the check.
 
 ### Measure before you tune
 
