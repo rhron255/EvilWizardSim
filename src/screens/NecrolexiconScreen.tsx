@@ -22,7 +22,8 @@
  * undisclosed-secret rule extends to this screen, not just to the grid).
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import type { KeyboardEvent } from 'react';
 import type { Artifact, Collection, Ending, Faction, FactionId, Mechanic } from '../types';
 import {
   ArtifactGrid,
@@ -88,6 +89,41 @@ export function NecrolexiconScreen({
   const [category, setCategory] = useState<Category>('factions');
   const [filter, setFilter] = useState<Filter>('all');
 
+  /**
+   * Roving tabindex for the category strip (WAI-ARIA APG's tablist pattern).
+   * `role="tab"` promises arrow-key navigation — without this, every inactive
+   * tab was its own Tab stop and the arrow keys did nothing, an incomplete
+   * widget for a keyboard-only player.
+   */
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  const focusTab = (index: number) => {
+    const wrapped = (index + TABS.length) % TABS.length;
+    setCategory(TABS[wrapped].id);
+    tabRefs.current[wrapped]?.focus();
+  };
+
+  const onTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    switch (event.key) {
+      case 'ArrowRight':
+        event.preventDefault();
+        focusTab(index + 1);
+        break;
+      case 'ArrowLeft':
+        event.preventDefault();
+        focusTab(index - 1);
+        break;
+      case 'Home':
+        event.preventDefault();
+        focusTab(0);
+        break;
+      case 'End':
+        event.preventDefault();
+        focusTab(TABS.length - 1);
+        break;
+    }
+  };
+
   const discovered = useMemo(
     () => new Set(collection.discoveredArtifactIds),
     [collection.discoveredArtifactIds],
@@ -146,14 +182,19 @@ export function NecrolexiconScreen({
 
         {/* --- category tabs -------------------------------------------------- */}
         <nav className={styles.tabs} aria-label="Necrolexicon sections" role="tablist">
-          {TABS.map((tab) => (
+          {TABS.map((tab, index) => (
             <button
               key={tab.id}
+              ref={(el) => {
+                tabRefs.current[index] = el;
+              }}
               type="button"
               role="tab"
               aria-selected={category === tab.id}
+              tabIndex={category === tab.id ? 0 : -1}
               className={category === tab.id ? `${styles.tab} ${styles.tabOn}` : styles.tab}
               onClick={() => setCategory(tab.id)}
+              onKeyDown={(event) => onTabKeyDown(event, index)}
             >
               {tab.label}
             </button>
@@ -170,7 +211,7 @@ export function NecrolexiconScreen({
                   <h2 className={styles.groupName}>{faction.name}</h2>
                 </header>
                 <p className={styles.entryBlurb}>{faction.blurb}</p>
-                <p className={styles.entryLabel}>What standing with them does</p>
+                <p className={styles.entryLabel}>What they take, and what they grant</p>
                 <p className={styles.entryBlurb}>{faction.demands}</p>
               </article>
             ))}

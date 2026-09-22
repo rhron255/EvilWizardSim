@@ -22,10 +22,9 @@ import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
   '2026-09-22T18:40:00Z': {
-    summary: 'The Collection door is now the Necrolexicon — factions and mechanics explained, nothing spoiled.',
+    summary: 'Added the Necrolexicon — the one stop shop for all manner of evil explanations.',
     details: [
-      'The main screen\'s Collection door is now the Necrolexicon: relics and endings are still there, joined by a Factions tab (who they are, what standing with them does) and a Mechanics tab (what notoriety, standing, followers, apprentices, pact debt, hero threat, lairs, relics, offers, and endings actually mean).',
-      'Nothing you have not discovered is spoiled — undiscovered relics and endings still redact their names, and the new reference tabs explain rules, never secrets.',
+      'Replaced the main screen\'s Collection with the Necrolexicon: relics, endings and mechanics are explained there (what notoriety, standing, followers, apprentices, pact debt, hero threat, lairs, relics, offers, and endings actually mean).',
     ],
   },
   '2026-09-22T09:15:00Z': {
