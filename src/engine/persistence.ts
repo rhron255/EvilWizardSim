@@ -17,7 +17,13 @@
 import type { Collection, EndingId, RunState } from '../types';
 import type { ContentBundle } from './content-port';
 import { indexOf } from './content-port';
-import { COLLECTION_KEY, COLLECTION_VERSION, RUN_KEY, RUN_SAVE_VERSION } from './constants';
+import {
+  CHANGELOG_ACK_KEY,
+  COLLECTION_KEY,
+  COLLECTION_VERSION,
+  RUN_KEY,
+  RUN_SAVE_VERSION,
+} from './constants';
 import { peakNotoriety } from './systems';
 /**
  * The one thing the engine reads from `src/theme/`.
@@ -291,4 +297,29 @@ export function loadInProgressRun(): RunState | null {
 
 export function clearInProgressRun(): void {
   removeRaw(RUN_KEY);
+}
+
+// ---------------------------------------------------------------------------
+// Changelog acknowledgement (issue #67)
+// ---------------------------------------------------------------------------
+
+/**
+ * The build version the player last acknowledged — by dismissing the launch
+ * popup, or opening the full changelog from it or from the title screen.
+ *
+ * Returns `null` for "never" (a first-ever launch), which is also what any
+ * storage failure degrades to per this file's rule 1 — the popup then shows
+ * every entry, the same behaviour a genuinely first-time player gets. No
+ * shape or version check is needed here: the value is a bare string, and
+ * `pendingChangelogEntries` already treats anything it cannot place at or
+ * before the current build as nothing pending, so a stray or future value
+ * degrades gracefully wherever it is actually used.
+ */
+export function loadChangelogAck(): string | null {
+  const raw = readRaw(CHANGELOG_ACK_KEY);
+  return raw && raw.length > 0 ? raw : null;
+}
+
+export function saveChangelogAck(version: string): void {
+  writeRaw(CHANGELOG_ACK_KEY, version);
 }

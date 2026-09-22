@@ -31,9 +31,10 @@ constraints below exist, and is the thing to read before relaxing any of them.
 | Path | Owns |
 |---|---|
 | `src/types.ts` | **The frozen contract.** Every module is written against it. |
+| `src/version.ts` | `BUILD_VERSION` — bump it and add a `src/content/changelog.ts` entry on every player-visible change (issue #67). |
 | `src/theme/` | Design tokens (`tokens.ts` for JS, `tokens.css` for `--ew-*`). |
 | `src/engine/` | Run state, offer sampling, resolution, endings, persistence. |
-| `src/content/` | Factions, artifacts, lairs, origins, endings, epithets, ~130 offers. |
+| `src/content/` | Factions, artifacts, lairs, origins, endings, epithets, ~130 offers, the changelog. |
 | `src/components/run/` | The run loop: ledger, offer panel, notoriety badge. |
 | `src/components/meta/` | Set-piece parts: lair grid, artifact grid, sigil. |
 | `src/screens/` | Screen composition. |
@@ -482,6 +483,20 @@ two rules only compose while a stock-free exit survives at every level.
 7. New content field the UI reads? Make it **required** on the type and let the
    compiler name every fixture. `Ending.hint` found all fourteen call sites
    that way; an optional field would have rendered blank in two of them.
+8. Shipping a player-visible change (a new mechanic, a balance retune, a UI
+   fix worth announcing)? Bump `BUILD_VERSION` in `src/version.ts` to the
+   current UTC timestamp ("YYYY-MM-DDTHH:mm:ssZ" — a bare date collides the
+   moment two builds ship the same day, which is why the key is a full
+   timestamp and not just a date) and add a matching entry to `CHANGELOG` in
+   `src/content/changelog.ts` (issue #67) — a one-line `summary` for the
+   launch popup, plus the fuller `details` for the Changelog screen. This is
+   not optional busywork: the build itself enforces it. `npm run prebuild`
+   (which `npm run build` runs automatically) and `npm run validate:content`
+   both fail if `BUILD_VERSION` has no matching key, so a change that skips
+   this step does not ship, it just fails later with a less informative
+   error. A change with nothing worth telling a player about (an internal
+   refactor, a test-only fix) does not need a bump — do not invent filler
+   entries to satisfy the check.
 
 ### Measure before you tune
 

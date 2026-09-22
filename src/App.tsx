@@ -7,9 +7,16 @@
  * (wiki/03_systems_architecture-1.md § Ownership rules).
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { ContentBundle } from './engine';
-import { defenseReadout, projectEffects, useGame } from './engine';
+import {
+  defenseReadout,
+  loadChangelogAck,
+  pendingChangelogEntries,
+  projectEffects,
+  saveChangelogAck,
+  useGame,
+} from './engine';
 import {
   artifacts,
   endings,
@@ -21,14 +28,18 @@ import {
   CREATION_EPITHETS,
 } from './content';
 import { heroNameFor, prophecyTextFor } from './content/heroes';
+import { CHANGELOG } from './content/changelog';
+import { BUILD_VERSION } from './version';
 import { TitleScreen } from './screens/TitleScreen';
 import { CreationScreen } from './screens/CreationScreen';
 import { RunScreen } from './screens/RunScreen';
 import { FirstRunGuide } from './components/run';
+import { ChangelogPopup } from './components/meta';
 import { ProphecyInterstitial } from './screens/ProphecyInterstitial';
 import { EndingScreen } from './screens/EndingScreen';
 import { CollectionScreen } from './screens/CollectionScreen';
 import { ThemeScreen } from './screens/ThemeScreen';
+import { ChangelogScreen } from './screens/ChangelogScreen';
 
 /**
  * Frozen at module scope: `indexOf` caches derived lookup tables against this
@@ -57,6 +68,28 @@ export default function App() {
    * it survives a career and does not travel with one.
    */
   const themeId = game.collection.selectedThemeId;
+
+  /**
+   * The backendless changelog popup (issue #67).
+   *
+   * `CHANGELOG` and `BUILD_VERSION` are content/build concerns the engine
+   * deliberately never imports (wiki/03 § Content pipeline), so the "what is
+   * pending" computation happens here rather than in `useGame`'s reducer —
+   * only the acknowledged version is persisted, via the same wrapped
+   * localStorage access every other save uses.
+   *
+   * Read once, on mount: acknowledging is the only thing that can change it
+   * during a session, and both places that do so also clear this state
+   * directly rather than waiting for a re-read.
+   */
+  const [pendingChangelog, setPendingChangelog] = useState(() =>
+    pendingChangelogEntries(CHANGELOG, BUILD_VERSION, loadChangelogAck()),
+  );
+
+  const acknowledgeChangelog = () => {
+    saveChangelogAck(BUILD_VERSION);
+    setPendingChangelog([]);
+  };
 
   // The chosen one is drawn from the run seed, so a seed is a rematch.
   const heroName = useMemo(() => (run ? heroNameFor(run.seed) : ''), [run]);
@@ -191,19 +224,42 @@ export default function App() {
         />
       );
 
+    case 'changelog':
+      return (
+        <ChangelogScreen changelog={CHANGELOG} collection={game.collection} onBack={game.backToTitle} />
+      );
+
     case 'title':
       break;
   }
 
   return (
-    <TitleScreen
-      collection={game.collection}
-      artifactCount={artifacts.length}
-      hasResumableRun={game.hasResumableRun}
-      onBegin={game.begin}
-      onResume={game.resume}
-      onViewCollection={game.viewCollection}
-      onViewThemes={game.viewThemes}
-    />
+    <>
+      <TitleScreen
+        collection={game.collection}
+        artifactCount={artifacts.length}
+        hasResumableRun={game.hasResumableRun}
+        onBegin={game.begin}
+        onResume={game.resume}
+        onViewCollection={game.viewCollection}
+        onViewThemes={game.viewThemes}
+        onViewChangelog={game.viewChangelog}
+      />
+      {/* On launch only — the title screen is where every session starts,
+          whether or not there is a run to resume. Acknowledging saves the
+          build version so a reload of the same build never shows it again;
+          the full history stays reachable from the Changelog door either way. */}
+      {pendingChangelog.length > 0 && (
+        <ChangelogPopup
+          entries={pendingChangelog}
+          themeId={themeId}
+          onDismiss={acknowledgeChangelog}
+          onViewChangelog={() => {
+            acknowledgeChangelog();
+            game.viewChangelog();
+          }}
+        />
+      )}
+    </>
   );
 }

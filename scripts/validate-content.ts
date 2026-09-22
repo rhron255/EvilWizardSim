@@ -21,6 +21,9 @@
 
 import type { Artifact, Condition, Effect, Offer, OfferOption, Rarity } from '../src/types';
 import * as content from '../src/content';
+import { CHANGELOG } from '../src/content/changelog';
+import { changelogHasVersion } from '../src/engine/changelog';
+import { BUILD_VERSION } from '../src/version';
 import {
   DEVOTION_STANDING,
   GOOD_WIZARD_ILL_CAP,
@@ -916,6 +919,17 @@ for (const phase of ['ascent', 'decline'] as const) {
 const relieving = offers.filter((o) => pactRoleOf(o) === 'relieves');
 if (relieving.length < 3) {
   fail('pact ladder', `only ${relieving.length} offer(s) can reduce pact debt; at least 3 are required`);
+}
+
+// ---------------------------------------------------------------------------
+// Changelog (issue #67)
+// ---------------------------------------------------------------------------
+
+if (!changelogHasVersion(CHANGELOG, BUILD_VERSION)) {
+  fail(
+    'changelog',
+    `BUILD_VERSION "${BUILD_VERSION}" (src/version.ts) has no entry in src/content/changelog.ts`,
+  );
 }
 
 // ---------------------------------------------------------------------------

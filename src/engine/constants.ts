@@ -510,6 +510,8 @@ export const GOOD_WIZARD_ILL_CAP = 1;
 
 export const COLLECTION_KEY = 'evil-wizard-sim:collection';
 export const RUN_KEY = 'evil-wizard-sim:run';
+/** The last build version acknowledged through the changelog popup (issue #67). */
+export const CHANGELOG_ACK_KEY = 'evil-wizard-sim:changelog-ack';
 /** Bump when `Collection`'s shape changes, and extend `migrateCollection`. */
 export const COLLECTION_VERSION = 5;
 /**
