@@ -25,15 +25,7 @@
 import { useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import type { Artifact, Collection, Ending, Faction, FactionId, Mechanic } from '../types';
-import {
-  ArtifactGrid,
-  EndingSlot,
-  FactionGlyph,
-  StatBlock,
-  themeAttr,
-  tierOf,
-  tierVars,
-} from '../components/meta';
+import { ArtifactGrid, EndingSlot, FactionGlyph, themeAttr, tierVars } from '../components/meta';
 import styles from './NecrolexiconScreen.module.css';
 
 /**
@@ -129,7 +121,6 @@ export function NecrolexiconScreen({
     [collection.discoveredArtifactIds],
   );
   const seenEndings = useMemo(() => new Set(collection.endingsSeen), [collection.endingsSeen]);
-  const tier = tierOf(collection.bestNotoriety);
 
   const groups = useMemo(
     () =>
@@ -154,52 +145,41 @@ export function NecrolexiconScreen({
       {...themeAttr(collection.selectedThemeId)}
     >
       <div className={styles.inner}>
-        <header className={styles.top}>
-          <button type="button" className={styles.back} onClick={onBack}>
-            ← Back
-          </button>
-          <h1 className={styles.title}>The Necrolexicon</h1>
-          <span className={styles.topSpacer} aria-hidden>
-            ← Back
-          </span>
-        </header>
-
-        <StatBlock
-          columns={4}
-          className={styles.stats}
-          stats={[
-            { label: 'Careers', value: collection.runsCompleted },
-            {
-              label: 'Best Notoriety',
-              value: collection.bestNotoriety,
-              hint: collection.runsCompleted > 0 ? tier.name : 'Not yet',
-              accent: collection.runsCompleted > 0,
-            },
-            { label: 'Relics', value: `${foundTotal}/${artifacts.length}` },
-            { label: 'Endings', value: `${seenEndings.size}/${endings.length}` },
-          ]}
-        />
-
-        {/* --- category tabs -------------------------------------------------- */}
-        <nav className={styles.tabs} aria-label="Necrolexicon sections" role="tablist">
-          {TABS.map((tab, index) => (
-            <button
-              key={tab.id}
-              ref={(el) => {
-                tabRefs.current[index] = el;
-              }}
-              type="button"
-              role="tab"
-              aria-selected={category === tab.id}
-              tabIndex={category === tab.id ? 0 : -1}
-              className={category === tab.id ? `${styles.tab} ${styles.tabOn}` : styles.tab}
-              onClick={() => setCategory(tab.id)}
-              onKeyDown={(event) => onTabKeyDown(event, index)}
-            >
-              {tab.label}
+        {/* Sticky as one unit — the back button and the category the player is
+            in are the two things worth keeping on screen while a long section
+            (the relic grid, the faction write-ups) scrolls underneath. */}
+        <div className={styles.stickyHead}>
+          <header className={styles.top}>
+            <button type="button" className={styles.back} onClick={onBack}>
+              ← Back
             </button>
-          ))}
-        </nav>
+            <h1 className={styles.title}>The Necrolexicon</h1>
+            <span className={styles.topSpacer} aria-hidden>
+              ← Back
+            </span>
+          </header>
+
+          {/* --- category tabs ------------------------------------------------ */}
+          <nav className={styles.tabs} aria-label="Necrolexicon sections" role="tablist">
+            {TABS.map((tab, index) => (
+              <button
+                key={tab.id}
+                ref={(el) => {
+                  tabRefs.current[index] = el;
+                }}
+                type="button"
+                role="tab"
+                aria-selected={category === tab.id}
+                tabIndex={category === tab.id ? 0 : -1}
+                className={category === tab.id ? `${styles.tab} ${styles.tabOn}` : styles.tab}
+                onClick={() => setCategory(tab.id)}
+                onKeyDown={(event) => onTabKeyDown(event, index)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
 
         {/* --- factions --------------------------------------------------------- */}
         {category === 'factions' && (
