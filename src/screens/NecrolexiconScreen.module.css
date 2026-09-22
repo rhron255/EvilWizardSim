@@ -2,6 +2,20 @@
   composes: screen from '../components/meta/craft.module.css';
   padding: var(--ew-space-5) var(--ew-space-5) var(--ew-space-8);
   min-height: 100dvh;
+  /* `craft.module.css`'s `.screen` sets `overflow-x: hidden` with no explicit
+     overflow-y — and per the CSS overflow spec, pairing a non-visible
+     overflow-x with a (default) visible overflow-y forces overflow-y to
+     compute as `auto` too. That makes this element a scroll container in its
+     own right, which is exactly the ancestor `position: sticky` below sticks
+     relative TO — so the sticky head just scrolled away with the page instead
+     of pinning to the viewport. `.top`'s own `overflow: hidden` below takes
+     over the one thing this clip was actually protecting on this screen (see
+     its comment), so lifting the clip here is safe.
+     !important because `craft.module.css`'s `.screen` rule sets `overflow-x`
+     at the same selector specificity and, empirically, later in the bundled
+     cascade — a plain override here still lost the x-axis, which is what
+     left overflow-y stuck on the forced `auto` this whole comment describes. */
+  overflow: visible !important;
 }
 
 .inner {
@@ -10,7 +24,29 @@
   margin: 0 auto;
 }
 
-/* --- top ------------------------------------------------------------------ */
+/* --- sticky head: back button, title, category tabs ------------------------ */
+
+/* One positioned unit so the two stay pinned together — a lone sticky `.top`
+   and a lone sticky `.tabs` would need the tabs offset by the header's
+   rendered height, which changes the moment the title wraps to two lines
+   (it does below ~420px). Stacking them inside a shared box sidesteps that
+   entirely. Solid `--ew-void` (rather than the gradient `.screen` background)
+   is deliberate: it is the one background guaranteed not to show a seam where
+   it meets the scrolling content sliding underneath it. */
+.stickyHead {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  /* The gap after the tabs' own border lives HERE, as padding rather than as
+     a margin on `.tabs` — a margin on the last child collapses through a
+     parent with no border/padding of its own and renders outside this box's
+     painted area, which would open a gap the sticky background does not
+     cover and let scrolled-away content flash through it. Padding keeps the
+     gap inside the box the background and shadow are painted on. */
+  padding-bottom: var(--ew-space-6);
+  background: var(--ew-void);
+  box-shadow: var(--ew-shadow-card);
+}
 
 .top {
   display: grid;
@@ -18,6 +54,17 @@
   align-items: center;
   gap: var(--ew-space-4);
   padding-bottom: var(--ew-space-6);
+  /* Below ~420px the title wraps to two lines, and the grid's `auto` middle
+     column then sizes to the width of its single longest unbreakable word —
+     wider than the two flanking `1fr` columns can shrink to while still
+     fitting the hidden `.topSpacer` (which must stay exactly `.back`'s size
+     to keep the title centred; see its own comment). The row overflows its
+     container by a few pixels as a result. That sliver is invisible either
+     way — the spacer that pokes past the edge has `visibility: hidden` — so
+     clipping it locally here is free, and it is what lets `.screen`'s own
+     clip (which used to catch this for free) be lifted for the sticky head
+     below without opening a real, visible horizontal scroll on the page. */
+  overflow: hidden;
 }
 
 .back {
@@ -329,6 +376,12 @@
 @media (max-width: 640px) {
   .screen {
     padding: var(--ew-space-4) var(--ew-space-4) var(--ew-space-7);
+  }
+
+  /* A sticky bar earns its keep by staying small — it now occupies screen
+     budget on every scroll position, not just the first one. */
+  .stickyHead {
+    padding-bottom: var(--ew-space-4);
   }
 
   /* One scrolling row instead of a wrapped stack — same reasoning as the

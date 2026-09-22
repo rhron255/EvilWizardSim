@@ -154,15 +154,44 @@ export function NecrolexiconScreen({
       {...themeAttr(collection.selectedThemeId)}
     >
       <div className={styles.inner}>
-        <header className={styles.top}>
-          <button type="button" className={styles.back} onClick={onBack}>
-            ← Back
-          </button>
-          <h1 className={styles.title}>The Necrolexicon</h1>
-          <span className={styles.topSpacer} aria-hidden>
-            ← Back
-          </span>
-        </header>
+        {/* Sticky as one unit — the back button and the category the player is
+            in are the two things worth keeping on screen while a long section
+            (the relic grid, the faction write-ups) scrolls underneath. The
+            stat block is deliberately NOT part of this: it is useful once, on
+            arrival, and pinning it would spend permanent screen budget on a
+            summary the player has already read. */}
+        <div className={styles.stickyHead}>
+          <header className={styles.top}>
+            <button type="button" className={styles.back} onClick={onBack}>
+              ← Back
+            </button>
+            <h1 className={styles.title}>The Necrolexicon</h1>
+            <span className={styles.topSpacer} aria-hidden>
+              ← Back
+            </span>
+          </header>
+
+          {/* --- category tabs ------------------------------------------------ */}
+          <nav className={styles.tabs} aria-label="Necrolexicon sections" role="tablist">
+            {TABS.map((tab, index) => (
+              <button
+                key={tab.id}
+                ref={(el) => {
+                  tabRefs.current[index] = el;
+                }}
+                type="button"
+                role="tab"
+                aria-selected={category === tab.id}
+                tabIndex={category === tab.id ? 0 : -1}
+                className={category === tab.id ? `${styles.tab} ${styles.tabOn}` : styles.tab}
+                onClick={() => setCategory(tab.id)}
+                onKeyDown={(event) => onTabKeyDown(event, index)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
 
         <StatBlock
           columns={4}
@@ -179,27 +208,6 @@ export function NecrolexiconScreen({
             { label: 'Endings', value: `${seenEndings.size}/${endings.length}` },
           ]}
         />
-
-        {/* --- category tabs -------------------------------------------------- */}
-        <nav className={styles.tabs} aria-label="Necrolexicon sections" role="tablist">
-          {TABS.map((tab, index) => (
-            <button
-              key={tab.id}
-              ref={(el) => {
-                tabRefs.current[index] = el;
-              }}
-              type="button"
-              role="tab"
-              aria-selected={category === tab.id}
-              tabIndex={category === tab.id ? 0 : -1}
-              className={category === tab.id ? `${styles.tab} ${styles.tabOn}` : styles.tab}
-              onClick={() => setCategory(tab.id)}
-              onKeyDown={(event) => onTabKeyDown(event, index)}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
 
         {/* --- factions --------------------------------------------------------- */}
         {category === 'factions' && (
