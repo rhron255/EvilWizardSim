@@ -23,6 +23,7 @@ import {
   epithets,
   factions,
   lairs,
+  mechanics,
   offers,
   origins,
   CREATION_EPITHETS,
@@ -37,7 +38,7 @@ import { FirstRunGuide } from './components/run';
 import { ChangelogPopup } from './components/meta';
 import { ProphecyInterstitial } from './screens/ProphecyInterstitial';
 import { EndingScreen } from './screens/EndingScreen';
-import { CollectionScreen } from './screens/CollectionScreen';
+import { NecrolexiconScreen } from './screens/NecrolexiconScreen';
 import { ThemeScreen } from './screens/ThemeScreen';
 import { ChangelogScreen } from './screens/ChangelogScreen';
 
@@ -193,7 +194,7 @@ export default function App() {
           artifacts={artifacts}
           factions={factions}
           onPlayAgain={game.playAgain}
-          onViewCollection={game.viewCollection}
+          onViewNecrolexicon={game.viewNecrolexicon}
           onShare={() => {}}
           themeId={themeId}
           unlockedTheme={game.unlockedTheme}
@@ -202,13 +203,14 @@ export default function App() {
       );
     }
 
-    case 'collection':
+    case 'necrolexicon':
       return (
-        <CollectionScreen
+        <NecrolexiconScreen
           collection={game.collection}
           artifacts={artifacts}
           factions={factions}
           endings={endings}
+          mechanics={mechanics}
           onBack={game.backToTitle}
           onViewThemes={game.viewThemes}
         />
@@ -241,7 +243,7 @@ export default function App() {
         hasResumableRun={game.hasResumableRun}
         onBegin={game.begin}
         onResume={game.resume}
-        onViewCollection={game.viewCollection}
+        onViewNecrolexicon={game.viewNecrolexicon}
         onViewThemes={game.viewThemes}
         onViewChangelog={game.viewChangelog}
       />

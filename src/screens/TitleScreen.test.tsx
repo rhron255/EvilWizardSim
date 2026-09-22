@@ -21,7 +21,7 @@ const show = (collection: Collection, hasResumableRun = false) => {
   const handlers = {
     onBegin: vi.fn(),
     onResume: vi.fn(),
-    onViewCollection: vi.fn(),
+    onViewNecrolexicon: vi.fn(),
     onViewThemes: vi.fn(),
     onViewChangelog: vi.fn(),
   };
@@ -78,21 +78,21 @@ describe('TitleScreen · a first-time player', () => {
   });
 });
 
-describe('TitleScreen · the collection door', () => {
+describe('TitleScreen · the necrolexicon door', () => {
   it('counts against the catalog, not against the player', () => {
     // The denominator is the `artifactCount` prop. Deriving it from the
     // collection would make the door read "16/16 relics" and the grid look
     // complete when it is half empty — the same class of bug as taking faction
     // names from a literal instead of the prop (EndingScreen.test.tsx).
     show(demoCollection);
-    const door = within(menu()).getByRole('button', { name: /collection/i });
+    const door = within(menu()).getByRole('button', { name: /necrolexicon/i });
     expect(door.textContent).toContain(String(artifacts.length));
     expect(door.textContent).toContain(String(demoCollection.discoveredArtifactIds.length));
   });
 
   it('reads 0 of the full catalog for a new player', () => {
     show(demoEmptyCollection);
-    const door = within(menu()).getByRole('button', { name: /collection/i });
+    const door = within(menu()).getByRole('button', { name: /necrolexicon/i });
     // Split across sibling spans, so match on the container's text.
     expect(door.textContent?.replace(/\s+/g, '')).toContain(`0/${artifacts.length}`);
   });
