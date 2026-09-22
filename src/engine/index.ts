@@ -58,6 +58,8 @@ export {
   saveInProgressRun,
   loadInProgressRun,
   clearInProgressRun,
+  loadChangelogAck,
+  saveChangelogAck,
 } from './persistence';
 
 export { RUN_LENGTHS, DEFAULT_ERA_COUNT, YEARS_PER_ERA, START_AGE } from './constants';

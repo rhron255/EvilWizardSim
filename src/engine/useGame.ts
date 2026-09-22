@@ -52,6 +52,7 @@ export type Game = {
   playAgain(): void;
   viewCollection(): void;
   viewThemes(): void;
+  viewChangelog(): void;
   backToTitle(): void;
   /**
    * The theme this run just unlocked, or null.
@@ -113,6 +114,7 @@ type Action =
   | { type: 'playAgain' }
   | { type: 'viewCollection' }
   | { type: 'viewThemes' }
+  | { type: 'viewChangelog' }
   | { type: 'selectTheme'; id: ThemeId }
   | { type: 'backToTitle' }
   | { type: 'resume'; content: ContentBundle }
@@ -259,6 +261,9 @@ export function gameReducer(state: GameState, action: Action): GameState {
     case 'viewThemes':
       return { ...state, screen: 'themes', unlockedTheme: null };
 
+    case 'viewChangelog':
+      return { ...state, screen: 'changelog', unlockedTheme: null };
+
     case 'selectTheme': {
       // Re-checked here even though the selector never offers a locked card.
       // The reducer is the only thing that writes the collection, so it is the
@@ -359,6 +364,7 @@ export function useGame(content: ContentBundle): Game {
   const playAgain = useCallback(() => dispatch({ type: 'playAgain' }), []);
   const viewCollection = useCallback(() => dispatch({ type: 'viewCollection' }), []);
   const viewThemes = useCallback(() => dispatch({ type: 'viewThemes' }), []);
+  const viewChangelog = useCallback(() => dispatch({ type: 'viewChangelog' }), []);
   const selectTheme = useCallback((id: ThemeId) => dispatch({ type: 'selectTheme', id }), []);
   const backToTitle = useCallback(() => dispatch({ type: 'backToTitle' }), []);
   const resume = useCallback(() => dispatch({ type: 'resume', content }), [content]);
@@ -380,6 +386,7 @@ export function useGame(content: ContentBundle): Game {
       playAgain,
       viewCollection,
       viewThemes,
+      viewChangelog,
       backToTitle,
       // Never offer a theme the collection has not earned. The reducer guards
       // this too; this stops the ending banner from advertising one in the
@@ -416,6 +423,7 @@ export function useGame(content: ContentBundle): Game {
       playAgain,
       viewCollection,
       viewThemes,
+      viewChangelog,
       selectTheme,
       backToTitle,
       resume,

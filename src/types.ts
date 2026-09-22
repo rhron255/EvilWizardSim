@@ -515,4 +515,31 @@ export type Screen =
   | 'prophecy'
   | 'ending'
   | 'collection'
-  | 'themes';
+  | 'themes'
+  | 'changelog';
+
+// ---------------------------------------------------------------------------
+// Changelog (issue #67)
+// ---------------------------------------------------------------------------
+
+/**
+ * One shipped update, keyed by its build version in `src/content/changelog.ts`.
+ *
+ * `summary` is the single line the launch popup shows for this version;
+ * `details` is the fuller list the Changelog screen prints. Both are static,
+ * authored prose — there is no server, so nothing here is ever fetched.
+ */
+export type ChangelogEntry = {
+  summary: string;
+  details: string[];
+};
+
+/**
+ * Keyed by build version, "YYYY-MM-DD". Versions sort newest-first as PLAIN
+ * STRINGS because the key format is zero-padded ISO — `sortedChangelogVersions`
+ * relies on that, so do not change the format without checking it. If this
+ * project ever ships two public builds on one date, the format must grow a
+ * disambiguating suffix (e.g. "YYYY-MM-DD.N") before a second same-day entry
+ * is added — see issue #67.
+ */
+export type Changelog = Record<string, ChangelogEntry>;
