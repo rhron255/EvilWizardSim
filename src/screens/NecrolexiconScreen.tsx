@@ -122,11 +122,10 @@ export function NecrolexiconScreen({
           <button type="button" className={styles.back} onClick={onBack}>
             ← Back
           </button>
-          <div className={styles.titleBlock}>
-            <p className={styles.kicker}>What every term means</p>
-            <h1 className={styles.title}>The Necrolexicon</h1>
-          </div>
-          <span className={styles.topSpacer} aria-hidden />
+          <h1 className={styles.title}>The Necrolexicon</h1>
+          <span className={styles.topSpacer} aria-hidden>
+            ← Back
+          </span>
         </header>
 
         <StatBlock

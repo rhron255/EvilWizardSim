@@ -30,17 +30,9 @@
   text-indent: 0.12em;
 }
 
-.titleBlock {
-  text-align: center;
-}
-
-.kicker {
-  composes: labelCentered from '../components/meta/craft.module.css';
-  margin: 0 0 var(--ew-space-2);
-}
-
 .title {
   margin: 0;
+  text-align: center;
   font-family: var(--ew-font-display);
   font-weight: 600;
   font-size: clamp(1.875rem, 5vw, 2.75rem);
@@ -49,8 +41,16 @@
   color: var(--ew-ink-bright);
 }
 
+/* Mirrors `.back`'s own box exactly — a plain empty span has a zero min-width,
+   so the grid's two "equal" 1fr columns were not actually equal: the back
+   button forced its column no narrower than the button itself, while the
+   spacer's column collapsed to nothing, and the title sat off-centre by
+   however wide "← Back" is. Composing the same class and hiding it keeps the
+   two flanking columns' intrinsic width identical, so the title column is
+   genuinely centred on the row. */
 .topSpacer {
-  display: block;
+  composes: back;
+  visibility: hidden;
 }
 
 .stats {
