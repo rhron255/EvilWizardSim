@@ -100,10 +100,6 @@
   visibility: hidden;
 }
 
-.stats {
-  margin-bottom: var(--ew-space-6);
-}
-
 /* --- category tabs --------------------------------------------------------- */
 
 .tabs {

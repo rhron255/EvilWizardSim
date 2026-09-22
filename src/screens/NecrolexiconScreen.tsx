@@ -25,15 +25,7 @@
 import { useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import type { Artifact, Collection, Ending, Faction, FactionId, Mechanic } from '../types';
-import {
-  ArtifactGrid,
-  EndingSlot,
-  FactionGlyph,
-  StatBlock,
-  themeAttr,
-  tierOf,
-  tierVars,
-} from '../components/meta';
+import { ArtifactGrid, EndingSlot, FactionGlyph, themeAttr, tierVars } from '../components/meta';
 import styles from './NecrolexiconScreen.module.css';
 
 /**
@@ -129,7 +121,6 @@ export function NecrolexiconScreen({
     [collection.discoveredArtifactIds],
   );
   const seenEndings = useMemo(() => new Set(collection.endingsSeen), [collection.endingsSeen]);
-  const tier = tierOf(collection.bestNotoriety);
 
   const groups = useMemo(
     () =>
@@ -156,10 +147,7 @@ export function NecrolexiconScreen({
       <div className={styles.inner}>
         {/* Sticky as one unit — the back button and the category the player is
             in are the two things worth keeping on screen while a long section
-            (the relic grid, the faction write-ups) scrolls underneath. The
-            stat block is deliberately NOT part of this: it is useful once, on
-            arrival, and pinning it would spend permanent screen budget on a
-            summary the player has already read. */}
+            (the relic grid, the faction write-ups) scrolls underneath. */}
         <div className={styles.stickyHead}>
           <header className={styles.top}>
             <button type="button" className={styles.back} onClick={onBack}>
@@ -192,22 +180,6 @@ export function NecrolexiconScreen({
             ))}
           </nav>
         </div>
-
-        <StatBlock
-          columns={4}
-          className={styles.stats}
-          stats={[
-            { label: 'Careers', value: collection.runsCompleted },
-            {
-              label: 'Best Notoriety',
-              value: collection.bestNotoriety,
-              hint: collection.runsCompleted > 0 ? tier.name : 'Not yet',
-              accent: collection.runsCompleted > 0,
-            },
-            { label: 'Relics', value: `${foundTotal}/${artifacts.length}` },
-            { label: 'Endings', value: `${seenEndings.size}/${endings.length}` },
-          ]}
-        />
 
         {/* --- factions --------------------------------------------------------- */}
         {category === 'factions' && (
