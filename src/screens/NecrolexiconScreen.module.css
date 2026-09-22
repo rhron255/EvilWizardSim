@@ -378,6 +378,19 @@
      budget on every scroll position, not just the first one. */
   .stickyHead {
     padding-bottom: var(--ew-space-4);
+    /* `.tabs` below bleeds edge-to-edge via its own negative margin (same
+       trick `.filters` uses for the relic-faction strip), but that only
+       repositions `.tabs` — this box's own background stayed at `.inner`'s
+       narrower width, leaving two transparent gutter strips down the sides
+       where whatever is scrolling underneath (that same edge-to-edge
+       `.filters` row, on the Relics tab) could show through a pinned header
+       that was supposed to fully occlude it. Bleeding this box the same way,
+       with matching padding to hold `.top` and `.tabs` at their previous
+       visual inset, extends the opaque background to the true viewport
+       edges instead. */
+    margin: 0 calc(-1 * var(--ew-space-4));
+    padding-left: var(--ew-space-4);
+    padding-right: var(--ew-space-4);
   }
 
   /* One scrolling row instead of a wrapped stack — same reasoning as the
