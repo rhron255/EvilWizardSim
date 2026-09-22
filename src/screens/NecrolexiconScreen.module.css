@@ -57,6 +57,79 @@
   margin-bottom: var(--ew-space-6);
 }
 
+/* --- category tabs --------------------------------------------------------- */
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ew-space-2);
+  padding-bottom: var(--ew-space-6);
+  border-bottom: 1px solid var(--ew-line);
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 var(--ew-space-4);
+  font-size: var(--ew-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ew-ink-faint);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--ew-radius-pill);
+  cursor: pointer;
+  transition:
+    color var(--ew-fast) var(--ew-ease),
+    border-color var(--ew-fast) var(--ew-ease),
+    background-color var(--ew-fast) var(--ew-ease);
+}
+
+.tab:hover {
+  color: var(--ew-ink);
+}
+
+.tabOn {
+  color: var(--ew-ink-bright);
+  border-color: color-mix(in srgb, var(--ew-tier) 52%, transparent);
+  background: color-mix(in srgb, var(--ew-tier) 8%, var(--ew-raised));
+}
+
+/* --- faction / mechanics entries -------------------------------------------- */
+
+.factionEntries {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-5);
+}
+
+.factionEntry {
+  composes: plate from '../components/meta/craft.module.css';
+  padding: var(--ew-space-5);
+}
+
+.factionHead {
+  display: flex;
+  align-items: center;
+  gap: var(--ew-space-3);
+  margin-bottom: var(--ew-space-3);
+}
+
+.entryLabel {
+  composes: label from '../components/meta/craft.module.css';
+  margin: var(--ew-space-4) 0 var(--ew-space-2);
+}
+
+.entryBlurb {
+  margin: 0;
+  font-size: var(--ew-size-sm);
+  line-height: 1.55;
+  color: var(--ew-ink-dim);
+  text-wrap: pretty;
+}
+
 /* --- filters -------------------------------------------------------------- */
 
 .filters {
@@ -258,29 +331,27 @@
     padding: var(--ew-space-4) var(--ew-space-4) var(--ew-space-7);
   }
 
-  /* One scrolling row instead of a wrapped stack.
-     Seven chips wrapped to SIX rows at 393px — roughly 500px of filter
-     furniture before a single relic appeared, on the screen whose entire
-     purpose is showing relics. A snapping strip is the pattern phones already
-     use for filters, and it costs one row. `ALL` is first, so the default
-     state still reads as unfiltered without scrolling. */
+  /* One scrolling row instead of a wrapped stack — same reasoning as the
+     faction filter strip below: seven-plus chips wrapped eats the screen
+     budget the tabs exist to save. */
+  .tabs,
   .filters {
     flex-wrap: nowrap;
     overflow-x: auto;
     scroll-snap-type: x proximity;
     scrollbar-width: none;
     padding-bottom: var(--ew-space-4);
-    /* Bleed to the screen edge so the strip reads as scrollable rather than
-       as a row that happens to be clipped. */
     margin: 0 calc(-1 * var(--ew-space-4));
     padding-left: var(--ew-space-4);
     padding-right: var(--ew-space-4);
   }
 
+  .tabs::-webkit-scrollbar,
   .filters::-webkit-scrollbar {
     display: none;
   }
 
+  .tab,
   .filter {
     flex: 0 0 auto;
     scroll-snap-align: start;

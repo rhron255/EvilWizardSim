@@ -50,7 +50,7 @@ export type Game = {
   continueAfterResolution(): void;
   acknowledgeProphecy(): void;
   playAgain(): void;
-  viewCollection(): void;
+  viewNecrolexicon(): void;
   viewThemes(): void;
   viewChangelog(): void;
   backToTitle(): void;
@@ -112,7 +112,7 @@ type Action =
   | { type: 'continue'; content: ContentBundle }
   | { type: 'acknowledgeProphecy'; content: ContentBundle }
   | { type: 'playAgain' }
-  | { type: 'viewCollection' }
+  | { type: 'viewNecrolexicon' }
   | { type: 'viewThemes' }
   | { type: 'viewChangelog' }
   | { type: 'selectTheme'; id: ThemeId }
@@ -255,8 +255,8 @@ export function gameReducer(state: GameState, action: Action): GameState {
         unlockedTheme: null,
       };
 
-    case 'viewCollection':
-      return { ...state, screen: 'collection', unlockedTheme: null };
+    case 'viewNecrolexicon':
+      return { ...state, screen: 'necrolexicon', unlockedTheme: null };
 
     case 'viewThemes':
       return { ...state, screen: 'themes', unlockedTheme: null };
@@ -362,7 +362,7 @@ export function useGame(content: ContentBundle): Game {
   );
 
   const playAgain = useCallback(() => dispatch({ type: 'playAgain' }), []);
-  const viewCollection = useCallback(() => dispatch({ type: 'viewCollection' }), []);
+  const viewNecrolexicon = useCallback(() => dispatch({ type: 'viewNecrolexicon' }), []);
   const viewThemes = useCallback(() => dispatch({ type: 'viewThemes' }), []);
   const viewChangelog = useCallback(() => dispatch({ type: 'viewChangelog' }), []);
   const selectTheme = useCallback((id: ThemeId) => dispatch({ type: 'selectTheme', id }), []);
@@ -384,7 +384,7 @@ export function useGame(content: ContentBundle): Game {
       continueAfterResolution,
       acknowledgeProphecy,
       playAgain,
-      viewCollection,
+      viewNecrolexicon,
       viewThemes,
       viewChangelog,
       backToTitle,
@@ -421,7 +421,7 @@ export function useGame(content: ContentBundle): Game {
       continueAfterResolution,
       acknowledgeProphecy,
       playAgain,
-      viewCollection,
+      viewNecrolexicon,
       viewThemes,
       viewChangelog,
       selectTheme,

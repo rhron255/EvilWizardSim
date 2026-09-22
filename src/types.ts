@@ -318,6 +318,22 @@ export type Lair = {
   blurb: string;
 };
 
+/**
+ * One Necrolexicon entry explaining a rule the player needs during a run.
+ *
+ * Static reference prose, not run state — unlike a faction or a relic, a
+ * mechanic has no discovery gate: `requires` reads "the run screen currently
+ * uses this term with no in-place explanation", not "the player has seen
+ * this". Keep `blurb` to what a term MEANS, never to the odds of reaching a
+ * particular threshold — that is a strategy guide, and the Necrolexicon
+ * (issue #66) is explicitly not one.
+ */
+export type Mechanic = {
+  id: string;
+  name: string;
+  blurb: string;
+};
+
 export type Origin = {
   id: string;
   name: string;
@@ -514,7 +530,7 @@ export type Screen =
   | 'run'
   | 'prophecy'
   | 'ending'
-  | 'collection'
+  | 'necrolexicon'
   | 'themes'
   | 'changelog';
 

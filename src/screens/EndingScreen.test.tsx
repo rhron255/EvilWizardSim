@@ -131,7 +131,7 @@ function show(
       onApplyTheme={() => {}}
       {...extra}
       onPlayAgain={() => {}}
-      onViewCollection={() => {}}
+      onViewNecrolexicon={() => {}}
       onShare={() => {}}
     />,
   );
@@ -319,7 +319,7 @@ describe('EndingScreen · what the career added', () => {
         unlockedTheme={null}
         onApplyTheme={() => {}}
         onPlayAgain={() => {}}
-        onViewCollection={() => {}}
+        onViewNecrolexicon={() => {}}
         onShare={() => {}}
       />,
     );

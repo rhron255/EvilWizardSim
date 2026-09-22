@@ -48,7 +48,7 @@ export type EndingScreenProps = {
   artifacts: Artifact[];
   factions: Faction[];
   onPlayAgain(): void;
-  onViewCollection(): void;
+  onViewNecrolexicon(): void;
   /**
    * Notification hook for the host app (routing, analytics). The image itself
    * is produced here, because only this screen can react to a failed export by
@@ -116,7 +116,7 @@ export function EndingScreen({
   artifacts,
   factions,
   onPlayAgain,
-  onViewCollection,
+  onViewNecrolexicon,
   onShare,
   themeId,
   unlockedTheme,
@@ -463,8 +463,8 @@ export function EndingScreen({
         >
           {shareLabel}
         </button>
-        <button type="button" className={styles.secondary} onClick={onViewCollection}>
-          View collection
+        <button type="button" className={styles.secondary} onClick={onViewNecrolexicon}>
+          View Necrolexicon
         </button>
       </nav>
 

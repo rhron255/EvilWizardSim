@@ -11,6 +11,7 @@ export { artifacts } from './artifacts';
 export { lairs } from './lairs';
 export { origins } from './origins';
 export { endings } from './endings';
+export { mechanics } from './mechanics';
 export { epithets, CREATION_EPITHETS } from './epithets';
 export type { Epithet } from './epithets';
 

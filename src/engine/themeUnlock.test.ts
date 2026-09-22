@@ -132,7 +132,7 @@ describe('the unlock fires exactly once, and before the collection moves', () =>
 
     for (const action of [
       { type: 'playAgain' },
-      { type: 'viewCollection' },
+      { type: 'viewNecrolexicon' },
       { type: 'viewThemes' },
       { type: 'backToTitle' },
     ] as const) {
