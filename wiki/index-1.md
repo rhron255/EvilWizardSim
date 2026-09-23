@@ -43,6 +43,7 @@ documenting existing code.
 | `04_operational_behaviors.md` | Offer generation, odds, decay curves, faction logic. |
 | `05_implementation_blueprint.md` | Build order, validation, risks. |
 | `06_reference_analysis.md` | Source analysis and the design principles being reproduced. |
+| `07_failure_modes.md` | Every shipped bug this repo has produced, kept as a pattern with a check — summarized in `CLAUDE.md`. |
 
 **Read `06_reference_analysis.md` and `01_core_loop.md` before changing
 anything about rewards, pacing, or ending conditions.** Most of the
