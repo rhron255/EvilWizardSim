@@ -462,6 +462,24 @@ ascent's only certain way out of a pact debt, which is why the ladder walk in
 `validate-content.ts` now walks it as a wizard with nothing left to sell. The
 two rules only compose while a stock-free exit survives at every level.
 
+### 15. Verified at one width, with no hand on the keyboard
+
+The tutorial's Back button (issue #37) shipped with two bugs a 393px
+screenshot could not have shown either way:
+
+- It overflowed its row at ~320px. The mobile QA pass only ever shoots
+  393×852 — correct there, broken one size class down — the same shape as
+  failure mode 13, aimed at a viewport instead of a value.
+- A window-level `keydown` handler answered Enter/Space by always advancing,
+  even when Back or Skip had focus, because it fired before asking what was
+  actually focused. No screenshot depicts a keypress; this needed a keyboard
+  in the loop, not a camera.
+
+**Check:** for a layout change, shoot the 393px reference AND a narrow one
+(320px) — the second is where a row that fit first runs out of room. For a
+new focusable control, tab to it and press Enter/Space before calling the
+change done; a screenshot only ever proves what a mouse would have seen.
+
 ## Working on this
 
 ### Before calling a change done
@@ -470,20 +488,25 @@ two rules only compose while a stock-free exit survives at every level.
    — all four, and read the output.
 2. Balance touched? `npm run sim`, and check the target's provenance.
 3. UI touched? `node qa/playthrough.mjs --width 393 --height 852` **and read the
-   PNGs back**. 393px is the target device, not an afterthought.
-4. New test? Break the behaviour it pins and watch it go red — and check that
+   PNGs back**, then repeat at `--width 320 --height 568` for anything with a
+   row of controls (failure mode 15). 393px is the target device, not an
+   afterthought; 320px is where a row that fit there runs out of room.
+4. New focusable control (button, link, anything a player can Tab to)? Tab to
+   it and press Enter/Space before calling it done — a screenshot cannot show
+   a keypress (failure mode 15).
+5. New test? Break the behaviour it pins and watch it go red — and check that
    the assertion is anchored to something the code under test does not also
    supply (failure mode 11).
-5. New state that can end a run? Make the screen say so — the threshold, the
+6. New state that can end a run? Make the screen say so — the threshold, the
    distance, and the rate **if there is one**. If there is not, do not invent
    one; see failure mode 1.
-6. New `Effect` variant that is deterministic? Add it to `PROJECTABLE` in
+7. New `Effect` variant that is deterministic? Add it to `PROJECTABLE` in
    `src/engine/effects.ts`, or the offer card goes back to printing the
    authored number instead of the real one.
-7. New content field the UI reads? Make it **required** on the type and let the
+8. New content field the UI reads? Make it **required** on the type and let the
    compiler name every fixture. `Ending.hint` found all fourteen call sites
    that way; an optional field would have rendered blank in two of them.
-8. Shipping a player-visible change (a new mechanic, a balance retune, a UI
+9. Shipping a player-visible change (a new mechanic, a balance retune, a UI
    fix worth announcing)? Bump `BUILD_VERSION` in `src/version.ts` to the
    current UTC timestamp ("YYYY-MM-DDTHH:mm:ssZ" — a bare date collides the
    moment two builds ship the same day, which is why the key is a full
