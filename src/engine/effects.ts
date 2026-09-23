@@ -18,13 +18,14 @@ import {
   CONTAGION_GAIN,
   CONTAGION_LOSS,
   NOVELTY_BIAS,
+  POWER_FLOOR,
   RARITY_DRAW_WEIGHT,
   STANDING_MAX,
   STANDING_MIN,
 } from './constants';
 import type { Rng } from './rng';
 import { weightedPick } from './rng';
-import { clamp, clampNotoriety, clampThreat } from './systems';
+import { clamp, clampNotoriety, clampThreat, relicPowers } from './systems';
 
 export type EffectApplication = {
   /** Exactly what landed, with post-clamp magnitudes. */
@@ -56,6 +57,26 @@ export function draftOf(run: RunState): RunState {
 const RARITY_RANK: Record<Rarity, number> = { common: 0, rare: 1, legendary: 2 };
 
 /**
+ * A cost, reduced by a relic, but never all the way.
+ *
+ * `haggle` and `grace` are one rule pointed at two currencies, so this is one
+ * function: a COST shrinks toward its `POWER_FLOOR` and stops there.
+ *
+ * COSTS ONLY. A relic that made every follower GAIN larger, or every standing
+ * gain bigger, would be a second mechanic wearing the same name, and the card
+ * would print a number the author never wrote.
+ *
+ * Nothing else has to change for the player to see either one. `projectEffects`
+ * is `applyEffects` run against a draft, so the offer card prints the softened
+ * price before the commit and the resolution prints it after — one number,
+ * arrived at once.
+ */
+function soften(v: number, by: number, floor: number): number {
+  if (v >= 0) return v;
+  return Math.min(-floor, v + by);
+}
+
+/**
  * Apply `effects` to `draft` in order, mutating it.
  *
  * `rng` is drawn from only for genuinely random effects (`artifactFrom`,
@@ -68,6 +89,20 @@ export function applyEffects(
   content: ContentBundle,
 ): EffectApplication {
   const index = indexOf(content);
+  /*
+   * The reliquary as it stood when the card was OFFERED, read once.
+   *
+   * Not per-effect off the running draft. `artifactFrom` pushes its draw onto
+   * `draft.heldArtifactIds` mid-list, so a branch like `[artifactFrom
+   * gilded_hand rare, followers -6]` would discount its own cost with the
+   * relic it was in the middle of granting if the reliquary were re-read after
+   * each effect — and `projectEffects` cannot see that, because it leaves
+   * `artifactFrom` unprojected (the draw is random; resolving it early would
+   * spoil or lie). Reading once here is what makes the projection and the
+   * resolution agree: both price the option against the relics the player
+   * already had.
+   */
+  const powers = relicPowers(draft, content);
   const out: EffectApplication = { applied: [], artifactsGained: [], artifactsLost: [] };
 
   for (const effect of effects) {
@@ -82,14 +117,17 @@ export function applyEffects(
 
       case 'followers': {
         const before = draft.followers;
-        draft.followers = Math.max(0, Math.round(before + effect.v));
+        draft.followers = Math.max(
+          0,
+          Math.round(before + soften(effect.v, powers.haggle, POWER_FLOOR.haggle ?? 0)),
+        );
         const delta = draft.followers - before;
         if (delta !== 0) out.applied.push({ t: 'followers', v: delta });
         break;
       }
 
       case 'standing': {
-        applyStanding(draft, effect.factionId, effect.v, index, out.applied);
+        applyStanding(draft, effect.factionId, effect.v, index, out.applied, powers.grace);
         break;
       }
 
@@ -240,6 +278,12 @@ export function applyEffects(
  * already pinned at +100 costs its enemies nothing. It is one hop only — no
  * recursion, no cascades — and each secondary change is pushed onto
  * `applied` so the resolution card shows the whole bill.
+ *
+ * `grace` softens a LOSS, both the named one and the spill below — the spill
+ * is where the undisclosed damage lives (courting the Covenant drives the
+ * Academy toward the seal through cards that never name the Academy), so a
+ * grace that covered only the named loss would leave the invisible route at
+ * full strength, which is precisely the half a player cannot plan around.
  */
 export function applyStanding(
   draft: RunState,
@@ -247,9 +291,15 @@ export function applyStanding(
   v: number,
   index: ContentIndex,
   applied: Effect[],
+  /** From `relicPowers(draft, content).grace` — see `applyEffects`. */
+  grace = 0,
 ): number {
   const before = draft.factionStanding[factionId] ?? 0;
-  const after = clamp(Math.round(before + v), STANDING_MIN, STANDING_MAX);
+  const after = clamp(
+    Math.round(before + soften(v, grace, POWER_FLOOR.grace ?? 0)),
+    STANDING_MIN,
+    STANDING_MAX,
+  );
   const delta = after - before;
   draft.factionStanding = { ...draft.factionStanding, [factionId]: after };
   if (delta !== 0) applied.push({ t: 'standing', factionId, v: delta });
@@ -259,7 +309,11 @@ export function applyStanding(
   const rate = delta > 0 ? CONTAGION_GAIN : CONTAGION_LOSS;
   for (const enemyId of enemies) {
     if (enemyId === factionId) continue;
-    const spill = -Math.sign(delta) * Math.round(Math.abs(delta) * rate);
+    const spill = soften(
+      -Math.sign(delta) * Math.round(Math.abs(delta) * rate),
+      grace,
+      POWER_FLOOR.grace ?? 0,
+    );
     if (spill === 0) continue;
     const enemyBefore = draft.factionStanding[enemyId] ?? 0;
     const enemyAfter = clamp(enemyBefore + spill, STANDING_MIN, STANDING_MAX);

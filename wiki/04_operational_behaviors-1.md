@@ -148,7 +148,9 @@ sell.
 ## Hero Escalation
 
 `heroThreat` rises each decline-phase era. Compared against a defense
-value derived from Notoriety, artifacts held, and lair tier. When threat
+value derived from Notoriety, the `wards` relics held, and lair tier (issue
+#6 gave relics five other powers, which act on the threat rather than on the
+wards — see `ArtifactPower`). When threat
 exceeds defense, the run ends in *Slain by the Chosen One*.
 
 Escalation should be steep enough that survival to the age limit is

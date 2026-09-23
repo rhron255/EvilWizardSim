@@ -10,10 +10,14 @@
  * mislead a player exactly as badly, in the other direction.
  */
 import { describe, expect, it } from 'vitest';
-import { heroBand, PACT_LIMIT } from '../../engine';
-import type { DefenseReadout } from '../../engine';
+import { emptyRelicPowers, heroBand, PACT_LIMIT } from '../../engine';
+import { fixtureContent } from '../../engine/__fixtures__/content';
+import type { DefenseReadout, RelicPowers } from '../../engine';
 import type { RunState } from '../../types';
 import { siegeFor, stakesFor } from './stakes';
+
+/** A wizard holding nothing — these cases are about the other stats. */
+const NO_RELICS: RelicPowers = emptyRelicPowers();
 
 const run = (over: Partial<RunState> = {}): RunState =>
   ({
@@ -52,7 +56,7 @@ const run = (over: Partial<RunState> = {}): RunState =>
     ...over,
   }) as RunState;
 
-const pact = (r: RunState) => stakesFor(r).find((s) => s.label === 'Pact Debt')!;
+const pact = (r: RunState) => stakesFor(r, NO_RELICS).find((s) => s.label === 'Pact Debt')!;
 
 describe('pact debt disclosure', () => {
   it('shows the ceiling as a denominator', () => {
@@ -129,20 +133,20 @@ describe('the hero rail', () => {
   });
 
   it('is empty when the hero has not started', () => {
-    expect(siegeFor(decline(0), wards(100))!.ratio).toBe(0);
+    expect(siegeFor(decline(0), wards(100), fixtureContent)!.ratio).toBe(0);
   });
 
   it('is full when the hero reaches the wards, not at half of them', () => {
-    expect(siegeFor(decline(100), wards(100))!.ratio).toBe(1);
+    expect(siegeFor(decline(100), wards(100), fixtureContent)!.ratio).toBe(1);
   });
 
   it('reads the middle as the middle', () => {
-    expect(siegeFor(decline(50), wards(100))!.ratio).toBeCloseTo(0.5);
+    expect(siegeFor(decline(50), wards(100), fixtureContent)!.ratio).toBeCloseTo(0.5);
   });
 
   it('clamps past the end rather than overflowing the track', () => {
-    expect(siegeFor(decline(400), wards(100))!.ratio).toBe(1);
-    expect(siegeFor(decline(-20), wards(100))!.ratio).toBe(0);
+    expect(siegeFor(decline(400), wards(100), fixtureContent)!.ratio).toBe(1);
+    expect(siegeFor(decline(-20), wards(100), fixtureContent)!.ratio).toBe(0);
   });
 
   it('takes its tone from the shared band function, not a local threshold', () => {
@@ -150,7 +154,7 @@ describe('the hero rail', () => {
     // how close the hero is — which is the whole reason `heroBand` is in the
     // engine rather than beside the readout.
     for (const threat of [0, 30, 59, 60, 84, 85, 99]) {
-      const siege = siegeFor(decline(threat), wards(100))!;
+      const siege = siegeFor(decline(threat), wards(100), fixtureContent)!;
       const band = heroBand(threat, 100);
       const expected = band === 'calm' ? 'calm' : band === 'warn' ? 'warn' : 'danger';
       expect(siege.tone, `threat ${threat}`).toBe(expected);
@@ -158,7 +162,7 @@ describe('the hero rail', () => {
   });
 
   it('stays out of the ascent entirely', () => {
-    expect(siegeFor(run({ phase: 'ascent' } as Partial<RunState>), wards(100))).toBeNull();
+    expect(siegeFor(run({ phase: 'ascent' } as Partial<RunState>), wards(100), fixtureContent)).toBeNull();
   });
 });
 
@@ -189,6 +193,7 @@ describe('the wards caption names what is carrying you', () => {
         { label: 'Relics', value: 30, earned: true },
         { label: 'Standing ground', value: 42, earned: false },
       ]),
+      fixtureContent,
     )!;
     expect(siege.sentence).toContain('relics adds 30');
     expect(siege.sentence).not.toContain('lair adds');
@@ -202,6 +207,7 @@ describe('the wards caption names what is carrying you', () => {
         { label: 'Undeath', value: 60, earned: true },
         { label: 'Standing ground', value: 42, earned: false },
       ]),
+      fixtureContent,
     )!;
     expect(siege.sentence).toContain('undeath adds 60');
   });
@@ -215,6 +221,7 @@ describe('the wards caption names what is carrying you', () => {
         { label: 'Lair', value: 8, earned: true },
         { label: 'Standing ground', value: 42, earned: false },
       ]),
+      fixtureContent,
     )!;
     expect(siege.sentence).not.toContain('standing ground');
     expect(siege.sentence).toContain('lair adds 8');
@@ -228,6 +235,7 @@ describe('the wards caption names what is carrying you', () => {
         { label: 'Undeath', value: 60, earned: true },
         { label: 'Relics', value: 0, earned: true },
       ]),
+      fixtureContent,
     )!;
     expect(siege.terms[0].label).toBe('Undeath');
     // Zero terms are noise — a wizard with no relics needs no row saying so.
@@ -247,7 +255,7 @@ describe('the Good Wizard counters never surface in the header', () => {
   it('stakesFor never mentions them, at any goodActs/illActs', () => {
     for (const goodActs of [0, 1, 4, 8, 50]) {
       for (const illActs of [0, 1, 3, 20]) {
-        const stakes = stakesFor(run({ goodActs, illActs } as Partial<RunState>));
+        const stakes = stakesFor(run({ goodActs, illActs } as Partial<RunState>), NO_RELICS);
         for (const stake of stakes) {
           expect(stake.label).not.toMatch(MENTION);
           expect(stake.caption).not.toMatch(MENTION);
@@ -263,9 +271,42 @@ describe('the Good Wizard counters never surface in the header', () => {
         const siege = siegeFor(
           run({ phase: 'decline', heroThreat: 30, goodActs, illActs } as Partial<RunState>),
           wards,
+          fixtureContent,
         );
         expect(siege!.sentence).not.toMatch(MENTION);
       }
     }
+  });
+});
+
+/**
+ * The Relics caption, after issue #6.
+ *
+ * It read "your defence against the hero" for every reliquary, which was true
+ * while every relic was `Defense +N` and false the moment one of them was not.
+ * A header that claims three relics are defending a wizard, two lines above a
+ * wards readout that does not count them, is the same class of defect as a
+ * ceiling printed without its clock.
+ */
+describe('the relics caption', () => {
+  const holding = (n: number) =>
+    run({ heldArtifactIds: Array.from({ length: n }, (_, i) => `r${i}`) } as Partial<RunState>);
+  const relicStake = (n: number, powers: Partial<typeof NO_RELICS>) =>
+    stakesFor(holding(n), { ...NO_RELICS, ...powers }).find((s) => s.label === 'Relics')!;
+
+  it('does not claim defence for a reliquary that provides none', () => {
+    const stake = relicStake(2, { grace: 3 });
+    expect(stake.caption).not.toMatch(/defen[cs]e/i);
+    expect(stake.caption).toContain('standing losses');
+  });
+
+  it('states the wards when there are wards to state', () => {
+    expect(relicStake(1, { wards: 6 }).caption).toContain('+6 wards');
+  });
+
+  it('says what relics are FOR when none are held, not what these ones do', () => {
+    // The inverse of the pact caption's rule: do not print a summary of an
+    // empty reliquary, the way it does not print a rate that does not exist.
+    expect(relicStake(0, {}).caption).toBe('each one changes a different number');
   });
 });

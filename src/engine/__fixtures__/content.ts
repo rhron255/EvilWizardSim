@@ -139,9 +139,14 @@ function buildArtifacts(): Artifact[] {
         name: `${capitalize(faction.adjective)} ${noun} ${romanize(i + 1)}`,
         factionId,
         rarity,
-        effect: `+${DEFENSE_BY_RARITY[rarity]} defense against the chosen one.`,
+        // Uniformly `wards`, on purpose. The fixture exists to hold content
+        // CONSTANT while the engine is measured against it, so it stays the
+        // one shape whose arithmetic every engine test can predict. The other
+        // five powers are exercised by `relicPowers.test.ts`, against bundles
+        // built to show each one, rather than smuggled in here where they
+        // would quietly move numbers a hundred assertions depend on.
+        power: { p: 'wards', v: DEFENSE_BY_RARITY[rarity] },
         flavorText: 'It hums when the wrong people are nearby.',
-        defense: DEFENSE_BY_RARITY[rarity],
       });
     });
   }

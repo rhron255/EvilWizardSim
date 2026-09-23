@@ -21,6 +21,12 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-09-23T16:45:00Z': {
+    summary: 'Relics do more than block the hero now.',
+    details: [
+      'Every relic has one clear effect — warding you off, slowing the hero, or easing a cost elsewhere — instead of a flat defense number. See the Necrolexicon\'s Relics page for the full range.',
+    ],
+  },
   '2026-09-23T08:30:00Z': {
     summary: 'A card you cannot yet afford now stays around instead of vanishing for the run.',
     details: [

@@ -9,7 +9,8 @@ import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ContentBundle, DefenseReadout } from '../../engine';
-import { DEF_LICH } from '../../engine';
+import { DEF_LICH, relicPowers } from '../../engine';
+import { siegeFor } from './stakes';
 import type { Offer, RunState } from '../../types';
 import {
   demoArtifacts,
@@ -47,7 +48,8 @@ const show = (
       content={content}
       disabled={disabled}
       onChoose={() => {}}
-      defense={defense}
+      siege={defense && siegeFor(run, defense, content)}
+      relics={relicPowers(run, content)}
     />,
   );
 

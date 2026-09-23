@@ -12,6 +12,8 @@
  * a bug.
  */
 
+import type { ArtifactPower } from '../types';
+
 // ---------------------------------------------------------------------------
 // Era structure
 // ---------------------------------------------------------------------------
@@ -95,6 +97,26 @@ export const HERO_THREAT_RAMP = 2;
 export const HERO_FAME_COEF = 0.18;
 
 /**
+ * The least the chosen one can gain in a decline era, however many `vigil`
+ * relics are stacked against him.
+ *
+ * Provenance, because a floor invented to make a number behave is exactly
+ * failure mode 6: this one is not a balance target, it is rule 6. `vigil`
+ * subtracts from the gain above, and the gain starts at
+ * `HERO_THREAT_BASE + HERO_FAME_COEF * notoriety` — which for a quiet wizard
+ * early in the decline is around 7. Three `vigil` relics reach that, and
+ * without a floor such a run would hold the hero at a standstill forever:
+ * `slain_by_chosen_one` would stop being reachable for the builds that most
+ * deliberately set out to survive him, and the decline would stop being a
+ * decline. One a era is the smallest number that keeps him arriving.
+ *
+ * It is also the honest reading of the relics themselves. The Orrery sees him
+ * coming and the Unbroken Line names his grandmother; neither claims to
+ * un-prophesy him.
+ */
+export const HERO_THREAT_MIN = 1;
+
+/**
  * How close the hero is, as a fraction of what stands in his way.
  *
  * ONE pair of thresholds, read by two things that must never disagree: the
@@ -111,12 +133,17 @@ export const HERO_BAND_WARN = 0.6;
 export const HERO_BAND_DANGER = 0.85;
 
 /**
- * `defenseOf` = floor + notoriety term + artifact defenses + lair term.
+ * `defenseOf` = floor + notoriety term + relic `wards` + lair term.
  *
- * The floor is high relative to the notoriety term on purpose: artifacts and
- * the lair ladder are the things you *build*, and they should be what carries
- * a famous wizard through the decline. Notoriety contributes a little (fear
+ * The floor is high relative to the notoriety term on purpose: relics and the
+ * lair ladder are the things you *build*, and they should be what carries a
+ * famous wizard through the decline. Notoriety contributes a little (fear
  * deters) but nowhere near enough to pay for the threat it generates.
+ *
+ * "Relic `wards`" used to say "artifacts" (issue #6): every relic contributed
+ * defense and nothing else until relics gained five OTHER powers, which act
+ * on the threat side of the comparison rather than on the wards — see
+ * `ArtifactPower` in `types.ts`.
  *
  * MOVED 42 -> 48 (issue #42): `slain_by_chosen_one` had drifted to 51.40% on
  * `main`, over its own 45% ceiling, most plausibly because the faction
@@ -224,6 +251,33 @@ export const DEF_LICH = 90;
  * crowns" half of the band this constant cannot otherwise prove.
  */
 export const LICH_RELIC_REQUIREMENT = 2;
+
+/**
+ * The least a follower cost can be haggled down to, and the least a standing
+ * loss can be softened to.
+ *
+ * Same provenance as `HERO_THREAT_MIN` and `LOYALTY_DRIFT_MIN`: not balance
+ * targets, but the bound that stops a power becoming an off switch.
+ *
+ * `haggle` without a floor is a narrower version of failure mode 14 than the
+ * one `impliedGatesOf` (`src/engine/conditions.ts`) already closes: the
+ * derived gate is computed from the AUTHORED cost, so a wizard still has to
+ * hold the full nominal amount to be offered the card at all — but once
+ * offered, an uncapped `haggle` can discount what they are actually charged
+ * to zero, so the price paid to CLEAR the gate is real and the price the
+ * engine then charges is not. The catalog carries 14 points of haggle across
+ * the Gilded Hand's four relics, enough on its own to zero a cost in that
+ * range. A cost that still costs one follower is a cost.
+ *
+ * `grace` without a floor is rule 6. `CONTAGION_LOSS` is 0.25, so an ordinary
+ * +8 standing gain spills −2 onto each hostile faction; two common grace
+ * relics erase that spill entirely, and `applyStanding` drops a zero spill
+ * without recording it. Contagion is the route CLAUDE.md names into
+ * `sealed_in_gem` — 18.5% of runs — and the five faction reprisals are
+ * reachable only through standing going down. A relic may soften that; it may
+ * not switch off an ending.
+ */
+export const SOFTENED_COST_MIN = 1;
 
 // ---------------------------------------------------------------------------
 // Faction standing — wiki/04 § Faction Standing
@@ -362,6 +416,17 @@ export const BETRAYAL_MAX_LOYALTY = 15;
  */
 export const LOYALTY_DRIFT_BASE = 2;
 export const LOYALTY_DRIFT_MIN_APPRENTICES = 2;
+
+/**
+ * The least a school can drift in a decline era, however much `discipline` is
+ * held against it.
+ *
+ * Same shape and same provenance as `HERO_THREAT_MIN`, for the same reason:
+ * `betrayed_by_apprentice` is already the rarest of the original seven, and a
+ * relic that stopped the drift dead would close it outright for anyone holding
+ * one. Ambition slows; it does not become loyalty.
+ */
+export const LOYALTY_DRIFT_MIN = 1;
 
 /**
  * A faction reprisal: standing this far under, and famous enough to be worth
@@ -520,3 +585,34 @@ export const COLLECTION_VERSION = 5;
  * 1 -> 2 (issue #23): added `goodActs`, `illActs`, `goodWizardVowed`.
  */
 export const RUN_SAVE_VERSION = 2;
+
+/**
+ * What each relic power may NOT reduce its quantity below.
+ *
+ * The three constants above are deliberately separate values — they are in
+ * different units (threat per era, loyalty points per era, followers and
+ * standing points) and are independently retunable, so collapsing them would
+ * couple retunes that have nothing to do with each other. What was missing is
+ * a home for the INVARIANT all of them implement: a relic power softens a
+ * quantity, and may not switch it off.
+ *
+ * That rule was written four times across three files and stated nowhere, and
+ * the evidence it needed a name is that it was forgotten twice inside the one
+ * sprint that introduced it — `haggle` shipped able to zero a follower cost
+ * and `grace` able to erase the contagion spill. A `Record` over the union
+ * means a seventh power cannot compile without someone deciding its floor.
+ *
+ * `wards` is `null` because it is the one power that ADDS to a total rather
+ * than reducing one; there is nothing for it to floor. `undimmed` is 0 because
+ * its quantity — the decline's notoriety erosion — is the one a relic IS
+ * permitted to stop outright, which is a design decision and now reads as one
+ * instead of as a bare literal in a system module.
+ */
+export const POWER_FLOOR: Record<ArtifactPower['p'], number | null> = {
+  wards: null,
+  vigil: HERO_THREAT_MIN,
+  undimmed: 0,
+  discipline: LOYALTY_DRIFT_MIN,
+  haggle: SOFTENED_COST_MIN,
+  grace: SOFTENED_COST_MIN,
+};

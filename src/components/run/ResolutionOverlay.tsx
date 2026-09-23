@@ -16,6 +16,7 @@ import { tierColor, tierFor, tierGlow } from '../../theme/tokens';
 import type { Resolution } from './resolution';
 import { EffectList } from './EffectList';
 import { describeSystemic, endingName, formatOdds, systemicKey } from './effectText';
+import { artifactPowerText } from '../meta/artifactPower';
 import { NotorietyBadge } from './NotorietyBadge';
 import styles from './ResolutionOverlay.module.css';
 
@@ -220,6 +221,15 @@ export function ResolutionOverlay({
                   {newRelicIds.has(a.id) && (
                     <span className={styles.relicNew}>Never seen before</span>
                   )}
+                  {/* WHAT IT DOES, at the moment it is handed over.
+                      Relics all did the same thing until issue #6, so this row
+                      could show a name and a joke and disclose everything there
+                      was; now one relic softens standing losses and the next
+                      slows the chosen one, and a player who is never told which
+                      they just picked up has been handed an undisclosed
+                      consequence. Same derived line as the collection's card —
+                      `artifactPowerText`, one vocabulary. */}
+                  <span className={styles.relicPower}>{artifactPowerText(a.power)}</span>
                   <span className={styles.relicFlavor}>{a.flavorText}</span>
                 </span>
               </div>
