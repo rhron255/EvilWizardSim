@@ -231,7 +231,12 @@ export default function App() {
         <ChangelogScreen changelog={CHANGELOG} collection={game.collection} onBack={game.backToTitle} />
       );
 
+    // A replayed guide (issue #37) is a modal over the title screen, the same
+    // way the gated first showing is a modal over the run screen — so
+    // 'tutorial' falls through to the same render below rather than getting a
+    // case of its own.
     case 'title':
+    case 'tutorial':
       break;
   }
 
@@ -246,7 +251,19 @@ export default function App() {
         onViewNecrolexicon={game.viewNecrolexicon}
         onViewThemes={game.viewThemes}
         onViewChangelog={game.viewChangelog}
+        onViewTutorial={game.viewTutorial}
       />
+      {screen === 'tutorial' && (
+        // `dismissFirstRunGuide` is a no-op here — `tutorialSeen` is already
+        // true on any run that can reach the title screen's Tutorial door —
+        // so the screen change back to the title is what actually closes it.
+        <FirstRunGuide
+          onDismiss={() => {
+            game.dismissFirstRunGuide();
+            game.backToTitle();
+          }}
+        />
+      )}
       {/* On launch only — the title screen is where every session starts,
           whether or not there is a run to resume. Acknowledging saves the
           build version so a reload of the same build never shows it again;

@@ -87,6 +87,25 @@ describe('the first-run guide gate', () => {
   });
 });
 
+describe('replaying the tutorial (issue #37)', () => {
+  it('routes to the tutorial screen on request, from the title screen', () => {
+    const hook = renderHook(() => useGame(content));
+    expect(hook.result.current.screen).toBe('title');
+    act(() => hook.result.current.viewTutorial());
+    expect(hook.result.current.screen).toBe('tutorial');
+  });
+
+  it('is reachable even after the gated first showing has already been seen', () => {
+    const { result } = beginRun();
+    act(() => result.current.dismissFirstRunGuide());
+    act(() => result.current.backToTitle());
+    expect(result.current.collection.tutorialSeen).toBe(true);
+
+    act(() => result.current.viewTutorial());
+    expect(result.current.screen).toBe('tutorial');
+  });
+});
+
 describe('the remembered name', () => {
   it('is empty for a player who has never named a wizard', () => {
     const { result } = renderHook(() => useGame(content));

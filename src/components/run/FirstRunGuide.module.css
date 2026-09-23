@@ -91,7 +91,8 @@
   gap: var(--ew-space-2);
 }
 
-.skip {
+.skip,
+.back {
   padding: var(--ew-space-2) var(--ew-space-3);
   font-size: var(--ew-size-xs);
   text-transform: uppercase;
@@ -102,7 +103,8 @@
   transition: color var(--ew-fast) var(--ew-ease);
 }
 
-.skip:hover {
+.skip:hover,
+.back:hover {
   color: var(--ew-ink);
 }
 
