@@ -24,9 +24,8 @@ export const CHANGELOG: Changelog = {
   '2026-09-23T07:41:55Z': {
     summary: 'The tutorial can go back, and can be replayed any time from the title screen.',
     details: [
-      'Added a Back button (and the left arrow key) to the three-card guide, so you can revisit a card without losing your place.',
-      'Added a Tutorial door on the title screen — the guide no longer shows only once, ever.',
-      'Tightened the wording on all three cards.',
+      'Added a Back button (and the left arrow key) to the tutorial.',
+      'Added a Tutorial button.',
     ],
   },
   '2026-09-22T18:40:00Z': {

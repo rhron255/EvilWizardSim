@@ -117,6 +117,11 @@ export function FirstRunGuide({ onDismiss }: FirstRunGuideProps) {
         return;
       }
       if (event.key === 'Enter' || event.key === ' ') {
+        // A focused button already answers Enter/Space with its own onClick —
+        // stepping in here too would override Back or Skip with advance()
+        // the moment either one has focus, which is worse than doing nothing
+        // (the codex review on issue #37 caught this on the new Back button).
+        if (event.target instanceof HTMLButtonElement) return;
         event.preventDefault();
         advance();
         return;
