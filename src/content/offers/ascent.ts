@@ -1750,8 +1750,15 @@ export const ascentOffers: Offer[] = [
     body: 'The Crownlands offer you a minor governorship of a province nobody wants. It is a trap, it is transparently a trap, and it also pays.',
     phase: 'ascent',
     factionId: 'crownlands',
-    requires: [{ c: 'minNotoriety', v: 35 }],
-    weight: 1,
+    // issue #35: was gated at 35, a threshold a standing-focused courtier
+    // (`courtier_crownlands` plays 'standing' mode through the whole ascent
+    // and never deliberately chases notoriety) almost never crosses before
+    // decline — locking the single biggest Crownlands option out of the
+    // exact playstyle that wants it. 20 still reads as "notable enough to be
+    // worth controlling" but is reachable from notoriety picked up
+    // incidentally along the way.
+    requires: [{ c: 'minNotoriety', v: 20 }],
+    weight: 2,
     options: [
       {
         kind: 'certain',
@@ -1941,6 +1948,96 @@ export const ascentOffers: Offer[] = [
         ],
         successText: 'They take you as far as the second ring, which is further than anyone gets.',
         failureText: 'The invitation was the whole gesture. Asking for more retires the tradition.',
+      },
+    ],
+  },
+
+  // issue #35: the Crownlands' own courtship offers were far thinner than
+  // the other four courtable factions' (`qa/probe-standing-routes.ts` had
+  // its up/down ratio at 0.39 against 0.63-1.19 elsewhere), so its crown,
+  // `overthrown_the_kingdom`, almost never cleared `DEVOTION_STANDING +
+  // PATRON_MARGIN`. These two add real up-volume the same way the existing
+  // census/warrant/appointment cards do — a genuine cost for a genuine gain.
+  {
+    id: 'ascent_crownlands_writ',
+    title: 'The Writ of Standing',
+    body: 'A writ arrives, sealed three times, offering to enter your household into the county rolls as a recognised holding. It is, the seal insists, an honour.',
+    phase: 'ascent',
+    factionId: 'crownlands',
+    weight: 3,
+    options: [
+      {
+        kind: 'certain',
+        label: 'Enter the rolls in full',
+        effects: [
+          { t: 'followers', v: -18 },
+          { t: 'standing', factionId: 'crownlands', v: 16 },
+          { t: 'heroThreat', v: -4 },
+        ],
+        resultText: 'Eighteen of your household are counted, taxed, and, for the first time, protected by something.',
+      },
+      {
+        kind: 'certain',
+        label: 'Enter it provisionally',
+        effects: [
+          { t: 'apprentices', v: -1 },
+          { t: 'standing', factionId: 'crownlands', v: 10 },
+        ],
+        resultText: 'One apprentice is sent to stand as the household’s registered representative, indefinitely.',
+      },
+      {
+        kind: 'certain',
+        label: 'Leave the writ unsealed',
+        effects: [
+          { t: 'standing', factionId: 'crownlands', v: -6 },
+          { t: 'notoriety', v: 2 },
+        ],
+        resultText: 'The rolls note an entry declined, in the same triplicate as everything else.',
+      },
+    ],
+  },
+
+  {
+    id: 'ascent_crownlands_assizes',
+    title: 'The Assizes',
+    body: 'The travelling assizes have reached your province, and the magistrate would very much like a wizard’s testimony on record before they move on.',
+    phase: 'ascent',
+    factionId: 'crownlands',
+    weight: 2,
+    options: [
+      {
+        kind: 'certain',
+        label: 'Testify for the Crown',
+        effects: [
+          { t: 'followers', v: -10 },
+          { t: 'standing', factionId: 'crownlands', v: 14 },
+          { t: 'notoriety', v: -3 },
+        ],
+        resultText: 'Your testimony is entered, read back twice, and filed as settled.',
+      },
+      {
+        kind: 'gamble',
+        label: 'Argue for leniency instead',
+        odds: 0.6,
+        onSuccess: [
+          { t: 'standing', factionId: 'crownlands', v: 6 },
+          { t: 'notoriety', v: 4 },
+        ],
+        onFailure: [
+          { t: 'standing', factionId: 'crownlands', v: -16 },
+          { t: 'heroThreat', v: 5 },
+        ],
+        successText: 'The magistrate allows it, on record, as clemency the Crown is pleased to suggest.',
+        failureText: 'The magistrate does not allow it, and notes who asked.',
+      },
+      {
+        kind: 'certain',
+        label: 'Decline to appear',
+        effects: [
+          { t: 'standing', factionId: 'crownlands', v: -8 },
+          { t: 'notoriety', v: 1 },
+        ],
+        resultText: 'The assizes move on. The magistrate writes down that you were asked.',
       },
     ],
   },
