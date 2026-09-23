@@ -65,7 +65,7 @@ export const mechanics: Mechanic[] = [
     id: 'relics',
     name: 'Relics',
     blurb:
-      'Artifacts you have picked up along the way, each tied to one faction and graded common, rare, or legendary. A relic adds to your defense and, once held, is yours for the rest of the career. Unless you decide it isn\'t.',
+      'Artifacts you have picked up along the way, each tied to one faction and graded common, rare, or legendary. No two work quite the same: some ward you against the hero outright, others slow his approach, keep your name from fading, steady an apprentice\'s loyalty, soften what your followers cost you, or cushion a faction\'s anger. Once held, a relic is yours for the rest of the career. Unless you decide it isn\'t.',
   },
   {
     id: 'offers',
