@@ -21,6 +21,13 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-09-23T07:41:55Z': {
+    summary: 'The tutorial can go back, and can be replayed any time from the title screen.',
+    details: [
+      'Added a Back button (and the left arrow key) to the tutorial.',
+      'Added a Tutorial button.',
+    ],
+  },
   '2026-09-22T18:40:00Z': {
     summary: 'Added the Necrolexicon — the one stop shop for all manner of evil explanations.',
     details: [

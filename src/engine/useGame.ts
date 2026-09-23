@@ -72,6 +72,12 @@ export type Game = {
    */
   showFirstRunGuide: boolean;
   dismissFirstRunGuide(): void;
+  /**
+   * Replays the three-card guide on demand (issue #37), independent of
+   * `tutorialSeen` — a returning player asking to see it again is not the
+   * first-run gate this flag exists to satisfy.
+   */
+  viewTutorial(): void;
 };
 
 type GameState = {
@@ -118,7 +124,8 @@ type Action =
   | { type: 'selectTheme'; id: ThemeId }
   | { type: 'backToTitle' }
   | { type: 'resume'; content: ContentBundle }
-  | { type: 'dismissGuide' };
+  | { type: 'dismissGuide' }
+  | { type: 'viewTutorial' };
 
 function initialState(): GameState {
   return {
@@ -264,6 +271,9 @@ export function gameReducer(state: GameState, action: Action): GameState {
     case 'viewChangelog':
       return { ...state, screen: 'changelog', unlockedTheme: null };
 
+    case 'viewTutorial':
+      return { ...state, screen: 'tutorial', unlockedTheme: null };
+
     case 'selectTheme': {
       // Re-checked here even though the selector never offers a locked card.
       // The reducer is the only thing that writes the collection, so it is the
@@ -369,6 +379,7 @@ export function useGame(content: ContentBundle): Game {
   const backToTitle = useCallback(() => dispatch({ type: 'backToTitle' }), []);
   const resume = useCallback(() => dispatch({ type: 'resume', content }), [content]);
   const dismissFirstRunGuide = useCallback(() => dispatch({ type: 'dismissGuide' }), []);
+  const viewTutorial = useCallback(() => dispatch({ type: 'viewTutorial' }), []);
 
   return useMemo(
     () => ({
@@ -405,6 +416,7 @@ export function useGame(content: ContentBundle): Game {
         state.run !== null &&
         state.run.eras.length === 0,
       dismissFirstRunGuide,
+      viewTutorial,
     }),
     [
       state.screen,
@@ -428,6 +440,7 @@ export function useGame(content: ContentBundle): Game {
       backToTitle,
       resume,
       dismissFirstRunGuide,
+      viewTutorial,
     ],
   );
 }

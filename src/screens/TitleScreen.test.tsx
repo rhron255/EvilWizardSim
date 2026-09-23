@@ -24,6 +24,7 @@ const show = (collection: Collection, hasResumableRun = false) => {
     onViewNecrolexicon: vi.fn(),
     onViewThemes: vi.fn(),
     onViewChangelog: vi.fn(),
+    onViewTutorial: vi.fn(),
   };
   render(
     <TitleScreen
@@ -103,5 +104,17 @@ describe('TitleScreen · the changelog door', () => {
     const { onViewChangelog } = show(demoEmptyCollection);
     await userEvent.click(within(menu()).getByRole('button', { name: /changelog/i }));
     expect(onViewChangelog).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('TitleScreen · the tutorial door', () => {
+  it('replays the guide regardless of whether it has already been seen', async () => {
+    // Issue #37: unlike Necrolexicon or Themes, this door does not read
+    // anything off `collection` — there is nothing in it that says whether
+    // the guide has run before, and there should not be: seeing it once must
+    // not remove the option to see it again.
+    const { onViewTutorial } = show(demoEmptyCollection);
+    await userEvent.click(within(menu()).getByRole('button', { name: /tutorial/i }));
+    expect(onViewTutorial).toHaveBeenCalledTimes(1);
   });
 });

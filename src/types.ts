@@ -532,7 +532,8 @@ export type Screen =
   | 'ending'
   | 'necrolexicon'
   | 'themes'
-  | 'changelog';
+  | 'changelog'
+  | 'tutorial';
 
 // ---------------------------------------------------------------------------
 // Changelog (issue #67)
