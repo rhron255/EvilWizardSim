@@ -14,6 +14,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  affordabilityWeight,
   buildOfferPool,
   checkEndings,
   createRun,
@@ -1089,6 +1090,86 @@ describe('affordability (issue #41 follow-up)', () => {
     const { next } = resolveChoice(rich, costlyOffer, 0, costlyOnlyContent);
     expect(next.followers).toBe(70);
     expect(next.heldArtifactIds.length).toBe(rich.heldArtifactIds.length + 1);
+  });
+});
+
+describe('issue #61: an unaffordable-but-interesting option is revisitable, not lost', () => {
+  // Unlike `costlyOffer` above, this offer ALSO carries a free certain
+  // option — the shape every offer in the real catalog is required to have
+  // (`validate-content.ts`'s `hasStockFreeOption`). That is exactly the
+  // shape that used to be lost forever: the interesting option costs stock
+  // the wizard doesn't have yet, so the only thing actually pickable is the
+  // free decline.
+  const twoOption: Offer = {
+    id: 'test_two_option',
+    title: 'T',
+    body: 'b',
+    phase: 'any',
+    options: [
+      {
+        kind: 'certain',
+        label: 'Spend followers for a relic',
+        effects: [
+          { t: 'followers', v: -30 },
+          { t: 'artifactFrom', factionId: 'ashen_covenant' },
+        ],
+      },
+      {
+        kind: 'certain',
+        label: 'Decline',
+        effects: [],
+      },
+    ],
+  };
+  const bundle: ContentBundle = { ...fixtureContent, offers: [twoOption] };
+
+  it('stays in the pool (at reduced weight) while its interesting option is unaffordable, rather than being excluded', () => {
+    const broke = start({ seed: 1 }, bundle);
+    expect(broke.followers).toBeLessThan(30);
+    const { pool } = buildOfferPool(broke, bundle);
+    expect(pool.map((o) => o.id)).toContain('test_two_option');
+    expect(affordabilityWeight(broke, twoOption, bundle)).toBeLessThan(1);
+    expect(affordabilityWeight(broke, twoOption, bundle)).toBeGreaterThan(0);
+  });
+
+  it('is at full weight once every option clears', () => {
+    const rich = { ...start({ seed: 1 }, bundle), followers: 100 };
+    expect(affordabilityWeight(rich, twoOption, bundle)).toBe(1);
+  });
+
+  it('does NOT mark the offer seen when the choice was a forced decline of the unaffordable option', () => {
+    const broke = start({ seed: 1 }, bundle);
+    const { next } = resolveChoice(broke, twoOption, 1, bundle); // index 1 = Decline, the only pickable option
+    expect(next.seenOfferIds).not.toContain('test_two_option');
+  });
+
+  it('DOES mark the offer seen when the interesting option was actually affordable and taken', () => {
+    const rich = { ...start({ seed: 1 }, bundle), followers: 100 };
+    const { next } = resolveChoice(rich, twoOption, 0, bundle); // index 0 = the costly, interesting option
+    expect(next.seenOfferIds).toContain('test_two_option');
+  });
+
+  it('DOES mark the offer seen when a wizard who COULD afford it deliberately declines anyway', () => {
+    // Declining is only "forced" when the alternative was unaffordable. A
+    // rich wizard who simply prefers to decline made a real choice, and the
+    // card should not come back around as if nothing had happened.
+    const rich = { ...start({ seed: 1 }, bundle), followers: 100 };
+    const { next } = resolveChoice(rich, twoOption, 1, bundle); // index 1 = Decline, chosen by preference
+    expect(next.seenOfferIds).toContain('test_two_option');
+  });
+
+  it('comes back around once the wizard can pay, after being force-declined while broke', () => {
+    let run = start({ seed: 1 }, bundle);
+    expect(run.followers).toBeLessThan(30);
+    // Forced decline: the only pickable option.
+    run = resolveChoice(run, twoOption, 1, bundle).next;
+    expect(run.seenOfferIds).not.toContain('test_two_option');
+    // Now the wizard can pay — the offer is still eligible, unlike the old
+    // burn-forever behavior, which would have permanently excluded it via
+    // `seenOfferIds` the instant it was first drawn.
+    run = { ...run, followers: 100 };
+    const { pool } = buildOfferPool(run, bundle);
+    expect(pool.map((o) => o.id)).toContain('test_two_option');
   });
 });
 

@@ -19,6 +19,7 @@ export {
   buildOfferPool,
   standingWeight,
   pactWeight,
+  affordabilityWeight,
   isOptionPickable,
   QUIET_ERA_OFFER,
 } from './offers';

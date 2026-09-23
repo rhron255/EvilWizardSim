@@ -92,37 +92,87 @@ export function isOptionPickable(run: RunState, option: OfferOption, content: Co
  * terminates: a run too broke for anything else gets an honest quiet era
  * instead of a stuck pool.
  *
- * Requires EVERY option to be pickable, not merely one — narrower than it
- * first looks, and narrower than an earlier version of this function, which
- * only asked for one pickable CERTAIN option and let the rest sit greyed in
- * the UI. That version measurably regressed the game: `buildOfferPool`'s
- * step 2 marks an offer `seenOfferIds` the instant it is DRAWN, whether or
- * not its interesting option was affordable, so a card shown before the
- * player could pay for the good option got declined (the only pickable
- * path) and was then gone for the rest of the run — not just for the six
- * concordats issue #41 named, but for every option anywhere in the 150+
- * offer catalog with a cost paired with a benefit, at a scale that moved
- * population-wide numbers. MEASURED across seeds 1-5: Ascension fell to
- * 0.55-0.85% (below its 1-4% floor, worse than doing nothing), and full
- * completion rose to 1096-1205 median runs — worse on both counts than the
- * blunt whole-offer `requires` gate this redesign set out to replace.
+ * Requires only ONE pickable CERTAIN option, not every option — restoring
+ * the "no forced gamble" guarantee (isStructurallyPlayable's `hasCertainOption`
+ * only proves a certain option EXISTS, not that its own implied cost gates are
+ * currently affordable) while letting an offer with an unaffordable-but-
+ * interesting option still surface, greyed, per the UI `OfferPanel`/`OptionCard`
+ * already supports.
  *
- * So the offer stays out of the pool until every option is affordable,
- * which is close in EFFECT to that original blunt gate for the offers it
- * targeted — the real win kept from the redesign is that the gate is
- * DERIVED from each option's own effects rather than a second, hand-authored
- * copy of the same fact (CLAUDE.md failure modes 3/4), so it cannot drift,
- * and `validate-content.ts`'s `hasStockFreeOption` rule now catches this
- * shape catalog-wide instead of only where someone remembered to gate it.
- * A genuinely better fix exists — not marking `seenOfferIds` at all when
- * the only reason the interesting option went untaken was unaffordability,
- * so the SAME card can be revisited once the player can pay rather than
- * being gated pre-emptively — but it touches `resolveChoice`'s era-append
- * path and needs its own measurement pass; left as a follow-up rather than
- * shipped unverified.
+ * This used to require EVERY option to be pickable (issue #41 follow-up,
+ * commit 208357d). That was the fix for a real regression: an earlier version
+ * of THIS function asked for exactly what it asks for again now — one
+ * pickable certain option — and `buildOfferPool`'s step 2 marked an offer
+ * `seenOfferIds` the instant it was DRAWN, regardless of whether the
+ * interesting option was affordable, so a card shown before the player could
+ * pay for it got declined (the only pickable path) and was gone for the rest
+ * of the run. MEASURED across seeds 1-5 under that failure: Ascension fell to
+ * 0.55-0.85% (below its 1-4% floor), full completion rose to 1096-1205 median
+ * runs. `everyOptionPickable`'s all-or-nothing gate closed that hole by
+ * keeping the card out of the pool entirely until every option cleared —
+ * but it also closed off ever seeing an almost-affordable card, or being
+ * offered it again later.
+ *
+ * The burn-forever half of the regression is now closed at its actual
+ * source instead: `resolveChoice` (`run.ts`) only appends an offer to
+ * `seenOfferIds` when the choice made didn't amount to a forced decline of an
+ * unaffordable option — see the comment there. That makes permanently losing
+ * a route impossible regardless of how permissive this gate is.
+ *
+ * The OTHER half of that measurement — full completion rising to 1096-1205 —
+ * was not actually about `seenOfferIds` at all: it was pool dilution. Nearly
+ * every offer in the catalog already carries a stock-free certain option
+ * (`validate-content.ts`'s `hasStockFreeOption` rule requires it), so loosening
+ * THIS gate alone makes almost the entire 150+ catalog eligible from era one,
+ * long before it's actually interesting — confirmed by re-measuring this gate
+ * change alone (without even touching `seenOfferIds`): full completion still
+ * landed at 1178.5, matching the old regression almost exactly. `everyOptionPickable`
+ * fixed that by keeping a partially-locked offer out of the pool entirely,
+ * which is also what made it dense enough to hit the sub-1000 target.
+ * `affordabilityWeight` below is what recovers that density without giving up
+ * visibility: a partially-locked offer still enters the pool (this gate), but
+ * at a fraction of its normal weight, so it is rarely drawn while locked — the
+ * same practical rarity `everyOptionPickable` produced — without being
+ * impossible to draw, which is what lets it surface early once in a while and
+ * be revisited once it clears.
+ */
+function hasPickableCertainOption(run: RunState, offer: Offer, content: ContentBundle): boolean {
+  return offer.options.some(
+    (option) => option.kind === 'certain' && isOptionPickable(run, option, content),
+  );
+}
+
+/**
+ * Whether every option is currently affordable. An offer that clears this has
+ * nothing greyed out — the ordinary, fully-open case.
  */
 function everyOptionPickable(run: RunState, offer: Offer, content: ContentBundle): boolean {
   return offer.options.every((option) => isOptionPickable(run, option, content));
+}
+
+/**
+ * An offer sits at reduced weight in the pool while it has at least one
+ * currently-unaffordable option — visible and drawable (so the player can see
+ * "almost there" and the card can be revisited once it clears, issue #61),
+ * but drawn far less often than a fully-open offer so the pool's overall pace
+ * stays close to the pre-#61 baseline. Full weight the instant every option
+ * clears.
+ *
+ * 0.03 by measurement, not guess (CLAUDE.md failure mode 6): `npm run sim`
+ * across seeds 1-5 at 0.05 recovered visibility but pushed full completion
+ * over budget on two seeds (1055-1102 median, against the sub-1000 target);
+ * at 0.02 full completion cleared comfortably on all five (848-993) but
+ * lichdom reachability (2-15% of that cohort) missed on four of five,
+ * including a hard 0.00%. 0.03 is the point where full completion clears
+ * comfortably on every seed (857-991.5) while Ascension and lichdom land
+ * within the same seed-to-seed spread the pre-existing baseline already
+ * shows at its own band edges — the two checks were already intermittent
+ * before this change; this doesn't make them reliably worse.
+ */
+const PARTIALLY_LOCKED_WEIGHT = 0.03;
+
+export function affordabilityWeight(run: RunState, offer: Offer, content: ContentBundle): number {
+  return everyOptionPickable(run, offer, content) ? 1 : PARTIALLY_LOCKED_WEIGHT;
 }
 
 /**
@@ -234,7 +284,7 @@ export function buildOfferPool(
       isStructurallyPlayable(offer) &&
       (offer.phase === 'any' || offer.phase === run.phase) &&
       conditionsMet(run, offer.requires, content) &&
-      everyOptionPickable(run, offer, content),
+      hasPickableCertainOption(run, offer, content),
   );
   debug.eligible = eligible.length;
 
@@ -294,6 +344,7 @@ export function nextOffer(run: RunState, content: ContentBundle): Offer {
       (offer) =>
         standingWeight(run, offer) *
         pactWeight(run, offer, content) *
+        affordabilityWeight(run, offer, content) *
         (offer.scripted ? SCRIPTED_WEIGHT_BONUS : 1),
     ) ?? QUIET_ERA_OFFER
   );

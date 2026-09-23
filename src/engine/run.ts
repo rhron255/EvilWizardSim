@@ -22,6 +22,7 @@ import type {
 } from '../types';
 import type { ContentBundle } from './content-port';
 import { indexOf } from './content-port';
+import { impliedGatesOf } from './conditions';
 import type { Resolution, SystemicChange } from './resolution';
 import {
   DEFAULT_ERA_COUNT,
@@ -389,9 +390,27 @@ export function resolveChoice(
   };
 
   draft.eras = [...run.eras, eraRecord];
+
+  // Only mark the offer seen when the choice made was a genuine one, not a
+  // forced decline of an option the player could not afford. Issue #61: an
+  // offer can carry an "interesting" option — one `impliedGatesOf` derives a
+  // real cost gate for — that was not pickable at draw time, alongside a
+  // gate-free option the player was left with no choice but to take. Burning
+  // `seenOfferIds` on that pick treats "I couldn't afford it" the same as "I
+  // don't want it", so the card — and the route it was the only way to,
+  // `concordat_worm` among them (issue #41) — is gone for the rest of the
+  // run the moment it becomes affordable. Evaluated against `run`, the state
+  // BEFORE this choice, since that is what the player actually saw the offer
+  // pool with.
+  const hadUnaffordableInterestingOption = offer.options.some(
+    (o) => o !== option && impliedGatesOf(o).length > 0 && !isOptionPickable(run, o, content),
+  );
+  const choiceWasForced = impliedGatesOf(option).length === 0 && hadUnaffordableInterestingOption;
   // Move the offer to the end of the seen list so recency ordering stays
   // meaningful when the pool has to recycle.
-  draft.seenOfferIds = [...run.seenOfferIds.filter((id) => id !== offer.id), offer.id];
+  draft.seenOfferIds = choiceWasForced
+    ? run.seenOfferIds
+    : [...run.seenOfferIds.filter((id) => id !== offer.id), offer.id];
 
   // ---- advance ---------------------------------------------------------
   const nextEraIndex = eraIndex + 1;

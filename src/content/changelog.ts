@@ -21,6 +21,13 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-09-23T08:30:00Z': {
+    summary: 'A card you cannot yet afford now stays around instead of vanishing for the run.',
+    details: [
+      'A card offering something interesting but currently too expensive can now show up — with the unaffordable option greyed out — instead of being silently kept out of the pool.',
+      'Declining because you could not pay no longer costs you the card for the rest of the run: it comes back around once you can.',
+    ],
+  },
   '2026-09-23T08:13:20Z': {
     summary: 'The Crown pays better for loyalty than it used to.',
     details: [
