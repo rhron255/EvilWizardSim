@@ -21,6 +21,12 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-09-23T08:13:20Z': {
+    summary: 'The Crown pays better for loyalty than it used to.',
+    details: [
+      'Balancing fixes for the Crownlands — added more positive standing offers and made them more accessible.',
+    ],
+  },
   '2026-09-23T07:41:55Z': {
     summary: 'The tutorial can go back, and can be replayed any time from the title screen.',
     details: [
