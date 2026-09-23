@@ -250,6 +250,12 @@ then open the file for the story and the exact check.
    error. A change with nothing worth telling a player about (an internal
    refactor, a test-only fix) does not need a bump — do not invent filler
    entries to satisfy the check.
+   Keep both `summary` and each `details` line to one short sentence — a
+   player reads these, not a commit message. Name what changed and, if it
+   fits in the same breath, why a player would care; leave out the
+   mechanism (which files, which constant, which cohort rate moved). "Fixed
+   a bug where X" is fine; a paragraph tracing the balance investigation
+   that found X belongs in the commit message and the issue, not here.
 
 ### Measure before you tune
 
