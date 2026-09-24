@@ -212,6 +212,31 @@
   flex: 1 1 auto;
 }
 
+/* --- Relic reactions (issue #80) ----------------------------------------- */
+
+/* One row per relic that reacts to this branch — attributed, so a gain the
+   option itself never authored reads as coming from something the player
+   already holds rather than as an unexplained extra line on the card. */
+.reactions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: var(--ew-space-1);
+}
+
+.reactionRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--ew-space-2);
+  font-size: var(--ew-size-xs);
+  color: var(--ew-ink-faint);
+}
+
+.reactionName {
+  font-style: italic;
+}
+
 @media (max-width: 480px) {
   .card {
     padding: var(--ew-space-3);

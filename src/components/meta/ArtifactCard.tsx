@@ -22,6 +22,7 @@
 import { RELIC_WARDS } from '../../engine';
 import type { Artifact, Faction } from '../../types';
 import { ArtifactGlyph, CornerMarks, FactionGlyph } from './glyphs';
+import { relicPowerText } from './relicPower';
 import styles from './ArtifactCard.module.css';
 
 export type ArtifactCardProps = {
@@ -147,6 +148,16 @@ export function ArtifactCard({
               `Wards +${RELIC_WARDS[artifact.rarity]}.`
             )}
           </p>
+        )}
+
+        {/* A relic with no power yet (`null`, issue #80 slices 3-5 fill these
+            in one at a time) prints nothing extra — this is not a second
+            "no power" line, it is silence, the same way a stat with nothing
+            to disclose stays silent elsewhere. Locked relics stay redacted:
+            the power line names how the relic HELPS, which is exactly the
+            gap a locked slot is withholding. */}
+        {!compact && !locked && artifact.power && (
+          <p className={styles.power}>{relicPowerText(artifact.power, { factions: faction && [faction] })}</p>
         )}
 
         {!compact && showFlavour && !locked && (

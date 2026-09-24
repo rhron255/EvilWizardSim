@@ -57,6 +57,8 @@ const demoResolutionSuccess: Resolution = {
   text: won.option.successText,
   artifactsGained: [prize],
   newToCollection: [prize],
+  artifactsLost: [],
+  relicEvents: [],
   notorietyDelta: fame,
   systemic: [],
   eraRecord: {

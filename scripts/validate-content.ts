@@ -22,8 +22,10 @@
 import type { Artifact, Condition, Effect, Offer, OfferOption, Rarity } from '../src/types';
 import * as content from '../src/content';
 import { CHANGELOG } from '../src/content/changelog';
+import { MECHANIC_FOR_POWER_KIND } from '../src/content/mechanics';
 import { changelogHasVersion } from '../src/engine/changelog';
 import { BUILD_VERSION } from '../src/version';
+import { relicPowerText, RELIC_POWER_TEXT_MAX } from '../src/components/meta/relicPower';
 import {
   DEVOTION_STANDING,
   GOOD_WIZARD_ILL_CAP,
@@ -99,6 +101,10 @@ for (const faction of factions) {
     if (!factionIds.has(enemy)) fail(where, `hostileTo unknown faction "${enemy}"`);
     if (enemy === faction.id) fail(where, 'hostile to itself');
   }
+  // Issue #80's Necrolexicon acceptance item: every faction names its relic
+  // theme, in its own voice — required on the type, checked for content here
+  // the same way `flavorText` is checked just above for artifacts.
+  if (!faction.reliquary.trim()) fail(where, 'empty reliquary line');
 }
 
 // wiki/01 § 7 names the first seven; issue #14 adds the five faction reprisals
@@ -286,6 +292,93 @@ for (const offer of offers) {
 
   offer.options.forEach((option, i) => checkOption(`${where} option ${i + 1}`, option));
   for (const c of offer.requires ?? []) checkCondition(where, c);
+}
+
+// ---------------------------------------------------------------------------
+// Origin relics and relic powers (issue #80, slice 3 of #77)
+// ---------------------------------------------------------------------------
+
+for (const origin of origins) {
+  const where = `origin "${origin.id}"`;
+  checkEffects(where, origin.effects);
+  const grants = origin.effects.filter((e): e is Extract<Effect, { t: 'artifact' }> => e.t === 'artifact');
+  if (grants.length !== 1) {
+    fail(where, `must grant exactly one named relic, grants ${grants.length}`);
+  }
+  for (const grant of grants) {
+    const relic = artifacts.find((a) => a.id === grant.artifactId);
+    if (relic && relic.rarity !== 'common') {
+      fail(where, `origin relic "${relic.id}" must be a common, is "${relic.rarity}"`);
+    }
+  }
+}
+
+const FORBIDDEN_RELIC_EFFECTS: ReadonlySet<Effect['t']> = new Set([
+  'ending',
+  'becomeLich',
+  'vowGoodWizard',
+  'goodAct',
+  'illAct',
+]);
+
+/**
+ * `RelicEffect` already excludes these five at the TYPE level (see
+ * `src/types.ts`), so this can only fire past a cast or an unchecked JS
+ * caller — belt-and-suspenders for the one rule #77 calls out by name: "no
+ * relic can touch endings, the rite, the vow, or the hidden Good Wizard
+ * counters."
+ */
+function checkRelicEffects(where: string, effects: readonly Effect[]) {
+  for (const e of effects) {
+    if (FORBIDDEN_RELIC_EFFECTS.has(e.t)) {
+      fail(where, `power touches "${e.t}" — relics may never move an ending, the rite, the vow, or a hidden Good Wizard counter`);
+    }
+  }
+  checkEffects(where, effects);
+}
+
+const powerSignatures = new Map<string, string>();
+
+for (const artifact of artifacts) {
+  if (!artifact.power) continue;
+  const where = `artifact "${artifact.id}" power`;
+  const power = artifact.power;
+
+  const mechanicId = MECHANIC_FOR_POWER_KIND[power.kind];
+  if (!content.mechanics.some((m) => m.id === mechanicId)) {
+    fail(where, `MECHANIC_FOR_POWER_KIND["${power.kind}"] names "${mechanicId}", no such mechanic exists`);
+  }
+
+  if (power.kind === 'trigger' || power.kind === 'active' || power.kind === 'lifeline') {
+    checkRelicEffects(where, power.effects);
+    if (power.kind === 'active' && power.cost) checkRelicEffects(`${where} cost`, power.cost);
+  }
+  if (power.kind === 'trigger') {
+    for (const c of power.if ?? []) checkCondition(where, c);
+    // `watchesPositive` reads the CHOSEN OPTION's own landed effects — there
+    // is no single option to read at era's end, so pairing it with `eraEnd`
+    // is a content mistake, not a meaningful power (see `RelicPower`'s doc
+    // comment in `src/types.ts`).
+    if (power.watchesPositive && power.when !== 'onChoice') {
+      fail(where, `watchesPositive is only meaningful for an "onChoice" trigger, this one is "${power.when}"`);
+    }
+  }
+
+  const text = relicPowerText(power, { factions });
+  if (text.length > RELIC_POWER_TEXT_MAX) {
+    fail(where, `derived power text is ${text.length} chars, over the ${RELIC_POWER_TEXT_MAX}-char phone-width cap: "${text}"`);
+  }
+
+  // A signature, not the id — two DIFFERENT relics landing on the exact same
+  // power is very likely a copy-paste, not a deliberate design choice, this
+  // early in the catalog (only four powers exist at all).
+  const signature = JSON.stringify(power);
+  const priorOwner = powerSignatures.get(signature);
+  if (priorOwner) {
+    fail(where, `power is identical to "${priorOwner}"'s — give it its own, or note why it repeats`);
+  } else {
+    powerSignatures.set(signature, artifact.id);
+  }
 }
 
 // ---------------------------------------------------------------------------

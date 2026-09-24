@@ -24,6 +24,8 @@ export function conditionMet(run: RunState, condition: Condition, content: Conte
       return run.apprentices.count >= condition.v;
     case 'minFollowers':
       return run.followers >= condition.v;
+    case 'maxFollowers':
+      return run.followers <= condition.v;
     case 'minPactDebt':
       return run.pactDebt >= condition.v;
     case 'minLairTier': {

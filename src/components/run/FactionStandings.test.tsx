@@ -46,6 +46,7 @@ const run: RunState = {
   goodActs: 0,
   illActs: 0,
   goodWizardVowed: false,
+  relicState: { firedOnce: [] },
   eras: [],
   seenOfferIds: [],
 };

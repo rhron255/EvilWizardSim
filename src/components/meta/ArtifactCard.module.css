@@ -127,6 +127,16 @@
   color: var(--ew-ink-dim);
 }
 
+/* A power line reads as a MECHANIC, not decoration — one step brighter than
+   the wards line above it, still ink-only (rule 3: the game colours what you
+   did, never a second accent). */
+.power {
+  margin: var(--ew-space-2) 0 0;
+  font-size: var(--ew-size-sm);
+  line-height: 1.5;
+  color: var(--ew-ink);
+}
+
 .flavour {
   margin: var(--ew-space-2) 0 0;
   font-family: var(--ew-font-display);

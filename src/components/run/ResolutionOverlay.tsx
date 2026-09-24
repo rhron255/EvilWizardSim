@@ -15,7 +15,7 @@ import type { Artifact, Faction } from '../../types';
 import { tierColor, tierFor, tierGlow } from '../../theme/tokens';
 import type { Resolution } from './resolution';
 import { EffectList } from './EffectList';
-import { describeSystemic, endingName, formatOdds, systemicKey } from './effectText';
+import { artifactName, describeSystemic, endingName, formatOdds, systemicKey } from './effectText';
 import { NotorietyBadge } from './NotorietyBadge';
 import styles from './ResolutionOverlay.module.css';
 
@@ -184,6 +184,26 @@ export function ResolutionOverlay({
                   </li>
                 );
               })}
+            </ul>
+          </div>
+        )}
+
+        {/* A relic's own consequence this era (issue #80) — kept separate
+            from the option's own effects above for the same reason
+            `systemic` is: attributing it to the choice the player just made
+            would misname its cause. Short on purpose: the relic's power
+            line, shown wherever the relic itself is, already explains WHY;
+            this only says what it did. */}
+        {resolution.relicEvents.length > 0 && (
+          <div className={styles.relicEvents}>
+            <p className={styles.relicEventsLabel}>Your relics</p>
+            <ul className={styles.relicEventsList}>
+              {resolution.relicEvents.map((event) => (
+                <li key={event.artifactId} className={styles.relicEventRow}>
+                  <span className={styles.relicEventName}>{artifactName(event.artifactId, artifacts)}</span>
+                  <EffectList effects={event.applied} artifacts={artifacts} factions={factions} compact />
+                </li>
+              ))}
             </ul>
           </div>
         )}

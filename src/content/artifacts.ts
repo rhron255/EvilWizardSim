@@ -23,7 +23,16 @@ import type { Artifact } from '../types';
  * Wards are derived from `rarity` alone (`RELIC_WARDS` in
  * `src/engine/constants.ts`, issue #79) — no `defense` or `effect` field
  * lives here any more. `flavorText` is the whole of each relic's identity
- * until the power slices of issue #77 give it one.
+ * until a power slice of issue #77 gives it one.
+ *
+ * `power` (issue #80, slice 3 of #77) is `null` for every relic a power
+ * slice has not reached yet — required, not optional, so the compiler names
+ * every entry the moment a new slice starts filling them in. This slice
+ * gives exactly the four origin relics a power: `footnote_that_bites`,
+ * `mantle_of_slow_moss`, `ashen_signature`, `unpaid_purse` — see
+ * `src/content/origins.ts` for the grant, and CLAUDE.md's rule 1 for why each
+ * one's `effects` are plain `RelicEffect`s the offer/resolution cards can
+ * always print, never prose restating what the power line already says.
  */
 export const artifacts: Artifact[] = [
   // ---------------------------------------------------------------------
@@ -36,6 +45,7 @@ export const artifacts: Artifact[] = [
     rarity: 'common',
     flavorText:
       'It fits everyone, which should tell you something about how it was measured.',
+    power: null,
   },
   {
     id: 'ashen_signature',
@@ -44,6 +54,21 @@ export const artifacts: Artifact[] = [
     rarity: 'common',
     flavorText:
       'A quill that will not write anything its holder would later deny having said. Popular with the Covenant’s notaries and with nobody else alive.',
+    // The Inherited-a-Tower origin's relic (issue #80): a debt still gets
+    // signed, but the FIRST time a CHOICE signs one, the quill leaves out a
+    // clause. `watchesPositive`, not `if` — this origin's own starting grant
+    // already puts the wizard in debt before any choice is ever made, so an
+    // ambient "debt >= 1" gate would fire on era one regardless of what era
+    // one's choice actually did (see `RelicPower`'s doc comment in
+    // `types.ts`). Once only — `RunState.relicState` remembers it fired —
+    // because the Signature has one favour in it, not a standing discount.
+    power: {
+      kind: 'trigger',
+      when: 'onChoice',
+      once: true,
+      watchesPositive: 'pactDebt',
+      effects: [{ t: 'pactDebt', v: -1 }],
+    },
   },
   {
     id: 'censer_of_small_regrets',
@@ -52,6 +77,7 @@ export const artifacts: Artifact[] = [
     rarity: 'common',
     flavorText:
       'Burns whatever you are least proud of. An ordinary life fuels it for a week. Yours gets it through a long evening.',
+    power: null,
   },
   {
     id: 'ninth_clause_brazier',
@@ -60,6 +86,7 @@ export const artifacts: Artifact[] = [
     rarity: 'rare',
     flavorText:
       'The first eight clauses concern delivery, scheduling, and the condition of the room. The ninth is why the brazier exists, and is not read aloud in company.',
+    power: null,
   },
   {
     id: 'cinder_testament',
@@ -68,6 +95,7 @@ export const artifacts: Artifact[] = [
     rarity: 'legendary',
     flavorText:
       'Every pact the Covenant has ever signed, bound in one volume, in the order they were made. Your name is in it. It was in it before you signed.',
+    power: null,
   },
 
   // ---------------------------------------------------------------------
@@ -80,6 +108,7 @@ export const artifacts: Artifact[] = [
     rarity: 'common',
     flavorText:
       'Reveals the true worth of any object, expressed as the figure its owner would accept on a sufficiently bad day.',
+    power: null,
   },
   {
     id: 'counterfeit_soul',
@@ -88,6 +117,7 @@ export const artifacts: Artifact[] = [
     rarity: 'common',
     flavorText:
       'Not a soul. Indistinguishable from one under examination, which the Hand maintains is the same thing at the point of sale.',
+    power: null,
   },
   {
     id: 'unpaid_purse',
@@ -96,6 +126,15 @@ export const artifacts: Artifact[] = [
     rarity: 'common',
     flavorText:
       'Contains precisely what you are owed. It is usually empty, and the Hand regards this as an accurate instrument rather than a broken one.',
+    // The Sold-Your-Master's-Estate origin's relic (issue #80): the Purse
+    // makes good on its own name whenever the household is thin. Every era,
+    // not once — a purse this literal pays out for as long as you stay owed.
+    power: {
+      kind: 'trigger',
+      when: 'eraEnd',
+      if: [{ c: 'maxFollowers', v: 9 }],
+      effects: [{ t: 'followers', v: 10 }],
+    },
   },
   {
     id: 'key_to_no_particular_door',
@@ -104,6 +143,7 @@ export const artifacts: Artifact[] = [
     rarity: 'rare',
     flavorText:
       'Opens one door, once, somewhere. Sold honestly, at a fair price, with the limitation stated in advance, and there has never been a complaint the Hand was obliged to hear.',
+    power: null,
   },
   {
     id: 'gilded_thumb',
@@ -112,6 +152,7 @@ export const artifacts: Artifact[] = [
     rarity: 'rare',
     flavorText:
       'For weighing. It adds exactly as much as is customary, and what is customary has never been written down.',
+    power: null,
   },
   {
     id: 'final_ledger',
@@ -120,6 +161,7 @@ export const artifacts: Artifact[] = [
     rarity: 'legendary',
     flavorText:
       'Records every transaction the Hand has ever completed, including several you have not made yet. The Hand insists this is not a threat. It is, however, an invoice.',
+    power: null,
   },
 
   // ---------------------------------------------------------------------
@@ -132,6 +174,7 @@ export const artifacts: Artifact[] = [
     rarity: 'common',
     flavorText:
       'Writes on any surface and cannot be wiped away by the hand that wrote it. Three lecture halls have been abandoned rather than repainted.',
+    power: null,
   },
   {
     id: 'tenure_ring',
@@ -140,6 +183,7 @@ export const artifacts: Artifact[] = [
     rarity: 'common',
     flavorText:
       'Cannot be removed by any force, including the wearer’s employer. That is the entire enchantment.',
+    power: null,
   },
   {
     id: 'footnote_that_bites',
@@ -148,6 +192,11 @@ export const artifacts: Artifact[] = [
     rarity: 'common',
     flavorText:
       'Small, at the bottom of the page, and load-bearing. Two scholars have died disagreeing with it, and neither death is in dispute.',
+    // The Expelled-from-the-Pale-Academy origin's relic (issue #80): the
+    // footnote bites back at whoever comes after you for a courted faction —
+    // half as hard. A passive, so the halving is already in the number a
+    // card projects, never a separate disclosed line (rule 1).
+    power: { kind: 'passive', modifier: { t: 'contagionLossMultiplier', v: 0.5 } },
   },
   {
     id: 'spectacles_of_the_third_reading',
@@ -156,6 +205,7 @@ export const artifacts: Artifact[] = [
     rarity: 'rare',
     flavorText:
       'Show what a document will mean once it has been argued over for eleven years. Wearing them is exhausting, and the Academy issues them accordingly.',
+    power: null,
   },
   {
     id: 'pale_orrery',
@@ -164,6 +214,7 @@ export const artifacts: Artifact[] = [
     rarity: 'legendary',
     flavorText:
       'Models the heavens accurately, including the parts that have not happened yet. It is kept in a room with no door, on the reasoning that a locked door implies somebody, somewhere, has a key.',
+    power: null,
   },
 
   // ---------------------------------------------------------------------
@@ -176,6 +227,7 @@ export const artifacts: Artifact[] = [
     rarity: 'common',
     flavorText:
       'Held by whoever is speaking. The Choir’s entire constitutional order is this stick and an agreement about this stick.',
+    power: null,
   },
   {
     id: 'seed_that_remembers',
@@ -184,6 +236,7 @@ export const artifacts: Artifact[] = [
     rarity: 'common',
     flavorText:
       'Grows into whatever was standing on that spot before. Do not plant it near anything you built.',
+    power: null,
   },
   {
     id: 'mantle_of_slow_moss',
@@ -192,6 +245,15 @@ export const artifacts: Artifact[] = [
     rarity: 'common',
     flavorText:
       'Warm, waterproof, and growing. Around the fourth year it stops being clothing and becomes a position the Choir holds about you.',
+    // The Self-Taught-in-a-Bog origin's relic (issue #80): the moss keeps
+    // making its case to the Choir on your behalf, every era, with no
+    // decision from you — and it spills like any other standing gain, so a
+    // wizard hostile to the Choir's enemies sees that cost too (rule 1).
+    power: {
+      kind: 'trigger',
+      when: 'eraEnd',
+      effects: [{ t: 'standing', factionId: 'verdant_choir', v: 2 }],
+    },
   },
   {
     id: 'weather_leash',
@@ -200,6 +262,7 @@ export const artifacts: Artifact[] = [
     rarity: 'rare',
     flavorText:
       'One storm, kept. It is fed weekly, and it does know the difference between you and everyone else in the room.',
+    power: null,
   },
   {
     id: 'root_of_the_standing_vote',
@@ -208,6 +271,7 @@ export const artifacts: Artifact[] = [
     rarity: 'rare',
     flavorText:
       'An oak stump entitled to speak in Choir assembly. It has never abstained, and its record on questions of masonry is unbroken.',
+    power: null,
   },
   {
     id: 'old_growth_charter',
@@ -216,6 +280,7 @@ export const artifacts: Artifact[] = [
     rarity: 'legendary',
     flavorText:
       'A tree old enough to have voted against the Choir’s founding charter, and lost. It has not forgiven this. Neither, structurally, has the charter.',
+    power: null,
   },
 
   // ---------------------------------------------------------------------
@@ -228,6 +293,7 @@ export const artifacts: Artifact[] = [
     rarity: 'common',
     flavorText:
       'Certifies that the Crownlands are aware of you and have elected, for the present, to file rather than to act. Renewable annually. Never renewed on time.',
+    power: null,
   },
   {
     id: 'confiscated_banner',
@@ -236,6 +302,7 @@ export const artifacts: Artifact[] = [
     rarity: 'common',
     flavorText:
       'Taken from a rebellion the Crown does not concede occurred. It still smells of the field, which the archivists have stopped raising.',
+    power: null,
   },
   {
     id: 'portcullis_tooth',
@@ -244,6 +311,7 @@ export const artifacts: Artifact[] = [
     rarity: 'rare',
     flavorText:
       'A single iron spike from the gate at Hollow March, which held for nine days against something that does not appear anywhere in the report.',
+    power: null,
   },
   {
     id: 'sword_that_was_returned',
@@ -252,6 +320,7 @@ export const artifacts: Artifact[] = [
     rarity: 'rare',
     flavorText:
       'A hero’s blade, handed back by the hero, in person, with a short statement the Crown has sealed for two hundred years.',
+    power: null,
   },
   {
     id: 'unbroken_line',
@@ -260,6 +329,7 @@ export const artifacts: Artifact[] = [
     rarity: 'legendary',
     flavorText:
       'The complete genealogy of the hero-bloodline, sealed in one roll. Whoever holds it holds the name of the Chosen One’s grandmother, and every party to the matter understands what that means.',
+    power: null,
   },
 
   // ---------------------------------------------------------------------
@@ -272,6 +342,7 @@ export const artifacts: Artifact[] = [
     rarity: 'common',
     flavorText:
       'Genuine subterranean darkness, portable, still cold from the journey. It keeps for about a century. This one is not fresh.',
+    power: null,
   },
   {
     id: 'shallow_worms_tooth',
@@ -280,6 +351,7 @@ export const artifacts: Artifact[] = [
     rarity: 'common',
     flavorText:
       'From one of the small ones. The Worm Below regards the small ones the way a country regards its coastline: an outer edge, and not the country.',
+    power: null,
   },
   {
     id: 'patient_lantern',
@@ -288,6 +360,7 @@ export const artifacts: Artifact[] = [
     rarity: 'rare',
     flavorText:
       'It casts no light. It shows you the way regardless, and it does not hurry, and it will go on showing you the way for some time after you have stopped walking.',
+    power: null,
   },
   {
     id: 'second_stomach',
@@ -296,6 +369,7 @@ export const artifacts: Artifact[] = [
     rarity: 'rare',
     flavorText:
       'Yours now. It digests what the first one declined, and it has firm views about the schedule.',
+    power: null,
   },
   {
     id: 'long_appetite',
@@ -304,5 +378,6 @@ export const artifacts: Artifact[] = [
     rarity: 'legendary',
     flavorText:
       'The Worm’s hunger, decanted and worn at the hip. It is not a weapon. It is a share, and shares can be called in.',
+    power: null,
   },
 ];

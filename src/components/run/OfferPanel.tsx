@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef } from 'react';
 import type { Artifact, Faction, Offer, OfferOption, RunState } from '../../types';
 import type { ContentBundle } from '../../engine';
-import { conditionMet, impliedGatesOf, isOptionPickable } from '../../engine';
+import { conditionMet, impliedGatesOf, isOptionPickable, projectReactions } from '../../engine';
 import { describeGate } from './effectText';
 import { OptionCard } from './OptionCard';
 import styles from './OfferPanel.module.css';
@@ -83,6 +83,15 @@ export function OfferPanel({
 
   const optionGates = useMemo(
     () => gateOptions.map((option) => gateFor(run, option, content)),
+    [gateOptions, run, content],
+  );
+
+  // Rule 1: any deterministic relic reaction is projected onto the card
+  // before the commit. Computed from `gateOptions` (the AUTHORED option,
+  // same as `gateFor` above) so the preview matches what `resolveChoice` will
+  // actually apply, never a copy already rewritten by `projectEffects`.
+  const optionReactions = useMemo(
+    () => gateOptions.map((option) => projectReactions(run, option, content)),
     [gateOptions, run, content],
   );
 
@@ -166,6 +175,7 @@ export function OfferPanel({
               factions={factions}
               disabled={disabled || !gate?.pickable}
               reason={gate?.reason}
+              reactions={optionReactions[i]}
               onChoose={onChoose}
             />
           );

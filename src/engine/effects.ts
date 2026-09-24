@@ -22,6 +22,7 @@ import {
   STANDING_MAX,
   STANDING_MIN,
 } from './constants';
+import { relicRules } from './relics';
 import type { Rng } from './rng';
 import { weightedPick } from './rng';
 import { clamp, clampNotoriety, clampThreat } from './systems';
@@ -50,6 +51,7 @@ export function draftOf(run: RunState): RunState {
     apprentices: { ...run.apprentices },
     eras: run.eras,
     seenOfferIds: run.seenOfferIds,
+    relicState: { firedOnce: run.relicState.firedOnce.slice() },
   };
 }
 
@@ -89,7 +91,12 @@ export function applyEffects(
       }
 
       case 'standing': {
-        applyStanding(draft, effect.factionId, effect.v, index, out.applied);
+        // Read fresh on every `standing` effect, not hoisted once for the
+        // whole list: an earlier effect in THIS SAME list (an `artifact`
+        // grant, a `loseArtifact`) can change which passives are held before
+        // a later `standing` effect fires.
+        const { contagionLossMultiplier } = relicRules(draft, content);
+        applyStanding(draft, effect.factionId, effect.v, index, out.applied, contagionLossMultiplier);
         break;
       }
 
@@ -247,6 +254,13 @@ export function applyStanding(
   v: number,
   index: ContentIndex,
   applied: Effect[],
+  /**
+   * Multiplies `CONTAGION_LOSS` alone (issue #80's Footnote That Bites: "the
+   * standing lost to contagion is halved"). Defaults to 1 — unmodified — so
+   * every direct caller and every existing test that predates relic powers
+   * keeps producing today's numbers without having to name this parameter.
+   */
+  contagionLossMultiplier = 1,
 ): number {
   const before = draft.factionStanding[factionId] ?? 0;
   const after = clamp(Math.round(before + v), STANDING_MIN, STANDING_MAX);
@@ -256,7 +270,7 @@ export function applyStanding(
   if (delta === 0) return 0;
 
   const enemies = index.factionById.get(factionId)?.hostileTo ?? [];
-  const rate = delta > 0 ? CONTAGION_GAIN : CONTAGION_LOSS;
+  const rate = delta > 0 ? CONTAGION_GAIN : CONTAGION_LOSS * contagionLossMultiplier;
   for (const enemyId of enemies) {
     if (enemyId === factionId) continue;
     const spill = -Math.sign(delta) * Math.round(Math.abs(delta) * rate);

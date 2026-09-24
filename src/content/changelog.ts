@@ -21,6 +21,13 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-09-24T15:30:00Z': {
+    summary: 'Every background now starts with its own relic, fully powered.',
+    details: [
+      'Each of the four origins grants a named relic with a power of its own, shown on the creation screen and on the relic page.',
+      'Your relic collection has been reset once for this update, since starting relics change what counts as familiar.',
+    ],
+  },
   '2026-09-24T14:00:00Z': {
     summary: "A relic's wards now come from its rarity, not a number written on the relic.",
     details: [

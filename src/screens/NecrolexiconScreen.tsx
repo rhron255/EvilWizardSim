@@ -193,6 +193,8 @@ export function NecrolexiconScreen({
                 <p className={styles.entryBlurb}>{faction.blurb}</p>
                 <p className={styles.entryLabel}>What they take, and what they grant</p>
                 <p className={styles.entryBlurb}>{faction.demands}</p>
+                <p className={styles.entryLabel}>Its relics</p>
+                <p className={styles.entryBlurb}>{faction.reliquary}</p>
               </article>
             ))}
           </section>

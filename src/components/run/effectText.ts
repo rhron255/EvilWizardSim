@@ -87,7 +87,7 @@ function factionName(id: FactionId, factions: Faction[]): string {
   return titleCase(id);
 }
 
-function artifactName(id: string, artifacts: Artifact[]): string {
+export function artifactName(id: string, artifacts: Artifact[]): string {
   const a = artifacts.find((x) => x.id === id);
   return a ? a.name : 'an unnamed relic';
 }
@@ -364,20 +364,21 @@ export function formatOdds(odds: number): string {
  * is a silent bug" — the same rule applies to a shared VOCABULARY).
  *
  * `impliedGatesOf` is documented to only ever emit four of `Condition`'s
- * fourteen variants — `minFollowers`, `minApprentices`, `minLairTier`,
+ * fifteen variants — `minFollowers`, `minApprentices`, `minLairTier`,
  * `minArtifacts` — because those are the only ones tied to stock an option's
  * effects can actually spend. Every other variant (standing, notoriety, pact
- * debt, era index, the Good Wizard counters, and the artifact-IDENTITY gates
- * `hasArtifact`/`holdsAnyArtifact`, which are offer-`requires` concerns, not
- * per-option affordability ones) is routed through the `never`-guarded
- * default below rather than quietly falling through a bare
- * `default: return '…'`. That bare-default shape is exactly what issue #44
- * fixed in `components/meta/effectText.ts`'s `isNegative`: a case that
- * slipped past it rendered wrong instead of failing to compile. Here, a
- * fifteenth `Condition` variant — or `impliedGatesOf` starting to emit one of
- * the ten grouped below — fails typecheck at this switch instead of silently
- * printing the generic fallback for something this function was never taught
- * to describe.
+ * debt, era index, the Good Wizard counters, `maxFollowers` — a RELIC
+ * trigger's `if` concern (issue #80), never an option's own affordability
+ * gate — and the artifact-IDENTITY gates `hasArtifact`/`holdsAnyArtifact`,
+ * which are offer-`requires` concerns, not per-option affordability ones) is
+ * routed through the `never`-guarded default below rather than quietly
+ * falling through a bare `default: return '…'`. That bare-default shape is
+ * exactly what issue #44 fixed in `components/meta/effectText.ts`'s
+ * `isNegative`: a case that slipped past it rendered wrong instead of
+ * failing to compile. Here, a sixteenth `Condition` variant — or
+ * `impliedGatesOf` starting to emit one of the eleven grouped below — fails
+ * typecheck at this switch instead of silently printing the generic
+ * fallback for something this function was never taught to describe.
  */
 export function describeGate(condition: Condition, run: RunState, content: ContentBundle): string {
   switch (condition.c) {
@@ -410,15 +411,16 @@ export function describeGate(condition: Condition, run: RunState, content: Conte
     case 'holdsAnyArtifact':
     case 'minGoodActs':
     case 'maxIllActs':
+    case 'maxFollowers':
       return 'Requirements not currently met.';
 
     default: {
       // If this line stops compiling, a Condition variant exists that no
       // case above names — either a genuinely new one, or `impliedGatesOf`
-      // starting to emit one of the ten just above (which this switch
+      // starting to emit one of the eleven just above (which this switch
       // currently treats as unreachable, not as one of its four real
       // cases). Mirrors the guard in `components/meta/effectText.ts`'s
-      // `isNegative` (issue #44) — note the ten cases directly above are
+      // `isNegative` (issue #44) — note the eleven cases directly above are
       // NOT chained into this `default`, on purpose: TypeScript does not
       // narrow a discriminant to `never` inside a `default` that shares a
       // fallthrough group with other `case` labels, only inside one that is

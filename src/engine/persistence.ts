@@ -91,7 +91,17 @@ function parse(raw: string | null): unknown {
 // Collection
 // ---------------------------------------------------------------------------
 
-export function emptyCollection(): Collection {
+/**
+ * `relicsResetAtBuild` is `RELICS_RESET_AT_BUILD` (`src/version.ts`), taken as
+ * a plain argument rather than imported — the same reason `pendingChangelogEntries`
+ * (`src/engine/changelog.ts`) takes `BUILD_VERSION` as a parameter instead of
+ * importing it: build/version constants are a composition-root concern the
+ * engine deliberately never imports (see the doc comment on `shownOffer` in
+ * `App.tsx`). Defaults to `''`, which never reads as "stale" against itself —
+ * see `migrateCollection` — so every existing caller that has no opinion on
+ * the relic reset keeps producing today's collection unchanged.
+ */
+export function emptyCollection(relicsResetAtBuild = ''): Collection {
   return {
     version: COLLECTION_VERSION,
     discoveredArtifactIds: [],
@@ -101,6 +111,7 @@ export function emptyCollection(): Collection {
     tutorialSeen: false,
     lastWizardName: '',
     selectedThemeId: DEFAULT_THEME_ID,
+    relicsResetAt: relicsResetAtBuild,
   };
 }
 
@@ -142,21 +153,36 @@ function finiteNumber(value: unknown, fallback: number): number {
  * tab split entirely, so there is no gesture left to teach. A v4 save
  * carrying the field just has it dropped on the floor here, same as any
  * other field a build no longer reads.
+ *
+ * v5 -> v6 added `relicsResetAt` (issue #80). Not a field-shape migration
+ * like the others above — it is compared against `relicsResetAtBuild`
+ * (`RELICS_RESET_AT_BUILD`, `src/version.ts`) on every load: a stored value
+ * older than it, OR ABSENT (a pre-reset save, or the default `''` an
+ * uninterested caller passes), clears `discoveredArtifactIds` and stamps the
+ * field to the constant; a current value leaves the whole collection
+ * untouched. Endings, themes, the tutorial flag and the last name are never
+ * touched either way — this is a relic-only reset, not a fresh collection.
  */
-export function migrateCollection(raw: unknown): Collection {
-  if (!raw || typeof raw !== 'object') return emptyCollection();
+export function migrateCollection(raw: unknown, relicsResetAtBuild = ''): Collection {
+  if (!raw || typeof raw !== 'object') return emptyCollection(relicsResetAtBuild);
   const data = raw as Record<string, unknown>;
   const version = finiteNumber(data.version, 0);
 
   // From the future: a newer build wrote this. Do not guess at its shape.
-  if (version > COLLECTION_VERSION) return emptyCollection();
+  if (version > COLLECTION_VERSION) return emptyCollection(relicsResetAtBuild);
 
   const endings = stringArray(data.endingsSeen) as EndingId[];
   const runsCompleted = Math.max(0, Math.round(finiteNumber(data.runsCompleted, 0)));
+  const storedRelicsResetAt =
+    typeof data.relicsResetAt === 'string' ? data.relicsResetAt : '';
+  // A plain string comparison, the same sortable-ISO-8601 trick `BUILD_VERSION`
+  // itself relies on. `'' < ''` is false, so a caller with no opinion on the
+  // reset (the default parameter) never triggers one.
+  const relicsStale = storedRelicsResetAt < relicsResetAtBuild;
 
   return {
     version: COLLECTION_VERSION,
-    discoveredArtifactIds: stringArray(data.discoveredArtifactIds),
+    discoveredArtifactIds: relicsStale ? [] : stringArray(data.discoveredArtifactIds),
     endingsSeen: endings,
     runsCompleted,
     bestNotoriety: Math.max(0, Math.min(99, Math.round(finiteNumber(data.bestNotoriety, 0)))),
@@ -169,11 +195,13 @@ export function migrateCollection(raw: unknown): Collection {
       isThemeId(data.selectedThemeId) && isThemeUnlocked(data.selectedThemeId, endings)
         ? data.selectedThemeId
         : DEFAULT_THEME_ID,
+    relicsResetAt: relicsStale ? relicsResetAtBuild : storedRelicsResetAt,
   };
 }
 
-export function loadCollection(): Collection {
-  return migrateCollection(parse(readRaw(COLLECTION_KEY)));
+/** See `migrateCollection`'s doc comment for what `relicsResetAtBuild` does. */
+export function loadCollection(relicsResetAtBuild = ''): Collection {
+  return migrateCollection(parse(readRaw(COLLECTION_KEY)), relicsResetAtBuild);
 }
 
 export function saveCollection(c: Collection): void {
@@ -218,6 +246,10 @@ export function recordRun(c: Collection, run: RunState, content: ContentBundle):
     // swapping it out from under them here would be the game imposing a
     // cosmetic, which is the distinction the amended rule 3 turns on.
     selectedThemeId: c.selectedThemeId,
+    // Finishing a run never resets the relic grid either — that is a
+    // build-boundary event `migrateCollection` handles on load, not something
+    // an ordinary finished career triggers.
+    relicsResetAt: c.relicsResetAt,
   };
 }
 
@@ -262,7 +294,13 @@ function looksLikeRun(value: unknown): value is RunState {
     !!r.factionStanding &&
     typeof r.factionStanding === 'object' &&
     !!r.apprentices &&
-    typeof r.apprentices === 'object'
+    typeof r.apprentices === 'object' &&
+    // Added in the same bump that took RUN_SAVE_VERSION to 3 (issue #80).
+    // `RUN_SAVE_VERSION`'s own check already rejects a pre-relic save, so
+    // this is belt-and-suspenders the same way `knownArtifactIds` is above.
+    !!r.relicState &&
+    typeof r.relicState === 'object' &&
+    Array.isArray((r.relicState as { firedOnce?: unknown }).firedOnce)
   );
 }
 

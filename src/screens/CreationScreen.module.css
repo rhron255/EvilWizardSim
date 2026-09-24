@@ -320,6 +320,16 @@
   color: var(--ew-ink-dim);
 }
 
+/* The origin relic's power (issue #80) — set apart from the plain stat
+   deltas above it: this is what the relic DOES, not a number moving. */
+.relicPower {
+  margin-top: var(--ew-space-1);
+  font-size: var(--ew-size-sm);
+  font-style: italic;
+  line-height: 1.4;
+  color: var(--ew-ink-faint);
+}
+
 /* --- IV. length ----------------------------------------------------------- */
 
 .lengths {
