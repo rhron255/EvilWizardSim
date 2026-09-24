@@ -83,7 +83,11 @@ export function RelicPage({ run, artifacts, factions, defense, onBack }: RelicPa
       )}
 
       {held.length === 0 ? (
-        <p className={styles.empty}>No relics recovered yet. The hero has nothing to fear from your walls.</p>
+        <p className={styles.empty}>
+          {lost.length > 0
+            ? 'None held right now. The hero has nothing to fear from your walls.'
+            : 'No relics recovered yet. The hero has nothing to fear from your walls.'}
+        </p>
       ) : (
         <ul className={styles.grid}>
           {held.map((artifact) => (

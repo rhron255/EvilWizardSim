@@ -73,6 +73,16 @@ describe('RelicPage · the empty state', () => {
     expect(screen.getByText(/No relics recovered yet/)).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Lost this run' })).toBeNull();
   });
+
+  it('does not claim nothing was ever recovered when everything held was lost', () => {
+    // demoRun's full haul, all subsequently lost — held is empty but the
+    // Lost this run section is not, so the empty-held copy must not say
+    // "recovered yet" and contradict the section right below it.
+    const allLostRun = { ...demoRun, heldArtifactIds: [] } as RunState;
+    show(allLostRun, wards(0));
+    expect(screen.queryByText(/No relics recovered yet/)).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Lost this run' })).toBeInTheDocument();
+  });
 });
 
 describe('RelicPage · getting back', () => {
