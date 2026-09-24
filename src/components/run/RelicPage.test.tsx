@@ -86,15 +86,13 @@ describe('RelicPage · the empty state', () => {
 });
 
 describe('RelicPage · getting back', () => {
-  it('calls back from both the top and bottom controls', async () => {
+  it('has exactly one back control, and it calls back', async () => {
     const onBack = vi.fn();
     show(demoRun, wards(6), onBack);
     const backButtons = screen.getAllByRole('button', { name: /Back to the decision/ });
-    expect(backButtons).toHaveLength(2);
+    expect(backButtons).toHaveLength(1);
     await userEvent.click(backButtons[0]);
     expect(onBack).toHaveBeenCalledTimes(1);
-    await userEvent.click(backButtons[1]);
-    expect(onBack).toHaveBeenCalledTimes(2);
   });
 });
 

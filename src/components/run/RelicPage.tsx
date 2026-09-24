@@ -68,9 +68,11 @@ export function RelicPage({ run, artifacts, factions, defense, onBack }: RelicPa
 
   return (
     <div className={styles.page}>
-      <button type="button" className={styles.back} onClick={onBack}>
-        ‹ Back to the decision
-      </button>
+      <div className={styles.backBar}>
+        <button type="button" className={styles.back} onClick={onBack}>
+          ‹ Back to the decision
+        </button>
+      </div>
 
       <h2 className={styles.heading} tabIndex={-1} ref={headingRef}>
         Your relics
@@ -119,10 +121,6 @@ export function RelicPage({ run, artifacts, factions, defense, onBack }: RelicPa
           </ul>
         </section>
       )}
-
-      <button type="button" className={styles.back} onClick={onBack}>
-        ‹ Back to the decision
-      </button>
     </div>
   );
 }
