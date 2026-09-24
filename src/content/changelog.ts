@@ -21,6 +21,13 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-09-24T12:00:00Z': {
+    summary: 'You can now see which relics you actually hold mid-run.',
+    details: [
+      'Tap the Relics stat during a career to open a page listing every relic you hold, what each one does, and how much they add to your wards.',
+      'Relics you picked up and later lost this run are now named in a Lost this run section instead of just vanishing from the count.',
+    ],
+  },
   '2026-09-23T08:30:00Z': {
     summary: 'A card you cannot yet afford now stays around instead of vanishing for the run.',
     details: [

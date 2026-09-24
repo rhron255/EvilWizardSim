@@ -15,7 +15,7 @@
 import { chromium } from 'playwright';
 import { mkdir, readdir, unlink } from 'node:fs/promises';
 import path from 'node:path';
-import { dismissFirstRunGuide } from './first-run.mjs';
+import { dismissChangelogPopup, dismissFirstRunGuide } from './first-run.mjs';
 
 const arg = (flag, fallback) => {
   const i = process.argv.indexOf(flag);
@@ -94,6 +94,11 @@ async function clickByName(re, { timeout = 4000, optional = false } = {}) {
 
 console.log(`\n▸ ${URL}  @${WIDTH}×${HEIGHT}\n`);
 await page.goto(URL, { waitUntil: 'networkidle' });
+
+// A fresh profile has acknowledged no changelog version at all, so every
+// entry is pending on first launch — dismiss the modal popup before it can
+// intercept the title screen's own controls.
+await dismissChangelogPopup(page).catch(() => {});
 
 // ---- Title ---------------------------------------------------------------
 await shot('title');

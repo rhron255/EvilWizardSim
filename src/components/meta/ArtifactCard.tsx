@@ -37,6 +37,13 @@ export type ArtifactCardProps = {
   faction?: Faction;
   /** Drops the effect line and tightens the box. Used on the ending card. */
   compact?: boolean;
+  /**
+   * Prints `artifact.flavorText` below the effect line. Opt-in and ignored
+   * under `compact` — the run screen's relic page (issue #78) is the one
+   * place flavour earns its space; every other caller's snapshot stays
+   * unchanged with this left off.
+   */
+  showFlavour?: boolean;
 };
 
 const RARITY_PIPS = { common: 1, rare: 2, legendary: 3 } as const;
@@ -44,7 +51,15 @@ const RARITY_PIPS = { common: 1, rare: 2, legendary: 3 } as const;
 /** The glyph grows with rank. Geometry the eye reads before any word. */
 const RARITY_GLYPH = { common: 0, rare: 4, legendary: 9 } as const;
 
-export function ArtifactCard({ artifact, locked, lost, isNew, faction, compact }: ArtifactCardProps) {
+export function ArtifactCard({
+  artifact,
+  locked,
+  lost,
+  isNew,
+  faction,
+  compact,
+  showFlavour,
+}: ArtifactCardProps) {
   const classes = [
     styles.card,
     locked ? styles.locked : '',
@@ -127,6 +142,10 @@ export function ArtifactCard({ artifact, locked, lost, isNew, faction, compact }
           <p className={styles.effect}>
             {locked ? <span className={styles.redactionLine} aria-hidden /> : artifact.effect}
           </p>
+        )}
+
+        {!compact && showFlavour && !locked && (
+          <p className={styles.flavour}>{artifact.flavorText}</p>
         )}
       </div>
     </article>

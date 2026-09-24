@@ -17,6 +17,16 @@ Decision | Career split issue #18 introduced, and the ledger along with it) —
 so anything added above the choice cards pushes the actual interaction
 further down the page.
 
+*Amended for the relic page (issue #78, slice 1 of #77).* The Relics stat in
+the decision content is a navigation button that swaps the decision content —
+not the masthead, not the faction standings — for a page listing what you
+hold, what you lost, and the wards figure. This is not a second SCREEN and
+not a reopened tab split: there is no persistent nav, nothing above the choice
+cards grew, the view is local, throwaway `useState` (a reload always lands
+back on the decision), and a player who never taps it sees no difference at
+all. Read it as "no tabs" surviving with one optional, one-tap-away exception
+carved out for it, not as the pillar being relaxed.
+
 The reward structure is modelled on **ליגיונר** (legionnaire.xyz). `wiki/` holds
 the design rationale; `wiki/06_reference_analysis.md` explains *why* the
 constraints below exist, and is the thing to read before relaxing any of them.

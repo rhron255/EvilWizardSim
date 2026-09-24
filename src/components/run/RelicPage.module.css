@@ -1,0 +1,86 @@
+/* The relic page (issue #78) — replaces `DecisionPanel` under the masthead
+   and faction standings, never above them. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-4);
+}
+
+.back {
+  align-self: flex-start;
+  margin: 0;
+  padding: var(--ew-space-1) var(--ew-space-3);
+  border: 1px solid var(--ew-line-strong);
+  border-radius: var(--ew-radius-pill);
+  font-size: var(--ew-size-xs);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--ew-ink);
+  cursor: pointer;
+  transition: border-color var(--ew-fast) var(--ew-ease), background-color var(--ew-fast) var(--ew-ease);
+}
+
+.back:hover,
+.back:focus-visible {
+  color: var(--ew-ink-bright);
+  border-color: var(--ew-ink-faint);
+  background: color-mix(in srgb, var(--ew-ink-faint) 12%, transparent);
+}
+
+.heading {
+  margin: 0;
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-size-lg);
+  color: var(--ew-ink-bright);
+}
+
+/* Focused programmatically, not by the pointer — no visible ring needed for
+   the mouse path, but the keyboard/AT path still gets one. */
+.heading:focus-visible {
+  outline: 1px solid var(--ew-ink-faint);
+  outline-offset: 4px;
+}
+
+.wards {
+  margin: 0;
+  padding-bottom: var(--ew-space-4);
+  border-bottom: 1px solid var(--ew-line);
+  font-size: var(--ew-size-sm);
+  color: var(--ew-ink-dim);
+}
+
+.empty {
+  margin: 0;
+  padding: var(--ew-space-6) 0;
+  text-align: center;
+  font-family: var(--ew-font-display);
+  font-style: italic;
+  font-size: var(--ew-size-md);
+  color: var(--ew-ink-faint);
+}
+
+.grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lostSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-3);
+  padding-top: var(--ew-space-4);
+  border-top: 1px solid var(--ew-line);
+}
+
+.lostHeading {
+  margin: 0;
+  font-size: var(--ew-size-xs);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ew-ink-faint);
+}

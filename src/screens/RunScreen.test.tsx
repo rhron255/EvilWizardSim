@@ -14,6 +14,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { ContentBundle } from '../engine';
 import { artifacts, endings, epithets, factions, lairs, offers, origins } from '../content';
 import { demoRun, demoOffer } from '../components/run/__fixtures__/demo';
@@ -110,5 +111,61 @@ describe('RunScreen · a single continuous screen', () => {
   it('never renders a ledger', () => {
     show(demoRun);
     expect(screen.queryByText('The Ledger')).toBeNull();
+  });
+});
+
+/**
+ * The relic page (issue #78) is an optional view swapped in for the decision
+ * content, reached from the Relics stat and never persisted.
+ */
+describe('RunScreen · the relic page', () => {
+  it('opens the relic page from the Relics stat and returns via Back', async () => {
+    show(demoRun);
+    const openButton = screen.getByRole('button', { name: /Relics · 5/ });
+    await userEvent.click(openButton);
+
+    expect(screen.getByRole('heading', { name: 'Your relics' })).toBeInTheDocument();
+    // The decision content is gone while the relic page is open.
+    expect(screen.queryByRole('heading', { name: demoOffer.title })).toBeNull();
+
+    const backButton = screen.getAllByRole('button', { name: /Back to the decision/ })[0];
+    await userEvent.click(backButton);
+
+    expect(screen.queryByRole('heading', { name: 'Your relics' })).toBeNull();
+    expect(screen.getByRole('heading', { name: demoOffer.title })).toBeInTheDocument();
+  });
+
+  it('keeps the faction standings on screen while the relic page is open', async () => {
+    show(demoRun);
+    await userEvent.click(screen.getByRole('button', { name: /Relics · 5/ }));
+    expect(screen.getByRole('list', { name: 'Faction standing' })).toBeInTheDocument();
+  });
+
+  it('moves focus to the relic page heading on open, and back to the Relics button on close', async () => {
+    show(demoRun);
+    const openButton = screen.getByRole('button', { name: /Relics · 5/ });
+    await userEvent.click(openButton);
+
+    expect(screen.getByRole('heading', { name: 'Your relics' })).toHaveFocus();
+
+    const backButton = screen.getAllByRole('button', { name: /Back to the decision/ })[0];
+    await userEvent.click(backButton);
+
+    expect(screen.getByRole('button', { name: /Relics · 5/ })).toHaveFocus();
+  });
+
+  it('opens with the keyboard (Enter) and returns with the keyboard too', async () => {
+    show(demoRun);
+    const openButton = screen.getByRole('button', { name: /Relics · 5/ });
+    openButton.focus();
+    await userEvent.keyboard('{Enter}');
+
+    expect(screen.getByRole('heading', { name: 'Your relics' })).toHaveFocus();
+
+    const backButton = screen.getAllByRole('button', { name: /Back to the decision/ })[0];
+    backButton.focus();
+    await userEvent.keyboard('{Enter}');
+
+    expect(screen.getByRole('button', { name: /Relics · 5/ })).toHaveFocus();
   });
 });
