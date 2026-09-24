@@ -49,7 +49,11 @@ await Promise.all(stale.map((f) => unlink(path.join(OUT, f))));
 const problems = [];
 const shots = [];
 
-const browser = await chromium.launch({ headless: !has('--headed'), slowMo: SLOW });
+const browser = await chromium.launch({
+  headless: !has('--headed'),
+  slowMo: SLOW,
+  executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined,
+});
 const page = await browser.newPage({
   viewport: { width: WIDTH, height: HEIGHT },
   deviceScaleFactor: 2,

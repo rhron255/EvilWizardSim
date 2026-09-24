@@ -20,6 +20,7 @@ import {
   createRun,
   decayFor,
   defenseOf,
+  defenseReadout,
   emptyCollection,
   DEVOTION_STANDING,
   FACTION_ORDER,
@@ -95,6 +96,15 @@ function playOut(seed: number, pick: number, content: ContentBundle): RunState[]
     seen.push(run);
   }
   return seen;
+}
+
+/** The 'Relics' term of `defenseReadout`, in isolation, via the derivation itself. */
+function artifactTermOf(run: RunState, content: ContentBundle): number {
+  return defenseReadout(run, content).terms.find((t) => t.label === 'Relics')?.value ?? 0;
+}
+
+function sumTerms(readout: ReturnType<typeof defenseReadout>): number {
+  return readout.terms.reduce((sum, t) => sum + t.value, 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -1293,6 +1303,43 @@ describe('defense', () => {
 
     const armed = { ...base, heldArtifactIds: [real.artifacts[0].id] };
     expect(defenseOf(armed, real)).toBeGreaterThan(defenseOf(base, real));
+  });
+
+  /**
+   * Wards is a flat function of rarity (issue #79's `RELIC_WARDS`), so the
+   * value that actually matters is not "some relic raises defense" — that's
+   * already covered above — it's the EXTREME ends of the table: no relics at
+   * all, and one of every rarity together (failure mode 13: a derived stat
+   * that saturates or drifts is caught at the extremes, not a typical value).
+   *
+   * The expected total (13) is a LITERAL, not `RELIC_WARDS[a.rarity]` summed
+   * — reading the constant under test back out of itself would pass no
+   * matter what the table said (failure mode 11, the check that grades its
+   * own homework). If `RELIC_WARDS` is ever retuned, this literal — and the
+   * comment recording it — must be updated deliberately, same as any other
+   * balance constant's pinned test.
+   */
+  it('pins the artifact term at the extremes: none held, one of each rarity', () => {
+    const base = start({}, real);
+    const noRelics = { ...base, heldArtifactIds: [] };
+    expect(artifactTermOf(noRelics, real)).toBe(0);
+    expect(defenseOf(noRelics, real)).toBe(defenseOf(base, real));
+
+    const oneOfEach = real.artifacts.filter(
+      (a, i, all) => all.findIndex((b) => b.rarity === a.rarity) === i,
+    );
+    expect(oneOfEach.map((a) => a.rarity).sort()).toEqual(['common', 'legendary', 'rare']);
+    const armed = { ...base, heldArtifactIds: oneOfEach.map((a) => a.id) };
+    // common 2 + rare 4 + legendary 7 = 13, per RELIC_WARDS's current values.
+    expect(artifactTermOf(armed, real)).toBe(13);
+  });
+
+  it('keeps defenseReadout terms summing to defenseOf, with no relics held and with several', () => {
+    const base = start({}, real);
+    expect(sumTerms(defenseReadout(base, real))).toBeCloseTo(defenseOf(base, real), 5);
+
+    const armed = { ...base, heldArtifactIds: real.artifacts.slice(0, 3).map((a) => a.id) };
+    expect(sumTerms(defenseReadout(armed, real))).toBeCloseTo(defenseOf(armed, real), 5);
   });
 });
 

@@ -21,6 +21,12 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-09-24T14:00:00Z': {
+    summary: "A relic's wards now come from its rarity, not a number written on the relic.",
+    details: [
+      'Every relic still adds to your wards — common, rare, and legendary now each carry a fixed amount rather than their own individual number.',
+    ],
+  },
   '2026-09-24T13:15:00Z': {
     summary: 'A card you truly cannot afford now looks and acts like it.',
     details: [

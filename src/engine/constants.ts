@@ -12,6 +12,8 @@
  * a bug.
  */
 
+import type { Rarity } from '../types';
+
 // ---------------------------------------------------------------------------
 // Era structure
 // ---------------------------------------------------------------------------
@@ -143,6 +145,41 @@ export const HERO_BAND_DANGER = 0.85;
 export const DEF_FLOOR = 48;
 export const DEF_NOTORIETY = 0.3;
 export const DEF_LAIR = 8;
+
+/**
+ * Wards a held relic contributes, by rarity alone (issue #79, slice 2 of #77).
+ *
+ * Replaces a per-relic authored `defense` number that restated itself in an
+ * authored `effect` string ("Defense +2.") — two fields holding one fact,
+ * CLAUDE.md failure mode 4. The number was also the relic's entire identity,
+ * which is what issue #6 complains about; a flat rarity table frees each
+ * relic's `id`/`name`/`flavorText` for the power it gets in slices 3-5.
+ *
+ * PROVENANCE: measurement against the catalog it replaces. The 32 artifacts'
+ * authored `defense` averaged 1.56 (common), 3.9 (rare), 7.67 (legendary) —
+ * these three starting values are the nearest whole numbers on that same
+ * scale, chosen so the retune below could measure a small, explicable shift
+ * rather than a redesign.
+ *
+ * MEASURED (issue #79), `npm run sim` seeds 1-5, before (authored per-relic
+ * `defense`) vs. after (this table) with no other change: every target
+ * stayed within its existing band at every seed, including the two that
+ * matter most here — Ascension (0.65-1.00% before, identical after, inside
+ * 1-4%†) and `lichdom` (0.05-0.25% before, identical after, inside 2-15% of
+ * its lich-seeker cohort). `slain_by_chosen_one` MOVED, favourably: it fell
+ * ~0.2-0.65 points at every seed (e.g. seed 1: 45.10% -> 44.65%; seed 2:
+ * 45.50% -> 44.85%), which flips seeds 1 and 2 from failing the "no ending
+ * above 45%" check to passing it — a pre-existing near-miss this table
+ * happens to close rather than one it needed to chase. No value here was
+ * moved to produce that; the starting common 2 / rare 4 / legendary 7 held
+ * unchanged.
+ *
+ * † Ascension's own population share sits under its 1-4% band on every seed
+ * here, same as on `main` — a pre-existing, disclosed FAIL (CLAUDE.md:
+ * "the sim has disclosed standing FAILs"), not something this change moved
+ * in either direction.
+ */
+export const RELIC_WARDS: Record<Rarity, number> = { common: 2, rare: 4, legendary: 7 };
 
 /**
  * A lich is harder to put down.

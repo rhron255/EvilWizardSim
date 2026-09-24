@@ -101,8 +101,6 @@ export const fixtureFactions: Faction[] = [
 // Artifacts — 16 common / 10 rare / 4 legendary, per wiki/02
 // ---------------------------------------------------------------------------
 
-const DEFENSE_BY_RARITY: Record<Rarity, number> = { common: 3, rare: 7, legendary: 13 };
-
 /** [factionId, [commonCount, rareCount, legendaryCount]] */
 const ARTIFACT_PLAN: Array<[FactionId, [number, number, number]]> = [
   ['ashen_covenant', [3, 1, 1]],
@@ -139,9 +137,7 @@ function buildArtifacts(): Artifact[] {
         name: `${capitalize(faction.adjective)} ${noun} ${romanize(i + 1)}`,
         factionId,
         rarity,
-        effect: `+${DEFENSE_BY_RARITY[rarity]} defense against the chosen one.`,
         flavorText: 'It hums when the wrong people are nearby.',
-        defense: DEFENSE_BY_RARITY[rarity],
       });
     });
   }
