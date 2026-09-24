@@ -54,15 +54,27 @@ describe('OptionCard · unaffordable (reason prop)', () => {
     expect(within(card).getByText('65%')).toBeInTheDocument();
   });
 
-  it('prefers the rawOption price over the (possibly projected/clamped) option price', () => {
-    const clamped = {
+  it('merges the authored gated cost into the projected effect list, rather than swapping the whole option', () => {
+    // PR #85 review: swapping `option` for `rawOption` wholesale on an
+    // unaffordable card silently dropped the projected Standing contagion
+    // row too — an undisclosed-consequence regression, not a fix. The
+    // projected copy below stands in for what `projectEffects` would
+    // actually produce: Followers floor-clamped to -8, plus a SECOND
+    // Standing row (`pale_academy`) that only exists because contagion added
+    // it — `certainOption`'s authored effects never mention that faction.
+    const projected = {
       ...certainOption,
       kind: 'certain' as const,
-      effects: [{ t: 'followers' as const, v: -8 }],
+      effects: [
+        { t: 'followers' as const, v: -2 },
+        { t: 'standing' as const, factionId: 'ashen_covenant' as const, v: -8 },
+        { t: 'standing' as const, factionId: 'pale_academy' as const, v: -4 },
+        { t: 'heroThreat' as const, v: -3 },
+      ],
     };
     render(
       <OptionCard
-        option={clamped}
+        option={projected}
         rawOption={certainOption}
         index={1}
         artifacts={demoArtifacts}
@@ -73,8 +85,15 @@ describe('OptionCard · unaffordable (reason prop)', () => {
       />,
     );
     const card = screen.getByRole('button');
-    // certainOption's authored price, not the clamped -8 `option` carries.
-    expect(within(card).getByText(/Hero Threat/)).toBeInTheDocument();
+    // The gated cost reverts to certainOption's authored -60, not the
+    // projected/clamped -2 `option` carries.
+    expect(within(card).getByText('−60')).toBeInTheDocument();
+    expect(within(card).queryByText('−2')).not.toBeInTheDocument();
+    // Both projected Standing rows survive, contagion included — it exists
+    // only in the projected copy, and a whole-option swap would have
+    // silently dropped it.
+    expect(within(card).getByText(/The Ashen Covenant/)).toBeInTheDocument();
+    expect(within(card).getByText(/The Pale Academy/)).toBeInTheDocument();
   });
 
   it('shows a lock mark for an unaffordable card, and none for an affordable one', () => {
