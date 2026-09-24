@@ -19,7 +19,7 @@
  * `.card[data-rarity='legendary']` in the stylesheet.
  */
 
-import { RELIC_WARDS } from '../../engine/constants';
+import { RELIC_WARDS } from '../../engine';
 import type { Artifact, Faction } from '../../types';
 import { ArtifactGlyph, CornerMarks, FactionGlyph } from './glyphs';
 import styles from './ArtifactCard.module.css';
