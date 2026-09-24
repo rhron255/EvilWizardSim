@@ -575,6 +575,18 @@ export type RunState = {
   lairId: string;
   heldArtifactIds: string[];
   /**
+   * Relics granted by `createRun` itself (an origin's `{ t: 'artifact' }`
+   * grant), set once and never touched again. `EraRecord.artifactsGained`
+   * only ever gets an entry from `resolveChoice`, so an origin relic lost
+   * later — `loseArtifact`, the lich rite — would otherwise vanish from every
+   * "ever held" reconstruction: `recordRun`'s discovered-artifact fold,
+   * `RelicPage`'s "Lost this run", `EndingScreen`'s relic grid. All three read
+   * this alongside `eras[].artifactsGained` and `heldArtifactIds` for exactly
+   * that reason (issue #80 — a starting relic that disappears without a trace
+   * is the collection-reset regression Codex caught).
+   */
+  startingArtifactIds: string[];
+  /**
    * Relics this PLAYER has discovered in earlier careers, from the persisted
    * collection. Read-only within a run: it never changes, and it exists so a
    * random draw can prefer something new (see `NOVELTY_BIAS`).

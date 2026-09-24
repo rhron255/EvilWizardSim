@@ -137,7 +137,14 @@ describe('the remembered name', () => {
 
   it('is re-confirmed by a finished career', () => {
     const c = { ...emptyCollection(), lastWizardName: 'Old Name' };
-    const run = { wizardName: 'Newer Name', heldArtifactIds: [], eras: [], ending: 'lichdom', notoriety: 4 };
+    const run = {
+      wizardName: 'Newer Name',
+      heldArtifactIds: [],
+      startingArtifactIds: [],
+      eras: [],
+      ending: 'lichdom',
+      notoriety: 4,
+    };
     expect(recordRun(c, run as never, content).lastWizardName).toBe('Newer Name');
   });
 });
@@ -177,7 +184,13 @@ describe('collection v1 -> v2', () => {
 
   it('carries the flag through a recorded run', () => {
     const c = { ...emptyCollection(), tutorialSeen: true };
-    const run = { heldArtifactIds: [], eras: [], ending: 'retired_to_swamp', notoriety: 10 };
+    const run = {
+      heldArtifactIds: [],
+      startingArtifactIds: [],
+      eras: [],
+      ending: 'retired_to_swamp',
+      notoriety: 10,
+    };
     expect(recordRun(c, run as never, content).tutorialSeen).toBe(true);
   });
 
@@ -239,7 +252,13 @@ describe('collection v2 -> v3 · the theme pointer', () => {
 
   it('leaves what the player is wearing alone when a run is recorded', () => {
     const c = { ...emptyCollection(), selectedThemeId: 'lichdom' as const };
-    const run = { heldArtifactIds: [], eras: [], ending: 'ascension', notoriety: 10 };
+    const run = {
+      heldArtifactIds: [],
+      startingArtifactIds: [],
+      eras: [],
+      ending: 'ascension',
+      notoriety: 10,
+    };
     // Finishing a career unlocks a theme; it does not put it on. The ending
     // card offers it and the player taps.
     expect(recordRun(c, run as never, content).selectedThemeId).toBe('lichdom');

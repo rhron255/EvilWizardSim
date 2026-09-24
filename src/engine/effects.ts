@@ -55,6 +55,21 @@ export function draftOf(run: RunState): RunState {
   };
 }
 
+/**
+ * The lich rite's mechanical forfeiture, and nothing else: every held relic
+ * and every follower, unconditionally. `run.ts`'s `becomeLich` also reports
+ * the loss onto `EffectApplication` for the resolution card; this is the bare
+ * state change alone, shared out here so `relics.ts`'s preview can put the
+ * SAME draft in front of era-end triggers that `resolveChoice` will (a relic
+ * the rite is about to forfeit must not preview an era-end reaction it will
+ * never get to fire — issue #80's era-end triggers postdate this rite by one
+ * slice, which is how the two went unreconciled).
+ */
+export function forfeitForLichdom(draft: RunState): void {
+  draft.heldArtifactIds = [];
+  draft.followers = 0;
+}
+
 const RARITY_RANK: Record<Rarity, number> = { common: 0, rare: 1, legendary: 2 };
 
 /**
@@ -255,10 +270,15 @@ export function applyStanding(
   index: ContentIndex,
   applied: Effect[],
   /**
-   * Multiplies `CONTAGION_LOSS` alone (issue #80's Footnote That Bites: "the
-   * standing lost to contagion is halved"). Defaults to 1 — unmodified — so
-   * every direct caller and every existing test that predates relic powers
-   * keeps producing today's numbers without having to name this parameter.
+   * Multiplies `CONTAGION_GAIN` alone — the rate that fires when `delta > 0`
+   * and spills a NEGATIVE amount onto `factionId`'s enemies (issue #80's
+   * Footnote That Bites: "the standing lost to contagion is halved"). The
+   * `delta < 0` branch uses `CONTAGION_LOSS` to spill a small POSITIVE amount
+   * onto those same enemies — the enemy-of-my-enemy warming, not a loss — so
+   * it must stay unmodified by a multiplier named for loss. Defaults to 1 —
+   * unmodified — so every direct caller and every existing test that
+   * predates relic powers keeps producing today's numbers without having to
+   * name this parameter.
    */
   contagionLossMultiplier = 1,
 ): number {
@@ -270,7 +290,7 @@ export function applyStanding(
   if (delta === 0) return 0;
 
   const enemies = index.factionById.get(factionId)?.hostileTo ?? [];
-  const rate = delta > 0 ? CONTAGION_GAIN : CONTAGION_LOSS * contagionLossMultiplier;
+  const rate = delta > 0 ? CONTAGION_GAIN * contagionLossMultiplier : CONTAGION_LOSS;
   for (const enemyId of enemies) {
     if (enemyId === factionId) continue;
     const spill = -Math.sign(delta) * Math.round(Math.abs(delta) * rate);

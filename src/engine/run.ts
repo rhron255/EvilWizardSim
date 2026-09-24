@@ -33,7 +33,7 @@ import {
   START_NOTORIETY,
 } from './constants';
 import type { EffectApplication } from './effects';
-import { applyEffects, draftOf } from './effects';
+import { applyEffects, draftOf, forfeitForLichdom } from './effects';
 import type { RelicEvent } from './relics';
 import { applyChoiceTriggers, applyEraEndTriggers } from './relics';
 import { projectedEpithet } from './epithets';
@@ -126,6 +126,7 @@ export function createRun(opts: CreateRunOptions, content: ContentBundle): RunSt
     followers: START_FOLLOWERS,
     lairId: index.lairLadder[0]?.id ?? '',
     heldArtifactIds: [],
+    startingArtifactIds: [],
     knownArtifactIds: Array.from(new Set(opts.knownArtifactIds ?? [])),
     heroBandSeen: 0,
     factionStanding: emptyStanding(),
@@ -146,7 +147,11 @@ export function createRun(opts: CreateRunOptions, content: ContentBundle): RunSt
     // An `ending` effect here would be nonsense, so it is ignored by omission
     // (we never read `endingRequested` from this application).
     const rng = streamFor(seed, 'origin', origin.id);
-    applyEffects(run, origin.effects, rng, content);
+    const application = applyEffects(run, origin.effects, rng, content);
+    // This happens before `run.eras` has a single entry, so it is the ONLY
+    // record of a relic the origin granted — see `startingArtifactIds`'s doc
+    // comment in `types.ts` for why every "ever held" reconstruction reads it.
+    run.startingArtifactIds = application.artifactsGained.map((a) => a.id);
   }
 
   // A creation-screen pick stands until deeds earn something louder; without
@@ -222,13 +227,12 @@ function becomeLich(draft: RunState, application: EffectApplication, content: Co
     if (artifact) application.artifactsLost.push(artifact);
     application.applied.push({ t: 'loseArtifact' });
   }
-  draft.heldArtifactIds = [];
 
   if (draft.followers !== 0) {
     application.applied.push({ t: 'followers', v: -draft.followers });
-    draft.followers = 0;
   }
 
+  forfeitForLichdom(draft);
   draft.isLich = true;
 }
 

@@ -26,6 +26,7 @@ const run = (heldArtifactIds: string[]): RunState =>
     followers: 10,
     lairId: REAL_CONTENT.lairs[0].id,
     heldArtifactIds,
+    startingArtifactIds: [],
     knownArtifactIds: [],
     heroBandSeen: 0,
     factionStanding: {

@@ -17,6 +17,7 @@ import { describe, expect, it } from 'vitest';
 import type { Effect, Offer, OfferOption, RunState } from '../types';
 import { createRun, resolveChoice } from './run';
 import { applyChoiceTriggers, applyEraEndTriggers, effectiveOdds, projectReactions, relicRules } from './relics';
+import { emptyCollection, recordRun } from './persistence';
 import { REAL_CONTENT as content } from '../testing/realContent';
 import { streamFor } from './rng';
 
@@ -64,23 +65,56 @@ describe('relicRules · combined passives', () => {
   });
 
   it('halves standing actually LOST to contagion, end to end', () => {
-    // pale_academy's hostileTo includes ashen_covenant and worm_below — a
-    // Pale Academy LOSS spills a fraction of that loss onto both as a GAIN
-    // (the mirror direction). Compare a holder against a non-holder from the
-    // same starting standing.
-    const base = { factionStanding: { ...run(ORIGIN.bog).factionStanding, pale_academy: 40 } };
+    // pale_academy's hostileTo includes ashen_covenant and worm_below —
+    // COURTING (gaining standing with) pale_academy spills a fraction of that
+    // gain onto both as a LOSS. That loss is what Footnote That Bites halves
+    // ("the footnote bites back... half as hard"); the mirror direction
+    // (losing pale_academy standing warms its enemies) is a GAIN for them and
+    // must stay untouched by a multiplier named for loss — see the doc
+    // comment on `applyStanding`'s `contagionLossMultiplier` param. Compare a
+    // holder against a non-holder from the same starting standing.
+    const base = { factionStanding: { ...run(ORIGIN.bog).factionStanding, pale_academy: 20 } };
     const holder = run(ORIGIN.academy, base);
     const nonHolder = run(ORIGIN.bog, { ...base, heldArtifactIds: [] });
 
-    const offer = offerOf([{ t: 'standing', factionId: 'pale_academy', v: -20 }]);
+    const offer = offerOf([{ t: 'standing', factionId: 'pale_academy', v: 20 }]);
     const holderNext = resolveChoice(holder, offer, 0, content).next;
     const plainNext = resolveChoice(nonHolder, offer, 0, content).next;
 
     const holderSpill = holderNext.factionStanding.ashen_covenant - holder.factionStanding.ashen_covenant;
     const plainSpill = plainNext.factionStanding.ashen_covenant - nonHolder.factionStanding.ashen_covenant;
-    expect(holderSpill).toBeGreaterThan(0);
-    expect(plainSpill).toBeGreaterThan(0);
+    expect(holderSpill).toBeLessThan(0);
+    expect(plainSpill).toBeLessThan(0);
     expect(holderSpill).toBe(Math.round(plainSpill / 2));
+  });
+});
+
+describe('startingArtifactIds · an origin relic survives its own loss', () => {
+  /**
+   * The origin's `{ t: 'artifact' }` grant lands in `createRun`, before
+   * `run.eras` has a single entry. `recordRun`'s discovered-artifact fold
+   * (and `RelicPage`/`EndingScreen`'s own "ever held" derivations) read
+   * `eras[].artifactsGained` plus current `heldArtifactIds` — neither of
+   * which ever names an origin relic that gets lost before an era completes.
+   * `startingArtifactIds` is what closes that gap (Codex review, PR #87).
+   */
+  it('createRun records the origin grant', () => {
+    const state = run(ORIGIN.academy);
+    expect(state.startingArtifactIds).toEqual(['footnote_that_bites']);
+  });
+
+  it('recordRun still counts an origin relic as discovered after it is lost, with no era ever gaining it', () => {
+    const held = run(ORIGIN.academy);
+    expect(held.heldArtifactIds).toContain('footnote_that_bites');
+
+    // Simulate it having been lost before a single era completed: gone from
+    // `heldArtifactIds`, and `eras` stays empty — `startingArtifactIds` is
+    // the only thing left naming it.
+    const lost: RunState = { ...held, heldArtifactIds: [], eras: [] };
+    expect(lost.eras.flatMap((e) => e.artifactsGained)).not.toContain('footnote_that_bites');
+
+    const collection = recordRun(emptyCollection(), lost, content);
+    expect(collection.discoveredArtifactIds).toContain('footnote_that_bites');
   });
 });
 
@@ -241,6 +275,66 @@ describe('projectReactions · never draws from the rng', () => {
     const state = run(ORIGIN.tower);
     const option: OfferOption = { kind: 'certain', label: 'x', effects: [{ t: 'loseArtifact' }] };
     expect(() => projectReactions(state, option, content)).not.toThrow();
+  });
+});
+
+describe('projectReactions · terminal branches', () => {
+  /**
+   * `resolveChoice` skips era-end triggers whenever the option's own effects
+   * request an ending (see "is skipped, like decay, when the era-ending
+   * option already ended the run" above) — there is no "end of the era" left
+   * for a relic to fire at. The preview has to say nothing there too, or a
+   * player holding the unconditional Mantle sees a reaction beneath a
+   * scripted terminal choice that committing will never actually produce
+   * (Codex review, PR #87).
+   */
+  it('shows no era-end reaction for an option that ends the run outright, matching resolveChoice', () => {
+    const bog = run(ORIGIN.bog);
+    const terminal: OfferOption = {
+      kind: 'certain',
+      label: 'x',
+      effects: [{ t: 'ending', endingId: 'retired_to_swamp' }],
+    };
+    const offer: Offer = { id: 'o', title: 't', body: 'b', phase: 'any', options: [terminal, terminal] };
+
+    const preview = projectReactions(bog, terminal, content);
+    expect(preview.kind).toBe('certain');
+    const predicted = preview.kind === 'certain' ? preview.events : [];
+    expect(predicted).toEqual([]);
+
+    const { resolution } = resolveChoice(bog, offer, 0, content);
+    expect(resolution.ending).toBe('retired_to_swamp');
+    expect(resolution.relicEvents).toEqual(predicted);
+  });
+
+  /**
+   * The lich rite (`{ t: 'becomeLich' }`, the real catalog's only way to take
+   * it — see `scripted.ts`'s "The Long Arrangement") forfeits every held
+   * relic BEFORE `resolveChoice`'s era-end block runs, whether or not the
+   * rite happens to also clear a requested ending (it transforms and
+   * CONTINUES when eras are left, per `becomeLich`'s own doc comment in
+   * `run.ts`). So even though the rite does not stop the run here, the
+   * Mantle's era-end reaction still must not appear: it is the very relic the
+   * rite just took. The preview has to reach the same empty answer by
+   * forfeiting on the same throwaway draft `resolveChoice` will, not by
+   * accident.
+   */
+  it('shows no era-end reaction for a relic the SAME choice forfeits to the lich rite', () => {
+    const bog = run(ORIGIN.bog, { eraCount: 16, eraIndex: 2 });
+    expect(bog.heldArtifactIds).toContain('mantle_of_slow_moss');
+    const rite: OfferOption = { kind: 'certain', label: 'x', effects: [{ t: 'becomeLich' }] };
+    const offer: Offer = { id: 'o', title: 't', body: 'b', phase: 'any', options: [rite, rite] };
+
+    const preview = projectReactions(bog, rite, content);
+    expect(preview.kind).toBe('certain');
+    const predicted = preview.kind === 'certain' ? preview.events : [];
+    expect(predicted).toEqual([]);
+
+    const { next, resolution } = resolveChoice(bog, offer, 0, content);
+    expect(resolution.ending).toBeUndefined();
+    expect(next.isLich).toBe(true);
+    expect(next.heldArtifactIds).toEqual([]);
+    expect(resolution.relicEvents).toEqual(predicted);
   });
 });
 

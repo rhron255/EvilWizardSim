@@ -39,6 +39,7 @@ const demoRun: RunState = {
   lairId: 'sunless_cathedral',
   knownArtifactIds: [],
   heldArtifactIds: [],
+  startingArtifactIds: [],
   heroBandSeen: 0,
   factionStanding: {
     ashen_covenant: 46,

@@ -67,6 +67,7 @@ const demoRun: RunState = {
     'bone_crown',
     'root_of_the_standing_vote',
   ],
+  startingArtifactIds: [],
   heroBandSeen: 0,
   factionStanding: {
     ashen_covenant: 46,

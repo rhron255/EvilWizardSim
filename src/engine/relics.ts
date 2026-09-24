@@ -29,7 +29,7 @@ import type { Artifact, Effect, OfferOption, RelicPower, RunState } from '../typ
 import type { ContentBundle } from './content-port';
 import { indexOf } from './content-port';
 import { conditionsMet } from './conditions';
-import { applyEffects, draftOf } from './effects';
+import { applyEffects, draftOf, forfeitForLichdom } from './effects';
 import type { Rng } from './rng';
 
 // ---------------------------------------------------------------------------
@@ -213,7 +213,20 @@ export type RelicReactionPreview =
  * Includes `eraEnd` triggers too, not only `onChoice` ones: picking ANY
  * option is followed by the era-end block, so a relic that fires there (the
  * Mantle, the Purse) is just as much "what the engine will do" as one that
- * reacts to this specific choice.
+ * reacts to this specific choice — UNLESS the choice's own effects request an
+ * ending that `resolveChoice` treats as terminal, in which case there is no
+ * "end of the era" for a relic to fire at and the preview must say nothing,
+ * on pain of showing a reaction a terminal pick will never actually produce.
+ * `resolveChoice`'s one carve-out from "an ending effect is terminal" is the
+ * lichdom rite taken with eras still left to spend — it transforms and
+ * CONTINUES, so era-end triggers fire for real there too, but only against
+ * whatever survives the rite's OWN forfeiture: `resolveChoice` runs
+ * `becomeLich` (which strips every held relic) before its era-end block, so a
+ * relic the rite is about to take can never be the one whose era-end reaction
+ * fires in the same era. All three pieces are reproduced here, not just
+ * asserted, for the same reason the rest of this function exists: the preview
+ * cannot drift from `resolveChoice` because it runs the identical steps in
+ * the identical order.
  */
 export function projectReactions(
   run: RunState,
@@ -224,10 +237,19 @@ export function projectReactions(
     const draft = draftOf(run);
     const deterministic = effects.filter((e) => !RNG_EFFECT_TYPES.has(e.t));
     const application = applyEffects(draft, deterministic, NO_RNG, content);
-    return [
-      ...applyChoiceTriggers(draft, content, NO_RNG, application.applied),
-      ...applyEraEndTriggers(draft, content, NO_RNG),
-    ];
+    const choiceEvents = applyChoiceTriggers(draft, content, NO_RNG, application.applied);
+
+    let endingRequested = application.endingRequested;
+    const riteTaken = application.lichRequested || endingRequested === 'lichdom';
+    if (riteTaken && !run.isLich) {
+      forfeitForLichdom(draft);
+      if (endingRequested === 'lichdom' && run.eraIndex + 1 < run.eraCount) {
+        endingRequested = undefined;
+      }
+    }
+    if (endingRequested) return choiceEvents;
+
+    return [...choiceEvents, ...applyEraEndTriggers(draft, content, NO_RNG)];
   };
 
   if (option.kind === 'certain') return { kind: 'certain', events: preview(option.effects) };

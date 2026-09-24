@@ -40,6 +40,7 @@ function finished(ending: RunState['ending'], collection: Collection): GameState
     seed: 1,
     wizardName: 'Malvorn',
     heldArtifactIds: [],
+    startingArtifactIds: [],
     knownArtifactIds: [],
     eras: [],
     notoriety: 40,

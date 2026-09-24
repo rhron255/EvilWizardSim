@@ -97,6 +97,7 @@ const demoRun: RunState = {
     'confiscated_banner',
     'antler_baton',
   ],
+  startingArtifactIds: [],
   factionStanding: {
     ashen_covenant: 62,
     gilded_hand: 18,

@@ -225,6 +225,7 @@ export function recordRun(c: Collection, run: RunState, content: ContentBundle):
     if (index.artifactById.has(id)) discovered.add(id);
   };
   run.heldArtifactIds.forEach(consider);
+  run.startingArtifactIds.forEach(consider);
   for (const era of run.eras) era.artifactsGained.forEach(consider);
 
   const endingsSeen = c.endingsSeen.slice();
@@ -300,7 +301,8 @@ function looksLikeRun(value: unknown): value is RunState {
     // this is belt-and-suspenders the same way `knownArtifactIds` is above.
     !!r.relicState &&
     typeof r.relicState === 'object' &&
-    Array.isArray((r.relicState as { firedOnce?: unknown }).firedOnce)
+    Array.isArray((r.relicState as { firedOnce?: unknown }).firedOnce) &&
+    Array.isArray(r.startingArtifactIds)
   );
 }
 
