@@ -13,7 +13,7 @@ import type { ContentBundle } from './index';
 import { COLLECTION_KEY } from './constants';
 import { emptyCollection, migrateCollection, recordRun } from './persistence';
 import { useGame } from './useGame';
-import { REAL_CONTENT } from './testContent';
+import { REAL_CONTENT } from '../testing/realContent';
 
 const content: ContentBundle = REAL_CONTENT;
 
@@ -146,7 +146,7 @@ describe('collection v1 -> v2', () => {
   it('spares a returning player the guide for a game they have finished', () => {
     const v1 = {
       version: 1,
-      discoveredArtifactIds: ['a'],
+      discoveredArtifactIds: [content.artifacts[0].id],
       endingsSeen: ['lichdom'],
       runsCompleted: 3,
       bestNotoriety: 71,
@@ -192,7 +192,7 @@ describe('collection v2 -> v3 · the theme pointer', () => {
   it('dresses an older save in the default rather than nothing', () => {
     const v2 = {
       version: 2,
-      discoveredArtifactIds: ['a'],
+      discoveredArtifactIds: [content.artifacts[0].id],
       endingsSeen: ['lichdom'],
       runsCompleted: 3,
       bestNotoriety: 71,
@@ -261,7 +261,7 @@ describe('collection v4 -> v5 · dropping the tabs hint flag', () => {
     // left for that field to gate.
     const v4 = {
       version: 4,
-      discoveredArtifactIds: ['a'],
+      discoveredArtifactIds: [content.artifacts[0].id],
       endingsSeen: ['lichdom'],
       runsCompleted: 40,
       bestNotoriety: 71,

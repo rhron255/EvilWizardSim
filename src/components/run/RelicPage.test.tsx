@@ -9,6 +9,7 @@ import type { DefenseReadout } from '../../engine';
 import type { EraRecord, RunState } from '../../types';
 import { artifacts, factions } from '../../content';
 import { RelicPage } from './RelicPage';
+import { realDeed } from '../../testing/realContent';
 
 const wards = (relicsValue: number): DefenseReadout => ({
   total: 120,
@@ -20,8 +21,7 @@ const wards = (relicsValue: number): DefenseReadout => ({
 });
 
 // A mid-decline run holding a real five-relic haul across two factions. The
-// Bone Crown arrives on era 7's `artifactsGained`, same as `demo.ts` used to,
-// so a test that later drops it from `heldArtifactIds` still finds it in the
+// Bone Crown arrives on era 7's `artifactsGained`, so a test that later drops it from `heldArtifactIds` still finds it in the
 // "ever gained" union the page derives "Lost this run" from.
 const eras: EraRecord[] = Array.from({ length: 11 }, (_, i) => ({
   eraIndex: i,
@@ -31,10 +31,7 @@ const eras: EraRecord[] = Array.from({ length: 11 }, (_, i) => ({
   notorietyDelta: 7,
   followers: 2 + i * 100,
   artifactsGained: i === 7 ? ['bone_crown'] : [],
-  deedSummary: `Era ${i} deed.`,
-  offerId: `era_${i}_offer`,
-  optionLabel: 'Chose an option',
-  outcome: 'deterministic',
+  ...realDeed(i),
   phase: i < 9 ? 'ascent' : 'decline',
 }));
 

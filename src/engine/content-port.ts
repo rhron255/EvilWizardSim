@@ -3,7 +3,7 @@
  *
  * The engine NEVER imports from `src/content/`. It takes a `ContentBundle`
  * parameter instead. Engine tests assemble that bundle from the real catalog
- * (`src/engine/testContent.ts` re-exports `src/content/`), so this stays a
+ * (`src/testing/realContent.ts` re-exports `src/content/`), so this stays a
  * plain function-argument seam rather than an import from the engine's own
  * source — it keeps content authorable in parallel, and means a future
  * "seasonal content pack" is a different argument rather than a different

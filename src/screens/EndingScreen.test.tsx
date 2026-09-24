@@ -30,10 +30,10 @@ import { ATTRIBUTION_LABEL, attributionFor } from '../components/meta';
 import { LEADERSHIP_BY_FACTION, REPRISAL_BY_FACTION } from '../engine';
 import { EndingScreen } from './EndingScreen';
 import type { EndingScreenProps } from './EndingScreen';
+import { realDeed } from '../testing/realContent';
 
 /**
- * A completed 16-era run, built the same way `demo.ts` used to but from real
- * lair and artifact ids — the seven relics recovered here (five held, two
+ * A completed 16-era run, built from real lair and artifact ids — the seven relics recovered here (five held, two
  * "went into the hole") and the ten lair tenures are the substrate the
  * "what the career added" tests below walk, not assertion targets in
  * themselves.
@@ -68,10 +68,7 @@ const demoEras: EraRecord[] = ERA_LAIR_IDS.map((lairId, i) => ({
   notorietyDelta: 4,
   followers: 60 + i * 40,
   artifactsGained: ARTIFACTS_GAINED_BY_ERA[i] ?? [],
-  deedSummary: `Era ${i + 1} deed.`,
-  offerId: `test_offer_${i}`,
-  optionLabel: `Option ${i + 1}`,
-  outcome: 'deterministic',
+  ...realDeed(i),
   phase: i < PROPHECY_ERA ? 'ascent' : 'decline',
 }));
 
@@ -385,7 +382,7 @@ describe('EndingScreen · what the career added', () => {
   /**
    * Everything the career recovered, derived the way the screen derives it —
    * held at the end UNION granted in any era, which is also `recordRun`'s
-   * definition of discovered. Computed rather than hard-coded: the fixture
+   * definition of discovered. Computed rather than hard-coded: this run
    * recovers seven relics but only holds five, and a test that assumed those
    * were the same set passed for the wrong reason.
    */

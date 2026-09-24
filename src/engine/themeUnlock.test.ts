@@ -21,7 +21,7 @@ import { describe, expect, it } from 'vitest';
 import type { Collection, RunState } from '../types';
 import { gameReducer } from './useGame';
 import { emptyCollection } from './persistence';
-import { REAL_CONTENT } from './testContent';
+import { REAL_CONTENT } from '../testing/realContent';
 
 const content = REAL_CONTENT;
 

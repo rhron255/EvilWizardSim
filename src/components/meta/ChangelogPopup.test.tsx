@@ -9,12 +9,13 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ThemeId } from '../../types';
 import { DEFAULT_THEME_ID } from '../../theme/themes';
+import { CHANGELOG } from '../../content/changelog';
 import { ChangelogPopup } from './ChangelogPopup';
 
-const ENTRIES = [
-  { version: '2026-06-30T09:00:00Z', entry: { summary: 'Third update.', details: ['c'] } },
-  { version: '2026-03-15T09:00:00Z', entry: { summary: 'Second update.', details: ['b'] } },
-];
+/** Two real, shipped versions, newest first — as `pendingChangelogEntries` hands them over. */
+const NEWER = '2026-09-23T08:30:00Z';
+const OLDER = '2026-09-22T18:40:00Z';
+const ENTRIES = [NEWER, OLDER].map((version) => ({ version, entry: CHANGELOG[version] }));
 
 const open = (entries = ENTRIES, themeId: ThemeId = DEFAULT_THEME_ID) => {
   const onDismiss = vi.fn();
@@ -28,14 +29,15 @@ const open = (entries = ENTRIES, themeId: ThemeId = DEFAULT_THEME_ID) => {
 describe('ChangelogPopup', () => {
   it('lists every pending entry, newest first, by its one-line summary', () => {
     open();
-    const summaries = screen.getAllByText(/update\./);
-    expect(summaries.map((el) => el.textContent)).toEqual(['Third update.', 'Second update.']);
+    const newer = screen.getByText(CHANGELOG[NEWER].summary);
+    const older = screen.getByText(CHANGELOG[OLDER].summary);
+    expect(newer.compareDocumentPosition(older) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('shows the date a version shipped, not the time-of-day carried for key uniqueness', () => {
     open();
-    expect(screen.getByText('2026-06-30')).toBeInTheDocument();
-    expect(screen.queryByText(/T09:00:00Z/)).not.toBeInTheDocument();
+    expect(screen.getByText(NEWER.slice(0, 10))).toBeInTheDocument();
+    expect(screen.queryByText(new RegExp(NEWER.slice(10)))).not.toBeInTheDocument();
   });
 
   it('dismisses without opening the changelog', async () => {

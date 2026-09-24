@@ -11,8 +11,8 @@ import type { RunState } from '../../types';
 import { factions } from '../../content';
 import { FactionStandings } from './FactionStandings';
 
-// A mid-decline run's standing, matching what `demo.ts` used to hand-author:
-// the Ashen Covenant is highest, the Crownlands lowest.
+// A mid-decline run's standing: the Ashen Covenant is highest, the
+// Crownlands lowest.
 const run: RunState = {
   id: 'run_test_0001',
   seed: 448271,

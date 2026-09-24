@@ -21,7 +21,8 @@ import {
   SEAL_MAX_STANDING,
   SEAL_MIN_NOTORIETY,
 } from '../../engine';
-import type { Faction, FactionId, Phase, RunState } from '../../types';
+import type { FactionId, Phase, RunState } from '../../types';
+import { factions } from '../../content';
 import { allegiancesFor, extremeAllegiances, nextThreatFor, patronFor, reprisalSentence } from './allegiances';
 
 const run = (
@@ -77,7 +78,7 @@ describe('the next-threat sentence', () => {
  * imagery, or a player driven under the Choir reads a warning about a gem.
  */
 describe('the next-threat sentence · all six factions', () => {
-  const FACTIONS: FactionId[] = [
+  const factions: FactionId[] = [
     'ashen_covenant',
     'gilded_hand',
     'pale_academy',
@@ -87,7 +88,7 @@ describe('the next-threat sentence · all six factions', () => {
   ];
 
   it('names whichever faction is closest, not only the Academy', () => {
-    for (const id of FACTIONS) {
+    for (const id of factions) {
       const threat = nextThreatFor(run({ [id]: SEAL_MAX_STANDING + 6 }, SEAL_MIN_NOTORIETY));
       expect(threat, `no threat for ${id}`).not.toBeNull();
       expect(threat!.factionId).toBe(id);
@@ -95,10 +96,10 @@ describe('the next-threat sentence · all six factions', () => {
   });
 
   it('gives each faction its own noun, so no two reprisals read alike', () => {
-    const lines = FACTIONS.map((id) =>
+    const lines = factions.map((id) =>
       reprisalSentence(nextThreatFor(run({ [id]: SEAL_MAX_STANDING + 6 }, SEAL_MIN_NOTORIETY))!),
     );
-    expect(new Set(lines).size).toBe(FACTIONS.length);
+    expect(new Set(lines).size).toBe(factions.length);
     // The Academy's own wording is the one that must not have moved: it is the
     // line `qa/probe-seal-fit.mjs` measured the one-line budget against.
     expect(lines[2]).toBe('The Academy is 6 from the gem · your fame qualifies.');
@@ -107,7 +108,7 @@ describe('the next-threat sentence · all six factions', () => {
   it('holds every variant to the length the Academy line established', () => {
     // Not a layout measurement — the browser probe is that. This is the cheap
     // guard that a new faction noun cannot quietly double the sentence.
-    for (const id of FACTIONS) {
+    for (const id of factions) {
       for (const standing of [SEAL_MAX_STANDING + 6, SEAL_MAX_STANDING - 1]) {
         for (const notoriety of [SEAL_MIN_NOTORIETY, SEAL_MIN_NOTORIETY - 6]) {
           const line = reprisalSentence(nextThreatFor(run({ [id]: standing }, notoriety))!);
@@ -250,22 +251,13 @@ describe('the next-threat line', () => {
  * `factionStanding` (the drift `standing.ts`'s doc comment warns about).
  */
 describe('the patron line', () => {
-  const FACTIONS: Faction[] = [
-    { id: 'ashen_covenant', name: 'The Ashen Covenant', blurb: '', demands: '', hostileTo: [], adjective: '' },
-    { id: 'gilded_hand', name: 'The Gilded Hand', blurb: '', demands: '', hostileTo: [], adjective: '' },
-    { id: 'pale_academy', name: 'The Pale Academy', blurb: '', demands: '', hostileTo: [], adjective: '' },
-    { id: 'verdant_choir', name: 'The Verdant Choir', blurb: '', demands: '', hostileTo: [], adjective: '' },
-    { id: 'crownlands', name: 'The Crownlands', blurb: '', demands: '', hostileTo: [], adjective: '' },
-    { id: 'worm_below', name: 'The Worm Below', blurb: '', demands: '', hostileTo: [], adjective: '' },
-  ];
-
   it('is null for a career nobody has courted — the honest "no patron yet" state', () => {
-    expect(patronFor(run(0, 10), FACTIONS)).toBeNull();
+    expect(patronFor(run(0, 10), factions)).toBeNull();
   });
 
   it('is null below the devotion bar, even as the sole leader', () => {
     const under = run({ ashen_covenant: DEVOTION_STANDING - 1 }, 10);
-    expect(patronFor(under, FACTIONS)).toBeNull();
+    expect(patronFor(under, factions)).toBeNull();
   });
 
   it('is null when devotion is cleared but a runner-up denies the exclusivity margin', () => {
@@ -273,7 +265,7 @@ describe('the patron line', () => {
       { ashen_covenant: DEVOTION_STANDING + 10, gilded_hand: DEVOTION_STANDING + 10 - (PATRON_MARGIN - 1) },
       10,
     );
-    expect(patronFor(contested, FACTIONS)).toBeNull();
+    expect(patronFor(contested, factions)).toBeNull();
   });
 
   it('names the faction once both bars clear, using the cast\'s own name', () => {
@@ -281,16 +273,16 @@ describe('the patron line', () => {
       { ashen_covenant: DEVOTION_STANDING + PATRON_MARGIN, gilded_hand: 0 },
       10,
     );
-    const patron = patronFor(devoted, FACTIONS);
+    const patron = patronFor(devoted, factions);
     expect(patron).not.toBeNull();
     expect(patron!.factionId).toBe('ashen_covenant');
-    expect(patron!.name).toBe('The Ashen Covenant');
+    expect(patron!.name).toBe(factions.find((f) => f.id === 'ashen_covenant')!.name);
     expect(patron!.standing).toBe(DEVOTION_STANDING + PATRON_MARGIN);
   });
 
   it('returns null rather than a half sentence for a cast missing the faction', () => {
     const devoted = run({ ashen_covenant: DEVOTION_STANDING + PATRON_MARGIN }, 10);
-    expect(patronFor(devoted, FACTIONS.filter((f) => f.id !== 'ashen_covenant'))).toBeNull();
+    expect(patronFor(devoted, factions.filter((f) => f.id !== 'ashen_covenant'))).toBeNull();
   });
 });
 
@@ -299,19 +291,10 @@ describe('the patron line', () => {
  * whoever this career has pleased most, and whoever it has angered most.
  */
 describe('the two most extreme standings', () => {
-  const FACTIONS: Faction[] = [
-    { id: 'ashen_covenant', name: 'The Ashen Covenant', blurb: '', demands: '', hostileTo: [], adjective: '' },
-    { id: 'gilded_hand', name: 'The Gilded Hand', blurb: '', demands: '', hostileTo: [], adjective: '' },
-    { id: 'pale_academy', name: 'The Pale Academy', blurb: '', demands: '', hostileTo: [], adjective: '' },
-    { id: 'verdant_choir', name: 'The Verdant Choir', blurb: '', demands: '', hostileTo: [], adjective: '' },
-    { id: 'crownlands', name: 'The Crownlands', blurb: '', demands: '', hostileTo: [], adjective: '' },
-    { id: 'worm_below', name: 'The Worm Below', blurb: '', demands: '', hostileTo: [], adjective: '' },
-  ];
-
   it('picks the single highest and single lowest standing', () => {
     const rows = allegiancesFor(
       run({ ashen_covenant: 46, gilded_hand: 12, pale_academy: -38, crownlands: -61, worm_below: 4 }, 10),
-      FACTIONS,
+      factions,
     );
     const extremes = extremeAllegiances(rows);
     expect(extremes.map((r) => r.id)).toEqual(['ashen_covenant', 'crownlands']);
@@ -320,13 +303,13 @@ describe('the two most extreme standings', () => {
   it('re-sorts the pair back into FACTION_ORDER, regardless of which is higher', () => {
     // Crownlands (max) sits AFTER Ashen Covenant (min) in FACTION_ORDER —
     // the returned pair must still read in that order, not max-then-min.
-    const rows = allegiancesFor(run({ ashen_covenant: -70, crownlands: 70 }, 10), FACTIONS);
+    const rows = allegiancesFor(run({ ashen_covenant: -70, crownlands: 70 }, 10), factions);
     const extremes = extremeAllegiances(rows);
     expect(extremes.map((r) => r.id)).toEqual(['ashen_covenant', 'crownlands']);
   });
 
   it('never returns the same faction twice when every standing is tied', () => {
-    const rows = allegiancesFor(run(0, 10), FACTIONS);
+    const rows = allegiancesFor(run(0, 10), factions);
     const extremes = extremeAllegiances(rows);
     expect(extremes).toHaveLength(2);
     expect(extremes[0]!.id).not.toBe(extremes[1]!.id);
@@ -335,7 +318,7 @@ describe('the two most extreme standings', () => {
   });
 
   it('is a no-op for two factions or fewer', () => {
-    const rows = allegiancesFor(run({ ashen_covenant: 10 }, 10), FACTIONS.slice(0, 2));
+    const rows = allegiancesFor(run({ ashen_covenant: 10 }, 10), factions.slice(0, 2));
     expect(extremeAllegiances(rows)).toEqual(rows);
   });
 });

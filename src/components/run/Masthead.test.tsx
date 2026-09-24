@@ -8,6 +8,7 @@ import { render, screen } from '@testing-library/react';
 import type { EraRecord, RunState } from '../../types';
 import { lairs } from '../../content';
 import { Masthead } from './Masthead';
+import { realDeed } from '../../testing/realContent';
 
 const eras: EraRecord[] = Array.from({ length: 11 }, (_, i) => ({
   eraIndex: i,
@@ -17,10 +18,7 @@ const eras: EraRecord[] = Array.from({ length: 11 }, (_, i) => ({
   notorietyDelta: 7,
   followers: 2 + i * 100,
   artifactsGained: [],
-  deedSummary: `Era ${i} deed.`,
-  offerId: `era_${i}_offer`,
-  optionLabel: 'Chose an option',
-  outcome: 'deterministic',
+  ...realDeed(i),
   phase: i < 9 ? 'ascent' : 'decline',
 }));
 

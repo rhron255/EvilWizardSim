@@ -14,7 +14,7 @@ import type { ContentBundle } from './index';
 import { isOptionPickable } from './index';
 import { COLLECTION_KEY } from './constants';
 import { useGame } from './useGame';
-import { REAL_CONTENT } from './testContent';
+import { REAL_CONTENT } from '../testing/realContent';
 
 const content: ContentBundle = REAL_CONTENT;
 

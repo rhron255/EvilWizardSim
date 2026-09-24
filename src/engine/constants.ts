@@ -2,7 +2,7 @@
  * Every balance knob in the game, in one file.
  *
  * These are tuned against `scripts/simulate.ts` (2000 runs, mixed player
- * policies) using the fixture bundle. Targets from the wiki:
+ * policies) playing the real content catalog. Targets from the wiki:
  *
  *   - Ascension 1-4% of runs                (04 § Near-Miss Tuning)
  *   - Age-limit survival uncommon           (04 § Hero Escalation)

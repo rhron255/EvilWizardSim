@@ -8,11 +8,10 @@
  * on `0 == 0`.
  *
  * These all run against the REAL content catalog (`src/content/`, assembled
- * via `./testContent`). A handful of offers are still authored inline where a
- * test needs an EXACT boundary condition (an unaffordable option, a specific
- * gamble shape) that would be fragile to locate in ~150 authored offers and
- * would drift as content changes — those use a narrow synthetic `offers` list
- * layered onto the real bundle, never a separate fake catalog.
+ * via `src/testing/realContent.ts`). A test that needs an offer of a particular shape finds
+ * a real one with `realOption`, by the shape rather than by id. The one offer
+ * still authored inline, `costlyOffer`, has a shape `validate-content.ts`
+ * forbids the catalog from ever containing — its comment says why.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -26,6 +25,7 @@ import {
   defenseReadout,
   emptyCollection,
   DEVOTION_STANDING,
+  impliedGatesOf,
   FACTION_ORDER,
   LEADERSHIP_BY_FACTION,
   PATRON_MARGIN,
@@ -45,11 +45,11 @@ import {
   tierCrossing,
 } from './index';
 import type { ContentBundle } from './index';
-import { entitledLairRung, promoteLair } from './systems';
+import { emptyStanding, entitledLairRung, promoteLair } from './systems';
 import { applyStanding } from './effects';
 import { indexOf } from './content-port';
-import { REAL_CONTENT } from './testContent';
-import type { Collection, Effect, FactionId, Offer, RunState } from '../types';
+import { REAL_CONTENT } from '../testing/realContent';
+import type { Collection, Effect, FactionId, Offer, OfferOption, RunState } from '../types';
 
 const real: ContentBundle = REAL_CONTENT;
 
@@ -90,6 +90,32 @@ function playOut(seed: number, pick: number, content: ContentBundle): RunState[]
     seen.push(run);
   }
   return seen;
+}
+
+const effectsOf = (option: OfferOption): Effect[] =>
+  option.kind === 'certain' ? option.effects : [...option.onSuccess, ...option.onFailure];
+
+/**
+ * The first real catalog option matching `pred`, with its offer and index.
+ * Matched by shape, not id, so renaming an offer breaks nothing; removing the
+ * last offer of a shape throws here instead of letting a test exercise nothing.
+ */
+function realOption(
+  what: string,
+  pred: (option: OfferOption, offer: Offer) => boolean,
+): { offer: Offer; index: number; option: OfferOption } {
+  for (const offer of real.offers) {
+    const index = offer.options.findIndex((o) => pred(o, offer));
+    if (index !== -1) return { offer, index, option: offer.options[index] };
+  }
+  throw new Error(`no real offer has ${what}`);
+}
+
+/** The first real catalog offer matching `pred`. */
+function realOffer(what: string, pred: (offer: Offer) => boolean): Offer {
+  const offer = real.offers.find(pred);
+  if (!offer) throw new Error(`no real offer is ${what}`);
+  return offer;
 }
 
 /** The 'Relics' term of `defenseReadout`, in isolation, via the derivation itself. */
@@ -184,25 +210,13 @@ describe('the odds rules', () => {
     // declared these OPTIONAL, the engine never set them, and the rail silently
     // never rendered for the entire build. Optional fields hid the drift.
     const run = start();
-    const offer = {
-      id: 'test_gamble',
-      title: 'T',
-      body: 'b',
-      phase: 'any' as const,
-      options: [
-        {
-          kind: 'gamble' as const,
-          label: 'Risk it',
-          odds: 0.35,
-          onSuccess: [{ t: 'notoriety', v: 5 } as Effect],
-          onFailure: [{ t: 'notoriety', v: -5 } as Effect],
-          successText: 'It works.',
-          failureText: 'It does not work.',
-        },
-      ],
-    };
-    const { resolution } = resolveChoice(run, offer, 0, real);
-    expect(resolution.odds).toBe(0.35);
+    const { offer, index, option } = realOption(
+      'a gamble this run can take',
+      (o) => o.kind === 'gamble' && isOptionPickable(run, o, real),
+    );
+    if (option.kind !== 'gamble') throw new Error('unreachable');
+    const { resolution } = resolveChoice(run, offer, index, real);
+    expect(resolution.odds).toBe(option.odds);
     expect(resolution.roll).toBeGreaterThanOrEqual(0);
     expect(resolution.roll).toBeLessThan(1);
     // The roll must AGREE with the outcome, or the rail would show a lie.
@@ -212,33 +226,33 @@ describe('the odds rules', () => {
 
   it('omits roll and odds for a certain choice', () => {
     const run = start();
-    const offer = {
-      id: 'test_certain',
-      title: 'T',
-      body: 'b',
-      phase: 'any' as const,
-      options: [{ kind: 'certain' as const, label: 'Do it', effects: [] as Effect[] }],
-    };
-    const { resolution } = resolveChoice(run, offer, 0, real);
+    const { offer, index } = realOption(
+      'a certain option this run can take',
+      (o) => o.kind === 'certain' && isOptionPickable(run, o, real),
+    );
+    const { resolution } = resolveChoice(run, offer, index, real);
     expect(resolution.roll).toBeUndefined();
     expect(resolution.odds).toBeUndefined();
   });
 
   it('reports what actually landed, not what was advertised', () => {
-    // A +40 on a run near the ceiling must be reported at its clamped value,
-    // or the resolution card lies about the consequence.
-    const run = { ...start(), notoriety: 90 };
-    const offer = {
-      id: 'test_clamp',
-      title: 'T',
-      body: 'b',
-      phase: 'any' as const,
-      options: [{ kind: 'certain' as const, label: 'Go', effects: [{ t: 'notoriety', v: 40 } as Effect] }],
-    };
-    const { next, resolution } = resolveChoice(run, offer, 0, real);
+    // A notoriety gain on a run near the ceiling must be reported at its
+    // clamped value, or the resolution card lies about the consequence.
+    const run = { ...start(), notoriety: 97 };
+    const { offer, index, option } = realOption(
+      'a certain +5-or-more notoriety gain this run can take',
+      (o) =>
+        o.kind === 'certain' &&
+        isOptionPickable(run, o, real) &&
+        o.effects.filter((e) => e.t === 'notoriety').length === 1 &&
+        o.effects.some((e) => e.t === 'notoriety' && e.v >= 5),
+    );
+    const authored = effectsOf(option).find((e) => e.t === 'notoriety')!;
+    const { next, resolution } = resolveChoice(run, offer, index, real);
     expect(next.notoriety).toBe(99);
     const applied = resolution.appliedEffects.find((e) => e.t === 'notoriety');
-    expect(applied).toEqual({ t: 'notoriety', v: 9 });
+    expect(applied).toEqual({ t: 'notoriety', v: 2 });
+    expect(applied).not.toEqual(authored);
   });
 });
 
@@ -305,13 +319,7 @@ describe('faction standing', () => {
 });
 
 describe('lichdom', () => {
-  const lichOffer = {
-    id: 'test_rite',
-    title: 'The Rite',
-    body: 'b',
-    phase: 'any' as const,
-    options: [{ kind: 'certain' as const, label: 'Accept', effects: [{ t: 'becomeLich' } as Effect] }],
-  };
+  const rite = realOption('the lich rite', (o) => effectsOf(o).some((e) => e.t === 'becomeLich'));
 
   it('forfeits every relic and every follower, and freezes decay', () => {
     const run: RunState = {
@@ -324,7 +332,7 @@ describe('lichdom', () => {
     };
     expect(run.heldArtifactIds.length).toBe(3);
 
-    const { next } = resolveChoice(run, lichOffer, 0, real);
+    const { next } = resolveChoice(run, rite.offer, rite.index, real);
     expect(next.isLich).toBe(true);
     expect(next.heldArtifactIds).toEqual([]);
     expect(next.followers).toBe(0);
@@ -335,7 +343,7 @@ describe('lichdom', () => {
     // The wiki calls lichdom "the branch that cheats the decline phase". There
     // is no decline left to cheat if the rite also stops the run.
     const run: RunState = { ...start(), phase: 'decline', eraIndex: 9, eraCount: 16 };
-    const { next } = resolveChoice(run, lichOffer, 0, real);
+    const { next } = resolveChoice(run, rite.offer, rite.index, real);
     expect(next.ending).toBeUndefined();
   });
 
@@ -347,7 +355,7 @@ describe('lichdom', () => {
       phase: 'decline',
       eraIndex: 9,
     };
-    const { resolution } = resolveChoice(run, lichOffer, 0, real);
+    const { resolution } = resolveChoice(run, rite.offer, rite.index, real);
     expect(resolution.appliedEffects.some((e) => e.t === 'loseArtifact')).toBe(true);
     expect(resolution.appliedEffects.some((e) => e.t === 'followers' && e.v === -50)).toBe(true);
   });
@@ -372,15 +380,10 @@ describe('the lair ladder', () => {
   it('reports a move so the UI can announce it', () => {
     // "I don't notice the lair changes, despite them happening." Promotion was
     // systemic and silent; the resolution now carries it.
+    // `QUIET_ERA_OFFER` is the engine's own shipped card: one free follower,
+    // nothing touching the lair — so any move here is the systemic promotion.
     const run = { ...start({}, real), notoriety: 99, followers: 400 };
-    const offer = {
-      id: 'test_move',
-      title: 'T',
-      body: 'b',
-      phase: 'any' as const,
-      options: [{ kind: 'certain' as const, label: 'Wait', effects: [] as Effect[] }],
-    };
-    const { next, resolution } = resolveChoice(run, offer, 0, real);
+    const { next, resolution } = resolveChoice(run, QUIET_ERA_OFFER, 0, real);
     expect(next.lairId).not.toBe(run.lairId);
     expect(resolution.lairMoved).toBeDefined();
     expect(resolution.lairMoved!.up).toBe(true);
@@ -390,14 +393,7 @@ describe('the lair ladder', () => {
 
   it('reports no move when the wizard stays put', () => {
     const run = { ...start({}, real), notoriety: 0, followers: 0 };
-    const offer = {
-      id: 'test_stay',
-      title: 'T',
-      body: 'b',
-      phase: 'any' as const,
-      options: [{ kind: 'certain' as const, label: 'Wait', effects: [] as Effect[] }],
-    };
-    const { resolution } = resolveChoice(run, offer, 0, real);
+    const { resolution } = resolveChoice(run, QUIET_ERA_OFFER, 0, real);
     expect(resolution.lairMoved).toBeUndefined();
   });
 
@@ -429,20 +425,14 @@ describe('the lair ladder', () => {
     // so absent the demotion below, nothing would move at all.
     const run = { ...start({}, real), lairId: ladder[5].id, notoriety: 45, followers: 90 };
     expect(entitledLairRung(run, ladder.length)).toBe(5);
-    const offer = {
-      id: 'test_demote',
-      title: 'T',
-      body: 'b',
-      phase: 'any' as const,
-      options: [
-        {
-          kind: 'certain' as const,
-          label: 'Give it back',
-          effects: [{ t: 'lairTier', v: -1 } as Effect],
-        },
-      ],
-    };
-    const { next } = resolveChoice(run, offer, 0, real);
+    const { offer, index } = realOption(
+      'a certain one-rung lair demotion this run can take',
+      (o) =>
+        o.kind === 'certain' &&
+        isOptionPickable(run, o, real) &&
+        o.effects.some((e) => e.t === 'lairTier' && e.v === -1),
+    );
+    const { next } = resolveChoice(run, offer, index, real);
     expect(indexOf(real).lairRung.get(next.lairId)).toBe(4);
   });
 });
@@ -450,15 +440,18 @@ describe('the lair ladder', () => {
 describe('endings', () => {
   it('are checked after every era, not only at the age limit', () => {
     // Pact debt at the limit must terminate mid-arc.
-    const run: RunState = { ...start(), pactDebt: 6, eraIndex: 4, eraCount: 16 };
-    const offer = {
-      id: 'test_debt',
-      title: 'T',
-      body: 'b',
-      phase: 'any' as const,
-      options: [{ kind: 'certain' as const, label: 'Sign', effects: [{ t: 'pactDebt', v: 1 } as Effect] }],
-    };
-    const { next } = resolveChoice(run, offer, 0, real);
+    const base: RunState = { ...start(), eraIndex: 4, eraCount: 16 };
+    const { offer, index, option } = realOption(
+      'a certain pact that only adds debt',
+      (o) =>
+        o.kind === 'certain' &&
+        isOptionPickable(base, o, real) &&
+        o.effects.some((e) => e.t === 'pactDebt' && e.v > 0) &&
+        !o.effects.some((e) => e.t === 'pactDebt' && e.v < 0),
+    );
+    const signed = effectsOf(option).reduce((sum, e) => (e.t === 'pactDebt' ? sum + e.v : sum), 0);
+    const run: RunState = { ...base, pactDebt: PACT_LIMIT - signed };
+    const { next } = resolveChoice(run, offer, index, real);
     expect(next.ending).toBe('consumed_by_pact');
     expect(next.eraIndex).toBeLessThan(next.eraCount);
   });
@@ -605,17 +598,10 @@ describe('faction reprisals', () => {
  */
 describe('faction leadership', () => {
   /**
-   * A bundle that DEFINES the leadership endings.
-   *
-   * `src/content` now defines them too (issue #14 slice 2), but this suite
-   * stays fixture-driven on purpose: the engine takes a `ContentBundle`, and a
-   * test that only worked against the real one would say nothing about a pack
-   * that ships different — or no — leadership prose.
-   *
-   * `real` already defines all six leadership endings, so these tests play
-   * straight against it — no fabricated bundle required. The last test in
-   * this block covers the other case, where a bundle declares none, by
-   * dropping just one leadership ending out of the real catalog.
+   * `real` defines all six leadership endings, so these tests play straight
+   * against it. The last test covers a bundle that lacks one — a content pack
+   * shipping different leadership prose — by dropping one ending out of the
+   * real catalog rather than inventing a catalog without it.
    */
 
   /** A career that reached the age limit, with the given standings. */
@@ -758,29 +744,43 @@ describe('faction leadership', () => {
  * quality-of-life change, which is how this repo has broken balance before.
  */
 describe('novelty bias', () => {
-  const covenant = real.artifacts.filter((a) => a.factionId === 'ashen_covenant');
+  /** Rich enough to afford any card's cost, at neutral standing: no lockout, no devotion upgrade. */
+  const drawer = (seed: number, known: string[]): RunState => ({
+    ...start({ seed }, real),
+    followers: 999,
+    knownArtifactIds: known,
+    factionStanding: emptyStanding(),
+  });
 
-  /** Draw `n` times from one faction, with the given collection behind us. */
-  function draws(n: number, known: string[], rarity?: 'common' | 'rare' | 'legendary') {
+  const soleDraw = (o: OfferOption) => {
+    const grants = effectsOf(o).filter((e) => e.t === 'artifactFrom' || e.t === 'artifact');
+    return grants.length === 1 && grants[0].t === 'artifactFrom' ? grants[0] : undefined;
+  };
+
+  /** A real card whose one grant is an unweighted draw from a faction with 3+ commons. */
+  const weighted = realOption('a certain, single, unweighted artifactFrom draw', (o) => {
+    const draw = soleDraw(o);
+    return (
+      o.kind === 'certain' &&
+      !!draw &&
+      !draw.rarity &&
+      isOptionPickable(drawer(0, []), o, real) &&
+      real.artifacts.filter((a) => a.factionId === draw.factionId && a.rarity === 'common').length >= 3
+    );
+  });
+  /** A real set-piece grant that asks for a rare by name. */
+  const exactRare = realOption('a certain, single artifactFrom draw requesting a rare', (o) => {
+    const draw = soleDraw(o);
+    return o.kind === 'certain' && draw?.rarity === 'rare' && isOptionPickable(drawer(0, []), o, real);
+  });
+  const factionOf = (source: typeof weighted) => soleDraw(source.option)!.factionId;
+  const pool = real.artifacts.filter((a) => a.factionId === factionOf(weighted));
+
+  /** Resolve `source` `n` times, with the given collection behind us. */
+  function draws(n: number, known: string[], source = weighted) {
     const out: string[] = [];
     for (let i = 0; i < n; i++) {
-      const run: RunState = {
-        ...start({ seed: 1000 + i }, real),
-        knownArtifactIds: known,
-        // Neutral standing: no lockout, no devotion upgrade.
-        factionStanding: { ...start({}, real).factionStanding },
-      };
-      const effect: Effect = rarity
-        ? { t: 'artifactFrom', factionId: 'ashen_covenant', rarity }
-        : { t: 'artifactFrom', factionId: 'ashen_covenant' };
-      const offer = {
-        id: `test_draw_${i}`,
-        title: 'T',
-        body: 'b',
-        phase: 'any' as const,
-        options: [{ kind: 'certain' as const, label: 'Take it', effects: [effect] }],
-      };
-      const { resolution } = resolveChoice(run, offer, 0, real);
+      const { resolution } = resolveChoice(drawer(1000 + i, known), source.offer, source.index, real);
       const gained = resolution.artifactsGained[0];
       if (gained) out.push(gained.id);
     }
@@ -788,7 +788,7 @@ describe('novelty bias', () => {
   }
 
   it('prefers a relic the player has never held', () => {
-    const commons = covenant.filter((a) => a.rarity === 'common').map((a) => a.id);
+    const commons = pool.filter((a) => a.rarity === 'common').map((a) => a.id);
     expect(commons.length).toBeGreaterThan(1);
     // Everything but one common is already in the collection.
     const known = commons.slice(1);
@@ -803,7 +803,7 @@ describe('novelty bias', () => {
     // The invariant the two-stage draw exists to protect. Same seeds, same
     // draws, only the collection differs.
     const blank = draws(300, []);
-    const veteran = draws(300, covenant.filter((a) => a.rarity === 'common').map((a) => a.id));
+    const veteran = draws(300, pool.filter((a) => a.rarity === 'common').map((a) => a.id));
     const rarityOf = (id: string) => real.artifacts.find((a) => a.id === id)!.rarity;
     const share = (ids: string[], r: string) =>
       ids.filter((id) => rarityOf(id) === r).length / Math.max(1, ids.length);
@@ -816,27 +816,28 @@ describe('novelty bias', () => {
   it('leaves an authored rarity request exactly as authored', () => {
     // `{ rarity: 'rare' }` is a set-piece grant. Novelty picks WHICH rare, and
     // must never promote or demote the rank the card promised.
-    const rares = new Set(covenant.filter((a) => a.rarity === 'rare').map((a) => a.id));
-    const got = draws(40, [], 'rare');
+    const rares = new Set(
+      real.artifacts
+        .filter((a) => a.factionId === factionOf(exactRare) && a.rarity === 'rare')
+        .map((a) => a.id),
+    );
+    const got = draws(40, [], exactRare);
     expect(got.length).toBeGreaterThan(20);
     expect(got.every((id) => rares.has(id))).toBe(true);
   });
 
   it('still hands over a relic when the player already owns every candidate', () => {
     // The degenerate case: nothing novel left. The draw must not go empty.
-    const all = covenant.map((a) => a.id);
+    const all = pool.map((a) => a.id);
     expect(draws(20, all).length).toBeGreaterThan(10);
   });
 });
 
 describe('systemic disclosure', () => {
-  const quiet = {
-    id: 'test_quiet',
-    title: 'T',
-    body: 'b',
-    phase: 'any' as const,
-    options: [{ kind: 'certain' as const, label: 'Do nothing of the kind', effects: [] as Effect[] }],
-  };
+  // The engine's own shipped fallback card: its first option grants one
+  // follower and says nothing about pacts, apprentices, fame, or the hero.
+  const quiet = QUIET_ERA_OFFER;
+  const quietEffects = QUIET_ERA_OFFER.options[0].kind === 'certain' ? QUIET_ERA_OFFER.options[0].effects : [];
 
   /** A decline-phase run, one era in, holding whatever the caller sets. */
   const declining = (over: Partial<RunState>): RunState => ({
@@ -866,7 +867,8 @@ describe('systemic disclosure', () => {
     expect(next.pactDebt).toBe(PACT_LIMIT - 1);
     expect(next.ending).toBeUndefined();
     expect(resolution.systemic).toEqual([]);
-    expect(resolution.appliedEffects).toEqual([]);
+    // Only what the card itself printed landed — nothing about debt.
+    expect(resolution.appliedEffects.map((e) => e.t)).toEqual(quietEffects.map((e) => e.t));
   });
 
   /**
@@ -913,18 +915,15 @@ describe('systemic disclosure', () => {
   it('reports nothing when the option itself ended the run', () => {
     // The systems block is skipped entirely in that case, so claiming a tick
     // fired would be inventing one.
-    const ends = {
-      ...quiet,
-      options: [
-        {
-          kind: 'certain' as const,
-          label: 'Walk into the swamp',
-          effects: [{ t: 'ending', endingId: 'retired_to_swamp' } as Effect],
-        },
-      ],
-    };
-    const { next, resolution } = resolveChoice(declining({ pactDebt: 6 }), ends, 0, real);
-    expect(next.ending).toBe('retired_to_swamp');
+    const run = declining({ pactDebt: 6 });
+    const ends = realOption(
+      'a certain option that ends the run outright',
+      (o) => o.kind === 'certain' && isOptionPickable(run, o, real) && o.effects.some((e) => e.t === 'ending'),
+    );
+    const authored = effectsOf(ends.option).find((e) => e.t === 'ending')!;
+    if (authored.t !== 'ending') throw new Error('unreachable');
+    const { next, resolution } = resolveChoice(run, ends.offer, ends.index, real);
+    expect(next.ending).toBe(authored.endingId);
     expect(next.pactDebt).toBe(6);
     expect(resolution.systemic).toEqual([]);
   });
@@ -982,15 +981,13 @@ describe('offer sampling', () => {
 });
 
 describe('affordability (issue #41 follow-up)', () => {
-  // A minimal, synthetic catalog rather than the real one: these tests need
-  // to construct the EXACT boundary (an offer whose only certain option is
-  // currently unaffordable), which is fragile to chase through 150+ authored
-  // offers and would drift as content changes. Reuses real's
-  // factions/artifacts/lairs (satisfies `indexOf`'s lookups) with a
-  // deliberately narrow `offers` list.
-  // The ONLY certain option costs stock; the second option is a gamble, which
-  // does not count toward `everyOptionPickable` — so this offer's pool
-  // eligibility depends entirely on whether the certain option is affordable.
+  // The one hand-built offer in this file, because no real one CAN have this
+  // shape: its only certain option costs stock, and `validate-content.ts`'s
+  // `hasStockFreeOption` fails the build for any catalog offer like that. So
+  // the pool-exclusion path below is unreachable from shipped content — it
+  // guards a content pack, and only a hand-built offer can reach it. The
+  // gamble does not count toward pickability, so eligibility rests entirely
+  // on the certain option.
   const costlyOffer: Offer = {
     id: 'test_costly',
     title: 'T',
@@ -1045,9 +1042,22 @@ describe('affordability (issue #41 follow-up)', () => {
     expect(pool.map((o) => o.id)).toContain('test_costly');
   });
 
+  // The resolveChoice guard needs only AN unaffordable option, which the real
+  // catalog has plenty of: a follower price above what a new wizard starts
+  // with, paid for a relic.
+  const pricey = realOption(
+    'a certain option trading more followers than a new wizard has for a relic',
+    (o) =>
+      o.kind === 'certain' &&
+      o.effects.some((e) => e.t === 'artifactFrom') &&
+      o.effects.some((e) => e.t === 'followers' && -e.v > start({ seed: 1 }).followers),
+  );
+  const price = -effectsOf(pricey.option).reduce((sum, e) => (e.t === 'followers' ? sum + e.v : sum), 0);
+
   it('resolveChoice refuses an unpickable option index — the run is returned unchanged', () => {
-    const broke = start({ seed: 1 }, costlyOnlyContent);
-    const { next, resolution } = resolveChoice(broke, costlyOffer, 0, costlyOnlyContent);
+    const broke = start({ seed: 1 });
+    expect(broke.followers).toBeLessThan(price);
+    const { next, resolution } = resolveChoice(broke, pricey.offer, pricey.index, real);
     expect(next).toEqual(broke);
     expect(resolution.appliedEffects).toEqual([]);
     expect(next.followers).toBe(broke.followers);
@@ -1060,90 +1070,88 @@ describe('affordability (issue #41 follow-up)', () => {
     // option, absent the affordability problem, really does spend the
     // followers and grant the relic — i.e. the guard above is what changed
     // the outcome, not some unrelated reason the option never applies.
-    const rich = { ...start({ seed: 1 }, costlyOnlyContent), followers: 100 };
-    const { next } = resolveChoice(rich, costlyOffer, 0, costlyOnlyContent);
-    expect(next.followers).toBe(70);
+    const rich = { ...start({ seed: 1 }), followers: 100 };
+    const { next } = resolveChoice(rich, pricey.offer, pricey.index, real);
+    expect(next.followers).toBe(100 - price);
     expect(next.heldArtifactIds.length).toBe(rich.heldArtifactIds.length + 1);
   });
 });
 
 describe('issue #61: an unaffordable-but-interesting option is revisitable, not lost', () => {
-  // Unlike `costlyOffer` above, this offer ALSO carries a free certain
-  // option — the shape every offer in the real catalog is required to have
-  // (`validate-content.ts`'s `hasStockFreeOption`). That is exactly the
-  // shape that used to be lost forever: the interesting option costs stock
-  // the wizard doesn't have yet, so the only thing actually pickable is the
-  // free decline.
-  const twoOption: Offer = {
-    id: 'test_two_option',
-    title: 'T',
-    body: 'b',
-    phase: 'any',
-    options: [
-      {
-        kind: 'certain',
-        label: 'Spend followers for a relic',
-        effects: [
-          { t: 'followers', v: -30 },
-          { t: 'artifactFrom', factionId: 'ashen_covenant' },
-        ],
-      },
-      {
-        kind: 'certain',
-        label: 'Decline',
-        effects: [],
-      },
-    ],
-  };
+  // Unlike `costlyOffer` above, a real card: an interesting option priced in
+  // followers a new wizard does not have, beside a free certain option — the
+  // shape every catalog offer is required to have (`validate-content.ts`'s
+  // `hasStockFreeOption`), and exactly the one that used to be lost forever.
+  // Every gate on it is a follower price, so a rich wizard clears them all.
+  // The pool is narrowed to this one real card so nothing else competes.
+  const broke0 = start({ seed: 1 });
+  const twoOption = realOffer('an ungated card with a follower price a new wizard cannot pay', (o) => {
+    const gates = o.options.flatMap((opt) => impliedGatesOf(opt));
+    return (
+      !o.scripted &&
+      !o.requires?.length &&
+      o.phase !== 'decline' &&
+      gates.length > 0 &&
+      gates.every((g) => g.c === 'minFollowers') &&
+      o.options.some((opt) => opt.kind === 'certain' && !isOptionPickable(broke0, opt, real)) &&
+      o.options.some((opt) => opt.kind === 'certain' && impliedGatesOf(opt).length === 0)
+    );
+  });
+  const costly = twoOption.options.findIndex(
+    (opt) => opt.kind === 'certain' && !isOptionPickable(broke0, opt, real),
+  );
+  const decline = twoOption.options.findIndex(
+    (opt) => opt.kind === 'certain' && impliedGatesOf(opt).length === 0,
+  );
   const bundle: ContentBundle = { ...real, offers: [twoOption] };
 
   it('stays in the pool (at reduced weight) while its interesting option is unaffordable, rather than being excluded', () => {
     const broke = start({ seed: 1 }, bundle);
-    expect(broke.followers).toBeLessThan(30);
+    expect(isOptionPickable(broke, twoOption.options[costly], bundle)).toBe(false);
     const { pool } = buildOfferPool(broke, bundle);
-    expect(pool.map((o) => o.id)).toContain('test_two_option');
+    expect(pool.map((o) => o.id)).toContain(twoOption.id);
     expect(affordabilityWeight(broke, twoOption, bundle)).toBeLessThan(1);
     expect(affordabilityWeight(broke, twoOption, bundle)).toBeGreaterThan(0);
   });
 
   it('is at full weight once every option clears', () => {
-    const rich = { ...start({ seed: 1 }, bundle), followers: 100 };
+    const rich = { ...start({ seed: 1 }, bundle), followers: 999 };
     expect(affordabilityWeight(rich, twoOption, bundle)).toBe(1);
   });
 
   it('does NOT mark the offer seen when the choice was a forced decline of the unaffordable option', () => {
     const broke = start({ seed: 1 }, bundle);
-    const { next } = resolveChoice(broke, twoOption, 1, bundle); // index 1 = Decline, the only pickable option
-    expect(next.seenOfferIds).not.toContain('test_two_option');
+    const { next } = resolveChoice(broke, twoOption, decline, bundle); // the only pickable certain option
+    expect(next.seenOfferIds).not.toContain(twoOption.id);
   });
 
   it('DOES mark the offer seen when the interesting option was actually affordable and taken', () => {
-    const rich = { ...start({ seed: 1 }, bundle), followers: 100 };
-    const { next } = resolveChoice(rich, twoOption, 0, bundle); // index 0 = the costly, interesting option
-    expect(next.seenOfferIds).toContain('test_two_option');
+    const rich = { ...start({ seed: 1 }, bundle), followers: 999 };
+    const { next } = resolveChoice(rich, twoOption, costly, bundle); // the costly, interesting option
+    expect(next.seenOfferIds).toContain(twoOption.id);
   });
 
   it('DOES mark the offer seen when a wizard who COULD afford it deliberately declines anyway', () => {
     // Declining is only "forced" when the alternative was unaffordable. A
     // rich wizard who simply prefers to decline made a real choice, and the
     // card should not come back around as if nothing had happened.
-    const rich = { ...start({ seed: 1 }, bundle), followers: 100 };
-    const { next } = resolveChoice(rich, twoOption, 1, bundle); // index 1 = Decline, chosen by preference
-    expect(next.seenOfferIds).toContain('test_two_option');
+    const rich = { ...start({ seed: 1 }, bundle), followers: 999 };
+    const { next } = resolveChoice(rich, twoOption, decline, bundle); // the free option, chosen by preference
+    expect(next.seenOfferIds).toContain(twoOption.id);
   });
 
   it('comes back around once the wizard can pay, after being force-declined while broke', () => {
     let run = start({ seed: 1 }, bundle);
-    expect(run.followers).toBeLessThan(30);
+    expect(isOptionPickable(run, twoOption.options[costly], bundle)).toBe(false);
     // Forced decline: the only pickable option.
-    run = resolveChoice(run, twoOption, 1, bundle).next;
-    expect(run.seenOfferIds).not.toContain('test_two_option');
+    run = resolveChoice(run, twoOption, decline, bundle).next;
+    expect(run.seenOfferIds).not.toContain(twoOption.id);
     // Now the wizard can pay — the offer is still eligible, unlike the old
     // burn-forever behavior, which would have permanently excluded it via
     // `seenOfferIds` the instant it was first drawn.
-    run = { ...run, followers: 100 };
+    run = { ...run, followers: 999 };
     const { pool } = buildOfferPool(run, bundle);
-    expect(pool.map((o) => o.id)).toContain('test_two_option');
+    expect(pool.map((o) => o.id)).toContain(twoOption.id);
   });
 });
 
@@ -1157,21 +1165,29 @@ describe('issue #61: an unaffordable-but-interesting option is revisitable, not 
  * is the same defect with no pixels to give it away.
  */
 describe('pact debt weighting', () => {
-  const tempts = { ...QUIET_ERA_OFFER, id: 't', options: [
-    { kind: 'certain' as const, label: 'Sign', effects: [{ t: 'pactDebt', v: 2 }] as Effect[] },
-    { kind: 'certain' as const, label: 'Decline', effects: [] as Effect[] },
-  ] };
-  const relieves = { ...tempts, id: 'r', options: [
-    { kind: 'certain' as const, label: 'Pay', effects: [{ t: 'pactDebt', v: -2 }] as Effect[] },
-    { kind: 'certain' as const, label: 'Walk', effects: [] as Effect[] },
-  ] };
-  const inert = { ...tempts, id: 'n', options: [
-    { kind: 'certain' as const, label: 'Brood', effects: [{ t: 'notoriety', v: 1 }] as Effect[] },
-    { kind: 'certain' as const, label: 'Sulk', effects: [] as Effect[] },
-  ] };
-  const bundle = { ...real, offers: [tempts, relieves, inert] };
-  const at = (pactDebt: number, offer: typeof tempts) =>
-    pactWeight({ ...start({}, real), pactDebt }, offer, bundle);
+  // Real cards, classified here from their raw effects — deliberately NOT via
+  // `pactRoleOf`, which is what these tests check.
+  const debtMoves = (o: Offer) =>
+    o.options.flatMap(effectsOf).flatMap((e) => (e.t === 'pactDebt' ? [e.v] : []));
+  // Ungated ascent cards, so the sampler test below draws from the same pool
+  // at every debt level.
+  const ungatedAscent = (o: Offer) => !o.scripted && !o.requires?.length && o.phase !== 'decline';
+  const tempts = realOffer('an ungated ascent card that only adds debt', (o) => {
+    const d = debtMoves(o);
+    return ungatedAscent(o) && d.some((v) => v > 0) && !d.some((v) => v < 0);
+  });
+  const relieves = realOffer('a card that only clears debt', (o) => {
+    const d = debtMoves(o);
+    return d.some((v) => v < 0) && !d.some((v) => v > 0);
+  });
+  const inert = realOffer('an ungated ascent card that never touches debt', (o) =>
+    ungatedAscent(o) && debtMoves(o).length === 0,
+  );
+  // No real relief card is both ungated and ascent-eligible, so `relieves`
+  // stays out of the sampler's pool: it could never have been drawn there.
+  const bundle: ContentBundle = { ...real, offers: [tempts, inert] };
+  const at = (pactDebt: number, offer: Offer) =>
+    pactWeight({ ...start({}, real), pactDebt }, offer, real);
 
   it('classifies each shape from its effects alone', () => {
     expect(pactRoleOf(tempts)).toBe('tempts');
@@ -1192,22 +1208,14 @@ describe('pact debt weighting', () => {
   });
 
   it('reads a gamble that only clears on SUCCESS as an exit', () => {
-    const twoWay = {
-      ...tempts,
-      id: 'g',
-      options: [
-        { kind: 'certain' as const, label: 'Wait', effects: [] as Effect[] },
-        {
-          kind: 'gamble' as const,
-          label: 'Bet',
-          odds: 0.35,
-          onSuccess: [{ t: 'pactDebt', v: -2 }] as Effect[],
-          onFailure: [{ t: 'pactDebt', v: 3 }] as Effect[],
-          successText: 's',
-          failureText: 'f',
-        },
-      ],
-    };
+    const twoWay = realOffer('a card whose only debt relief is a gamble win', (o) =>
+      o.options.some((opt) => opt.kind === 'gamble' && opt.onSuccess.some((e) => e.t === 'pactDebt' && e.v < 0)) &&
+      o.options.every((opt) =>
+        opt.kind === 'gamble'
+          ? !opt.onFailure.some((e) => e.t === 'pactDebt' && e.v < 0)
+          : !opt.effects.some((e) => e.t === 'pactDebt' && e.v < 0),
+      ),
+    );
     expect(pactRoleOf(twoWay)).toBe('relieves');
   });
 
@@ -1249,7 +1257,7 @@ describe('pact debt weighting', () => {
       let temptCount = 0;
       for (let seed = 0; seed < 400; seed++) {
         const run = { ...start({ seed }, real), pactDebt, seenOfferIds: [], eraIndex: seed % 5 };
-        if (nextOffer(run, bundle).id === 't') temptCount++;
+        if (nextOffer(run, bundle).id === tempts.id) temptCount++;
       }
       return temptCount;
     };
@@ -1318,7 +1326,7 @@ describe('collection persistence', () => {
   it('keeps a collection written by the current version intact', () => {
     const mine: Collection = {
       ...emptyCollection(),
-      discoveredArtifactIds: ['a', 'b'],
+      discoveredArtifactIds: real.artifacts.slice(0, 2).map((a) => a.id),
       runsCompleted: 4,
       bestNotoriety: 71,
     };

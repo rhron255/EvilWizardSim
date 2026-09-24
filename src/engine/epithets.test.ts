@@ -9,7 +9,7 @@
 import { describe, expect, it } from 'vitest';
 import { createRun } from './run';
 import { projectedEpithet } from './epithets';
-import { REAL_CONTENT } from './testContent';
+import { REAL_CONTENT, realDeed } from '../testing/realContent';
 import type { ContentBundle } from './content-port';
 import type { EraRecord } from '../types';
 
@@ -27,10 +27,7 @@ const era = (over: Partial<EraRecord>): EraRecord => ({
   notorietyDelta: 0,
   followers: 0,
   artifactsGained: [],
-  deedSummary: 'It is done.',
-  offerId: REAL_CONTENT.offers[0].id,
-  optionLabel: 'Go',
-  outcome: 'deterministic',
+  ...realDeed(0),
   phase: 'ascent',
   ...over,
 });

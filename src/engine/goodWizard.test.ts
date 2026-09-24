@@ -16,8 +16,8 @@ import { checkEndings, createRun, decayFor, defenseOf, threatGainFor } from './i
 import type { ContentBundle } from './index';
 import { applyEffects, draftOf, projectEffects } from './effects';
 import { conditionMet } from './conditions';
-import { REAL_CONTENT } from './testContent';
-import type { Condition, Offer, RunState } from '../types';
+import { REAL_CONTENT } from '../testing/realContent';
+import type { Condition, Effect, RunState } from '../types';
 
 const content: ContentBundle = REAL_CONTENT;
 
@@ -177,37 +177,27 @@ describe('the rule-1 exception: nothing but good_wizard reads the counters', () 
 });
 
 describe('the rule-1 exception: nothing on screen ever sees the counters', () => {
-  const goodActOffer: Offer = {
-    id: 'test_virtue_offer',
-    title: 'Test',
-    body: 'Test.',
-    phase: 'any',
-    options: [
-      {
-        kind: 'certain',
-        label: 'Do the constructive thing',
-        effects: [
-          { t: 'goodAct', v: 1 },
-          { t: 'notoriety', v: 2 },
-        ],
-      },
-      {
-        kind: 'certain',
-        label: 'Do the harmful thing',
-        effects: [
-          { t: 'illAct', v: 1 },
-          { t: 'notoriety', v: 2 },
-        ],
-      },
-    ],
-  };
+  // A real virtue card's constructive option: a hidden goodAct beside a
+  // disclosed notoriety gain, so the silence can be checked against its
+  // neighbour on the same card.
+  const constructive: Effect[] = (() => {
+    for (const offer of content.offers)
+      for (const option of offer.options)
+        if (
+          option.kind === 'certain' &&
+          option.effects.some((e) => e.t === 'goodAct') &&
+          option.effects.some((e) => e.t === 'notoriety')
+        )
+          return option.effects;
+    throw new Error('no real offer pairs a goodAct with a notoriety effect');
+  })();
 
   it('applyEffects never pushes goodAct/illAct to the applied ledger', () => {
     const run = start();
     const draft = draftOf(run);
     const application = applyEffects(
       draft,
-      goodActOffer.options[0].kind === 'certain' ? goodActOffer.options[0].effects : [],
+      constructive,
       () => 0.5,
       content,
     );
@@ -222,7 +212,7 @@ describe('the rule-1 exception: nothing on screen ever sees the counters', () =>
     const run = start();
     const projected = projectEffects(
       run,
-      goodActOffer.options[0].kind === 'certain' ? goodActOffer.options[0].effects : [],
+      constructive,
       content,
     );
     expect(projected.some((e) => e.t === 'goodAct')).toBe(false);

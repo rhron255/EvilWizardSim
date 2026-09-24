@@ -18,15 +18,15 @@ import userEvent from '@testing-library/user-event';
 import type { ContentBundle } from '../engine';
 import { artifacts, endings, epithets, factions, lairs, offers, origins } from '../content';
 import type { Resolution } from '../components/run/resolution';
-import type { EraRecord, Offer, RunState, ThemeId } from '../types';
+import type { EraRecord, RunState, ThemeId } from '../types';
 import { RunScreen } from './RunScreen';
+import { realDeed, realOfferWhere } from '../testing/realContent';
 
 // Mirrors `App.tsx`'s own `CONTENT` — the real catalog, frozen once here
 // rather than rebuilt per test.
 const content: ContentBundle = { factions, artifacts, lairs, origins, endings, offers, epithets };
 
-// The scenario `demo.ts` used to hand-author, rebuilt against real content
-// ids: a mid-decline run holding five real relics across two factions.
+// A mid-decline run holding five real relics across two factions.
 const eras: EraRecord[] = Array.from({ length: 11 }, (_, i) => ({
   eraIndex: i,
   age: 20 + i * 5,
@@ -35,10 +35,7 @@ const eras: EraRecord[] = Array.from({ length: 11 }, (_, i) => ({
   notorietyDelta: 7,
   followers: 2 + i * 100,
   artifactsGained: i === 7 ? ['bone_crown'] : [],
-  deedSummary: `Era ${i} deed.`,
-  offerId: `era_${i}_offer`,
-  optionLabel: 'Chose an option',
-  outcome: 'deterministic',
+  ...realDeed(i),
   phase: i < 9 ? 'ascent' : 'decline',
 }));
 
@@ -85,58 +82,22 @@ const demoRun: RunState = {
   seenOfferIds: eras.map((e) => e.offerId),
 };
 
-const demoOffer: Offer = {
-  id: 'covenant_courier',
-  title: 'The Covenant Sends a Courier',
-  body:
-    'He has walked four days to hand you an envelope, and he would like you to know that. ' +
-    'Inside: an offer, a wax seal shaped like a molar, and an itemised invoice for the walking.',
-  phase: 'decline',
-  factionId: 'ashen_covenant',
-  options: [
-    {
-      kind: 'gamble',
-      label: "Accept the Covenant's offer",
-      odds: 0.35,
-      onSuccess: [
-        { t: 'notoriety', v: 12 },
-        { t: 'artifact', artifactId: 'bone_crown' },
-      ],
-      onFailure: [
-        { t: 'apprentices', v: -1 },
-        { t: 'pactDebt', v: 1 },
-      ],
-      successText: 'The molar seal opens for you. Something on the other side signs its half.',
-      failureText: 'Your least favourite apprentice is now the Covenant’s least favourite apprentice.',
-    },
-    {
-      kind: 'certain',
-      label: 'Pay the courier and burn the envelope',
-      effects: [
-        { t: 'followers', v: -60 },
-        { t: 'standing', factionId: 'ashen_covenant', v: -8 },
-        { t: 'heroThreat', v: -3 },
-      ],
-      resultText: 'The envelope burns green, which the courier says is normal.',
-    },
-    {
-      kind: 'gamble',
-      label: 'Read clause nine aloud, in the courier’s hearing',
-      odds: 0.72,
-      onSuccess: [
-        { t: 'pactDebt', v: -1 },
-        { t: 'standing', factionId: 'ashen_covenant', v: 6 },
-      ],
-      onFailure: [
-        { t: 'notoriety', v: -5 },
-        { t: 'loyalty', v: -10 },
-      ],
-      successText: 'Clause nine, read aloud, turns out to be void. The courier is furious about it.',
-      failureText: 'Clause nine, read aloud, turns out to be about you.',
-    },
-  ],
-  weight: 2,
-};
+/**
+ * A real card that names no faction anywhere — no affiliation, no standing
+ * or relic-draw effect, no faction word in its prose — so this file's
+ * faction-name queries can only match the panel's own status lines.
+ */
+const FACTION_WORDS = /Covenant|Gilded|Hand|Academy|Choir|Crown|Worm/;
+const demoOffer = realOfferWhere('a card that names no faction', (o) =>
+  !o.factionId &&
+  !o.scripted &&
+  !FACTION_WORDS.test(JSON.stringify(o)) &&
+  o.options.every((x) =>
+    (x.kind === 'certain' ? x.effects : [...x.onSuccess, ...x.onFailure]).every(
+      (e) => e.t !== 'standing' && e.t !== 'artifactFrom',
+    ),
+  ),
+);
 
 const show = (
   run: RunState,
