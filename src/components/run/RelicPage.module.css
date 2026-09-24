@@ -7,8 +7,28 @@
   gap: var(--ew-space-4);
 }
 
+/* Sticky rather than duplicated at the foot of the page (issue #78 review):
+   a single control satisfies "only one Back button" without stranding a
+   touch/pointer user who has scrolled past a long held/lost relic list —
+   this view is local React state, not browser history, so there is no
+   back-gesture fallback.
+   A full-width bar rather than a sticky pill on its own: the pill is
+   `align-self: flex-start` and only covers its own ~160px, so on a page
+   scrolled far enough that another row's text lines up with it, that text
+   was still visible to the pill's right — the bar's `--ew-void` spans the
+   full row so nothing scrolled-away can show beside the button, the same
+   fix `NecrolexiconScreen` uses for its own sticky head. No side margin/bleed
+   needed: `.page` has no horizontal padding of its own, so this div already
+   stretches to the same width every other child in this flex column does. */
+.backBar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: var(--ew-space-2) 0;
+  background: var(--ew-void);
+}
+
 .back {
-  align-self: flex-start;
   margin: 0;
   padding: var(--ew-space-1) var(--ew-space-3);
   border: 1px solid var(--ew-line-strong);
@@ -25,7 +45,7 @@
 .back:focus-visible {
   color: var(--ew-ink-bright);
   border-color: var(--ew-ink-faint);
-  background: color-mix(in srgb, var(--ew-ink-faint) 12%, transparent);
+  background: color-mix(in srgb, var(--ew-ink-faint) 12%, var(--ew-void));
 }
 
 .heading {
