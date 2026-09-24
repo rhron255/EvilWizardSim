@@ -71,9 +71,15 @@ export function OptionCard({
       data-option-index={index}
     >
       {reason && (
-        <span className={styles.lockMark} aria-hidden="true">
-          ✕
-        </span>
+        <svg
+          className={styles.lockMark}
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <line x1="4" y1="4" x2="96" y2="96" />
+          <line x1="96" y1="4" x2="4" y2="96" />
+        </svg>
       )}
 
       <span className={styles.keycap} aria-hidden="true">

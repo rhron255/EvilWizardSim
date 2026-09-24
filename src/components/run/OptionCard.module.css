@@ -127,22 +127,25 @@
 
 /* A second, unmissable "cannot act on this" signal alongside the greying and
    dashed border — greying alone reads as "faded", not "locked", at a glance
-   on a phone screen. Sits in the card's own top-right corner rather than
-   stacking with the keycap, so it never competes with the number-key hint. */
+   on a phone screen. A small badge in a corner reads as a dismissible UI
+   affordance (a close button, a notification dot) rather than a "this is
+   struck out" mark, so it spans the whole card corner-to-corner instead —
+   the stamped-X-on-a-crate read, not a chip. `preserveAspectRatio="none"`
+   lets the two lines reach true corner-to-corner on a non-square card;
+   `pointer-events: none` keeps it from ever intercepting the (already
+   disabled) button's own hit area. */
 .lockMark {
   position: absolute;
-  top: var(--ew-space-2);
-  right: var(--ew-space-2);
-  display: grid;
-  place-items: center;
-  width: 1.1rem;
-  height: 1.1rem;
-  font-size: var(--ew-size-xs);
-  line-height: 1;
-  color: var(--ew-ink-faint);
-  border: 1px solid var(--ew-line);
-  border-radius: 50%;
-  background: var(--ew-void);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.lockMark line {
+  stroke: var(--ew-ink-faint);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
 }
 
 /* --- Gamble ------------------------------------------------------------- */

@@ -78,7 +78,7 @@ describe('OptionCard · unaffordable (reason prop)', () => {
   });
 
   it('shows a lock mark for an unaffordable card, and none for an affordable one', () => {
-    const { rerender } = render(
+    const { container, rerender } = render(
       <OptionCard
         option={certainOption}
         index={1}
@@ -89,7 +89,7 @@ describe('OptionCard · unaffordable (reason prop)', () => {
         onChoose={() => {}}
       />,
     );
-    expect(screen.getByText('✕')).toBeInTheDocument();
+    expect(container.querySelector('svg')).toBeInTheDocument();
 
     rerender(
       <OptionCard
@@ -100,7 +100,7 @@ describe('OptionCard · unaffordable (reason prop)', () => {
         onChoose={() => {}}
       />,
     );
-    expect(screen.queryByText('✕')).not.toBeInTheDocument();
+    expect(container.querySelector('svg')).not.toBeInTheDocument();
   });
 
   it('keeps the keycap and the label unchanged', () => {
