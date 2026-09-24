@@ -119,10 +119,6 @@ export function RelicPage({ run, artifacts, factions, defense, onBack }: RelicPa
           </ul>
         </section>
       )}
-
-      <button type="button" className={styles.back} onClick={onBack}>
-        ‹ Back to the decision
-      </button>
     </div>
   );
 }
