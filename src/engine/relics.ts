@@ -180,10 +180,23 @@ export function applyEraEndTriggers(draft: RunState, content: ContentBundle, rng
 // Projection — what the card should print, before the commit (rule 1)
 // ---------------------------------------------------------------------------
 
-/** Never reached: nothing authored on a relic this slice draws from the rng. */
+/** Never reached: everything `preview` below feeds `applyEffects` is pre-filtered to exclude these. */
 const NO_RNG: Rng = () => {
   throw new Error('projectReactions: a relic reaction must not draw from the rng');
 };
+
+/**
+ * The only two `Effect` cases `applyEffects` ever draws from the rng for
+ * (`effects.ts`). A card's authored list is not restricted to `RelicEffect`
+ * — most offers are free to grant or lose a relic — so a preview cannot run
+ * the option's FULL effects through `applyEffects` the way `resolveChoice`
+ * does with its real seeded stream; it would throw the instant a previewed
+ * option happened to carry one of these two, which is common in the real
+ * catalog. Excluding them is safe for every relic condition this slice
+ * authors (none reads `heldArtifactIds`), the same way `projectEffects`
+ * already leaves both un-resolved rather than guessing at a draw.
+ */
+const RNG_EFFECT_TYPES: ReadonlySet<Effect['t']> = new Set(['artifactFrom', 'loseArtifact']);
 
 export type RelicReactionPreview =
   | { kind: 'certain'; events: RelicEvent[] }
@@ -191,11 +204,11 @@ export type RelicReactionPreview =
 
 /**
  * What holding a relic will do if `option` is picked, mirroring the SAME
- * evaluation `resolveChoice` runs for real: apply the option's own effects to
- * a throwaway draft, then run both timings' triggers against it exactly as
- * `resolveChoice` will. Nothing here can drift from the engine because it IS
- * the engine, the same guarantee `projectEffects` gives the option's own
- * numbers.
+ * evaluation `resolveChoice` runs for real: apply the option's own
+ * deterministic effects to a throwaway draft, then run both timings'
+ * triggers against it exactly as `resolveChoice` will. Nothing here can
+ * drift from the engine because it IS the engine, the same guarantee
+ * `projectEffects` gives the option's own numbers.
  *
  * Includes `eraEnd` triggers too, not only `onChoice` ones: picking ANY
  * option is followed by the era-end block, so a relic that fires there (the
@@ -209,7 +222,8 @@ export function projectReactions(
 ): RelicReactionPreview {
   const preview = (effects: readonly Effect[]): RelicEvent[] => {
     const draft = draftOf(run);
-    const application = applyEffects(draft, effects, NO_RNG, content);
+    const deterministic = effects.filter((e) => !RNG_EFFECT_TYPES.has(e.t));
+    const application = applyEffects(draft, deterministic, NO_RNG, content);
     return [
       ...applyChoiceTriggers(draft, content, NO_RNG, application.applied),
       ...applyEraEndTriggers(draft, content, NO_RNG),

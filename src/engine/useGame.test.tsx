@@ -282,3 +282,75 @@ describe('collection v4 -> v5 · dropping the tabs hint flag', () => {
     expect(migrateCollection(JSON.parse(localStorage.getItem(COLLECTION_KEY)!))).toEqual(written);
   });
 });
+
+/**
+ * Collection v5 -> v6 · the relic-collection reset (issue #80).
+ *
+ * `relicsResetAt` is compared, as a plain sortable string, against the
+ * `relicsResetAtBuild` a caller passes to `migrateCollection` — never
+ * imported by the engine itself (see the doc comment on `emptyCollection`
+ * in `persistence.ts`). Endings, themes, the tutorial flag and the last name
+ * must survive every one of these untouched — this is a relic-only reset.
+ */
+describe('collection v5 -> v6 · the relic-collection reset', () => {
+  const BUILD = '2026-09-24T15:30:00Z';
+  const v5 = {
+    version: 5,
+    discoveredArtifactIds: [content.artifacts[0].id, content.artifacts[1].id],
+    endingsSeen: ['lichdom'],
+    runsCompleted: 12,
+    bestNotoriety: 71,
+    tutorialSeen: true,
+    lastWizardName: 'Malvorn',
+    selectedThemeId: 'lichdom',
+  };
+
+  it('clears the relic grid, and only the relic grid, when the stored reset is stale', () => {
+    const stale = { ...v5, relicsResetAt: '2020-01-01T00:00:00Z' };
+    const migrated = migrateCollection(stale, BUILD);
+    expect(migrated.discoveredArtifactIds).toEqual([]);
+    expect(migrated.relicsResetAt).toBe(BUILD);
+    // Nothing else about the player is reset.
+    expect(migrated.endingsSeen).toEqual(['lichdom']);
+    expect(migrated.runsCompleted).toBe(12);
+    expect(migrated.bestNotoriety).toBe(71);
+    expect(migrated.tutorialSeen).toBe(true);
+    expect(migrated.lastWizardName).toBe('Malvorn');
+    expect(migrated.selectedThemeId).toBe('lichdom');
+  });
+
+  it('leaves a current reset stamp untouched', () => {
+    const current = { ...v5, relicsResetAt: BUILD };
+    const migrated = migrateCollection(current, BUILD);
+    expect(migrated.discoveredArtifactIds).toEqual(v5.discoveredArtifactIds);
+    expect(migrated.relicsResetAt).toBe(BUILD);
+  });
+
+  it('leaves a NEWER reset stamp untouched too — a caller must never rewind it', () => {
+    const future = { ...v5, relicsResetAt: '2027-01-01T00:00:00Z' };
+    const migrated = migrateCollection(future, BUILD);
+    expect(migrated.discoveredArtifactIds).toEqual(v5.discoveredArtifactIds);
+    expect(migrated.relicsResetAt).toBe('2027-01-01T00:00:00Z');
+  });
+
+  it('treats a missing relicsResetAt (a genuine pre-reset v5 save) as stale', () => {
+    const migrated = migrateCollection({ ...v5 }, BUILD);
+    expect(migrated.discoveredArtifactIds).toEqual([]);
+    expect(migrated.relicsResetAt).toBe(BUILD);
+  });
+
+  it('never resets when the caller has no opinion (the default parameter)', () => {
+    // `loadCollection()`/`migrateCollection(raw)` with no second argument —
+    // every pre-existing call site in this file among them — must reproduce
+    // today's behaviour exactly, per the framework's own acceptance bar.
+    const migrated = migrateCollection({ ...v5 });
+    expect(migrated.discoveredArtifactIds).toEqual(v5.discoveredArtifactIds);
+    expect(migrated.relicsResetAt).toBe('');
+  });
+
+  it('reads a v6 save back exactly as written', () => {
+    const written = emptyCollection(BUILD);
+    localStorage.setItem(COLLECTION_KEY, JSON.stringify(written));
+    expect(migrateCollection(JSON.parse(localStorage.getItem(COLLECTION_KEY)!), BUILD)).toEqual(written);
+  });
+});

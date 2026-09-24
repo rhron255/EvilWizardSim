@@ -9,6 +9,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Effect, OfferOption } from '../../types';
+import type { RelicReactionPreview } from '../../engine';
 import { createRun, projectEffects } from '../../engine';
 import { REAL_CONTENT, realOfferWhere } from '../../testing/realContent';
 import * as C from '../../content';
@@ -213,6 +214,76 @@ describe('OptionCard · unaffordable (reason prop)', () => {
     );
     await user.click(screen.getByRole('button'));
     expect(onChoose).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Rule 1's newest corollary (issue #80): "any deterministic relic reaction is
+ * projected onto the offer card before the player commits." `reactions` is
+ * the prop `OfferPanel` derives from `projectReactions`; this file pins only
+ * what `OptionCard` does with it, the same contract-at-the-prop-level split
+ * the file's own header comment describes for `reason`.
+ */
+describe('OptionCard · relic reactions (issue #80)', () => {
+  const option: OfferOption = { kind: 'certain', label: 'Sign it', effects: [{ t: 'pactDebt', v: 2 }] };
+  const reactions: RelicReactionPreview = {
+    kind: 'certain',
+    events: [{ artifactId: 'ashen_signature', applied: [{ t: 'pactDebt', v: -1 }] }],
+  };
+
+  it('renders one attributed line for the relic that reacts, alongside the option’s own effects', () => {
+    render(
+      <OptionCard
+        option={option}
+        index={0}
+        artifacts={artifacts}
+        factions={factions}
+        reactions={reactions}
+        onChoose={() => {}}
+      />,
+    );
+    const card = screen.getByRole('button');
+    expect(within(card).getByText('The Ashen Signature')).toBeInTheDocument();
+    expect(within(card).getByText('+2')).toBeInTheDocument(); // the option's own, untouched
+    expect(within(card).getByText('−1')).toBeInTheDocument(); // the relic's own, attributed
+  });
+
+  it('renders nothing extra when no relic reacts to this option', () => {
+    render(
+      <OptionCard option={option} index={0} artifacts={artifacts} factions={factions} onChoose={() => {}} />,
+    );
+    const card = screen.getByRole('button');
+    expect(within(card).queryByText('The Ashen Signature')).not.toBeInTheDocument();
+  });
+
+  it('attributes a gamble’s two branches separately, never merging them', () => {
+    const gamble: OfferOption = {
+      kind: 'gamble',
+      label: 'Risk it',
+      odds: 0.5,
+      onSuccess: [{ t: 'pactDebt', v: 2 }],
+      onFailure: [{ t: 'pactDebt', v: 3 }],
+      successText: 'It goes well.',
+      failureText: 'It does not.',
+    };
+    const gambleReactions: RelicReactionPreview = {
+      kind: 'gamble',
+      onSuccess: [{ artifactId: 'ashen_signature', applied: [{ t: 'pactDebt', v: -1 }] }],
+      onFailure: [],
+    };
+    render(
+      <OptionCard
+        option={gamble}
+        index={0}
+        artifacts={artifacts}
+        factions={factions}
+        reactions={gambleReactions}
+        onChoose={() => {}}
+      />,
+    );
+    const card = screen.getByRole('button');
+    // Exactly one attribution — the failure branch's own preview is empty.
+    expect(within(card).getAllByText('The Ashen Signature')).toHaveLength(1);
   });
 });
 

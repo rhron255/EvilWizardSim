@@ -191,6 +191,53 @@ describe('ResolutionOverlay · while you were elsewhere', () => {
 });
 
 /**
+ * "Your relics" (issue #80) — a relic's own consequence this era, kept
+ * separate from `appliedEffects` for the exact reason "while you were
+ * elsewhere" is: attributing it to the option the player just picked would
+ * misname its cause. Same pattern this file already holds `systemic` to.
+ */
+describe('ResolutionOverlay · your relics', () => {
+  const relicsSection = () => screen.getByText('Your relics').closest('div')!;
+
+  it('shows nothing at all when no relic fired', () => {
+    show([], { relicEvents: [] });
+    expect(screen.queryByText('Your relics')).not.toBeInTheDocument();
+  });
+
+  it('names the relic and what it did', () => {
+    show([], {
+      relicEvents: [{ artifactId: artifacts[0].id, applied: [{ t: 'notoriety', v: 2 }] }],
+    });
+    const block = within(relicsSection());
+    expect(block.getByText(artifacts[0].name)).toBeInTheDocument();
+    expect(block.getByText('+2')).toBeInTheDocument();
+    expect(block.getByText('Notoriety')).toBeInTheDocument();
+  });
+
+  it('keeps a relic event out of the option consequence list', () => {
+    // The option's own ledger already carries a notoriety gain
+    // (`demoResolutionSuccess.appliedEffects`); the relic's own is a SECOND,
+    // separately attributed one and must not fold into that count.
+    show([], {
+      relicEvents: [{ artifactId: artifacts[0].id, applied: [{ t: 'notoriety', v: 2 }] }],
+    });
+    expect(screen.getAllByText('Notoriety').length).toBeGreaterThan(1);
+  });
+
+  it('lists one row per relic that reacted', () => {
+    show([], {
+      relicEvents: [
+        { artifactId: artifacts[0].id, applied: [{ t: 'notoriety', v: 2 }] },
+        { artifactId: artifacts[1].id, applied: [{ t: 'followers', v: 10 }] },
+      ],
+    });
+    const block = within(relicsSection());
+    expect(block.getByText(artifacts[0].name)).toBeInTheDocument();
+    expect(block.getByText(artifacts[1].name)).toBeInTheDocument();
+  });
+});
+
+/**
  * The roll has to decide the verdict, not follow it.
  *
  * The pieces were always right — a rail, a threshold tick, and a needle that
