@@ -33,11 +33,13 @@ const show = (
   disabled = false,
   run: RunState = demoRun,
   content: ContentBundle = demoContent,
+  rawOffer?: Offer,
 ) => {
   const onChoose = vi.fn();
   render(
     <OfferPanel
       offer={offer}
+      rawOffer={rawOffer}
       run={run}
       content={content}
       artifacts={demoArtifacts}
@@ -156,6 +158,37 @@ describe('OfferPanel · affordability', () => {
     const { onChoose, user } = show(demoOfferGated, false, demoEarlyRun);
     await user.keyboard('1');
     expect(onChoose).not.toHaveBeenCalled();
+  });
+
+  /**
+   * `App.tsx` never passes `OfferPanel` the raw content offer — it passes
+   * `shownOffer`, a copy whose `certain`/`gamble` effects have been run
+   * through `projectEffects` so the card prints what the engine will
+   * actually do, floor clamps included. Gating computed off THAT copy would
+   * see a follower cost already clamped down to what the wizard has, and
+   * wave the option through — exactly the failure mode 14 hole
+   * `impliedGatesOf` exists to close, reopened one layer up. `rawOffer` is
+   * how the caller hands back the authored magnitudes for gating alone.
+   */
+  it('gates on the authored cost via rawOffer, not a projected/clamped display copy', () => {
+    // demoEarlyRun.followers === 2; the authored cost is 30, but a projected
+    // copy would floor-clamp the display to -2 — exactly what the wizard has.
+    const projected: Offer = {
+      ...demoOfferGated,
+      options: demoOfferGated.options.map((o) =>
+        o.kind === 'certain' && o.label === 'Buy the Bone Crown outright'
+          ? { ...o, effects: [{ t: 'followers' as const, v: -2 }, ...o.effects.slice(1)] }
+          : o,
+      ),
+    };
+    // `offer` is the projected (falsely-affordable-looking) copy; `rawOffer`
+    // is the authored one gating must actually use.
+    show(projected, false, demoEarlyRun, demoContent, demoOfferGated);
+    const gated = screen.getByRole('button', { name: /unaffordable/i });
+    expect(gated).toBeDisabled();
+    expect(
+      within(gated).getByText('Requires 30 Followers · you have 2'),
+    ).toBeInTheDocument();
   });
 
   it('leaves the SAME option fully interactive once the wizard can pay', async () => {

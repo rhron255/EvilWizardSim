@@ -21,6 +21,13 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-09-24T13:15:00Z': {
+    summary: 'A card you truly cannot afford now looks and acts like it.',
+    details: [
+      'Fixed a bug where a greyed-out card could still print a price matching exactly what you had, and could still be pressed — tapping it silently did nothing.',
+      'An unaffordable card now shows its real price, cannot be tapped or picked, and carries a lock mark so it reads as locked at a glance.',
+    ],
+  },
   '2026-09-24T12:00:00Z': {
     summary: 'You can now see which relics you actually hold mid-run.',
     details: [

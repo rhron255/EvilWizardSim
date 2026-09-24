@@ -8,13 +8,65 @@
  * the split as a quantity you can see rather than read.
  */
 
-import type { Artifact, Faction, OfferOption } from '../../types';
+import type { Artifact, Effect, Faction, OfferOption } from '../../types';
 import { EffectList } from './EffectList';
 import { formatOdds } from './effectText';
 import styles from './OptionCard.module.css';
 
+/**
+ * The stock types `impliedGatesOf` (`src/engine/conditions.ts`) gates on —
+ * the ones that floor-clamp, so their PROJECTED magnitude can read as
+ * cheaper than the authored cost the gate actually enforces. `standing` is
+ * deliberately excluded even though `projectEffects` also rewrites it
+ * (contagion can add rows a `standing` effect's author never wrote): that
+ * rewrite is additional honest disclosure, not a clamp hiding the true cost,
+ * so it must stay projected even on a card the player cannot afford.
+ * `loseArtifact` needs no entry here — it is never in `PROJECTABLE`
+ * (`src/engine/effects.ts`), so the authored and projected copies are
+ * already identical.
+ */
+const GATED_STOCK_TYPES: ReadonlySet<Effect['t']> = new Set(['followers', 'apprentices', 'lairTier']);
+
+/**
+ * Swap in the authored magnitude for exactly the stock costs a floor clamp
+ * can hide, while keeping every other effect — including contagion rows
+ * `projectEffects` adds that the authored list never had — as projected.
+ *
+ * This is intentionally NOT "show the whole authored option instead of the
+ * projected one" on an unaffordable card: that swap was tried first and a
+ * review caught the regression it causes (PR #85) — a card whose Standing
+ * effect fans out via contagion (`applyStanding`'s `hostileTo` spill) would
+ * silently lose those extra rows the instant it became unaffordable, one of
+ * the exact undisclosed-consequence shapes CLAUDE.md's rule 1 bans. Only the
+ * types the affordability gate itself cares about (`GATED_STOCK_TYPES`) are
+ * ever swapped, matched by type and by the order they occur in — safe
+ * because none of them fan out the way `standing` does, so the authored and
+ * projected lists always carry the same count of each.
+ */
+function withAuthoredStockCosts(projected: readonly Effect[], authored: readonly Effect[]): Effect[] {
+  const pending = new Map<Effect['t'], Effect[]>();
+  for (const effect of authored) {
+    if (!GATED_STOCK_TYPES.has(effect.t)) continue;
+    const queue = pending.get(effect.t) ?? [];
+    queue.push(effect);
+    pending.set(effect.t, queue);
+  }
+  return projected.map((effect) => {
+    if (!GATED_STOCK_TYPES.has(effect.t)) return effect;
+    return pending.get(effect.t)?.shift() ?? effect;
+  });
+}
+
 export type OptionCardProps = {
   option: OfferOption;
+  /**
+   * The same option `option` may be a run-projected view of, unprojected.
+   * Used only for the price shown when `reason` is set, and only to recover
+   * the authored magnitude of the specific stock costs a floor clamp can
+   * hide — see `withAuthoredStockCosts`' doc comment. Defaults to `option`
+   * when omitted.
+   */
+  rawOption?: OfferOption;
   /** 0-based. Rendered as the 1-based keycap and used for the number shortcut. */
   index: number;
   artifacts: Artifact[];
@@ -24,9 +76,16 @@ export type OptionCardProps = {
    * Set only when `disabled` is true BECAUSE the option is currently
    * unaffordable (per `impliedGatesOf`/`isOptionPickable` in the engine) —
    * never merely because a resolution overlay is up. Its presence, not
-   * `disabled` alone, decides whether the card renders the short
-   * reason-line variant in place of its `EffectList`/odds rail, and states
-   * the reason in the `aria-label` (mirrors `ThemeSwatch`'s locked swatch).
+   * `disabled` alone, adds the reason line and the lock mark, and states the
+   * reason in the `aria-label` (mirrors `ThemeSwatch`'s locked swatch).
+   *
+   * The price still prints alongside it — a card the player cannot afford is
+   * exactly the card where they most need to see what it actually costs, and
+   * the authored magnitude of the gated stock cost (never the projected,
+   * floor-clamped one) is what it costs: a projected "-8 Followers" on a
+   * wizard with exactly 8 was what made an unaffordable option read as
+   * paid-for at a glance. See `withAuthoredStockCosts` for why this swaps
+   * only that cost and not the option's other, still-projected effects.
    */
   reason?: string;
   onChoose(index: number): void;
@@ -34,6 +93,7 @@ export type OptionCardProps = {
 
 export function OptionCard({
   option,
+  rawOption,
   index,
   artifacts,
   factions,
@@ -43,6 +103,21 @@ export function OptionCard({
 }: OptionCardProps) {
   const isGamble = option.kind === 'gamble';
   const successPct = isGamble ? Math.round(option.odds * 100) : 100;
+  // Merged, not swapped: an unaffordable card keeps every projected effect
+  // (contagion rows included) and only its gated stock cost reverts to the
+  // authored number. See `withAuthoredStockCosts`.
+  const priced =
+    reason && rawOption
+      ? option.kind === 'certain' && rawOption.kind === 'certain'
+        ? { ...option, effects: withAuthoredStockCosts(option.effects, rawOption.effects) }
+        : option.kind === 'gamble' && rawOption.kind === 'gamble'
+          ? {
+              ...option,
+              onSuccess: withAuthoredStockCosts(option.onSuccess, rawOption.onSuccess),
+              onFailure: withAuthoredStockCosts(option.onFailure, rawOption.onFailure),
+            }
+          : option
+      : option;
 
   return (
     <button
@@ -55,6 +130,18 @@ export function OptionCard({
       onClick={() => onChoose(index)}
       data-option-index={index}
     >
+      {reason && (
+        <svg
+          className={styles.lockMark}
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <line x1="4" y1="4" x2="96" y2="96" />
+          <line x1="96" y1="4" x2="4" y2="96" />
+        </svg>
+      )}
+
       <span className={styles.keycap} aria-hidden="true">
         {index + 1}
       </span>
@@ -62,22 +149,20 @@ export function OptionCard({
       <span className={styles.body}>
         <span className={styles.label}>{option.label}</span>
 
-        {reason ? (
-          <span className={styles.reason}>{reason}</span>
-        ) : option.kind === 'certain' ? (
+        {priced.kind === 'certain' ? (
           <span className={styles.certain}>
-            <EffectList effects={option.effects} artifacts={artifacts} factions={factions} />
+            <EffectList effects={priced.effects} artifacts={artifacts} factions={factions} />
           </span>
         ) : (
           <span className={styles.branches}>
             <span className={styles.branch} data-branch="success">
-              <span className={`${styles.pct} ew-num`}>{formatOdds(option.odds)}</span>
+              <span className={`${styles.pct} ew-num`}>{formatOdds(priced.odds)}</span>
               <span className={styles.arrow} aria-hidden="true">
                 →
               </span>
               <span className={styles.branchEffects}>
                 <EffectList
-                  effects={option.onSuccess}
+                  effects={priced.onSuccess}
                   artifacts={artifacts}
                   factions={factions}
                   compact
@@ -86,13 +171,13 @@ export function OptionCard({
             </span>
 
             <span className={styles.branch} data-branch="failure">
-              <span className={`${styles.pct} ew-num`}>{formatOdds(1 - option.odds)}</span>
+              <span className={`${styles.pct} ew-num`}>{formatOdds(1 - priced.odds)}</span>
               <span className={styles.arrow} aria-hidden="true">
                 →
               </span>
               <span className={styles.branchEffects}>
                 <EffectList
-                  effects={option.onFailure}
+                  effects={priced.onFailure}
                   artifacts={artifacts}
                   factions={factions}
                   compact
@@ -106,6 +191,8 @@ export function OptionCard({
             </span>
           </span>
         )}
+
+        {reason && <span className={styles.reason}>{reason}</span>}
       </span>
     </button>
   );

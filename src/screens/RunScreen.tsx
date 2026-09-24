@@ -44,6 +44,15 @@ import styles from './RunScreen.module.css';
 export type RunScreenProps = {
   run: RunState;
   offer: Offer | null;
+  /**
+   * The same offer `offer` is a projection of, unprojected. Passed through to
+   * `DecisionPanel`/`OfferPanel` for affordability gating only — see the doc
+   * comment on `shownOffer` in `App.tsx` for why gating cannot use the
+   * projected copy. Optional so tests that only care about the projected
+   * display (and pass an already-raw fixture as `offer`) do not have to wire
+   * a second, identical prop.
+   */
+  rawOffer?: Offer | null;
   resolution: Resolution | null;
   lairs: Lair[];
   artifacts: Artifact[];
@@ -64,6 +73,7 @@ export type RunScreenProps = {
 export function RunScreen({
   run,
   offer,
+  rawOffer,
   resolution,
   lairs,
   artifacts,
@@ -140,6 +150,7 @@ export function RunScreen({
             run={run}
             factions={factions}
             offer={offer}
+            rawOffer={rawOffer ?? offer}
             artifacts={artifacts}
             content={content}
             disabled={Boolean(resolution)}

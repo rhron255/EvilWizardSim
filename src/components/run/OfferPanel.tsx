@@ -16,6 +16,18 @@ import styles from './OfferPanel.module.css';
 
 export type OfferPanelProps = {
   offer: Offer;
+  /**
+   * The unprojected counterpart of `offer` — same options, same order,
+   * authored magnitudes rather than the run-projected ones `offer` may carry.
+   * Affordability gating (`gateFor` below) is computed against THIS, never
+   * against `offer`: a projected follower cost that floor-clamped from -15 to
+   * -8 would otherwise gate on -8, and a wizard with exactly 8 followers would
+   * see the card as pickable right up until the engine — which validates
+   * against the same authored magnitudes this prop carries — refuses it.
+   * Defaults to `offer` when omitted, which is correct wherever the caller's
+   * `offer` was never projected to begin with.
+   */
+  rawOffer?: Offer;
   run: RunState;
   content: ContentBundle;
   artifacts: Artifact[];
@@ -56,6 +68,7 @@ function gateFor(
 
 export function OfferPanel({
   offer,
+  rawOffer,
   run,
   content,
   artifacts,
@@ -66,10 +79,11 @@ export function OfferPanel({
   const titleId = useId();
   const listRef = useRef<HTMLDivElement>(null);
   const count = offer.options.length;
+  const gateOptions = (rawOffer ?? offer).options;
 
   const optionGates = useMemo(
-    () => offer.options.map((option) => gateFor(run, option, content)),
-    [offer.options, run, content],
+    () => gateOptions.map((option) => gateFor(run, option, content)),
+    [gateOptions, run, content],
   );
 
   const buttons = useCallback((): HTMLButtonElement[] => {
@@ -146,6 +160,7 @@ export function OfferPanel({
             <OptionCard
               key={`${offer.id}-${i}-${option.label}`}
               option={option}
+              rawOption={gateOptions[i]}
               index={i}
               artifacts={artifacts}
               factions={factions}
