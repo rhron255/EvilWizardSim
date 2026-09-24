@@ -127,6 +127,15 @@
   color: var(--ew-ink-dim);
 }
 
+.flavour {
+  margin: var(--ew-space-2) 0 0;
+  font-family: var(--ew-font-display);
+  font-style: italic;
+  font-size: var(--ew-size-sm);
+  line-height: 1.4;
+  color: var(--ew-ink-faint);
+}
+
 /* --------------------------------------------------------------------------
    The rarity ladder.
 

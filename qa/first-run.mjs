@@ -27,6 +27,21 @@ export async function dismissFirstRunGuide(page, { timeout = 1200 } = {}) {
 }
 
 /**
+ * A fresh profile has also never acknowledged ANY changelog version — every
+ * entry in `CHANGELOG` is "since your last visit" the moment `BUILD_VERSION`
+ * moves at all, which is every commit that bumps it (issue #67's own rule).
+ * The popup is modal, so it blocks the title screen's own controls the same
+ * way the first-run guide does; dismiss it the same way.
+ */
+export async function dismissChangelogPopup(page, { timeout = 1200 } = {}) {
+  const dismiss = page.getByRole('button', { name: /^dismiss$/i });
+  const open = await dismiss.isVisible({ timeout }).catch(() => false);
+  if (!open) return false;
+  await dismiss.click();
+  return true;
+}
+
+/**
  * Mark the guide seen BEFORE the app mounts, for probes that are measuring the
  * run screen rather than a new player's first minute. Call after `goto` of the
  * origin, then reload.

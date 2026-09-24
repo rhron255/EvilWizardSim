@@ -203,6 +203,62 @@ describe('DecisionPanel · the lich says so', () => {
   });
 });
 
+describe('DecisionPanel · the Relics navigation button', () => {
+  it('renders Relics as a plain caption toggle when no onOpenRelics is given', async () => {
+    const { container } = show(demoRun);
+    const relicsStat = stat(container, 'Relics');
+    const button = within(relicsStat).getByRole('button');
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    await userEvent.click(button);
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('calls onOpenRelics instead of toggling a caption when supplied', async () => {
+    const onOpenRelics = () => {
+      calls += 1;
+    };
+    let calls = 0;
+    render(
+      <DecisionPanel
+        run={demoRun}
+        factions={demoFactions}
+        offer={demoOffer}
+        artifacts={demoArtifacts}
+        content={demoContent}
+        disabled={false}
+        onChoose={() => {}}
+        defense={wards(120)}
+        onOpenRelics={onOpenRelics}
+      />,
+    );
+    const button = screen.getByRole('button', { name: /Relics · 5/ });
+    expect(button).not.toHaveAttribute('aria-expanded');
+    await userEvent.click(button);
+    expect(calls).toBe(1);
+  });
+
+  it('does not disturb the other four stats when onOpenRelics is supplied', async () => {
+    const rendered = render(
+      <DecisionPanel
+        run={demoRun}
+        factions={demoFactions}
+        offer={demoOffer}
+        artifacts={demoArtifacts}
+        content={demoContent}
+        disabled={false}
+        onChoose={() => {}}
+        defense={wards(120)}
+        onOpenRelics={() => {}}
+      />,
+    );
+    const container = rendered.container;
+    const button = within(stat(container, 'Loyalty')).getByRole('button');
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    await userEvent.click(button);
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+  });
+});
+
 describe('DecisionPanel · the offer', () => {
   it('renders the offer and its choices', () => {
     show(demoRun);

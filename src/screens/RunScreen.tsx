@@ -11,15 +11,32 @@
  * that used to live one tap away now sit where the tab controls themselves
  * used to be, directly below the masthead.
  *
+ * *Amended for the relic page (issue #78).* The decision content can be
+ * swapped for a relic page — what you hold, what you lost, the wards figure
+ * — one tap away on the Relics stat. This is not a second SCREEN and not a
+ * regression of "no tabs": there is no persistent nav, nothing above the
+ * masthead grew, the swap is local `view` state that is never persisted (a
+ * reload always lands back on the decision), and a player who never opens it
+ * sees no difference at all. It replaces only the decision content — the
+ * masthead and faction standings stay put, because those are ambient status,
+ * not "decision content" the issue meant to hide.
+ *
  * The tier color is published here as `--ew-tier` on the screen root, so the
  * focus rings and the badge speak with the same single voice
  * (wiki/06_reference_analysis.md, principle 6).
  */
 
+import { useEffect, useRef, useState } from 'react';
 import type { Artifact, Faction, Lair, Offer, RunState, ThemeId } from '../types';
 import type { Resolution } from '../components/run/resolution';
 import type { ContentBundle, DefenseReadout } from '../engine';
-import { DecisionPanel, FactionStandings, Masthead, ResolutionOverlay } from '../components/run';
+import {
+  DecisionPanel,
+  FactionStandings,
+  Masthead,
+  RelicPage,
+  ResolutionOverlay,
+} from '../components/run';
 import { themeAttr } from '../components/meta';
 import { tierColor, tierFor, tierGlow } from '../theme/tokens';
 import styles from './RunScreen.module.css';
@@ -59,6 +76,34 @@ export function RunScreen({
 }: RunScreenProps) {
   const tier = tierFor(run.notoriety);
 
+  // Not persisted anywhere — plain `useState` already gives the "a reload
+  // lands on the decision" behaviour the issue asks for, with nothing extra
+  // needed to keep it out of `RunState` or storage.
+  const [view, setView] = useState<'decision' | 'relics'>('decision');
+  const relicsButtonRef = useRef<HTMLButtonElement>(null);
+  const returningToDecision = useRef(false);
+
+  function openRelics() {
+    setView('relics');
+  }
+
+  function backToDecision() {
+    // The Relics button does not exist in the DOM until `DecisionPanel`
+    // re-mounts on the next render, so the focus call has to happen in an
+    // effect keyed on `view` rather than right here (issue #78 QA caught the
+    // stale-ref case: `relicsButtonRef.current` was still null at this exact
+    // point mid-click).
+    returningToDecision.current = true;
+    setView('decision');
+  }
+
+  useEffect(() => {
+    if (view === 'decision' && returningToDecision.current) {
+      returningToDecision.current = false;
+      relicsButtonRef.current?.focus({ preventScroll: true });
+    }
+  }, [view]);
+
   /**
    * Undeath outranks the wardrobe.
    *
@@ -88,16 +133,22 @@ export function RunScreen({
 
         <FactionStandings run={run} factions={factions} />
 
-        <DecisionPanel
-          run={run}
-          factions={factions}
-          offer={offer}
-          artifacts={artifacts}
-          content={content}
-          disabled={Boolean(resolution)}
-          onChoose={onChoose}
-          defense={defense}
-        />
+        {view === 'relics' ? (
+          <RelicPage run={run} artifacts={artifacts} factions={factions} defense={defense} onBack={backToDecision} />
+        ) : (
+          <DecisionPanel
+            run={run}
+            factions={factions}
+            offer={offer}
+            artifacts={artifacts}
+            content={content}
+            disabled={Boolean(resolution)}
+            onChoose={onChoose}
+            defense={defense}
+            onOpenRelics={openRelics}
+            relicsButtonRef={relicsButtonRef}
+          />
+        )}
       </main>
 
       {resolution && (
