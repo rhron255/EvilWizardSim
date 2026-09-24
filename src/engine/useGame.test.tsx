@@ -13,9 +13,9 @@ import type { ContentBundle } from './index';
 import { COLLECTION_KEY } from './constants';
 import { emptyCollection, migrateCollection, recordRun } from './persistence';
 import { useGame } from './useGame';
-import { fixtureContent } from './__fixtures__/content';
+import { REAL_CONTENT } from './testContent';
 
-const content: ContentBundle = fixtureContent;
+const content: ContentBundle = REAL_CONTENT;
 
 /** Straight to era one of a fresh career. */
 function beginRun() {

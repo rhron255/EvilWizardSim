@@ -7,7 +7,7 @@
  *
  *   npx tsx scripts/simulate.ts [--runs 2000] [--seed 1] [--eras <RUN_LENGTHS>]
  *                               [--policy random|safe|greedy|adaptive|courtier|lich]
- *                               [--fixtures] [--json] [--report-json <path>]
+ *                               [--json] [--report-json <path>]
  *
  * `--json` prints the population distribution and stops, for cheap slice-to-
  * slice diffing. `--report-json <path>` is the other one: it writes the WHOLE
@@ -16,12 +16,13 @@
  * turns a set of those into the PR comment. Both columns travel together on
  * purpose; see the comment on the writer at the bottom of this file.
  *
- * IT PLAYS THE REAL CATALOG BY DEFAULT. A harness that reports on
- * `src/engine/__fixtures__/content.ts` while the player plays `src/content/`
- * is not a measurement, it is a second opinion from a different game — and a
- * previous tuning pass shipped "All balance targets met" on numbers no real
- * run could reproduce. `--fixtures` still selects the synthetic bundle, but
- * only for engine-only regression work where content must be held constant.
+ * IT ONLY EVER PLAYS THE REAL CATALOG. A harness that could report on a
+ * synthetic fixture bundle while the player plays `src/content/` is not a
+ * measurement, it is a second opinion from a different game — a previous
+ * tuning pass once shipped "All balance targets met" on numbers no real run
+ * could reproduce. There is no engine-only fixture bundle any more (deleted
+ * project-wide); every test that used to hold content constant against it
+ * now plays the real catalog too, same as this harness always has by default.
  *
  * Targets (wiki/04):
  *   - Ascension 1-4% of runs
@@ -65,7 +66,6 @@ import {
   SEAL_MIN_NOTORIETY,
 } from '../src/engine/constants';
 import { LEADERSHIP_BY_FACTION, REPRISAL_BY_FACTION } from '../src/engine/endings';
-import { fixtureContent } from '../src/engine/__fixtures__/content';
 import {
   artifacts,
   endings,
@@ -77,7 +77,8 @@ import {
 } from '../src/content';
 import { mulberry32 } from '../src/engine/rng';
 
-const realContent: ContentBundle = {
+/** The bundle every function below plays against. Always the real catalog. */
+const content: ContentBundle = {
   factions,
   artifacts,
   lairs,
@@ -86,12 +87,7 @@ const realContent: ContentBundle = {
   offers,
   epithets,
 };
-
-const USE_FIXTURES = process.argv.includes('--fixtures');
-
-/** The bundle every function below plays against. Real content unless asked. */
-const content: ContentBundle = USE_FIXTURES ? fixtureContent : realContent;
-const contentLabel = USE_FIXTURES ? 'FIXTURE content bundle' : 'real content bundle (src/content)';
+const contentLabel = 'real content bundle (src/content)';
 
 // ---------------------------------------------------------------------------
 // Player policies

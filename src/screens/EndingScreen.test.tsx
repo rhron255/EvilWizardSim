@@ -20,19 +20,105 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { EndingId, Faction, RunState } from '../types';
+import type { EndingId, EraRecord, Faction, RunState } from '../types';
+import { artifacts } from '../content/artifacts';
 import { endings } from '../content/endings';
 import { factions } from '../content/factions';
+import { lairs } from '../content/lairs';
 import { heroNameFor } from '../content/heroes';
 import { ATTRIBUTION_LABEL, attributionFor } from '../components/meta';
 import { LEADERSHIP_BY_FACTION, REPRISAL_BY_FACTION } from '../engine';
-import {
-  demoArtifacts,
-  demoLairs,
-  demoRun,
-} from '../components/meta/__fixtures__/demo';
 import { EndingScreen } from './EndingScreen';
 import type { EndingScreenProps } from './EndingScreen';
+
+/**
+ * A completed 16-era run, built the same way `demo.ts` used to but from real
+ * lair and artifact ids — the seven relics recovered here (five held, two
+ * "went into the hole") and the ten lair tenures are the substrate the
+ * "what the career added" tests below walk, not assertion targets in
+ * themselves.
+ */
+const ERA_LAIR_IDS = [
+  'rented_cellar', 'rented_cellar',
+  'leaning_cottage', 'leaning_cottage',
+  'repossessed_mill', 'repossessed_mill',
+  'unfinished_tower', 'unfinished_tower',
+  'thornhollow_keep', 'thornhollow_keep',
+  // — prophecy fires at era index 10 —
+  'screaming_spire', 'screaming_spire',
+  'citadel_of_nine_winters', 'citadel_of_nine_winters', 'citadel_of_nine_winters',
+  'sunless_cathedral',
+];
+const ARTIFACTS_GAINED_BY_ERA: Record<number, string[]> = {
+  2: ['censer_of_small_regrets'],
+  4: ['unpaid_purse'],
+  6: ['shallow_worms_tooth'],
+  8: ['bone_crown'],
+  10: ['seed_that_remembers'],
+  12: ['confiscated_banner'],
+  14: ['antler_baton'],
+};
+const PROPHECY_ERA = 10;
+
+const demoEras: EraRecord[] = ERA_LAIR_IDS.map((lairId, i) => ({
+  eraIndex: i,
+  age: 20 + i * 5,
+  lairId,
+  notoriety: 20 + i * 4,
+  notorietyDelta: 4,
+  followers: 60 + i * 40,
+  artifactsGained: ARTIFACTS_GAINED_BY_ERA[i] ?? [],
+  deedSummary: `Era ${i + 1} deed.`,
+  offerId: `test_offer_${i}`,
+  optionLabel: `Option ${i + 1}`,
+  outcome: 'deterministic',
+  phase: i < PROPHECY_ERA ? 'ascent' : 'decline',
+}));
+
+const demoRun: RunState = {
+  id: 'run_test_0001',
+  seed: 741_853_902,
+  wizardName: 'Mordrach Vane',
+  epithet: 'of the Long Winter',
+  originId: 'expelled_pale_academy',
+  age: 95,
+  eraIndex: 15,
+  eraCount: 16,
+  phase: 'decline',
+  prophecyEra: PROPHECY_ERA,
+  erasSinceProphecy: 5,
+  notoriety: 71,
+  followers: 655,
+  lairId: 'sunless_cathedral',
+  knownArtifactIds: [],
+  heroBandSeen: 0,
+  // The Bone Crown and the Censer went into the hole. Everything else was kept.
+  heldArtifactIds: [
+    'unpaid_purse',
+    'shallow_worms_tooth',
+    'seed_that_remembers',
+    'confiscated_banner',
+    'antler_baton',
+  ],
+  factionStanding: {
+    ashen_covenant: 62,
+    gilded_hand: 18,
+    pale_academy: -48,
+    verdant_choir: 34,
+    crownlands: -76,
+    worm_below: 9,
+  },
+  apprentices: { count: 3, loyalty: 41 },
+  pactDebt: 4,
+  heroThreat: 63,
+  isLich: false,
+  goodActs: 0,
+  illActs: 0,
+  goodWizardVowed: false,
+  eras: demoEras,
+  seenOfferIds: demoEras.map((e) => e.offerId),
+  ending: 'slain_by_chosen_one',
+};
 
 /**
  * jsdom ships no `matchMedia`, so the screen's reduced-motion probe returns
@@ -123,8 +209,8 @@ function show(
     <EndingScreen
       run={run}
       ending={ending}
-      lairs={demoLairs}
-      artifacts={demoArtifacts}
+      lairs={lairs}
+      artifacts={artifacts}
       factions={cast}
       themeId="default"
       unlockedTheme={null}
@@ -305,15 +391,15 @@ describe('EndingScreen · what the career added', () => {
    */
   const recovered = [
     ...new Set([...demoRun.eras.flatMap((e) => e.artifactsGained), ...demoRun.heldArtifactIds]),
-  ].filter((id) => demoArtifacts.some((a) => a.id === id));
+  ].filter((id) => artifacts.some((a) => a.id === id));
 
   const withKnown = (knownArtifactIds: string[]) =>
     render(
       <EndingScreen
         run={{ ...demoRun, knownArtifactIds }}
         ending={endings.find((e) => e.id === 'slain_by_chosen_one')!}
-        lairs={demoLairs}
-        artifacts={demoArtifacts}
+        lairs={lairs}
+        artifacts={artifacts}
         factions={factions}
         themeId="default"
         unlockedTheme={null}

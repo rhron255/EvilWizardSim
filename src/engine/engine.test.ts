@@ -7,9 +7,12 @@
  * cannot fail is worse than no test, and this repo has shipped one that passed
  * on `0 == 0`.
  *
- * These run against the FIXTURE bundle where the rule is about mechanics, and
- * against real content where the rule is about the catalog, so that content
- * edits cannot quietly turn a mechanical test green.
+ * These all run against the REAL content catalog (`src/content/`, assembled
+ * via `./testContent`). A handful of offers are still authored inline where a
+ * test needs an EXACT boundary condition (an unaffordable option, a specific
+ * gamble shape) that would be fragile to locate in ~150 authored offers and
+ * would drift as content changes — those use a narrow synthetic `offers` list
+ * layered onto the real bundle, never a separate fake catalog.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -45,21 +48,12 @@ import type { ContentBundle } from './index';
 import { entitledLairRung, promoteLair } from './systems';
 import { applyStanding } from './effects';
 import { indexOf } from './content-port';
-import { fixtureContent } from './__fixtures__/content';
-import * as C from '../content';
+import { REAL_CONTENT } from './testContent';
 import type { Collection, Effect, FactionId, Offer, RunState } from '../types';
 
-const real: ContentBundle = {
-  factions: C.factions,
-  artifacts: C.artifacts,
-  lairs: C.lairs,
-  origins: C.origins,
-  endings: C.endings,
-  offers: C.offers,
-  epithets: C.epithets,
-};
+const real: ContentBundle = REAL_CONTENT;
 
-const start = (over: Partial<Parameters<typeof createRun>[0]> = {}, content = fixtureContent) =>
+const start = (over: Partial<Parameters<typeof createRun>[0]> = {}, content = real) =>
   createRun(
     { wizardName: 'Test', originId: content.origins[0].id, eraCount: 16, seed: 42, ...over },
     content,
@@ -111,8 +105,8 @@ function sumTerms(readout: ReturnType<typeof defenseReadout>): number {
 
 describe('determinism', () => {
   it('replays a seed to an identical run', () => {
-    const a = playOut(7, 0, fixtureContent);
-    const b = playOut(7, 0, fixtureContent);
+    const a = playOut(7, 0, real);
+    const b = playOut(7, 0, real);
     expect(b.at(-1)).toEqual(a.at(-1));
     expect(b.map((r) => r.notoriety)).toEqual(a.map((r) => r.notoriety));
   });
@@ -120,15 +114,15 @@ describe('determinism', () => {
   it('produces different runs for different seeds', () => {
     // Guards the test above: if the engine ignored the seed entirely, the
     // equality assertion would pass for the wrong reason.
-    const a = playOut(7, 0, fixtureContent).at(-1)!;
-    const b = playOut(99, 0, fixtureContent).at(-1)!;
+    const a = playOut(7, 0, real).at(-1)!;
+    const b = playOut(99, 0, real).at(-1)!;
     expect(b.eras.map((e) => e.offerId)).not.toEqual(a.eras.map((e) => e.offerId));
   });
 
   it('does not mutate the run it is given', () => {
     const run = start();
     const before = structuredClone(run);
-    resolveChoice(run, nextOffer(run, fixtureContent), 0, fixtureContent);
+    resolveChoice(run, nextOffer(run, real), 0, real);
     expect(run).toEqual(before);
   });
 });
@@ -207,7 +201,7 @@ describe('the odds rules', () => {
         },
       ],
     };
-    const { resolution } = resolveChoice(run, offer, 0, fixtureContent);
+    const { resolution } = resolveChoice(run, offer, 0, real);
     expect(resolution.odds).toBe(0.35);
     expect(resolution.roll).toBeGreaterThanOrEqual(0);
     expect(resolution.roll).toBeLessThan(1);
@@ -225,7 +219,7 @@ describe('the odds rules', () => {
       phase: 'any' as const,
       options: [{ kind: 'certain' as const, label: 'Do it', effects: [] as Effect[] }],
     };
-    const { resolution } = resolveChoice(run, offer, 0, fixtureContent);
+    const { resolution } = resolveChoice(run, offer, 0, real);
     expect(resolution.roll).toBeUndefined();
     expect(resolution.odds).toBeUndefined();
   });
@@ -241,7 +235,7 @@ describe('the odds rules', () => {
       phase: 'any' as const,
       options: [{ kind: 'certain' as const, label: 'Go', effects: [{ t: 'notoriety', v: 40 } as Effect] }],
     };
-    const { next, resolution } = resolveChoice(run, offer, 0, fixtureContent);
+    const { next, resolution } = resolveChoice(run, offer, 0, real);
     expect(next.notoriety).toBe(99);
     const applied = resolution.appliedEffects.find((e) => e.t === 'notoriety');
     expect(applied).toEqual({ t: 'notoriety', v: 9 });
@@ -323,14 +317,14 @@ describe('lichdom', () => {
     const run: RunState = {
       ...start(),
       followers: 120,
-      heldArtifactIds: fixtureContent.artifacts.slice(0, 3).map((a) => a.id),
+      heldArtifactIds: real.artifacts.slice(0, 3).map((a) => a.id),
       phase: 'decline',
       erasSinceProphecy: 3,
       eraIndex: 10,
     };
     expect(run.heldArtifactIds.length).toBe(3);
 
-    const { next } = resolveChoice(run, lichOffer, 0, fixtureContent);
+    const { next } = resolveChoice(run, lichOffer, 0, real);
     expect(next.isLich).toBe(true);
     expect(next.heldArtifactIds).toEqual([]);
     expect(next.followers).toBe(0);
@@ -341,7 +335,7 @@ describe('lichdom', () => {
     // The wiki calls lichdom "the branch that cheats the decline phase". There
     // is no decline left to cheat if the rite also stops the run.
     const run: RunState = { ...start(), phase: 'decline', eraIndex: 9, eraCount: 16 };
-    const { next } = resolveChoice(run, lichOffer, 0, fixtureContent);
+    const { next } = resolveChoice(run, lichOffer, 0, real);
     expect(next.ending).toBeUndefined();
   });
 
@@ -349,11 +343,11 @@ describe('lichdom', () => {
     const run: RunState = {
       ...start(),
       followers: 50,
-      heldArtifactIds: [fixtureContent.artifacts[0].id],
+      heldArtifactIds: [real.artifacts[0].id],
       phase: 'decline',
       eraIndex: 9,
     };
-    const { resolution } = resolveChoice(run, lichOffer, 0, fixtureContent);
+    const { resolution } = resolveChoice(run, lichOffer, 0, real);
     expect(resolution.appliedEffects.some((e) => e.t === 'loseArtifact')).toBe(true);
     expect(resolution.appliedEffects.some((e) => e.t === 'followers' && e.v === -50)).toBe(true);
   });
@@ -464,7 +458,7 @@ describe('endings', () => {
       phase: 'any' as const,
       options: [{ kind: 'certain' as const, label: 'Sign', effects: [{ t: 'pactDebt', v: 1 } as Effect] }],
     };
-    const { next } = resolveChoice(run, offer, 0, fixtureContent);
+    const { next } = resolveChoice(run, offer, 0, real);
     expect(next.ending).toBe('consumed_by_pact');
     expect(next.eraIndex).toBeLessThan(next.eraCount);
   });
@@ -510,57 +504,31 @@ describe('faction reprisals', () => {
     ...over,
   });
 
-  /**
-   * A bundle that DEFINES all six reprisal endings.
-   *
-   * `fixtureContent` declares only `sealed_in_gem` — the one reprisal that
-   * predates issue #14 — so a test run against it for any other faction
-   * exercises `reprisalEnding`'s bundle guard rather than the reprisal rule
-   * the tests below are named for. Mirrors the leadership suite's `crowned`
-   * bundle below, for the identical reason: the engine takes a
-   * `ContentBundle`, and content declaring fewer endings than the frozen
-   * contract lists is a legitimate pack, not a bug.
-   */
-  const withReprisals: ContentBundle = {
-    ...fixtureContent,
-    endings: [
-      ...fixtureContent.endings,
-      ...Object.values(REPRISAL_BY_FACTION)
-        .filter((id) => !fixtureContent.endings.some((e) => e.id === id))
-        .map((id) => ({
-          id,
-          name: `Fixture ${id}`,
-          summary: 'Fixture summary.',
-          hint: 'for a fixture',
-          narration: 'Fixture narration.',
-          rarity: 'rare' as const,
-          codaMode: 'fixed' as const,
-          coda: 'Fixture coda.',
-        })),
-    ],
-  };
+  // `real` already defines all six reprisal endings (issue #14 slice 2), so
+  // the tests below that only need the endings to EXIST play straight
+  // against it — no fabricated bundle required.
 
   it('gives every faction its own ending, not the Academy’s', () => {
     for (const [factionId, endingId] of Object.entries(REPRISAL_BY_FACTION)) {
       const run = at({ [factionId as FactionId]: SEAL_MAX_STANDING });
-      expect(checkEndings(run, withReprisals), factionId).toBe(endingId);
+      expect(checkEndings(run, real), factionId).toBe(endingId);
     }
   });
 
   it('needs BOTH halves, exactly as the seal did', () => {
     // Deep enough, not famous enough.
     expect(
-      checkEndings(at({ crownlands: SEAL_MAX_STANDING - 40 }, { notoriety: SEAL_MIN_NOTORIETY - 1 }), withReprisals),
+      checkEndings(at({ crownlands: SEAL_MAX_STANDING - 40 }, { notoriety: SEAL_MIN_NOTORIETY - 1 }), real),
     ).toBeUndefined();
     // Famous enough, one point short.
     expect(
-      checkEndings(at({ crownlands: SEAL_MAX_STANDING + 1 }), withReprisals),
+      checkEndings(at({ crownlands: SEAL_MAX_STANDING + 1 }), real),
     ).toBeUndefined();
   });
 
   it('fires the LOWEST standing when two factions are under at once', () => {
     const run = at({ gilded_hand: SEAL_MAX_STANDING - 2, worm_below: SEAL_MAX_STANDING - 30 });
-    expect(checkEndings(run, withReprisals)).toBe(REPRISAL_BY_FACTION.worm_below);
+    expect(checkEndings(run, real)).toBe(REPRISAL_BY_FACTION.worm_below);
   });
 
   it('breaks an exact tie by FACTION_ORDER, the same way every time', () => {
@@ -568,7 +536,7 @@ describe('faction reprisals', () => {
     const run = at({ [first]: SEAL_MAX_STANDING - 7, [second]: SEAL_MAX_STANDING - 7 });
     // `second` is earlier in FACTION_ORDER, so it wins the tie regardless of
     // which order the two were written into `factionStanding` above.
-    expect(checkEndings(run, withReprisals)).toBe(REPRISAL_BY_FACTION[second]);
+    expect(checkEndings(run, real)).toBe(REPRISAL_BY_FACTION[second]);
     expect(FACTION_ORDER.indexOf(second)).toBeLessThan(FACTION_ORDER.indexOf(first));
   });
 
@@ -576,14 +544,18 @@ describe('faction reprisals', () => {
    * The mirror of leadership's own guard test, for `reprisalEnding`'s copy of
    * the same rule (see the comment on `reprisalEnding` in `src/engine/
    * endings.ts`). Same run, same standings: a bundle that declares the id
-   * ends the run on it, and a bundle that does not — `fixtureContent`, which
-   * carries only `sealed_in_gem` — lets the career continue rather than
-   * crash the ending screen on an id it cannot render.
+   * ends the run on it, and a bundle that does not — built here by dropping
+   * just the Crownlands' reprisal out of the real catalog — lets the career
+   * continue rather than crash the ending screen on an id it cannot render.
    */
   it('never returns a reprisal the content bundle does not define', () => {
     const run = at({ crownlands: SEAL_MAX_STANDING });
-    expect(checkEndings(run, withReprisals)).toBe(REPRISAL_BY_FACTION.crownlands);
-    expect(checkEndings(run, fixtureContent)).toBeUndefined();
+    expect(checkEndings(run, real)).toBe(REPRISAL_BY_FACTION.crownlands);
+    const withoutCrownlandsReprisal: ContentBundle = {
+      ...real,
+      endings: real.endings.filter((e) => e.id !== REPRISAL_BY_FACTION.crownlands),
+    };
+    expect(checkEndings(run, withoutCrownlandsReprisal)).toBeUndefined();
   });
 
   /**
@@ -598,9 +570,9 @@ describe('faction reprisals', () => {
   it('fires in the ascent too, exactly like the Academy always could', () => {
     const ascent = { phase: 'ascent' as const, erasSinceProphecy: 0 };
     expect(
-      checkEndings(at({ verdant_choir: SEAL_MAX_STANDING - 30 }, ascent), withReprisals),
+      checkEndings(at({ verdant_choir: SEAL_MAX_STANDING - 30 }, ascent), real),
     ).toBe('turned_to_fertilizer');
-    expect(checkEndings(at({ pale_academy: SEAL_MAX_STANDING }, ascent), fixtureContent)).toBe(
+    expect(checkEndings(at({ pale_academy: SEAL_MAX_STANDING }, ascent), real)).toBe(
       'sealed_in_gem',
     );
   });
@@ -610,7 +582,7 @@ describe('faction reprisals', () => {
       { crownlands: SEAL_MAX_STANDING },
       { erasSinceProphecy: 0 },
     );
-    expect(checkEndings(crossing, withReprisals)).toBe(REPRISAL_BY_FACTION.crownlands);
+    expect(checkEndings(crossing, real)).toBe(REPRISAL_BY_FACTION.crownlands);
   });
 
   it('does not outrank the blade', () => {
@@ -618,7 +590,7 @@ describe('faction reprisals', () => {
     // because generalising the branch moved it, and a reordering here would
     // silently redistribute two endings' rates.
     const run = at({ pale_academy: SEAL_MAX_STANDING }, { heroThreat: 9999 });
-    expect(checkEndings(run, fixtureContent)).toBe('slain_by_chosen_one');
+    expect(checkEndings(run, real)).toBe('slain_by_chosen_one');
   });
 });
 
@@ -638,25 +610,13 @@ describe('faction leadership', () => {
    * `src/content` now defines them too (issue #14 slice 2), but this suite
    * stays fixture-driven on purpose: the engine takes a `ContentBundle`, and a
    * test that only worked against the real one would say nothing about a pack
-   * that ships different — or no — leadership prose. The last test in this
-   * block covers that other case, where the bundle declares none.
+   * that ships different — or no — leadership prose.
+   *
+   * `real` already defines all six leadership endings, so these tests play
+   * straight against it — no fabricated bundle required. The last test in
+   * this block covers the other case, where a bundle declares none, by
+   * dropping just one leadership ending out of the real catalog.
    */
-  const crowned: ContentBundle = {
-    ...fixtureContent,
-    endings: [
-      ...fixtureContent.endings,
-      ...Object.values(LEADERSHIP_BY_FACTION).map((id) => ({
-        id,
-        name: `Fixture ${id}`,
-        summary: 'Fixture summary.',
-        hint: 'for a fixture',
-        narration: 'Fixture narration.',
-        rarity: 'rare' as const,
-        codaMode: 'fixed' as const,
-        coda: 'Fixture coda.',
-      })),
-    ],
-  };
 
   /** A career that reached the age limit, with the given standings. */
   const retiring = (
@@ -677,7 +637,7 @@ describe('faction leadership', () => {
       // it is covered on its own below.
       if (endingId === 'lichdom') continue;
       const run = retiring({ [factionId as FactionId]: DEVOTION_STANDING + PATRON_MARGIN });
-      expect(checkEndings(run, crowned), factionId).toBe(endingId);
+      expect(checkEndings(run, real), factionId).toBe(endingId);
     }
   });
 
@@ -689,7 +649,7 @@ describe('faction leadership', () => {
       pale_academy: DEVOTION_STANDING + 4,
       crownlands: DEVOTION_STANDING,
     });
-    expect(checkEndings(run, crowned)).toBe('retired_to_swamp');
+    expect(checkEndings(run, real)).toBe('retired_to_swamp');
   });
 
   it('needs the margin, at the boundary in both directions', () => {
@@ -697,22 +657,22 @@ describe('faction leadership', () => {
       verdant_choir: DEVOTION_STANDING + PATRON_MARGIN,
       gilded_hand: DEVOTION_STANDING,
     });
-    expect(checkEndings(dominant, crowned)).toBe(LEADERSHIP_BY_FACTION.verdant_choir);
+    expect(checkEndings(dominant, real)).toBe(LEADERSHIP_BY_FACTION.verdant_choir);
 
     const oneShort = retiring({
       verdant_choir: DEVOTION_STANDING + PATRON_MARGIN - 1,
       gilded_hand: DEVOTION_STANDING,
     });
-    expect(checkEndings(oneShort, crowned)).toBe('retired_to_swamp');
+    expect(checkEndings(oneShort, real)).toBe('retired_to_swamp');
   });
 
   it('needs devotion, at the boundary in both directions', () => {
     // Borrowed, never invented: `DEVOTION_STANDING` is the same threshold that
     // opens a reliquary, so leadership is not a second number to learn.
-    expect(checkEndings(retiring({ crownlands: DEVOTION_STANDING }), crowned)).toBe(
+    expect(checkEndings(retiring({ crownlands: DEVOTION_STANDING }), real)).toBe(
       LEADERSHIP_BY_FACTION.crownlands,
     );
-    expect(checkEndings(retiring({ crownlands: DEVOTION_STANDING - 1 }), crowned)).toBe(
+    expect(checkEndings(retiring({ crownlands: DEVOTION_STANDING - 1 }), real)).toBe(
       'retired_to_swamp',
     );
   });
@@ -726,7 +686,7 @@ describe('faction leadership', () => {
       [second]: DEVOTION_STANDING + PATRON_MARGIN,
     });
     // A tie means no margin over the runner-up, so nobody is crowned at all.
-    expect(checkEndings(run, crowned)).toBe('retired_to_swamp');
+    expect(checkEndings(run, real)).toBe('retired_to_swamp');
     expect(FACTION_ORDER.indexOf(second)).toBeLessThan(FACTION_ORDER.indexOf(first));
   });
 
@@ -737,7 +697,7 @@ describe('faction leadership', () => {
       { ashen_covenant: DEVOTION_STANDING + PATRON_MARGIN },
       { isLich: true },
     );
-    expect(checkEndings(run, crowned)).toBe('lichdom');
+    expect(checkEndings(run, real)).toBe('lichdom');
   });
 
   /**
@@ -755,17 +715,21 @@ describe('faction leadership', () => {
   it('does not crown a standing-only devotee of the Worm Below', () => {
     const run = retiring({ worm_below: DEVOTION_STANDING + PATRON_MARGIN });
     expect(run.isLich).toBe(false);
-    expect(checkEndings(run, crowned)).toBe('retired_to_swamp');
+    expect(checkEndings(run, real)).toBe('retired_to_swamp');
   });
 
   it('never returns an ending the content bundle does not define', () => {
     // The guard that makes this branch safe for any pack — and for this repo
     // today, where the ids exist and the prose does not. Same run, same
-    // standings, a bundle that declares no crowns: the career retires instead
-    // of ending on a card that cannot be rendered.
+    // standings, a bundle that lacks the Covenant's crown: the career retires
+    // instead of ending on a card that cannot be rendered.
     const run = retiring({ ashen_covenant: DEVOTION_STANDING + PATRON_MARGIN });
-    expect(checkEndings(run, crowned)).toBe(LEADERSHIP_BY_FACTION.ashen_covenant);
-    expect(checkEndings(run, fixtureContent)).toBe('retired_to_swamp');
+    expect(checkEndings(run, real)).toBe(LEADERSHIP_BY_FACTION.ashen_covenant);
+    const withoutAshenCrown: ContentBundle = {
+      ...real,
+      endings: real.endings.filter((e) => e.id !== LEADERSHIP_BY_FACTION.ashen_covenant),
+    };
+    expect(checkEndings(run, withoutAshenCrown)).toBe('retired_to_swamp');
   });
 });
 
@@ -897,7 +861,7 @@ describe('systemic disclosure', () => {
    */
   it('does not move pact debt on an era whose card never mentioned it', () => {
     const run = declining({ pactDebt: PACT_LIMIT - 1 });
-    const { next, resolution } = resolveChoice(run, quiet, 0, fixtureContent);
+    const { next, resolution } = resolveChoice(run, quiet, 0, real);
 
     expect(next.pactDebt).toBe(PACT_LIMIT - 1);
     expect(next.ending).toBeUndefined();
@@ -914,7 +878,7 @@ describe('systemic disclosure', () => {
   it('carries a debt through the entire decline without it growing', () => {
     let run = declining({ pactDebt: PACT_LIMIT - 1 });
     for (let i = 0; i < 6 && !run.ending; i++) {
-      run = resolveChoice(run, quiet, 0, fixtureContent).next;
+      run = resolveChoice(run, quiet, 0, real).next;
       expect(run.pactDebt).toBe(PACT_LIMIT - 1);
     }
     expect(run.ending).not.toBe('consumed_by_pact');
@@ -922,7 +886,7 @@ describe('systemic disclosure', () => {
 
   it('reports the loyalty drift that ends the run', () => {
     const run = declining({ apprentices: { count: 3, loyalty: 18 } });
-    const { next, resolution } = resolveChoice(run, quiet, 0, fixtureContent);
+    const { next, resolution } = resolveChoice(run, quiet, 0, real);
 
     expect(next.ending).toBe('betrayed_by_apprentice');
     expect(resolution.systemic).toContainEqual({ t: 'loyaltyDrift', v: -5, loyalty: 13 });
@@ -931,7 +895,7 @@ describe('systemic disclosure', () => {
   it('stays silent during the ascent, when neither tick fires', () => {
     const run = { ...start(), apprentices: { count: 3, loyalty: 40 } };
     expect(run.phase).toBe('ascent');
-    const { resolution } = resolveChoice(run, quiet, 0, fixtureContent);
+    const { resolution } = resolveChoice(run, quiet, 0, real);
     expect(resolution.systemic).toEqual([]);
   });
 
@@ -940,7 +904,7 @@ describe('systemic disclosure', () => {
     // gradual and survivable; these two ticks are lethal and countable, which
     // is the whole distinction the section rests on.
     const run = declining({ notoriety: 60, apprentices: { count: 3, loyalty: 60 } });
-    const { next, resolution } = resolveChoice(run, quiet, 0, fixtureContent);
+    const { next, resolution } = resolveChoice(run, quiet, 0, real);
     expect(next.heroThreat).toBeGreaterThan(0);
     expect(next.notoriety).toBeLessThan(60);
     expect(resolution.systemic.map((c) => c.t)).toEqual(['loyaltyDrift']);
@@ -959,7 +923,7 @@ describe('systemic disclosure', () => {
         },
       ],
     };
-    const { next, resolution } = resolveChoice(declining({ pactDebt: 6 }), ends, 0, fixtureContent);
+    const { next, resolution } = resolveChoice(declining({ pactDebt: 6 }), ends, 0, real);
     expect(next.ending).toBe('retired_to_swamp');
     expect(next.pactDebt).toBe(6);
     expect(resolution.systemic).toEqual([]);
@@ -1021,7 +985,7 @@ describe('affordability (issue #41 follow-up)', () => {
   // A minimal, synthetic catalog rather than the real one: these tests need
   // to construct the EXACT boundary (an offer whose only certain option is
   // currently unaffordable), which is fragile to chase through 150+ authored
-  // offers and would drift as content changes. Reuses fixtureContent's
+  // offers and would drift as content changes. Reuses real's
   // factions/artifacts/lairs (satisfies `indexOf`'s lookups) with a
   // deliberately narrow `offers` list.
   // The ONLY certain option costs stock; the second option is a gamble, which
@@ -1053,7 +1017,7 @@ describe('affordability (issue #41 follow-up)', () => {
     ],
   };
 
-  const costlyOnlyContent: ContentBundle = { ...fixtureContent, offers: [costlyOffer] };
+  const costlyOnlyContent: ContentBundle = { ...real, offers: [costlyOffer] };
 
   it('excludes an offer from the pool when its only certain option is currently unaffordable', () => {
     const broke = start({ seed: 1 }, costlyOnlyContent);
@@ -1131,7 +1095,7 @@ describe('issue #61: an unaffordable-but-interesting option is revisitable, not 
       },
     ],
   };
-  const bundle: ContentBundle = { ...fixtureContent, offers: [twoOption] };
+  const bundle: ContentBundle = { ...real, offers: [twoOption] };
 
   it('stays in the pool (at reduced weight) while its interesting option is unaffordable, rather than being excluded', () => {
     const broke = start({ seed: 1 }, bundle);

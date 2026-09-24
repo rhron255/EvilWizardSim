@@ -8,15 +8,54 @@ import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { RunState } from '../../types';
-import { demoFactions, demoRun } from './__fixtures__/demo';
+import { factions } from '../../content';
 import { FactionStandings } from './FactionStandings';
 
-const show = (run: RunState) => render(<FactionStandings run={run} factions={demoFactions} />);
+// A mid-decline run's standing, matching what `demo.ts` used to hand-author:
+// the Ashen Covenant is highest, the Crownlands lowest.
+const run: RunState = {
+  id: 'run_test_0001',
+  seed: 448271,
+  wizardName: 'Malvorn Ashgrave',
+  epithet: 'the Unpaid Debt',
+  originId: 'expelled_pale_academy',
+  age: 75,
+  eraIndex: 11,
+  eraCount: 18,
+  phase: 'decline',
+  prophecyEra: 9,
+  erasSinceProphecy: 2,
+  notoriety: 81,
+  followers: 1284,
+  lairId: 'sunless_cathedral',
+  knownArtifactIds: [],
+  heldArtifactIds: [],
+  heroBandSeen: 0,
+  factionStanding: {
+    ashen_covenant: 46,
+    gilded_hand: 12,
+    pale_academy: -38,
+    verdant_choir: -20,
+    crownlands: -61,
+    worm_below: 4,
+  },
+  apprentices: { count: 3, loyalty: 41 },
+  pactDebt: 2,
+  heroThreat: 34,
+  isLich: false,
+  goodActs: 0,
+  illActs: 0,
+  goodWizardVowed: false,
+  eras: [],
+  seenOfferIds: [],
+};
+
+const show = (r: RunState) => render(<FactionStandings run={r} factions={factions} />);
 
 describe('FactionStandings · collapsed by default', () => {
   it('starts showing only the two most extreme factions', () => {
-    // demoRun: Ashen Covenant +46 (highest), Crownlands -61 (lowest).
-    show(demoRun);
+    // run: Ashen Covenant +46 (highest), Crownlands -61 (lowest).
+    show(run);
     const strip = screen.getByRole('list', { name: 'Faction standing' });
     const rows = within(strip).getAllByRole('listitem');
     expect(rows).toHaveLength(2);
@@ -25,13 +64,13 @@ describe('FactionStandings · collapsed by default', () => {
   });
 
   it('offers a labeled toggle to see the rest', () => {
-    show(demoRun);
+    show(run);
     const toggle = screen.getByRole('button', { name: /show all six factions/i });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('expands to all six on tap, and back on a second tap', async () => {
-    show(demoRun);
+    show(run);
     const toggle = screen.getByRole('button', { name: /show all six factions/i });
 
     await userEvent.click(toggle);
@@ -49,7 +88,7 @@ describe('FactionStandings · collapsed by default', () => {
 
 describe('FactionStandings · the per-row note', () => {
   it('is hidden while collapsed — DecisionPanel\'s ambient line already says it', () => {
-    show(demoRun);
+    show(run);
     const strip = screen.getByRole('list', { name: 'Faction standing' });
     expect(
       within(strip).queryByText(/offers surface more often|escorted over the border/),
@@ -57,7 +96,7 @@ describe('FactionStandings · the per-row note', () => {
   });
 
   it('comes back once expanded, where reading all six is the point', async () => {
-    show(demoRun);
+    show(run);
     await userEvent.click(screen.getByRole('button', { name: /show all six factions/i }));
     const strip = screen.getByRole('list', { name: 'Faction standing' });
     expect(within(strip).getByText(/offers surface more often/)).toBeInTheDocument();
@@ -76,7 +115,7 @@ describe('FactionStandings · the per-row note', () => {
  */
 describe('FactionStandings · no second alarm line', () => {
   it('never prints a reprisal sentence of its own', () => {
-    show(demoRun);
+    show(run);
     expect(screen.queryByText(/is done deliberating|from the gem|from the writ/)).toBeNull();
   });
 });

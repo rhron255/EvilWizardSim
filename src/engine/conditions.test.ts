@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { conditionMet, impliedGatesOf } from './conditions';
-import { fixtureContent } from './__fixtures__/content';
+import { REAL_CONTENT } from './testContent';
 import type { Effect, OfferOption, RunState } from '../types';
 
 const run = (heldArtifactIds: string[]): RunState =>
@@ -49,23 +49,23 @@ const run = (heldArtifactIds: string[]): RunState =>
 
 describe('minArtifacts', () => {
   it('fails below the threshold', () => {
-    expect(conditionMet(run(['a']), { c: 'minArtifacts', v: 3 }, fixtureContent)).toBe(false);
+    expect(conditionMet(run(['a']), { c: 'minArtifacts', v: 3 }, REAL_CONTENT)).toBe(false);
   });
 
   it('passes at exactly the threshold', () => {
-    expect(conditionMet(run(['a', 'b', 'c']), { c: 'minArtifacts', v: 3 }, fixtureContent)).toBe(
+    expect(conditionMet(run(['a', 'b', 'c']), { c: 'minArtifacts', v: 3 }, REAL_CONTENT)).toBe(
       true,
     );
   });
 
   it('passes above the threshold', () => {
     expect(
-      conditionMet(run(['a', 'b', 'c', 'd']), { c: 'minArtifacts', v: 3 }, fixtureContent),
+      conditionMet(run(['a', 'b', 'c', 'd']), { c: 'minArtifacts', v: 3 }, REAL_CONTENT),
     ).toBe(true);
   });
 
   it('a threshold of zero is always met, same as an empty requires list', () => {
-    expect(conditionMet(run([]), { c: 'minArtifacts', v: 0 }, fixtureContent)).toBe(true);
+    expect(conditionMet(run([]), { c: 'minArtifacts', v: 0 }, REAL_CONTENT)).toBe(true);
   });
 });
 

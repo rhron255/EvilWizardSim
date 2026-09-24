@@ -7,8 +7,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Changelog } from '../types';
-import { demoCollection } from '../components/meta/__fixtures__/demo';
+import { emptyCollection } from '../engine';
 import { ChangelogScreen } from './ChangelogScreen';
+
+const demoCollection = emptyCollection();
 
 const CATALOG: Changelog = {
   '2026-01-01T00:00:00Z': { summary: 'First summary.', details: ['First detail.'] },

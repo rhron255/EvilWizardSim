@@ -5,12 +5,81 @@
  */
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import type { RunState } from '../../types';
-import { demoEarlyRun, demoLairs, demoRun } from './__fixtures__/demo';
+import type { EraRecord, RunState } from '../../types';
+import { lairs } from '../../content';
 import { Masthead } from './Masthead';
 
+const eras: EraRecord[] = Array.from({ length: 11 }, (_, i) => ({
+  eraIndex: i,
+  age: 20 + i * 5,
+  lairId: 'sunless_cathedral',
+  notoriety: 9 + i * 7,
+  notorietyDelta: 7,
+  followers: 2 + i * 100,
+  artifactsGained: [],
+  deedSummary: `Era ${i} deed.`,
+  offerId: `era_${i}_offer`,
+  optionLabel: 'Chose an option',
+  outcome: 'deterministic',
+  phase: i < 9 ? 'ascent' : 'decline',
+}));
+
+const demoRun: RunState = {
+  id: 'run_test_0001',
+  seed: 448271,
+  wizardName: 'Malvorn Ashgrave',
+  epithet: 'the Unpaid Debt',
+  originId: 'expelled_pale_academy',
+  age: 75,
+  eraIndex: 11,
+  eraCount: 18,
+  phase: 'decline',
+  prophecyEra: 9,
+  erasSinceProphecy: 2,
+  notoriety: 81,
+  followers: 1284,
+  lairId: 'sunless_cathedral',
+  knownArtifactIds: [],
+  heldArtifactIds: [],
+  heroBandSeen: 0,
+  factionStanding: {
+    ashen_covenant: 46,
+    gilded_hand: 12,
+    pale_academy: -38,
+    verdant_choir: -20,
+    crownlands: -61,
+    worm_below: 4,
+  },
+  apprentices: { count: 3, loyalty: 41 },
+  pactDebt: 2,
+  heroThreat: 34,
+  isLich: false,
+  goodActs: 0,
+  illActs: 0,
+  goodWizardVowed: false,
+  eras,
+  seenOfferIds: eras.map((e) => e.offerId),
+};
+
+const demoEarlyRun: RunState = {
+  ...demoRun,
+  age: 25,
+  eraIndex: 1,
+  phase: 'ascent',
+  notoriety: 9,
+  followers: 2,
+  lairId: 'rented_cellar',
+  heldArtifactIds: [],
+  heroBandSeen: 0,
+  apprentices: { count: 0, loyalty: 0 },
+  pactDebt: 0,
+  heroThreat: 0,
+  erasSinceProphecy: 0,
+  eras: eras.slice(0, 1),
+};
+
 const show = (run: RunState, hasAscensionTrophy = false) =>
-  render(<Masthead run={run} lairs={demoLairs} hasAscensionTrophy={hasAscensionTrophy} />);
+  render(<Masthead run={run} lairs={lairs} hasAscensionTrophy={hasAscensionTrophy} />);
 
 describe('Masthead · identity', () => {
   it('prints the name, the epithet and the age', () => {
@@ -36,7 +105,7 @@ describe('Masthead · identity', () => {
   it('names the era out of the total, and the lair', () => {
     show(demoRun);
     expect(screen.getByText('Era 12 of 18')).toBeInTheDocument();
-    expect(screen.getByText('The Cathedral of Ash')).toBeInTheDocument();
+    expect(screen.getByText('The Sunless Cathedral')).toBeInTheDocument();
   });
 
   it('shows the Ascension slot from era one, unearned', () => {

@@ -61,7 +61,7 @@ npm run typecheck        # tsc -b --noEmit
 npm run test             # vitest, single pass
 npm run lint             # eslint, zero warnings tolerated
 npm run validate:content # faction refs, option counts, disclosed effects
-npm run sim              # 2000-run balance report; --fixtures for engine-only
+npm run sim              # 2000-run balance report, always against real content
 ```
 
 CI posts the balance numbers on every PR as one comment that updates in place

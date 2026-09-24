@@ -21,9 +21,28 @@ import { artifacts } from '../content/artifacts';
 import { factions } from '../content/factions';
 import { endings } from '../content/endings';
 import { mechanics } from '../content/mechanics';
-import { demoCollection, demoEmptyCollection } from '../components/meta/__fixtures__/demo';
+import { emptyCollection } from '../engine';
 import type { Collection } from '../types';
 import { NecrolexiconScreen } from './NecrolexiconScreen';
+
+/** A veteran's collection: some relics found, three endings seen. */
+const demoCollection: Collection = {
+  ...emptyCollection(),
+  discoveredArtifactIds: [
+    artifacts[0].id,
+    artifacts[1].id,
+    artifacts[2].id,
+  ],
+  endingsSeen: ['slain_by_chosen_one', 'retired_to_swamp', 'betrayed_by_apprentice'],
+  runsCompleted: 23,
+  tutorialSeen: true,
+  lastWizardName: 'Malvorn Ashgrave',
+  bestNotoriety: 88,
+  selectedThemeId: 'retired_to_swamp',
+};
+
+/** Run one: nothing found yet. The gap is the point. */
+const demoEmptyCollection: Collection = emptyCollection();
 
 const show = (collection: Collection) => {
   const onBack = vi.fn();

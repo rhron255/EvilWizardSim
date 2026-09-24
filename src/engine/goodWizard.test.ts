@@ -16,10 +16,10 @@ import { checkEndings, createRun, decayFor, defenseOf, threatGainFor } from './i
 import type { ContentBundle } from './index';
 import { applyEffects, draftOf, projectEffects } from './effects';
 import { conditionMet } from './conditions';
-import { fixtureContent } from './__fixtures__/content';
+import { REAL_CONTENT } from './testContent';
 import type { Condition, Offer, RunState } from '../types';
 
-const content: ContentBundle = fixtureContent;
+const content: ContentBundle = REAL_CONTENT;
 
 const start = (over: Partial<RunState> = {}): RunState => ({
   ...createRun({ wizardName: 'Test', originId: content.origins[0].id, eraCount: 16, seed: 7 }, content),

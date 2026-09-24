@@ -21,9 +21,9 @@ import { describe, expect, it } from 'vitest';
 import type { Collection, RunState } from '../types';
 import { gameReducer } from './useGame';
 import { emptyCollection } from './persistence';
-import { fixtureContent } from './__fixtures__/content';
+import { REAL_CONTENT } from './testContent';
 
-const content = fixtureContent;
+const content = REAL_CONTENT;
 
 /**
  * `GameState` is internal to `useGame`, so it is recovered from the reducer's

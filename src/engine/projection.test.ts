@@ -18,7 +18,7 @@ import { describe, expect, it } from 'vitest';
 import type { Effect, RunState } from '../types';
 import { applyEffects, draftOf, projectEffects } from './effects';
 import { createRun } from './run';
-import { fixtureContent as content } from './__fixtures__/content';
+import { REAL_CONTENT as content } from './testContent';
 
 const run = (over: Partial<RunState> = {}): RunState => ({
   ...createRun({ wizardName: 'Test', originId: content.origins[0].id, eraCount: 16, seed: 7 }, content),

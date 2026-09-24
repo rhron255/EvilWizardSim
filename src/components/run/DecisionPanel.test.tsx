@@ -10,16 +10,150 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ContentBundle, DefenseReadout } from '../../engine';
 import { DEF_LICH } from '../../engine';
-import type { Offer, RunState } from '../../types';
-import {
-  demoArtifacts,
-  demoContent,
-  demoEarlyRun,
-  demoFactions,
-  demoOffer,
-  demoRun,
-} from './__fixtures__/demo';
+import type { EraRecord, Offer, RunState } from '../../types';
+import * as C from '../../content';
 import { DecisionPanel } from './DecisionPanel';
+
+const content: ContentBundle = {
+  factions: C.factions,
+  artifacts: C.artifacts,
+  lairs: C.lairs,
+  origins: C.origins,
+  endings: C.endings,
+  offers: C.offers,
+  epithets: C.epithets,
+};
+
+// The scenario `demo.ts` used to hand-author, rebuilt against real content
+// ids: a mid-decline run, prophecy already fired, Notoriety just past the
+// Kingdom-Level threshold and starting to erode.
+const eras: EraRecord[] = Array.from({ length: 11 }, (_, i) => ({
+  eraIndex: i,
+  age: 20 + i * 5,
+  lairId: 'sunless_cathedral',
+  notoriety: 9 + i * 7,
+  notorietyDelta: 7,
+  followers: 2 + i * 100,
+  artifactsGained: i === 7 ? ['bone_crown'] : [],
+  deedSummary: `Era ${i} deed.`,
+  offerId: `era_${i}_offer`,
+  optionLabel: 'Chose an option',
+  outcome: 'deterministic',
+  phase: i < 9 ? 'ascent' : 'decline',
+}));
+
+const demoRun: RunState = {
+  id: 'run_test_0001',
+  seed: 448271,
+  wizardName: 'Malvorn Ashgrave',
+  epithet: 'the Unpaid Debt',
+  originId: 'expelled_pale_academy',
+  age: 75,
+  eraIndex: 11,
+  eraCount: 18,
+  phase: 'decline',
+  prophecyEra: 9,
+  erasSinceProphecy: 2,
+  notoriety: 81,
+  followers: 1284,
+  lairId: 'sunless_cathedral',
+  knownArtifactIds: ['ninth_clause_brazier', 'antler_baton'],
+  heldArtifactIds: [
+    'ninth_clause_brazier',
+    'antler_baton',
+    'cinder_testament',
+    'bone_crown',
+    'root_of_the_standing_vote',
+  ],
+  heroBandSeen: 0,
+  factionStanding: {
+    ashen_covenant: 46,
+    gilded_hand: 12,
+    pale_academy: -38,
+    verdant_choir: -20,
+    crownlands: -61,
+    worm_below: 4,
+  },
+  apprentices: { count: 3, loyalty: 41 },
+  pactDebt: 2,
+  heroThreat: 34,
+  isLich: false,
+  goodActs: 0,
+  illActs: 0,
+  goodWizardVowed: false,
+  eras,
+  seenOfferIds: eras.map((e) => e.offerId),
+};
+
+const demoEarlyRun: RunState = {
+  ...demoRun,
+  age: 25,
+  eraIndex: 1,
+  phase: 'ascent',
+  notoriety: 9,
+  followers: 2,
+  lairId: 'rented_cellar',
+  heldArtifactIds: [],
+  heroBandSeen: 0,
+  apprentices: { count: 0, loyalty: 0 },
+  pactDebt: 0,
+  heroThreat: 0,
+  erasSinceProphecy: 0,
+  eras: eras.slice(0, 1),
+};
+
+const demoOffer: Offer = {
+  id: 'covenant_courier',
+  title: 'The Covenant Sends a Courier',
+  body:
+    'He has walked four days to hand you an envelope, and he would like you to know that. ' +
+    'Inside: an offer, a wax seal shaped like a molar, and an itemised invoice for the walking.',
+  phase: 'decline',
+  factionId: 'ashen_covenant',
+  options: [
+    {
+      kind: 'gamble',
+      label: "Accept the Covenant's offer",
+      odds: 0.35,
+      onSuccess: [
+        { t: 'notoriety', v: 12 },
+        { t: 'artifact', artifactId: 'bone_crown' },
+      ],
+      onFailure: [
+        { t: 'apprentices', v: -1 },
+        { t: 'pactDebt', v: 1 },
+      ],
+      successText: 'The molar seal opens for you. Something on the other side signs its half.',
+      failureText: 'Your least favourite apprentice is now the Covenant’s least favourite apprentice.',
+    },
+    {
+      kind: 'certain',
+      label: 'Pay the courier and burn the envelope',
+      effects: [
+        { t: 'followers', v: -60 },
+        { t: 'standing', factionId: 'ashen_covenant', v: -8 },
+        { t: 'heroThreat', v: -3 },
+      ],
+      resultText: 'The envelope burns green, which the courier says is normal.',
+    },
+    {
+      kind: 'gamble',
+      label: 'Read clause nine aloud, in the courier’s hearing',
+      odds: 0.72,
+      onSuccess: [
+        { t: 'pactDebt', v: -1 },
+        { t: 'standing', factionId: 'ashen_covenant', v: 6 },
+      ],
+      onFailure: [
+        { t: 'notoriety', v: -5 },
+        { t: 'loyalty', v: -10 },
+      ],
+      successText: 'Clause nine, read aloud, turns out to be void. The courier is furious about it.',
+      failureText: 'Clause nine, read aloud, turns out to be about you.',
+    },
+  ],
+  weight: 2,
+};
 
 const wards = (total: number): DefenseReadout => ({
   total,
@@ -36,15 +170,15 @@ const show = (
   defense: DefenseReadout | null = wards(120),
   offer: Offer | null = demoOffer,
   disabled = false,
-  content: ContentBundle = demoContent,
+  bundle: ContentBundle = content,
 ) =>
   render(
     <DecisionPanel
       run={run}
-      factions={demoFactions}
+      factions={C.factions}
       offer={offer}
-      artifacts={demoArtifacts}
-      content={content}
+      artifacts={C.artifacts}
+      content={bundle}
       disabled={disabled}
       onChoose={() => {}}
       defense={defense}
@@ -221,10 +355,10 @@ describe('DecisionPanel · the Relics navigation button', () => {
     render(
       <DecisionPanel
         run={demoRun}
-        factions={demoFactions}
+        factions={C.factions}
         offer={demoOffer}
-        artifacts={demoArtifacts}
-        content={demoContent}
+        artifacts={C.artifacts}
+        content={content}
         disabled={false}
         onChoose={() => {}}
         defense={wards(120)}
@@ -241,10 +375,10 @@ describe('DecisionPanel · the Relics navigation button', () => {
     const rendered = render(
       <DecisionPanel
         run={demoRun}
-        factions={demoFactions}
+        factions={C.factions}
         offer={demoOffer}
-        artifacts={demoArtifacts}
-        content={demoContent}
+        artifacts={C.artifacts}
+        content={content}
         disabled={false}
         onChoose={() => {}}
         defense={wards(120)}

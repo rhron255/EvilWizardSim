@@ -13,9 +13,24 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { artifacts } from '../content/artifacts';
-import { demoCollection, demoEmptyCollection } from '../components/meta/__fixtures__/demo';
+import { emptyCollection } from '../engine';
 import type { Collection } from '../types';
 import { TitleScreen } from './TitleScreen';
+
+/** A veteran's collection: some relics found, a best rank already earned. */
+const demoCollection: Collection = {
+  ...emptyCollection(),
+  discoveredArtifactIds: [artifacts[0].id, artifacts[1].id, artifacts[2].id],
+  endingsSeen: ['slain_by_chosen_one', 'retired_to_swamp', 'betrayed_by_apprentice'],
+  runsCompleted: 23,
+  tutorialSeen: true,
+  lastWizardName: 'Malvorn Ashgrave',
+  bestNotoriety: 88,
+  selectedThemeId: 'retired_to_swamp',
+};
+
+/** Run one: nothing found yet, no career finished. */
+const demoEmptyCollection: Collection = emptyCollection();
 
 const show = (collection: Collection, hasResumableRun = false) => {
   const handlers = {

@@ -8,8 +8,67 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { demoArtifacts, demoFactions, demoOffer } from './__fixtures__/demo';
+import type { Offer } from '../../types';
+import * as C from '../../content';
 import { OptionCard } from './OptionCard';
+
+const artifacts = C.artifacts;
+const factions = C.factions;
+
+// Same shape `demo.ts` used to hand-author for `demoOffer`, built here
+// against real content ids so this file no longer depends on the fixture.
+const demoOffer: Offer = {
+  id: 'covenant_courier',
+  title: 'The Covenant Sends a Courier',
+  body:
+    'He has walked four days to hand you an envelope, and he would like you to know that. ' +
+    'Inside: an offer, a wax seal shaped like a molar, and an itemised invoice for the walking.',
+  phase: 'decline',
+  factionId: 'ashen_covenant',
+  options: [
+    {
+      kind: 'gamble',
+      label: "Accept the Covenant's offer",
+      odds: 0.35,
+      onSuccess: [
+        { t: 'notoriety', v: 12 },
+        { t: 'artifact', artifactId: 'bone_crown' },
+      ],
+      onFailure: [
+        { t: 'apprentices', v: -1 },
+        { t: 'pactDebt', v: 1 },
+      ],
+      successText: 'The molar seal opens for you. Something on the other side signs its half.',
+      failureText: 'Your least favourite apprentice is now the Covenant’s least favourite apprentice.',
+    },
+    {
+      kind: 'certain',
+      label: 'Pay the courier and burn the envelope',
+      effects: [
+        { t: 'followers', v: -60 },
+        { t: 'standing', factionId: 'ashen_covenant', v: -8 },
+        { t: 'heroThreat', v: -3 },
+      ],
+      resultText: 'The envelope burns green, which the courier says is normal.',
+    },
+    {
+      kind: 'gamble',
+      label: 'Read clause nine aloud, in the courier’s hearing',
+      odds: 0.72,
+      onSuccess: [
+        { t: 'pactDebt', v: -1 },
+        { t: 'standing', factionId: 'ashen_covenant', v: 6 },
+      ],
+      onFailure: [
+        { t: 'notoriety', v: -5 },
+        { t: 'loyalty', v: -10 },
+      ],
+      successText: 'Clause nine, read aloud, turns out to be void. The courier is furious about it.',
+      failureText: 'Clause nine, read aloud, turns out to be about you.',
+    },
+  ],
+  weight: 2,
+};
 
 const certainOption = demoOffer.options[1]!; // 'Pay the courier and burn the envelope'
 const gambleOption = demoOffer.options[0]!; // "Accept the Covenant's offer"
@@ -21,8 +80,8 @@ describe('OptionCard · unaffordable (reason prop)', () => {
       <OptionCard
         option={certainOption}
         index={1}
-        artifacts={demoArtifacts}
-        factions={demoFactions}
+        artifacts={artifacts}
+        factions={factions}
         disabled
         reason={REASON}
         onChoose={() => {}}
@@ -41,8 +100,8 @@ describe('OptionCard · unaffordable (reason prop)', () => {
       <OptionCard
         option={gambleOption}
         index={0}
-        artifacts={demoArtifacts}
-        factions={demoFactions}
+        artifacts={artifacts}
+        factions={factions}
         disabled
         reason={REASON}
         onChoose={() => {}}
@@ -77,8 +136,8 @@ describe('OptionCard · unaffordable (reason prop)', () => {
         option={projected}
         rawOption={certainOption}
         index={1}
-        artifacts={demoArtifacts}
-        factions={demoFactions}
+        artifacts={artifacts}
+        factions={factions}
         disabled
         reason={REASON}
         onChoose={() => {}}
@@ -101,8 +160,8 @@ describe('OptionCard · unaffordable (reason prop)', () => {
       <OptionCard
         option={certainOption}
         index={1}
-        artifacts={demoArtifacts}
-        factions={demoFactions}
+        artifacts={artifacts}
+        factions={factions}
         disabled
         reason={REASON}
         onChoose={() => {}}
@@ -114,8 +173,8 @@ describe('OptionCard · unaffordable (reason prop)', () => {
       <OptionCard
         option={certainOption}
         index={1}
-        artifacts={demoArtifacts}
-        factions={demoFactions}
+        artifacts={artifacts}
+        factions={factions}
         onChoose={() => {}}
       />,
     );
@@ -127,8 +186,8 @@ describe('OptionCard · unaffordable (reason prop)', () => {
       <OptionCard
         option={certainOption}
         index={1}
-        artifacts={demoArtifacts}
-        factions={demoFactions}
+        artifacts={artifacts}
+        factions={factions}
         disabled
         reason={REASON}
         onChoose={() => {}}
@@ -144,8 +203,8 @@ describe('OptionCard · unaffordable (reason prop)', () => {
       <OptionCard
         option={certainOption}
         index={1}
-        artifacts={demoArtifacts}
-        factions={demoFactions}
+        artifacts={artifacts}
+        factions={factions}
         disabled
         reason={REASON}
         onChoose={() => {}}
@@ -161,8 +220,8 @@ describe('OptionCard · unaffordable (reason prop)', () => {
       <OptionCard
         option={certainOption}
         index={1}
-        artifacts={demoArtifacts}
-        factions={demoFactions}
+        artifacts={artifacts}
+        factions={factions}
         disabled
         reason={REASON}
         onChoose={onChoose}
@@ -181,8 +240,8 @@ describe('OptionCard · disabled for a reason OTHER than affordability', () => {
       <OptionCard
         option={certainOption}
         index={1}
-        artifacts={demoArtifacts}
-        factions={demoFactions}
+        artifacts={artifacts}
+        factions={factions}
         disabled
         onChoose={() => {}}
       />,

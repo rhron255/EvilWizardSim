@@ -30,7 +30,7 @@ import type { Collection } from '../types';
 import { createRun, resolveChoice } from '../engine/run';
 import { nextOffer } from '../engine/offers';
 import { recordRun } from '../engine/persistence';
-import { fixtureContent } from '../engine/__fixtures__/content';
+import { REAL_CONTENT } from '../engine/testContent';
 import { THEMES } from './themes';
 
 const ENGINE_DIR = resolve(process.cwd(), 'src/engine');
@@ -99,7 +99,7 @@ describe('themes are structurally invisible to the engine', () => {
 });
 
 describe('a seed plays the same under any theme', () => {
-  const content = fixtureContent;
+  const content = REAL_CONTENT;
 
   /**
    * Play a whole career deterministically.

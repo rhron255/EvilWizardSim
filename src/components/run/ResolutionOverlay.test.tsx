@@ -22,8 +22,38 @@ import { artifacts } from '../../content/artifacts';
 import { factions } from '../../content/factions';
 import { BETRAYAL_MAX_LOYALTY } from '../../engine';
 import type { Resolution, SystemicChange } from './resolution';
-import { demoResolutionSuccess } from './__fixtures__/demo';
 import { ResolutionOverlay } from './ResolutionOverlay';
+
+// The scenario `demo.ts` used to hand-author: a long-shot gamble paying off
+// with a relic grant, built here against real content ids instead.
+const demoResolutionSuccess: Resolution = {
+  outcome: 'success',
+  odds: 0.35,
+  roll: 0.19,
+  appliedEffects: [
+    { t: 'notoriety', v: 12 },
+    { t: 'artifact', artifactId: artifacts[0].id },
+  ],
+  text: 'The molar seal opens for you. Something on the other side signs its half.',
+  artifactsGained: [artifacts[0]],
+  newToCollection: [artifacts[0]],
+  notorietyDelta: 12,
+  systemic: [],
+  eraRecord: {
+    eraIndex: 11,
+    age: 75,
+    lairId: 'sunless_cathedral',
+    notoriety: 93,
+    notorietyDelta: 12,
+    followers: 1284,
+    artifactsGained: [artifacts[0].id],
+    deedSummary: 'Signed the Covenant’s second envelope. Kept the crown.',
+    offerId: 'covenant_courier',
+    optionLabel: "Accept the Covenant's offer",
+    outcome: 'success',
+    phase: 'decline',
+  },
+};
 
 const show = (systemic: SystemicChange[], over: Partial<Resolution> = {}) =>
   render(
