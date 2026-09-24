@@ -29,6 +29,14 @@ export type DecisionPanelProps = {
   run: RunState;
   factions: Faction[];
   offer: Offer | null;
+  /**
+   * The unprojected counterpart of `offer`, for `OfferPanel`'s affordability
+   * gating — see `RunScreen`'s doc comment on the same prop. Defaults to
+   * `offer` when omitted, which is correct whenever the caller already
+   * passes a raw (unprojected) offer as `offer` itself, as every existing
+   * test does.
+   */
+  rawOffer?: Offer | null;
   artifacts: Artifact[];
   content: ContentBundle;
   disabled: boolean;
@@ -54,6 +62,7 @@ export function DecisionPanel({
   run,
   factions,
   offer,
+  rawOffer,
   artifacts,
   content,
   disabled,
@@ -176,6 +185,7 @@ export function DecisionPanel({
         {offer ? (
           <OfferPanel
             offer={offer}
+            rawOffer={rawOffer ?? offer}
             run={run}
             content={content}
             artifacts={artifacts}

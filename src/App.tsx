@@ -110,6 +110,14 @@ export default function App() {
    * engine will produce from this run state, which is the only way the card
    * can honour the odds rule once contagion and floor clamps are in play.
    * See `projectEffects` for the two ways they came apart.
+   *
+   * `RunScreen` also gets `game.offer` itself, unprojected, as `rawOffer`.
+   * Affordability gating (`OfferPanel`'s `isOptionPickable`) has to run
+   * against the AUTHORED magnitudes, not these projected ones: a follower
+   * cost that floor-clamps from -15 to a real -8 is exactly the shape
+   * `impliedGatesOf` exists to catch (CLAUDE.md failure mode 14), and gating
+   * it against the already-clamped -8 silently reintroduces the same hole —
+   * a card reading "you have exactly enough" that the engine still refuses.
    */
   const shownOffer = useMemo(() => {
     const offer = game.offer;
@@ -150,6 +158,7 @@ export default function App() {
           <RunScreen
             run={run}
             offer={shownOffer}
+            rawOffer={game.offer}
             resolution={game.resolution}
             lairs={lairs}
             artifacts={artifacts}

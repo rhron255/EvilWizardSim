@@ -16,7 +16,7 @@ const gambleOption = demoOffer.options[0]!; // "Accept the Covenant's offer"
 const REASON = 'Requires 30 Followers · you have 10';
 
 describe('OptionCard · unaffordable (reason prop)', () => {
-  it('renders the reason line in place of a certain option’s effect list', () => {
+  it('renders the reason line ALONGSIDE a certain option’s effect list, not in place of it', () => {
     render(
       <OptionCard
         option={certainOption}
@@ -30,12 +30,13 @@ describe('OptionCard · unaffordable (reason prop)', () => {
     );
     const card = screen.getByRole('button');
     expect(within(card).getByText(REASON)).toBeInTheDocument();
-    // The effect list this option would otherwise show is gone, not merely
-    // hidden alongside the reason — a shorter card, not a taller one.
-    expect(within(card).queryByText(/Hero Threat/)).not.toBeInTheDocument();
+    // The price is exactly the thing a player needs to see on a card they
+    // cannot afford — hiding it is what let a floor-clamped display number
+    // read as "paid for" when the real, authored cost was higher.
+    expect(within(card).getByText(/Hero Threat/)).toBeInTheDocument();
   });
 
-  it('renders the reason line in place of a gamble’s odds rail', () => {
+  it('renders the reason line alongside a gamble’s odds rail, not in place of it', () => {
     render(
       <OptionCard
         option={gambleOption}
@@ -49,10 +50,57 @@ describe('OptionCard · unaffordable (reason prop)', () => {
     );
     const card = screen.getByRole('button');
     expect(within(card).getByText(REASON)).toBeInTheDocument();
-    // Both branches of the gamble — odds, arrow, success/failure text — are
-    // gone, not just the odds percentages.
-    expect(within(card).queryByText('35%')).not.toBeInTheDocument();
-    expect(within(card).queryByText('65%')).not.toBeInTheDocument();
+    expect(within(card).getByText('35%')).toBeInTheDocument();
+    expect(within(card).getByText('65%')).toBeInTheDocument();
+  });
+
+  it('prefers the rawOption price over the (possibly projected/clamped) option price', () => {
+    const clamped = {
+      ...certainOption,
+      kind: 'certain' as const,
+      effects: [{ t: 'followers' as const, v: -8 }],
+    };
+    render(
+      <OptionCard
+        option={clamped}
+        rawOption={certainOption}
+        index={1}
+        artifacts={demoArtifacts}
+        factions={demoFactions}
+        disabled
+        reason={REASON}
+        onChoose={() => {}}
+      />,
+    );
+    const card = screen.getByRole('button');
+    // certainOption's authored price, not the clamped -8 `option` carries.
+    expect(within(card).getByText(/Hero Threat/)).toBeInTheDocument();
+  });
+
+  it('shows a lock mark for an unaffordable card, and none for an affordable one', () => {
+    const { rerender } = render(
+      <OptionCard
+        option={certainOption}
+        index={1}
+        artifacts={demoArtifacts}
+        factions={demoFactions}
+        disabled
+        reason={REASON}
+        onChoose={() => {}}
+      />,
+    );
+    expect(screen.getByText('✕')).toBeInTheDocument();
+
+    rerender(
+      <OptionCard
+        option={certainOption}
+        index={1}
+        artifacts={demoArtifacts}
+        factions={demoFactions}
+        onChoose={() => {}}
+      />,
+    );
+    expect(screen.queryByText('✕')).not.toBeInTheDocument();
   });
 
   it('keeps the keycap and the label unchanged', () => {
