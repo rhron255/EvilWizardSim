@@ -20,10 +20,60 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { artifacts } from '../../content/artifacts';
 import { factions } from '../../content/factions';
+import { lairs, offers } from '../../content';
 import { BETRAYAL_MAX_LOYALTY } from '../../engine';
 import type { Resolution, SystemicChange } from './resolution';
-import { demoResolutionSuccess } from './__fixtures__/demo';
 import { ResolutionOverlay } from './ResolutionOverlay';
+
+// A real long-shot gamble paying off with a relic: the card, its odds, its
+// success narration, and the notoriety it prints all come from the catalog.
+const won = (() => {
+  for (const offer of offers)
+    for (const option of offer.options)
+      if (
+        option.kind === 'gamble' &&
+        option.onSuccess.some((e) => e.t === 'artifactFrom') &&
+        option.onSuccess.some((e) => e.t === 'notoriety' && e.v > 0)
+      )
+        return { offer, option };
+  throw new Error('no real gamble wins a relic and fame together');
+})();
+const fame = won.option.onSuccess.reduce((sum, e) => (e.t === 'notoriety' ? sum + e.v : sum), 0);
+const draw = won.option.onSuccess.find((e) => e.t === 'artifactFrom')!;
+if (draw.t !== 'artifactFrom') throw new Error('unreachable');
+/** A relic that draw could actually have handed over. */
+const prize = artifacts.find(
+  (a) => a.factionId === draw.factionId && (!draw.rarity || a.rarity === draw.rarity),
+)!;
+
+const demoResolutionSuccess: Resolution = {
+  outcome: 'success',
+  odds: won.option.odds,
+  roll: won.option.odds / 2,
+  appliedEffects: [
+    { t: 'notoriety', v: fame },
+    { t: 'artifact', artifactId: prize.id },
+  ],
+  text: won.option.successText,
+  artifactsGained: [prize],
+  newToCollection: [prize],
+  notorietyDelta: fame,
+  systemic: [],
+  eraRecord: {
+    eraIndex: 11,
+    age: 75,
+    lairId: lairs[lairs.length - 1].id,
+    notoriety: 93,
+    notorietyDelta: fame,
+    followers: 1284,
+    artifactsGained: [prize.id],
+    deedSummary: won.option.successText,
+    offerId: won.offer.id,
+    optionLabel: won.option.label,
+    outcome: 'success',
+    phase: 'decline',
+  },
+};
 
 const show = (systemic: SystemicChange[], over: Partial<Resolution> = {}) =>
   render(
@@ -118,8 +168,8 @@ describe('ResolutionOverlay · while you were elsewhere', () => {
   });
 
   it('keeps the systemic ticks out of the option consequence list', () => {
-    // The separation this whole file exists for. The fixture's own effects are
-    // +12 Notoriety and a relic; the tick must not have joined them.
+    // The separation this whole file exists for. The option's own effects are
+    // a notoriety gain and a relic; the tick must not have joined them.
     show([{ t: 'loyaltyDrift', v: -5, loyalty: 22 }]);
     expect(screen.getAllByText('Loyalty')).toHaveLength(1);
   });

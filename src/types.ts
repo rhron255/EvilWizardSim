@@ -297,17 +297,20 @@ export type Faction = {
   adjective: string;
 };
 
+/**
+ * A relic. Its wards contribution is a flat function of `rarity` alone —
+ * `RELIC_WARDS` in `src/engine/constants.ts` — not an authored number on the
+ * relic itself. That frees `id`/`name`/`flavorText` to carry the relic's
+ * actual identity (its power, in slices 3-5 of issue #77) instead of
+ * restating a defense figure in prose (issue #79, CLAUDE.md failure mode 4).
+ */
 export type Artifact = {
   id: string;
   name: string;
   /** Every artifact belongs to a faction — this is what makes routing legible. */
   factionId: FactionId;
   rarity: Rarity;
-  /** Player-facing mechanical summary. */
-  effect: string;
   flavorText: string;
-  /** Defense contribution toward surviving hero threat. */
-  defense: number;
 };
 
 export type Lair = {

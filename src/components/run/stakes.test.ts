@@ -13,6 +13,7 @@ import { describe, expect, it } from 'vitest';
 import { heroBand, PACT_LIMIT } from '../../engine';
 import type { DefenseReadout } from '../../engine';
 import type { RunState } from '../../types';
+import { lairs, origins } from '../../content';
 import { siegeFor, stakesFor } from './stakes';
 
 const run = (over: Partial<RunState> = {}): RunState =>
@@ -21,7 +22,7 @@ const run = (over: Partial<RunState> = {}): RunState =>
     seed: 1,
     wizardName: 'W',
     epithet: 'the Tested',
-    originId: 'o',
+    originId: origins[0].id,
     age: 60,
     eraIndex: 9,
     eraCount: 16,
@@ -30,7 +31,7 @@ const run = (over: Partial<RunState> = {}): RunState =>
     erasSinceProphecy: 1,
     notoriety: 50,
     followers: 10,
-    lairId: 'l',
+    lairId: lairs[0].id,
     heldArtifactIds: [],
     factionStanding: {
       ashen_covenant: 0,

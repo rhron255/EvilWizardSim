@@ -17,14 +17,87 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ContentBundle } from '../engine';
 import { artifacts, endings, epithets, factions, lairs, offers, origins } from '../content';
-import { demoRun, demoOffer } from '../components/run/__fixtures__/demo';
 import type { Resolution } from '../components/run/resolution';
-import type { RunState, ThemeId } from '../types';
+import type { EraRecord, RunState, ThemeId } from '../types';
 import { RunScreen } from './RunScreen';
+import { realDeed, realOfferWhere } from '../testing/realContent';
 
 // Mirrors `App.tsx`'s own `CONTENT` — the real catalog, frozen once here
 // rather than rebuilt per test.
 const content: ContentBundle = { factions, artifacts, lairs, origins, endings, offers, epithets };
+
+// A mid-decline run holding five real relics across two factions.
+const eras: EraRecord[] = Array.from({ length: 11 }, (_, i) => ({
+  eraIndex: i,
+  age: 20 + i * 5,
+  lairId: 'sunless_cathedral',
+  notoriety: 9 + i * 7,
+  notorietyDelta: 7,
+  followers: 2 + i * 100,
+  artifactsGained: i === 7 ? ['bone_crown'] : [],
+  ...realDeed(i),
+  phase: i < 9 ? 'ascent' : 'decline',
+}));
+
+const demoRun: RunState = {
+  id: 'run_test_0001',
+  seed: 448271,
+  wizardName: 'Malvorn Ashgrave',
+  epithet: 'the Unpaid Debt',
+  originId: 'expelled_pale_academy',
+  age: 75,
+  eraIndex: 11,
+  eraCount: 18,
+  phase: 'decline',
+  prophecyEra: 9,
+  erasSinceProphecy: 2,
+  notoriety: 81,
+  followers: 1284,
+  lairId: 'sunless_cathedral',
+  knownArtifactIds: ['ninth_clause_brazier', 'antler_baton'],
+  heldArtifactIds: [
+    'ninth_clause_brazier',
+    'antler_baton',
+    'cinder_testament',
+    'bone_crown',
+    'root_of_the_standing_vote',
+  ],
+  heroBandSeen: 0,
+  factionStanding: {
+    ashen_covenant: 46,
+    gilded_hand: 12,
+    pale_academy: -38,
+    verdant_choir: -20,
+    crownlands: -61,
+    worm_below: 4,
+  },
+  apprentices: { count: 3, loyalty: 41 },
+  pactDebt: 2,
+  heroThreat: 34,
+  isLich: false,
+  goodActs: 0,
+  illActs: 0,
+  goodWizardVowed: false,
+  eras,
+  seenOfferIds: eras.map((e) => e.offerId),
+};
+
+/**
+ * A real card that names no faction anywhere — no affiliation, no standing
+ * or relic-draw effect, no faction word in its prose — so this file's
+ * faction-name queries can only match the panel's own status lines.
+ */
+const FACTION_WORDS = /Covenant|Gilded|Hand|Academy|Choir|Crown|Worm/;
+const demoOffer = realOfferWhere('a card that names no faction', (o) =>
+  !o.factionId &&
+  !o.scripted &&
+  !FACTION_WORDS.test(JSON.stringify(o)) &&
+  o.options.every((x) =>
+    (x.kind === 'certain' ? x.effects : [...x.onSuccess, ...x.onFailure]).every(
+      (e) => e.t !== 'standing' && e.t !== 'artifactFrom',
+    ),
+  ),
+);
 
 const show = (
   run: RunState,

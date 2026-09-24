@@ -15,24 +15,162 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { impliedGatesOf, projectEffects } from '../../engine';
 import type { ContentBundle } from '../../engine';
-import type { Offer, RunState } from '../../types';
-import {
-  demoArtifacts,
-  demoContent,
-  demoEarlyRun,
-  demoFactions,
-  demoOffer,
-  demoOfferGated,
-  demoRun,
-} from './__fixtures__/demo';
+import type { Effect, EraRecord, Offer, OfferOption, RunState } from '../../types';
+import * as C from '../../content';
 import { OfferPanel } from './OfferPanel';
+import { realDeed, realOfferWhere } from '../../testing/realContent';
+
+const content: ContentBundle = {
+  factions: C.factions,
+  artifacts: C.artifacts,
+  lairs: C.lairs,
+  origins: C.origins,
+  endings: C.endings,
+  offers: C.offers,
+  epithets: C.epithets,
+};
+
+const eras: EraRecord[] = Array.from({ length: 11 }, (_, i) => ({
+  eraIndex: i,
+  age: 20 + i * 5,
+  lairId: 'sunless_cathedral',
+  notoriety: 9 + i * 7,
+  notorietyDelta: 7,
+  followers: 2 + i * 100,
+  artifactsGained: i === 7 ? ['bone_crown'] : [],
+  ...realDeed(i),
+  phase: i < 9 ? 'ascent' : 'decline',
+}));
+
+const demoRun: RunState = {
+  id: 'run_test_0001',
+  seed: 448271,
+  wizardName: 'Malvorn Ashgrave',
+  epithet: 'the Unpaid Debt',
+  originId: 'expelled_pale_academy',
+  age: 75,
+  eraIndex: 11,
+  eraCount: 18,
+  phase: 'decline',
+  prophecyEra: 9,
+  erasSinceProphecy: 2,
+  notoriety: 81,
+  followers: 1284,
+  lairId: 'sunless_cathedral',
+  knownArtifactIds: ['ninth_clause_brazier', 'antler_baton'],
+  heldArtifactIds: [
+    'ninth_clause_brazier',
+    'antler_baton',
+    'cinder_testament',
+    'bone_crown',
+    'root_of_the_standing_vote',
+  ],
+  heroBandSeen: 0,
+  factionStanding: {
+    ashen_covenant: 46,
+    gilded_hand: 12,
+    pale_academy: -38,
+    verdant_choir: -20,
+    crownlands: -61,
+    worm_below: 4,
+  },
+  apprentices: { count: 3, loyalty: 41 },
+  pactDebt: 2,
+  heroThreat: 34,
+  isLich: false,
+  goodActs: 0,
+  illActs: 0,
+  goodWizardVowed: false,
+  eras,
+  seenOfferIds: eras.map((e) => e.offerId),
+};
+
+const demoEarlyRun: RunState = {
+  ...demoRun,
+  age: 25,
+  eraIndex: 1,
+  phase: 'ascent',
+  notoriety: 9,
+  followers: 2,
+  lairId: 'rented_cellar',
+  heldArtifactIds: [],
+  heroBandSeen: 0,
+  apprentices: { count: 0, loyalty: 0 },
+  pactDebt: 0,
+  heroThreat: 0,
+  erasSinceProphecy: 0,
+  eras: eras.slice(0, 1),
+};
+
+const followerCost = (effects: readonly Effect[]) =>
+  -effects.reduce((sum, e) => (e.t === 'followers' && e.v < 0 ? sum + e.v : sum), 0);
+
+/** A gamble whose losing side puts the wizard in debt and whose winning side does not. */
+const losesIntoDebt = (o: OfferOption) =>
+  o.kind === 'gamble' &&
+  o.odds !== 0.5 &&
+  o.onFailure.some((e) => e.t === 'pactDebt' && e.v > 0) &&
+  !o.onSuccess.some((e) => e.t === 'pactDebt');
+const movesFollowers = (o: OfferOption) =>
+  o.kind === 'certain' && o.effects.some((e) => e.t === 'followers');
+
+/**
+ * A real faction card carrying every disclosure the tests below check: a
+ * gamble that can lose into debt, beside a certain option that moves
+ * followers. Nothing on it is gated, so every option is choosable.
+ */
+const demoOffer = realOfferWhere(
+  'a faction card with a debt-losing gamble and a follower-moving certain option',
+  (o) =>
+    !!o.factionId &&
+    o.options.some(losesIntoDebt) &&
+    o.options.some(movesFollowers) &&
+    o.options.every((x) => impliedGatesOf(x).length === 0),
+);
+const gambleAt = demoOffer.options.findIndex(losesIntoDebt);
+const certainAt = demoOffer.options.findIndex(movesFollowers);
+const demoGamble = demoOffer.options[gambleAt] as Extract<OfferOption, { kind: 'gamble' }>;
+
+/**
+ * The issue #41 shape: exactly one option, a certain one, priced in followers
+ * a new wizard does not have — so the per-option pickability tests have one
+ * unaffordable card to find and nothing else greyed beside it.
+ */
+const demoOfferGated = realOfferWhere(
+  'a card whose single gated option is a follower price a new wizard cannot pay',
+  (o) => {
+    const gated = o.options.filter((x) => impliedGatesOf(x).length > 0);
+    if (gated.length !== 1 || gated[0].kind !== 'certain') return false;
+    const gates = impliedGatesOf(gated[0]);
+    return gates.length === 1 && gates[0].c === 'minFollowers' && gates[0].v > demoEarlyRun.followers;
+  },
+);
+const gatedAt = demoOfferGated.options.findIndex((x) => impliedGatesOf(x).length > 0);
+const gatedOption = demoOfferGated.options[gatedAt] as Extract<OfferOption, { kind: 'certain' }>;
+/** The authored price, read off the card — not from the gate logic under test. */
+const price = followerCost(gatedOption.effects);
+
+/** The same projection `App.tsx` hands the panel as `shownOffer`. */
+const projected = (offer: Offer, run: RunState): Offer => ({
+  ...offer,
+  options: offer.options.map((o) =>
+    o.kind === 'certain'
+      ? { ...o, effects: projectEffects(run, o.effects, content) }
+      : {
+          ...o,
+          onSuccess: projectEffects(run, o.onSuccess, content),
+          onFailure: projectEffects(run, o.onFailure, content),
+        },
+  ),
+});
 
 const show = (
   offer: Offer = demoOffer,
   disabled = false,
   run: RunState = demoRun,
-  content: ContentBundle = demoContent,
+  bundle: ContentBundle = content,
   rawOffer?: Offer,
 ) => {
   const onChoose = vi.fn();
@@ -41,9 +179,9 @@ const show = (
       offer={offer}
       rawOffer={rawOffer}
       run={run}
-      content={content}
-      artifacts={demoArtifacts}
-      factions={demoFactions}
+      content={bundle}
+      artifacts={C.artifacts}
+      factions={C.factions}
       disabled={disabled}
       onChoose={onChoose}
     />,
@@ -61,30 +199,32 @@ describe('OfferPanel · disclosure', () => {
 
   it('prints BOTH branches of a gamble, with complementary odds', () => {
     show();
-    const gamble = cards()[0];
-    // 35% / 65% — the failure percentage is derived, and a renderer that
-    // printed the same number twice would still look plausible.
-    expect(within(gamble).getByText('35%')).toBeInTheDocument();
-    expect(within(gamble).getByText('65%')).toBeInTheDocument();
+    const gamble = cards()[gambleAt];
+    // Success and failure percentages — the failure one is derived, and a
+    // renderer that printed the same number twice would still look plausible.
+    const win = Math.round(demoGamble.odds * 100);
+    expect(within(gamble).getByText(`${win}%`)).toBeInTheDocument();
+    expect(within(gamble).getByText(`${100 - win}%`)).toBeInTheDocument();
   });
 
   it('prints the failure branch consequences, not only its probability', () => {
     show();
-    const gamble = cards()[0];
+    // Pact debt appears only on this gamble's losing side.
+    const gamble = cards()[gambleAt];
     expect(within(gamble).getByText('Pact Debt')).toBeInTheDocument();
-    expect(within(gamble).getByText('Apprentice')).toBeInTheDocument();
   });
 
   it('prints a certain option as one consequence list with no odds', () => {
     show();
-    const certain = cards()[1];
+    const certain = cards()[certainAt];
     expect(within(certain).getByText(/Followers/)).toBeInTheDocument();
     expect(within(certain).queryByText(/%$/)).not.toBeInTheDocument();
   });
 
   it('names the faction the offer belongs to', () => {
     show();
-    expect(screen.getByText('The Ashen Covenant')).toBeInTheDocument();
+    const faction = C.factions.find((f) => f.id === demoOffer.factionId)!;
+    expect(screen.getByText(faction.name)).toBeInTheDocument();
   });
 });
 
@@ -131,18 +271,17 @@ describe('OfferPanel · keyboard', () => {
 /**
  * Issue #41 follow-up: a `certain` option that spends stock (Followers) to
  * fund a fixed benefit must not be presented as choosable to a wizard who
- * cannot pay for it — `demoOfferGated`'s first option is exactly that shape.
+ * cannot pay for it — `demoOfferGated`'s gated option is exactly that shape.
  * The panel-wide `disabled` tests above cover the resolution-overlay case;
  * these cover the PER-OPTION case, which is new.
  */
 describe('OfferPanel · affordability', () => {
   it('disables an option that spends stock the wizard does not have, and says why', () => {
-    // demoEarlyRun.followers === 2; the gated option costs 30.
     show(demoOfferGated, false, demoEarlyRun);
     const gated = screen.getByRole('button', { name: /unaffordable/i });
     expect(gated).toBeDisabled();
     expect(
-      within(gated).getByText('Requires 30 Followers · you have 2'),
+      within(gated).getByText(`Requires ${price} Followers · you have ${demoEarlyRun.followers}`),
     ).toBeInTheDocument();
   });
 
@@ -153,10 +292,9 @@ describe('OfferPanel · affordability', () => {
   });
 
   it('refuses the number-key shortcut for an unaffordable option', async () => {
-    // The gated option sits at index 0, so '1' is the number that would
-    // normally choose it.
+    // The number key that would normally choose the gated option.
     const { onChoose, user } = show(demoOfferGated, false, demoEarlyRun);
-    await user.keyboard('1');
+    await user.keyboard(String(gatedAt + 1));
     expect(onChoose).not.toHaveBeenCalled();
   });
 
@@ -171,36 +309,33 @@ describe('OfferPanel · affordability', () => {
    * how the caller hands back the authored magnitudes for gating alone.
    */
   it('gates on the authored cost via rawOffer, not a projected/clamped display copy', () => {
-    // demoEarlyRun.followers === 2; the authored cost is 30, but a projected
-    // copy would floor-clamp the display to -2 — exactly what the wizard has.
-    const projected: Offer = {
-      ...demoOfferGated,
-      options: demoOfferGated.options.map((o) =>
-        o.kind === 'certain' && o.label === 'Buy the Bone Crown outright'
-          ? { ...o, effects: [{ t: 'followers' as const, v: -2 }, ...o.effects.slice(1)] }
-          : o,
-      ),
-    };
-    // `offer` is the projected (falsely-affordable-looking) copy; `rawOffer`
-    // is the authored one gating must actually use.
-    show(projected, false, demoEarlyRun, demoContent, demoOfferGated);
+    // The projection floor-clamps the displayed cost down to exactly what
+    // the wizard has — the falsely-affordable-looking copy.
+    const shown = projected(demoOfferGated, demoEarlyRun);
+    const shownOption = shown.options[gatedAt];
+    if (shownOption.kind !== 'certain') throw new Error('unreachable');
+    expect(followerCost(shownOption.effects)).toBe(demoEarlyRun.followers);
+    // `offer` is the projected copy; `rawOffer` is the authored one gating
+    // must actually use.
+    show(shown, false, demoEarlyRun, content, demoOfferGated);
     const gated = screen.getByRole('button', { name: /unaffordable/i });
     expect(gated).toBeDisabled();
     expect(
-      within(gated).getByText('Requires 30 Followers · you have 2'),
+      within(gated).getByText(`Requires ${price} Followers · you have ${demoEarlyRun.followers}`),
     ).toBeInTheDocument();
   });
 
   it('leaves the SAME option fully interactive once the wizard can pay', async () => {
-    // demoRun.followers === 1284 — the exact same offer, a wizard who can
-    // afford it. No `aria-label` override on an affordable card, so its
-    // accessible name is its full text content (label + effect list) rather
-    // than the label alone — match on the label text node instead.
+    // The exact same offer, for a wizard who can afford it. No `aria-label`
+    // override on an affordable card, so its accessible name is its full text
+    // content (label + effect list) rather than the label alone — match on
+    // the label text node instead.
+    expect(demoRun.followers).toBeGreaterThanOrEqual(price);
     const { onChoose, user } = show(demoOfferGated, false, demoRun);
-    const affordable = screen.getByText('Buy the Bone Crown outright').closest('button')!;
+    const affordable = screen.getByText(gatedOption.label).closest('button')!;
     expect(affordable).not.toBeDisabled();
     expect(affordable).not.toHaveAttribute('aria-label');
-    await user.keyboard('1');
-    expect(onChoose).toHaveBeenCalledWith(0);
+    await user.keyboard(String(gatedAt + 1));
+    expect(onChoose).toHaveBeenCalledWith(gatedAt);
   });
 });

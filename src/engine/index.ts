@@ -97,6 +97,7 @@ export {
   PATRON_MARGIN,
   ASCENSION_LEGENDARIES,
   ASCENSION_MIN_NOTORIETY,
+  RELIC_WARDS,
 } from './constants';
 
 export type { Game } from './useGame';

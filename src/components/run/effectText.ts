@@ -83,7 +83,7 @@ function plural(n: number, one: string, many: string): string {
 function factionName(id: FactionId, factions: Faction[]): string {
   const f = factions.find((x) => x.id === id);
   if (f) return f.name;
-  // Content may not be loaded (fixtures, tests). Degrade to a readable id.
+  // A cast that lacks this faction (a partial list, a content pack). Degrade to a readable id.
   return titleCase(id);
 }
 

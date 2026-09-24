@@ -10,16 +10,111 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ContentBundle, DefenseReadout } from '../../engine';
 import { DEF_LICH } from '../../engine';
-import type { Offer, RunState } from '../../types';
-import {
-  demoArtifacts,
-  demoContent,
-  demoEarlyRun,
-  demoFactions,
-  demoOffer,
-  demoRun,
-} from './__fixtures__/demo';
+import type { EraRecord, Offer, RunState } from '../../types';
+import * as C from '../../content';
 import { DecisionPanel } from './DecisionPanel';
+import { realDeed, realOfferWhere } from '../../testing/realContent';
+
+const content: ContentBundle = {
+  factions: C.factions,
+  artifacts: C.artifacts,
+  lairs: C.lairs,
+  origins: C.origins,
+  endings: C.endings,
+  offers: C.offers,
+  epithets: C.epithets,
+};
+
+// A mid-decline run, prophecy already fired, Notoriety just past the
+// Kingdom-Level threshold and starting to erode.
+const eras: EraRecord[] = Array.from({ length: 11 }, (_, i) => ({
+  eraIndex: i,
+  age: 20 + i * 5,
+  lairId: 'sunless_cathedral',
+  notoriety: 9 + i * 7,
+  notorietyDelta: 7,
+  followers: 2 + i * 100,
+  artifactsGained: i === 7 ? ['bone_crown'] : [],
+  ...realDeed(i),
+  phase: i < 9 ? 'ascent' : 'decline',
+}));
+
+const demoRun: RunState = {
+  id: 'run_test_0001',
+  seed: 448271,
+  wizardName: 'Malvorn Ashgrave',
+  epithet: 'the Unpaid Debt',
+  originId: 'expelled_pale_academy',
+  age: 75,
+  eraIndex: 11,
+  eraCount: 18,
+  phase: 'decline',
+  prophecyEra: 9,
+  erasSinceProphecy: 2,
+  notoriety: 81,
+  followers: 1284,
+  lairId: 'sunless_cathedral',
+  knownArtifactIds: ['ninth_clause_brazier', 'antler_baton'],
+  heldArtifactIds: [
+    'ninth_clause_brazier',
+    'antler_baton',
+    'cinder_testament',
+    'bone_crown',
+    'root_of_the_standing_vote',
+  ],
+  heroBandSeen: 0,
+  factionStanding: {
+    ashen_covenant: 46,
+    gilded_hand: 12,
+    pale_academy: -38,
+    verdant_choir: -20,
+    crownlands: -61,
+    worm_below: 4,
+  },
+  apprentices: { count: 3, loyalty: 41 },
+  pactDebt: 2,
+  heroThreat: 34,
+  isLich: false,
+  goodActs: 0,
+  illActs: 0,
+  goodWizardVowed: false,
+  eras,
+  seenOfferIds: eras.map((e) => e.offerId),
+};
+
+const demoEarlyRun: RunState = {
+  ...demoRun,
+  age: 25,
+  eraIndex: 1,
+  phase: 'ascent',
+  notoriety: 9,
+  followers: 2,
+  lairId: 'rented_cellar',
+  heldArtifactIds: [],
+  heroBandSeen: 0,
+  apprentices: { count: 0, loyalty: 0 },
+  pactDebt: 0,
+  heroThreat: 0,
+  erasSinceProphecy: 0,
+  eras: eras.slice(0, 1),
+};
+
+/**
+ * A real card that names no faction anywhere — no affiliation, no standing
+ * or relic-draw effect, no faction word in its prose — so this file's
+ * faction-name queries can only match the panel's own status lines.
+ */
+const FACTION_WORDS = /Covenant|Gilded|Hand|Academy|Choir|Crown|Worm/;
+const demoOffer = realOfferWhere('a card that names no faction', (o) =>
+  !o.factionId &&
+  !o.scripted &&
+  !FACTION_WORDS.test(JSON.stringify(o)) &&
+  o.options.every((x) =>
+    (x.kind === 'certain' ? x.effects : [...x.onSuccess, ...x.onFailure]).every(
+      (e) => e.t !== 'standing' && e.t !== 'artifactFrom',
+    ),
+  ),
+);
 
 const wards = (total: number): DefenseReadout => ({
   total,
@@ -36,15 +131,15 @@ const show = (
   defense: DefenseReadout | null = wards(120),
   offer: Offer | null = demoOffer,
   disabled = false,
-  content: ContentBundle = demoContent,
+  bundle: ContentBundle = content,
 ) =>
   render(
     <DecisionPanel
       run={run}
-      factions={demoFactions}
+      factions={C.factions}
       offer={offer}
-      artifacts={demoArtifacts}
-      content={content}
+      artifacts={C.artifacts}
+      content={bundle}
       disabled={disabled}
       onChoose={() => {}}
       defense={defense}
@@ -221,10 +316,10 @@ describe('DecisionPanel · the Relics navigation button', () => {
     render(
       <DecisionPanel
         run={demoRun}
-        factions={demoFactions}
+        factions={C.factions}
         offer={demoOffer}
-        artifacts={demoArtifacts}
-        content={demoContent}
+        artifacts={C.artifacts}
+        content={content}
         disabled={false}
         onChoose={() => {}}
         defense={wards(120)}
@@ -241,10 +336,10 @@ describe('DecisionPanel · the Relics navigation button', () => {
     const rendered = render(
       <DecisionPanel
         run={demoRun}
-        factions={demoFactions}
+        factions={C.factions}
         offer={demoOffer}
-        artifacts={demoArtifacts}
-        content={demoContent}
+        artifacts={C.artifacts}
+        content={content}
         disabled={false}
         onChoose={() => {}}
         defense={wards(120)}

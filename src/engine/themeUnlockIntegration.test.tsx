@@ -14,9 +14,9 @@ import type { ContentBundle } from './index';
 import { isOptionPickable } from './index';
 import { COLLECTION_KEY } from './constants';
 import { useGame } from './useGame';
-import { fixtureContent } from './__fixtures__/content';
+import { REAL_CONTENT } from '../testing/realContent';
 
-const content: ContentBundle = fixtureContent;
+const content: ContentBundle = REAL_CONTENT;
 
 beforeEach(() => localStorage.clear());
 afterEach(() => localStorage.clear());

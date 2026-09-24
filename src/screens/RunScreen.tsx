@@ -48,9 +48,9 @@ export type RunScreenProps = {
    * The same offer `offer` is a projection of, unprojected. Passed through to
    * `DecisionPanel`/`OfferPanel` for affordability gating only — see the doc
    * comment on `shownOffer` in `App.tsx` for why gating cannot use the
-   * projected copy. Optional so tests that only care about the projected
-   * display (and pass an already-raw fixture as `offer`) do not have to wire
-   * a second, identical prop.
+   * projected copy. Optional so tests that only care about the display (and
+   * pass an unprojected catalog offer as `offer`) do not have to wire a
+   * second, identical prop.
    */
   rawOffer?: Offer | null;
   resolution: Resolution | null;

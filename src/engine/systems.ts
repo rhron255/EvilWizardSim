@@ -23,6 +23,7 @@ import {
   HERO_THREAT_BASE,
   HERO_THREAT_RAMP,
   PROPHECY_FRACTION,
+  RELIC_WARDS,
   START_AGE,
   YEARS_PER_ERA,
 } from './constants';
@@ -138,7 +139,8 @@ export function defenseOf(run: RunState, content: ContentBundle): number {
 
   let artifactDefense = 0;
   for (const id of run.heldArtifactIds) {
-    artifactDefense += index.artifactById.get(id)?.defense ?? 0;
+    const rarity = index.artifactById.get(id)?.rarity;
+    if (rarity) artifactDefense += RELIC_WARDS[rarity];
   }
 
   const rung = index.lairRung.get(run.lairId);
@@ -218,7 +220,8 @@ export function defenseReadout(run: RunState, content: ContentBundle): DefenseRe
 
   let artifactDefense = 0;
   for (const id of run.heldArtifactIds) {
-    artifactDefense += index.artifactById.get(id)?.defense ?? 0;
+    const rarity = index.artifactById.get(id)?.rarity;
+    if (rarity) artifactDefense += RELIC_WARDS[rarity];
   }
 
   const rung = index.lairRung.get(run.lairId);

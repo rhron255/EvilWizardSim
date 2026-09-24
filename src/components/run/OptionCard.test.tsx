@@ -8,12 +8,56 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { demoArtifacts, demoFactions, demoOffer } from './__fixtures__/demo';
+import type { Effect, OfferOption } from '../../types';
+import { createRun, projectEffects } from '../../engine';
+import { REAL_CONTENT, realOfferWhere } from '../../testing/realContent';
+import * as C from '../../content';
 import { OptionCard } from './OptionCard';
 
-const certainOption = demoOffer.options[1]!; // 'Pay the courier and burn the envelope'
-const gambleOption = demoOffer.options[0]!; // "Accept the Covenant's offer"
-const REASON = 'Requires 30 Followers · you have 10';
+const artifacts = C.artifacts;
+const factions = C.factions;
+
+const followerCost = (effects: readonly Effect[]) =>
+  -effects.reduce((sum, e) => (e.t === 'followers' && e.v < 0 ? sum + e.v : sum), 0);
+const hostile = new Set(factions.filter((f) => f.hostileTo.length > 0).map((f) => f.id));
+
+/**
+ * A real certain option with a follower price, a hero-threat move, and a
+ * standing change toward a faction with enemies — so the engine's own
+ * projection adds contagion rows its authored list never names.
+ */
+const isPaying = (o: OfferOption) =>
+  o.kind === 'certain' &&
+  followerCost(o.effects) > 1 &&
+  o.effects.some((e) => e.t === 'heroThreat') &&
+  o.effects.some((e) => e.t === 'standing' && hostile.has(e.factionId));
+const certainOption = realOfferWhere(
+  'a certain option with a follower price, a hero-threat move, and a contagious standing change',
+  (o) => o.options.some(isPaying),
+).options.find(isPaying) as Extract<OfferOption, { kind: 'certain' }>;
+const cost = followerCost(certainOption.effects);
+
+const isUneven = (o: OfferOption) => o.kind === 'gamble' && o.odds !== 0.5;
+const gambleOption = realOfferWhere('a card with a gamble at uneven odds', (o) =>
+  o.options.some(isUneven),
+).options.find(isUneven) as Extract<OfferOption, { kind: 'gamble' }>;
+
+const start = createRun(
+  { wizardName: 'Test', originId: C.origins[0].id, eraCount: 16, seed: 42 },
+  REAL_CONTENT,
+);
+/** What the engine prints for `certainOption` to a wizard holding `have` followers. */
+const projectedFor = (have: number) =>
+  projectEffects({ ...start, followers: have }, certainOption.effects, REAL_CONTENT);
+/**
+ * A follower count short of the price whose floor-clamped figure is not a
+ * number any other row on the card also prints, so the assertions below can
+ * tell the clamped cost from the authored one.
+ */
+const HAVE = Array.from({ length: cost - 1 }, (_, i) => i + 1).find((n) =>
+  projectedFor(n).every((e) => e.t === 'followers' || !('v' in e) || Math.abs(e.v) !== n),
+)!;
+const REASON = `Requires ${cost} Followers · you have ${HAVE}`;
 
 describe('OptionCard · unaffordable (reason prop)', () => {
   it('renders the reason line ALONGSIDE a certain option’s effect list, not in place of it', () => {
@@ -21,8 +65,8 @@ describe('OptionCard · unaffordable (reason prop)', () => {
       <OptionCard
         option={certainOption}
         index={1}
-        artifacts={demoArtifacts}
-        factions={demoFactions}
+        artifacts={artifacts}
+        factions={factions}
         disabled
         reason={REASON}
         onChoose={() => {}}
@@ -41,8 +85,8 @@ describe('OptionCard · unaffordable (reason prop)', () => {
       <OptionCard
         option={gambleOption}
         index={0}
-        artifacts={demoArtifacts}
-        factions={demoFactions}
+        artifacts={artifacts}
+        factions={factions}
         disabled
         reason={REASON}
         onChoose={() => {}}
@@ -50,50 +94,49 @@ describe('OptionCard · unaffordable (reason prop)', () => {
     );
     const card = screen.getByRole('button');
     expect(within(card).getByText(REASON)).toBeInTheDocument();
-    expect(within(card).getByText('35%')).toBeInTheDocument();
-    expect(within(card).getByText('65%')).toBeInTheDocument();
+    const win = Math.round(gambleOption.odds * 100);
+    expect(within(card).getByText(`${win}%`)).toBeInTheDocument();
+    expect(within(card).getByText(`${100 - win}%`)).toBeInTheDocument();
   });
 
   it('merges the authored gated cost into the projected effect list, rather than swapping the whole option', () => {
     // PR #85 review: swapping `option` for `rawOption` wholesale on an
     // unaffordable card silently dropped the projected Standing contagion
-    // row too — an undisclosed-consequence regression, not a fix. The
-    // projected copy below stands in for what `projectEffects` would
-    // actually produce: Followers floor-clamped to -8, plus a SECOND
-    // Standing row (`pale_academy`) that only exists because contagion added
-    // it — `certainOption`'s authored effects never mention that faction.
-    const projected = {
-      ...certainOption,
-      kind: 'certain' as const,
-      effects: [
-        { t: 'followers' as const, v: -2 },
-        { t: 'standing' as const, factionId: 'ashen_covenant' as const, v: -8 },
-        { t: 'standing' as const, factionId: 'pale_academy' as const, v: -4 },
-        { t: 'heroThreat' as const, v: -3 },
-      ],
-    };
+    // row too — an undisclosed-consequence regression, not a fix. `projected`
+    // is what `projectEffects` really prints to a wizard this short: the
+    // follower cost floor-clamped, plus Standing rows for factions the
+    // authored option never mentions — contagion along `hostileTo`.
+    const projected = { ...certainOption, effects: projectedFor(HAVE) };
+    expect(projected.effects).toContainEqual({ t: 'followers', v: -HAVE });
+    const authoredFactions = new Set(
+      certainOption.effects.flatMap((e) => (e.t === 'standing' ? [e.factionId] : [])),
+    );
+    const shownFactions = projected.effects.flatMap((e) => (e.t === 'standing' ? [e.factionId] : []));
+    expect(shownFactions.some((id) => !authoredFactions.has(id))).toBe(true);
     render(
       <OptionCard
         option={projected}
         rawOption={certainOption}
         index={1}
-        artifacts={demoArtifacts}
-        factions={demoFactions}
+        artifacts={artifacts}
+        factions={factions}
         disabled
         reason={REASON}
         onChoose={() => {}}
       />,
     );
     const card = screen.getByRole('button');
-    // The gated cost reverts to certainOption's authored -60, not the
-    // projected/clamped -2 `option` carries.
-    expect(within(card).getByText('−60')).toBeInTheDocument();
-    expect(within(card).queryByText('−2')).not.toBeInTheDocument();
-    // Both projected Standing rows survive, contagion included — it exists
-    // only in the projected copy, and a whole-option swap would have
-    // silently dropped it.
-    expect(within(card).getByText(/The Ashen Covenant/)).toBeInTheDocument();
-    expect(within(card).getByText(/The Pale Academy/)).toBeInTheDocument();
+    // The gated cost reverts to the authored price, not the projected/clamped
+    // figure `option` carries.
+    expect(within(card).getByText(`\u2212${cost}`)).toBeInTheDocument();
+    expect(within(card).queryByText(`\u2212${HAVE}`)).not.toBeInTheDocument();
+    // Every projected Standing row survives, contagion included — those rows
+    // exist only in the projected copy, and a whole-option swap would have
+    // silently dropped them.
+    for (const id of shownFactions) {
+      const name = factions.find((f) => f.id === id)!.name;
+      expect(within(card).getByText(new RegExp(name))).toBeInTheDocument();
+    }
   });
 
   it('shows a lock mark for an unaffordable card, and none for an affordable one', () => {
@@ -101,8 +144,8 @@ describe('OptionCard · unaffordable (reason prop)', () => {
       <OptionCard
         option={certainOption}
         index={1}
-        artifacts={demoArtifacts}
-        factions={demoFactions}
+        artifacts={artifacts}
+        factions={factions}
         disabled
         reason={REASON}
         onChoose={() => {}}
@@ -114,8 +157,8 @@ describe('OptionCard · unaffordable (reason prop)', () => {
       <OptionCard
         option={certainOption}
         index={1}
-        artifacts={demoArtifacts}
-        factions={demoFactions}
+        artifacts={artifacts}
+        factions={factions}
         onChoose={() => {}}
       />,
     );
@@ -127,8 +170,8 @@ describe('OptionCard · unaffordable (reason prop)', () => {
       <OptionCard
         option={certainOption}
         index={1}
-        artifacts={demoArtifacts}
-        factions={demoFactions}
+        artifacts={artifacts}
+        factions={factions}
         disabled
         reason={REASON}
         onChoose={() => {}}
@@ -144,8 +187,8 @@ describe('OptionCard · unaffordable (reason prop)', () => {
       <OptionCard
         option={certainOption}
         index={1}
-        artifacts={demoArtifacts}
-        factions={demoFactions}
+        artifacts={artifacts}
+        factions={factions}
         disabled
         reason={REASON}
         onChoose={() => {}}
@@ -161,8 +204,8 @@ describe('OptionCard · unaffordable (reason prop)', () => {
       <OptionCard
         option={certainOption}
         index={1}
-        artifacts={demoArtifacts}
-        factions={demoFactions}
+        artifacts={artifacts}
+        factions={factions}
         disabled
         reason={REASON}
         onChoose={onChoose}
@@ -181,8 +224,8 @@ describe('OptionCard · disabled for a reason OTHER than affordability', () => {
       <OptionCard
         option={certainOption}
         index={1}
-        artifacts={demoArtifacts}
-        factions={demoFactions}
+        artifacts={artifacts}
+        factions={factions}
         disabled
         onChoose={() => {}}
       />,

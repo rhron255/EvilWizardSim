@@ -80,13 +80,16 @@ assertUniqueIds('epithets', epithets.map((e) => e.id));
 // The fixed cast
 // ---------------------------------------------------------------------------
 
+const KNOWN_RARITIES: ReadonlySet<Rarity> = new Set(['common', 'rare', 'legendary']);
 for (const artifact of artifacts) {
   const where = `artifact "${artifact.id}"`;
   if (!factionIds.has(artifact.factionId)) fail(where, `unknown factionId "${artifact.factionId}"`);
   if (!artifact.name.trim()) fail(where, 'empty name');
   if (!artifact.flavorText.trim()) fail(where, 'no flavor text — flavor is the art budget');
-  if (!Number.isFinite(artifact.defense) || artifact.defense < 0) {
-    fail(where, `defense must be a non-negative number, got ${artifact.defense}`);
+  // Wards is derived from rarity alone (RELIC_WARDS, issue #79) — the only
+  // thing left to validate here is that the rarity is one the table covers.
+  if (!KNOWN_RARITIES.has(artifact.rarity)) {
+    fail(where, `unknown rarity "${artifact.rarity}" — RELIC_WARDS has no entry for it`);
   }
 }
 
@@ -554,7 +557,6 @@ function checkAscensionPrice(where: string, text: string | undefined, impliedSub
 }
 
 for (const a of artifacts) {
-  checkAscensionPrice(`artifact "${a.id}"`, a.effect);
   checkAscensionPrice(`artifact "${a.id}"`, a.flavorText);
 }
 for (const e of endings) {

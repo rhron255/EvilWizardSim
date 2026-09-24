@@ -7,46 +7,51 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Changelog } from '../types';
-import { demoCollection } from '../components/meta/__fixtures__/demo';
+import { emptyCollection } from '../engine';
+import { CHANGELOG } from '../content/changelog';
 import { ChangelogScreen } from './ChangelogScreen';
 
-const CATALOG: Changelog = {
-  '2026-01-01T00:00:00Z': { summary: 'First summary.', details: ['First detail.'] },
-  '2026-06-30T09:00:00Z': {
-    summary: 'Second summary.',
-    details: ['Second detail A.', 'Second detail B.'],
-  },
-};
+const demoCollection = emptyCollection();
+
+/** Real, shipped versions — the changelog is append-only, so these never change. */
+const MORNING = '2026-09-22T09:15:00Z';
+const EVENING = '2026-09-22T18:40:00Z';
+const TWO_DETAILS = '2026-09-23T08:30:00Z';
 
 const open = () => {
   const onBack = vi.fn();
-  render(<ChangelogScreen changelog={CATALOG} collection={demoCollection} onBack={onBack} />);
+  render(<ChangelogScreen changelog={CHANGELOG} collection={demoCollection} onBack={onBack} />);
   return { onBack, user: userEvent.setup() };
 };
 
 describe('ChangelogScreen', () => {
   it('lists every authored version, newest first, by its date alone', () => {
     open();
-    const versions = screen.getAllByText(/^2026-/);
+    const versions = screen.getAllByText(/^\d{4}-\d{2}-\d{2}$/);
     // Displayed dates only — the time-of-day each key carries for
     // uniqueness (issue #67) is not player-facing.
-    expect(versions.map((el) => el.textContent)).toEqual(['2026-06-30', '2026-01-01']);
+    const expected = Object.keys(CHANGELOG)
+      .sort()
+      .reverse()
+      .map((v) => v.slice(0, 10));
+    expect(versions.map((el) => el.textContent)).toEqual(expected);
   });
 
   it('orders two versions shipped on the same day by their time, not just their date', () => {
-    const sameDay: Changelog = {
-      '2026-09-22T09:15:00Z': { summary: 'Morning summary.', details: ['a'] },
-      '2026-09-22T18:40:00Z': { summary: 'Evening summary.', details: ['b'] },
-    };
+    // Two real same-day builds, keyed morning-first so the screen has to sort.
+    const sameDay: Changelog = { [MORNING]: CHANGELOG[MORNING], [EVENING]: CHANGELOG[EVENING] };
     render(<ChangelogScreen changelog={sameDay} collection={demoCollection} onBack={vi.fn()} />);
-    const summaries = screen.getAllByText(/summary\./);
-    expect(summaries.map((el) => el.textContent)).toEqual(['Evening summary.', 'Morning summary.']);
+    const evening = screen.getByText(CHANGELOG[EVENING].summary);
+    const morning = screen.getByText(CHANGELOG[MORNING].summary);
+    expect(evening.compareDocumentPosition(morning) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('prints the fuller details, not just the popup summary', () => {
     open();
-    expect(screen.getByText('Second detail A.')).toBeInTheDocument();
-    expect(screen.getByText('Second detail B.')).toBeInTheDocument();
+    expect(CHANGELOG[TWO_DETAILS].details.length).toBeGreaterThan(1);
+    for (const detail of CHANGELOG[TWO_DETAILS].details) {
+      expect(screen.getByText(detail)).toBeInTheDocument();
+    }
   });
 
   it('goes back to the title from either exit', async () => {

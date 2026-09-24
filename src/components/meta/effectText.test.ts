@@ -6,6 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { Effect } from '../../types';
+import { artifacts } from '../../content';
 import { formatEffect, isNegative, signed } from './effectText';
 
 describe('isNegative', () => {
@@ -33,7 +34,7 @@ describe('isNegative', () => {
   });
 
   it('never flags a relic grant, the good-wizard vow, or an ending as negative', () => {
-    expect(isNegative({ t: 'artifact', artifactId: 'x' })).toBe(false);
+    expect(isNegative({ t: 'artifact', artifactId: artifacts[0].id })).toBe(false);
     expect(isNegative({ t: 'artifactFrom', factionId: 'gilded_hand' })).toBe(false);
     expect(isNegative({ t: 'vowGoodWizard' })).toBe(false);
     expect(isNegative({ t: 'ending', endingId: 'archmage' })).toBe(false);
@@ -53,7 +54,7 @@ describe('isNegative', () => {
       { t: 'notoriety', v: 1 },
       { t: 'followers', v: 1 },
       { t: 'standing', factionId: 'gilded_hand', v: 1 },
-      { t: 'artifact', artifactId: 'x' },
+      { t: 'artifact', artifactId: artifacts[0].id },
       { t: 'artifactFrom', factionId: 'gilded_hand' },
       { t: 'loseArtifact' },
       { t: 'apprentices', v: 1 },

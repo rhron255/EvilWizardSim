@@ -23,9 +23,47 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { demoRunAtProphecy } from '../components/meta/__fixtures__/demo';
 import type { RunState } from '../types';
 import { ProphecyInterstitial } from './ProphecyInterstitial';
+
+/** A mid-run state, taken at the moment the prophecy fires (era index 10). */
+const demoRunAtProphecy: RunState = {
+  id: 'run_test_0001',
+  seed: 741_853_902,
+  wizardName: 'Mordrach Vane',
+  epithet: 'of the Long Winter',
+  originId: 'expelled_pale_academy',
+  age: 70,
+  eraIndex: 10,
+  eraCount: 16,
+  phase: 'decline',
+  prophecyEra: 10,
+  erasSinceProphecy: 0,
+  notoriety: 74,
+  followers: 466,
+  lairId: 'thornhollow_keep',
+  knownArtifactIds: [],
+  heroBandSeen: 0,
+  heldArtifactIds: ['bone_crown'],
+  factionStanding: {
+    ashen_covenant: 62,
+    gilded_hand: 18,
+    pale_academy: -48,
+    verdant_choir: 34,
+    crownlands: -76,
+    worm_below: 9,
+  },
+  apprentices: { count: 3, loyalty: 41 },
+  pactDebt: 4,
+  heroThreat: 4,
+  isLich: false,
+  goodActs: 0,
+  illActs: 0,
+  goodWizardVowed: false,
+  eras: [],
+  seenOfferIds: [],
+  ending: undefined,
+};
 
 beforeAll(() => {
   Object.defineProperty(window, 'matchMedia', {

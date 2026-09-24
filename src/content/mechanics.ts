@@ -35,13 +35,13 @@ export const mechanics: Mechanic[] = [
     id: 'followers',
     name: 'Followers',
     blurb:
-      'The household you have gathered — hired hands, cultists, undead servants or unlucky townsfolk. They\'re a work force to be used and bartered.',
+      "The household you have gathered — hired hands, cultists, undead servants or unlucky townsfolk. They're a work force to be used and bartered.",
   },
   {
     id: 'apprentices',
     name: 'Apprentices & loyalty',
     blurb:
-      'Apprentices are your right hand wizards you have taken on; loyalty tracks how likely they are to stay that way - the lower it is, the higher the chance they\'ll replace you.',
+      "Apprentices are your right hand wizards you have taken on; loyalty tracks how likely they are to stay that way - the lower it is, the higher the chance they'll replace you.",
   },
   {
     id: 'pact_debt',
@@ -53,7 +53,7 @@ export const mechanics: Mechanic[] = [
     id: 'hero_threat',
     name: 'Hero threat',
     blurb:
-      'Represents the hero\'s strength. They will kill you if they can, once the hero\'s destiny is prophesied. Try to be smarter than them, you are an evil wizard after all.',
+      "Represents the hero's strength. They will kill you if they can, once the hero's destiny is prophesied. Try to be smarter than them, you are an evil wizard after all.",
   },
   {
     id: 'lair',
@@ -65,7 +65,7 @@ export const mechanics: Mechanic[] = [
     id: 'relics',
     name: 'Relics',
     blurb:
-      'Artifacts you have picked up along the way, each tied to one faction and graded common, rare, or legendary. A relic adds to your defense and, once held, is yours for the rest of the career. Tap Relics during a career to see what you carry.',
+      "Artifacts you have picked up along the way, each tied to one faction and graded common, rare, or legendary. A relic's wards come from its rarity, and, once held, it is yours for the rest of the career. Tap Relics during a career to see what you carry.",
   },
   {
     id: 'offers',

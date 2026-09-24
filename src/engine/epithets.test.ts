@@ -9,35 +9,32 @@
 import { describe, expect, it } from 'vitest';
 import { createRun } from './run';
 import { projectedEpithet } from './epithets';
-import { fixtureContent } from './__fixtures__/content';
+import { REAL_CONTENT, realDeed } from '../testing/realContent';
 import type { ContentBundle } from './content-port';
 import type { EraRecord } from '../types';
 
 const start = () =>
   createRun(
-    { wizardName: 'Test', originId: fixtureContent.origins[0].id, eraCount: 16, seed: 42 },
-    fixtureContent,
+    { wizardName: 'Test', originId: REAL_CONTENT.origins[0].id, eraCount: 16, seed: 42 },
+    REAL_CONTENT,
   );
 
 const era = (over: Partial<EraRecord>): EraRecord => ({
   eraIndex: 0,
   age: 30,
-  lairId: fixtureContent.lairs[0].id,
+  lairId: REAL_CONTENT.lairs[0].id,
   notoriety: 50,
   notorietyDelta: 0,
   followers: 0,
   artifactsGained: [],
-  deedSummary: 'It is done.',
-  offerId: fixtureContent.offers[0].id,
-  optionLabel: 'Go',
-  outcome: 'deterministic',
+  ...realDeed(0),
   phase: 'ascent',
   ...over,
 });
 
 // No authored epithets, so `projectedEpithet` always falls through to the
 // engine's tier-derived fallback — isolates the fallback logic under test.
-const noEpithets: ContentBundle = { ...fixtureContent, epithets: [] };
+const noEpithets: ContentBundle = { ...REAL_CONTENT, epithets: [] };
 
 describe('epithet fallback', () => {
   it('uses the peak tier, not the decayed current tier', () => {
