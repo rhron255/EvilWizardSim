@@ -1130,13 +1130,16 @@ const LAIR_TIER = new Map(content.lairs.map((l) => [l.id, l.tier]));
  *     quarters of the wizard's wards, the same "ratio of the ceiling" shape
  *     `heroBand`'s own thresholds already use.
  */
-// LOWERED 50 -> 35 (issue #82's "every relic power fires" check): Final
-// Ledger is a legendary, rare to hold at all, and at 50 the bot almost never
-// held it AND had a follower surplus that large at the same time — it fired
-// zero times across the whole population in the seed-1 measurement this
-// check exists to catch. 35 is still comfortably above `START_FOLLOWERS`
+// LOWERED 50 -> 35 -> 20 (issue #82's "every relic power fires" check):
+// Final Ledger is a legendary, rare to hold at all, and at 50 (then 35) the
+// bot almost never held it AND had a follower surplus that large at the
+// same time — it fired zero times across the whole population AND every
+// probe this file runs, including a `courtier_gilded_hand` cohort forced to
+// the longest run length (`relicHoarderProbe`) that reliably devotes to
+// gilded_hand but still rarely sits on 35+ Followers, since no scoring mode
+// particularly values holding onto them. 20 is still twice `START_FOLLOWERS`
 // (10), so it is still "a real surplus", not a hair-trigger.
-const FINAL_LEDGER_FOLLOWER_FLOOR = 35;
+const FINAL_LEDGER_FOLLOWER_FLOOR = 20;
 const PALE_ORRERY_RISKY_ODDS = 0.5;
 const BRAZIER_DEBT_FLOOR = 5;
 const SWORD_THREAT_RATIO = 0.75;
@@ -1246,6 +1249,14 @@ function playRun(
     }
     for (const event of resolution.relicEvents) {
       relicFires[event.artifactId] = (relicFires[event.artifactId] ?? 0) + 1;
+    }
+    // A lifeline save is deliberately kept out of `relicEvents` (see the doc
+    // comment on `Resolution.lifeline`) so the resolution card doesn't fold a
+    // run-saving event into its quiet per-era list. The harness still needs
+    // to count it as a fire, or every lifeline reads permanently unreachable.
+    if (resolution.lifeline) {
+      relicFires[resolution.lifeline.artifactId] =
+        (relicFires[resolution.lifeline.artifactId] ?? 0) + 1;
     }
     run = next;
     if (run.isLich) becameLich = true;
@@ -1587,22 +1598,42 @@ function redeemedProbe(baseSeed: number): RunResult[] {
  * specific relic and having its condition trip, rather than reaching a
  * specific ending. A rare or legendary relic, or one behind a single named
  * grant, can sit at an expected count near zero across the 2000-run
- * population alone (MEASURED: Final Ledger and the Portcullis Tooth both
- * fired zero times across the population plus every OTHER probe this file
- * already runs, seed 1).
+ * population alone (MEASURED: Final Ledger fired zero times across the
+ * population plus every OTHER probe this file already runs, including
+ * `leadershipProbe`'s own 200-run `courtier_gilded_hand` cohort — that
+ * already devotes hard enough to reach the faction, but `pickEraCount`
+ * gives most of those careers a Standard or even Brief length, and Final
+ * Ledger's OWN gate is a Followers surplus no scoring mode particularly
+ * values holding onto).
  *
- * `'greedy'` — the one population policy that already takes whatever a card
- * offers with no further filter — forced to the longest run length, the
- * same "a real seeker would not leave this to `pickEraCount`" reasoning
- * `redeemedProbe`'s own comment gives: more eras is strictly more draws,
- * which is the whole lever this probe has to pull.
+ * (The Portcullis Tooth's own zero, measured alongside Final Ledger's, was
+ * failure mode 5 — the harness lying, not the game: a lifeline save is
+ * deliberately kept out of `resolution.relicEvents` (see the doc comment on
+ * `Resolution.lifeline`), and `playRun`'s fire-counting loop wasn't reading
+ * `resolution.lifeline` at all, so BOTH lifelines read as never firing no
+ * matter how often they actually did. Fixed at the counting site, not here
+ * — this probe still exists for Final Ledger's real reachability gap, and
+ * happens to give both lifelines more chances too.)
+ *
+ * Three policies, each forced to the longest run length (more eras is
+ * strictly more draws, the same "a real seeker would not leave this to
+ * `pickEraCount`" reasoning `redeemedProbe`'s own comment gives):
+ * `'greedy'` for general relic velocity, and `courtier_gilded_hand`/
+ * `courtier_crownlands` specifically for Final Ledger's and the Portcullis
+ * Tooth's own factions — devotion upgrades a `rarity: 'rare'` REQUEST to
+ * that faction's legendary (`drawArtifact`, `src/engine/effects.ts`), which
+ * `favor_gilded_terms`'s own rare-tier branch can reach for Final Ledger.
  */
-const RELIC_HOARDER_RUNS = 600;
+const RELIC_HOARDER_RUNS = 300;
+const RELIC_HOARDER_POLICIES: Policy[] = ['greedy', 'courtier_gilded_hand', 'courtier_crownlands'];
 
 function relicHoarderProbe(baseSeed: number): RunResult[] {
   const runs: RunResult[] = [];
-  for (let i = 0; i < RELIC_HOARDER_RUNS; i++) {
-    runs.push(playRun(baseSeed + 741_259 + i * 4451, RUN_LENGTHS[RUN_LENGTHS.length - 1], 'greedy'));
+  for (const policy of RELIC_HOARDER_POLICIES) {
+    const salt = policy.length;
+    for (let i = 0; i < RELIC_HOARDER_RUNS; i++) {
+      runs.push(playRun(baseSeed + 741_259 + salt * 131 + i * 4451, RUN_LENGTHS[RUN_LENGTHS.length - 1], policy));
+    }
   }
   return runs;
 }
