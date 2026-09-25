@@ -1579,6 +1579,34 @@ function redeemedProbe(baseSeed: number): RunResult[] {
   return runs;
 }
 
+/**
+ * A dedicated reachability probe for relic POWERS (issue #82's own
+ * acceptance item: "every relic power fires... more than zero in the
+ * population or a probe", the same small-expected-count reasoning
+ * `reprisalProbe`/`leadershipProbe` already document — just for HOLDING a
+ * specific relic and having its condition trip, rather than reaching a
+ * specific ending. A rare or legendary relic, or one behind a single named
+ * grant, can sit at an expected count near zero across the 2000-run
+ * population alone (MEASURED: Final Ledger and the Portcullis Tooth both
+ * fired zero times across the population plus every OTHER probe this file
+ * already runs, seed 1).
+ *
+ * `'greedy'` — the one population policy that already takes whatever a card
+ * offers with no further filter — forced to the longest run length, the
+ * same "a real seeker would not leave this to `pickEraCount`" reasoning
+ * `redeemedProbe`'s own comment gives: more eras is strictly more draws,
+ * which is the whole lever this probe has to pull.
+ */
+const RELIC_HOARDER_RUNS = 600;
+
+function relicHoarderProbe(baseSeed: number): RunResult[] {
+  const runs: RunResult[] = [];
+  for (let i = 0; i < RELIC_HOARDER_RUNS; i++) {
+    runs.push(playRun(baseSeed + 741_259 + i * 4451, RUN_LENGTHS[RUN_LENGTHS.length - 1], 'greedy'));
+  }
+  return runs;
+}
+
 function pickPolicy(roll: number): Policy {
   let acc = 0;
   for (const [name, share] of POPULATION) {
@@ -1945,6 +1973,7 @@ function main(): void {
   const lich = lichProbe(baseSeed);
   const completion = completionProbe(baseSeed ^ 0xc0111ec7, COMPLETION_PLAYERS, COMPLETION_CAP);
   const redeemed = redeemedProbe(baseSeed);
+  const relicHoarder = relicHoarderProbe(baseSeed);
 
   /** Every career the harness played, for the reachability check only. */
   const byEndingAnywhere = new Map(byEnding);
@@ -2508,6 +2537,7 @@ function main(): void {
     ...saint,
     ...lich,
     ...redeemed,
+    ...relicHoarder,
   ];
   const relicFiresAnywhere = new Map<string, number>();
   for (const r of allCareers) {
