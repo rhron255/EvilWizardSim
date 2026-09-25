@@ -21,6 +21,16 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-09-25T16:00:00Z': {
+    summary: 'Every relic in the game does something now, and careers hold more of them.',
+    details: [
+      'The last 22 relics all have powers of their own, some good, some double-edged — the Tenure Ring and the Weather Leash are only ever offered by name, never found at random.',
+      'The Brazier of the Ninth Clause, the Key to No Particular Door, and the Sword That Was Returned each carry a one-time Use button on the relic page.',
+      'The Root of the Standing Vote and the Portcullis Tooth can each save a career from an ending once, automatically — the resolution card says so when it happens.',
+      'Careers now tend to hold a few more relics than before.',
+      'Your relic collection has been reset once more for this update, since every relic you already found was a powerless find when you saw it.',
+    ],
+  },
   '2026-09-25T13:00:00Z': {
     summary: 'The six legendary relics do something now, and two of them you can trigger yourself.',
     details: [
