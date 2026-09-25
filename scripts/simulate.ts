@@ -40,7 +40,7 @@ import type {
   TierId,
 } from '../src/types';
 import { writeFileSync } from 'node:fs';
-import type { ContentBundle } from '../src/engine';
+import type { ContentBundle, RelicEvent } from '../src/engine';
 import { TIERS, tierFor } from '../src/theme/tokens';
 import {
   ascensionReady,
@@ -49,6 +49,7 @@ import {
   effectiveOdds,
   isOptionPickable,
   nextOffer,
+  projectReactions,
   relicRules,
   resolveChoice,
 } from '../src/engine';
@@ -568,6 +569,28 @@ function scoreEffects(
   return total;
 }
 
+/** The effects a held relic's reaction actually adds, in trigger order — `RelicEvent.applied` flattened across every relic that fired. */
+function reactionEffectsOf(events: readonly RelicEvent[]): Effect[] {
+  return events.flatMap((e) => e.applied);
+}
+
+/**
+ * A held relic's reaction is priced right alongside the option's own effects,
+ * not left out the way a review on this issue caught: the Ashen Signature's
+ * first debt-raising choice is scored at the FULL debt every policy prices,
+ * while `resolveChoice` actually applies the Signature's `-1 pactDebt` on top
+ * of it, and the Unpaid Purse's eraEnd payout depends on which branch a
+ * gamble lands on, exactly the kind of branch-dependent consequence
+ * `scoreEffects` needs to see to rank options the way the engine will
+ * actually resolve them. `projectReactions` is the same function the offer
+ * card previews reactions through (`OfferPanel`), so a bot sees exactly what
+ * the player is shown before committing — never a copy that can drift from
+ * it. Appended AFTER the option's own effects, matching the order
+ * `resolveChoice` actually runs them in, so a reaction's `pactDebt` delta
+ * threads through `scoreEffects`'s running clamp against the debt the
+ * option's own effects already produced, not against the pre-choice `debt`
+ * a second time.
+ */
 function optionScore(
   run: RunState,
   option: OfferOption,
@@ -576,8 +599,16 @@ function optionScore(
   debt: number,
   takesGoodWizard: boolean,
 ): number {
+  const reactions = projectReactions(run, option, content);
   if (option.kind === 'certain') {
-    return scoreEffects(option.effects, w, takesLichdom, debt, takesGoodWizard);
+    const events = reactions.kind === 'certain' ? reactions.events : [];
+    return scoreEffects(
+      [...option.effects, ...reactionEffectsOf(events)],
+      w,
+      takesLichdom,
+      debt,
+      takesGoodWizard,
+    );
   }
   // Both branches are priced from the SAME starting debt, which is what makes
   // a two-way gamble legible to a policy: at 5/7 the failure branch crosses
@@ -585,9 +616,25 @@ function optionScore(
   // collapses exactly where a player would feel it collapse. Scored through
   // `effectiveOdds` — a no-op today, live for #77 slice 5's odds relic.
   const odds = effectiveOdds(run, option);
+  const onSuccess = reactions.kind === 'gamble' ? reactions.onSuccess : [];
+  const onFailure = reactions.kind === 'gamble' ? reactions.onFailure : [];
   return (
-    odds * scoreEffects(option.onSuccess, w, takesLichdom, debt, takesGoodWizard) +
-    (1 - odds) * scoreEffects(option.onFailure, w, takesLichdom, debt, takesGoodWizard)
+    odds *
+      scoreEffects(
+        [...option.onSuccess, ...reactionEffectsOf(onSuccess)],
+        w,
+        takesLichdom,
+        debt,
+        takesGoodWizard,
+      ) +
+    (1 - odds) *
+      scoreEffects(
+        [...option.onFailure, ...reactionEffectsOf(onFailure)],
+        w,
+        takesLichdom,
+        debt,
+        takesGoodWizard,
+      )
   );
 }
 
