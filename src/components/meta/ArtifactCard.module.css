@@ -63,14 +63,17 @@
 }
 
 /* Styling rule 2: a control the player must find at a glance needs visual
-   weight of its own — border, pill radius, the brighter `--ew-ink` — the
-   same pattern the Relics stat's own nav button and FactionStandings' toggle
-   use. `flex: 1` claims every pixel of the icon column the well leaves
-   behind (the column now stretches to the row's full height, above), and
-   the label turns with it: `vertical-rl` runs the text top-to-bottom and
-   rotates each letter 90° along the way, the standard way a vertical strip
-   this narrow (56px, or 46px `.compact`) stays legible instead of trying to
-   wrap "USE" across multiple horizontal lines. */
+   weight of its own — border, a RESTING fill (not just a hover one, so it
+   reads as a control before the pointer ever finds it), pill radius, the
+   brighter `--ew-ink`. `flex: 1` claims every pixel of the icon column the
+   well leaves behind (the column now stretches to the row's full height,
+   above), and the label turns with it: `vertical-rl` runs the text
+   top-to-bottom and rotates each letter 90° along the way, the standard way
+   a vertical strip this narrow (56px, or 46px `.compact`) stays legible
+   instead of trying to wrap "USE" across multiple horizontal lines. The
+   180° flip on top of that reads bottom-to-top instead — the conventional
+   orientation for a label on the LEFT edge of its own content, so a player
+   tilts their head left to read it rather than right. */
 .useButton {
   flex: 1;
   width: 100%;
@@ -80,10 +83,11 @@
   justify-content: center;
   writing-mode: vertical-rl;
   text-orientation: mixed;
+  transform: rotate(180deg);
   padding: var(--ew-space-2) 0;
   border: 1px solid var(--ew-line-strong);
   border-radius: var(--ew-radius-pill);
-  background: none;
+  background: color-mix(in srgb, var(--ew-ink-faint) 7%, var(--ew-void));
   font-family: var(--ew-font-ui);
   font-size: 0.625rem;
   font-weight: 600;
@@ -98,12 +102,13 @@
 .useButton:focus-visible {
   color: var(--ew-ink-bright);
   border-color: var(--ew-ink-faint);
-  background: color-mix(in srgb, var(--ew-ink-faint) 12%, var(--ew-void));
+  background: color-mix(in srgb, var(--ew-ink-faint) 16%, var(--ew-void));
 }
 
 /* A used active leaves its mark in the same slot the button occupied — same
-   fill, same turned label — so the column's shape does not jump the moment
-   it is spent. */
+   turned label, no fill — so the column's shape does not jump the moment
+   it is spent, but the fill still goes with the button rather than lingering
+   on a control that no longer does anything. */
 .usedMark {
   flex: 1;
   width: 100%;
@@ -113,6 +118,7 @@
   justify-content: center;
   writing-mode: vertical-rl;
   text-orientation: mixed;
+  transform: rotate(180deg);
   padding: var(--ew-space-2) 0;
   font-family: var(--ew-font-ui);
   font-size: 0.5625rem;
