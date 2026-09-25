@@ -142,7 +142,7 @@ describe('Censer of Small Regrets · +Notoriety when you lose a gamble', () => {
 // Brazier of the Ninth Clause — active
 // ---------------------------------------------------------------------------
 
-describe('Brazier of the Ninth Clause · active: -3 Pact Debt, +15 Hero Threat', () => {
+describe('Brazier of the Ninth Clause · active: -2 Pact Debt, +15 Hero Threat', () => {
   it('applies both effects and can only be used once', () => {
     const holder = run({ heldArtifactIds: ['ninth_clause_brazier'], pactDebt: 5, heroThreat: 10 });
     expect(canActivateRelic(holder, 'ninth_clause_brazier', content)).toBe(true);
@@ -150,11 +150,11 @@ describe('Brazier of the Ninth Clause · active: -3 Pact Debt, +15 Hero Threat',
     expect(event).toEqual({
       artifactId: 'ninth_clause_brazier',
       applied: [
-        { t: 'pactDebt', v: -3 },
+        { t: 'pactDebt', v: -2 },
         { t: 'heroThreat', v: 15 },
       ],
     });
-    expect(next.pactDebt).toBe(2);
+    expect(next.pactDebt).toBe(3);
     expect(next.heroThreat).toBe(25);
     expect(canActivateRelic(next, 'ninth_clause_brazier', content)).toBe(false);
   });

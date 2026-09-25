@@ -1238,9 +1238,11 @@ export const ascentOffers: Offer[] = [
       {
         kind: 'certain',
         label: 'Open the tunnels and see who is home',
+        // Issue #82: see the note on `ascent_ashen_advance`.
         effects: [
           { t: 'standing', factionId: 'worm_below', v: 16 },
           { t: 'notoriety', v: 6 },
+          { t: 'artifactFrom', factionId: 'worm_below', rarity: 'common' },
         ],
       },
       {
@@ -1465,9 +1467,11 @@ export const ascentOffers: Offer[] = [
       {
         kind: 'certain',
         label: 'Send him back with a note',
+        // Issue #82: see the note on `ascent_ashen_advance`.
         effects: [
           { t: 'standing', factionId: 'verdant_choir', v: 20 },
           { t: 'notoriety', v: -2 },
+          { t: 'artifactFrom', factionId: 'verdant_choir', rarity: 'common' },
         ],
       },
       {
@@ -1988,10 +1992,12 @@ export const ascentOffers: Offer[] = [
       {
         kind: 'certain',
         label: 'Enter the rolls in full',
+        // Issue #82: see the note on `ascent_ashen_advance`.
         effects: [
           { t: 'followers', v: -18 },
           { t: 'standing', factionId: 'crownlands', v: 16 },
           { t: 'heroThreat', v: -4 },
+          { t: 'artifactFrom', factionId: 'crownlands', rarity: 'common' },
         ],
         resultText: 'Eighteen of your household are counted, taxed, and, for the first time, protected by something.',
       },

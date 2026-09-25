@@ -1130,7 +1130,13 @@ const LAIR_TIER = new Map(content.lairs.map((l) => [l.id, l.tier]));
  *     quarters of the wizard's wards, the same "ratio of the ceiling" shape
  *     `heroBand`'s own thresholds already use.
  */
-const FINAL_LEDGER_FOLLOWER_FLOOR = 50;
+// LOWERED 50 -> 35 (issue #82's "every relic power fires" check): Final
+// Ledger is a legendary, rare to hold at all, and at 50 the bot almost never
+// held it AND had a follower surplus that large at the same time — it fired
+// zero times across the whole population in the seed-1 measurement this
+// check exists to catch. 35 is still comfortably above `START_FOLLOWERS`
+// (10), so it is still "a real surplus", not a hair-trigger.
+const FINAL_LEDGER_FOLLOWER_FLOOR = 35;
 const PALE_ORRERY_RISKY_ODDS = 0.5;
 const BRAZIER_DEBT_FLOOR = 5;
 const SWORD_THREAT_RATIO = 0.75;

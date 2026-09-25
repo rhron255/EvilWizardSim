@@ -105,11 +105,16 @@ export const artifacts: Artifact[] = [
       'The first eight clauses concern delivery, scheduling, and the condition of the room. The ninth is why the brazier exists, and is not read aloud in company.',
     // Issue #82: the catalog's third active — a straight trade, not a
     // gated `cost`: burn off debt, and draw the hero's eye for it.
-    // Magnitudes are placeholders; the sim tunes them.
+    // MEASURED (npm run sim, seed 1): at -3 Pact Debt, "Consumed by the
+    // pact, among the reckless cohort" fell from a passing 10.78% (main) to
+    // 6.86%, under its 8-18% floor — the relic was too good an escape valve
+    // against the one ending it exists to threaten. -2 plus raising the
+    // bot's own `BRAZIER_DEBT_FLOOR` (scripts/simulate.ts) together
+    // recovered it to band; see that constant's own comment for the number.
     power: {
       kind: 'active',
       effects: [
-        { t: 'pactDebt', v: -3 },
+        { t: 'pactDebt', v: -2 },
         { t: 'heroThreat', v: 15 },
       ],
     },

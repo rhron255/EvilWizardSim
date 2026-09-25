@@ -1580,16 +1580,17 @@ export const declineOffers: Offer[] = [
     phase: 'decline',
     factionId: 'verdant_choir',
     requires: [{ c: 'minStanding', factionId: 'verdant_choir', v: 25 }],
-    // Issue #82's retuning clause: raised 1 -> 4. The Weather Leash's only
-    // route into a career is this offer's own gamble, and at weight 1 the
-    // card itself was rarely drawn even once standing cleared the gate —
-    // `npm run sim`'s "Full completion" target regressed from 547 to over
-    // 2000 median runs the moment the Leash stopped being randomly drawable
-    // (see `isDoubleEdged`, `src/engine/effects.ts`), because a career now
-    // needs to both SEE this specific card and WIN its 35% gamble. Weight
-    // alone (not the odds, which stay the relic's own real gamble) recovers
-    // most of that: see the constant's own doc comment for the measured
-    // before/after.
+    // Issue #82's retuning clause. The Weather Leash's only route into a
+    // career is this offer's own gamble, and at weight 1 / odds 0.35 the
+    // card was rarely even DRAWN once standing cleared the gate, let alone
+    // won — `npm run sim`'s "Full completion" target regressed from a
+    // passing 547 median runs (main) to over 2000 the moment the Leash
+    // stopped being randomly drawable (see `isDoubleEdged`, `src/engine/
+    // effects.ts`), because a career now needs to both SEE this specific
+    // card and WIN its gamble. Weight 1 -> 4 alone (odds untouched) only
+    // brought it to 1482; raising the odds 0.35 -> 0.55 too is what a
+    // second measurement showed was actually needed — see the constant's
+    // own doc comment for the full before/after table.
     weight: 4,
     options: [
       {
@@ -1613,7 +1614,7 @@ export const declineOffers: Offer[] = [
       {
         kind: 'gamble',
         label: 'Ask for the deep grove instead',
-        odds: 0.35,
+        odds: 0.55,
         // The Weather Leash's only route into a career (issue #82,
         // double-edged — never drawn at random, see `isDoubleEdged` in
         // `src/engine/effects.ts`). A named grant, not `artifactFrom`: this
