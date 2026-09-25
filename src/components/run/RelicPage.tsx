@@ -21,31 +21,39 @@
  * grant — never in `eras`, see that field's doc comment in `types.ts`), and
  * the current `heldArtifactIds`, minus whatever is still held.
  *
- * *Amended to drop the offer card's "Whatever you choose" line, and to fold
- * the wards figure into this page's own heading.* A relic whose era-end
- * trigger fires no matter what gets picked used to print that line, unchanged,
- * on every single offer of the run — repetitive rather than informative once
- * a player had seen it once. This page now opens with a plain, scannable
- * summary instead: every held relic's name, then its EFFECT — the same terse
- * "+2 Standing · The Verdant Choir" notation `formatEffects` already renders
- * for an ordinary offer, not the fuller descriptive sentence `relicPowerText`
+ * *Amended to drop the offer card's "Whatever you choose" line.* A relic
+ * whose era-end trigger fires no matter what gets picked used to print that
+ * line, unchanged, on every single offer of the run — repetitive rather than
+ * informative once a player had seen it once. This page now opens with a
+ * subtitle stating the total wards, then a plain, scannable summary: every
+ * held relic's name, then its EFFECT in the same colour-coded, comma-flowed
+ * notation `RelicReactions`/`EffectList` already render for an ordinary
+ * offer's consequences — not the fuller descriptive sentence `relicPowerText`
  * builds around it (the "At every era's end, if …:" framing and the gating
  * condition). That fuller sentence still appears once, on the full card
  * below under "Artifacts" — this summary is the quick version, not a second
- * copy of the same disclosure. A relic with no `Effect[]` of its own (a bare
- * passive rate change, or no power at all) has nothing terse to print, so it
- * falls back to `relicPowerText` or is named with no effect line at all. This
- * is deliberately NOT the same guarantee rule 1 makes for an offer card: a
- * player who never opens this page gets no pre-commit warning about an
- * era-end power, only the resolution screen's own after-the-fact "Your
- * relics" section — an accepted gap.
+ * copy of the same disclosure. Only a `trigger` power carries a discrete
+ * `Effect[]` to render that way; a `passive` rate change (the only other kind
+ * authored so far) has no such list, so it falls back to its own prose, and a
+ * relic with no power at all gets no effect line. This is deliberately NOT
+ * the same guarantee rule 1 makes for an offer card: a player who never opens
+ * this page gets no pre-commit warning about an era-end power, only the
+ * resolution screen's own after-the-fact "Your relics" section — an accepted
+ * gap.
  */
 
 import { useEffect, useRef } from 'react';
-import type { DefenseReadout } from '../../engine';
-import type { Artifact, Faction, RunState } from '../../types';
-import { ArtifactCard, formatEffects, relicPowerText } from '../meta';
+import type { DefenseReadout, RelicEvent } from '../../engine';
+import type { Artifact, Faction, RelicPower, RunState } from '../../types';
+import { ArtifactCard, relicPowerText } from '../meta';
+import { RelicReactions } from './OptionCard';
 import styles from './RelicPage.module.css';
+
+type TriggerPower = Extract<RelicPower, { kind: 'trigger' }>;
+
+function hasTriggerPower(artifact: Artifact): artifact is Artifact & { power: TriggerPower } {
+  return artifact.power?.kind === 'trigger';
+}
 
 export type RelicPageProps = {
   run: RunState;
@@ -60,18 +68,13 @@ function factionFor(factions: Faction[], id: string): Faction | undefined {
 }
 
 /**
- * The terse "+2 Standing · The Verdant Choir" reading of a relic's power, not
- * the descriptive sentence — only a `trigger` power carries a discrete
- * `Effect[]` to render that way. A `passive` rate change (the only other
- * kind authored so far) has no such list, so its own prose is the only
- * representation there is; `null` (no power) has nothing to say at all.
+ * The descriptive fallback for a relic with no discrete `Effect[]` to render
+ * tersely — a `passive` rate change, or one of the deferred `active`/
+ * `lifeline` placeholders. `null` (no power) has nothing to say at all.
  */
-function effectsFor(artifact: Artifact, faction: Faction | undefined): string | null {
-  const power = artifact.power;
-  if (!power) return null;
-  const ctx = { factions: faction && [faction] };
-  if (power.kind === 'trigger') return formatEffects(power.effects, ctx).join(', ');
-  return relicPowerText(power, ctx);
+function descriptionFor(artifact: Artifact, faction: Faction | undefined): string | null {
+  if (!artifact.power) return null;
+  return relicPowerText(artifact.power, { factions: faction && [faction] });
 }
 
 export function RelicPage({ run, artifacts, factions, defense, onBack }: RelicPageProps) {
@@ -102,6 +105,19 @@ export function RelicPage({ run, artifacts, factions, defense, onBack }: RelicPa
 
   const relicsTerm = defense?.terms.find((t) => t.label === 'Relics');
 
+  // One `RelicEvent` per held relic whose power carries a discrete
+  // `Effect[]` — reusing `RelicReactions` gets the colour-coded, comma-flowed
+  // rendering an ordinary offer's own consequences already use, rather than
+  // reinventing it here.
+  const triggerEvents: RelicEvent[] = held
+    .filter(hasTriggerPower)
+    .map((a) => ({ artifactId: a.id, applied: a.power.effects }));
+
+  // Everything else held — a passive rate change, a deferred active/lifeline
+  // placeholder, or no power at all — falls back to its own prose, or (no
+  // power) gets no effect line.
+  const otherHeld = held.filter((a) => !hasTriggerPower(a));
+
   const emptyText =
     lost.length > 0
       ? 'None held right now. The hero has nothing to fear from your walls.'
@@ -115,23 +131,28 @@ export function RelicPage({ run, artifacts, factions, defense, onBack }: RelicPa
         </button>
       </div>
 
-      <h2 className={styles.heading} tabIndex={-1} ref={headingRef}>
-        Your Relics{relicsTerm ? ` (+${Math.round(relicsTerm.value)} Wards)` : ''}
-      </h2>
+      <div className={styles.titleGroup}>
+        <h2 className={styles.heading} tabIndex={-1} ref={headingRef}>
+          Your Relics
+        </h2>
+
+        {relicsTerm && <p className={styles.subtitle}>+{Math.round(relicsTerm.value)} Wards</p>}
+      </div>
 
       {held.length > 0 && (
-        <ul className={styles.summaryList} aria-label="Relic summary">
-          {held.map((artifact) => {
+        <div className={styles.summaryList} role="group" aria-label="Relic summary">
+          <RelicReactions events={triggerEvents} artifacts={artifacts} factions={factions} />
+          {otherHeld.map((artifact) => {
             const faction = factionFor(factions, artifact.factionId);
-            const effects = effectsFor(artifact, faction);
+            const description = descriptionFor(artifact, faction);
             return (
-              <li key={artifact.id} className={styles.summaryItem}>
-                <p className={styles.summaryName}>{artifact.name}</p>
-                {effects && <p className={styles.summaryEffect}>{effects}</p>}
-              </li>
+              <p key={artifact.id} className={styles.summaryOther}>
+                <span className={styles.summaryOtherName}>{artifact.name}</span>
+                {description && <span className={styles.summaryOtherDesc}>{description}</span>}
+              </p>
             );
           })}
-        </ul>
+        </div>
       )}
 
       <h3 className={styles.subHeading}>Artifacts</h3>

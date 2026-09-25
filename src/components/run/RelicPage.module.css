@@ -48,6 +48,14 @@
   background: color-mix(in srgb, var(--ew-ink-faint) 12%, var(--ew-void));
 }
 
+/* Heading and the wards subtitle sit close together as one title block —
+   `.page`'s own gap already separates this group from what follows. */
+.titleGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-1);
+}
+
 .heading {
   margin: 0;
   font-family: var(--ew-font-display);
@@ -62,38 +70,48 @@
   outline-offset: 4px;
 }
 
+.subtitle {
+  margin: 0;
+  font-size: var(--ew-size-sm);
+  color: var(--ew-ink-dim);
+}
+
 /* The compact "name, then effect" line for every held relic — what used to
    sit on the offer card under "Whatever you choose" for an era-end power
    alone now covers every relic here, in the same words `ArtifactCard` prints
    on the fuller card below. Bordered like `Masthead`'s own sections
    (styling convention 1) so it reads as its own thing, closed off before
-   "Artifacts" begins. */
+   "Artifacts" begins. The extra `margin-top` is a line break of its own,
+   beyond `.page`'s base gap, so the title block above doesn't read as
+   crowding straight into the summary. */
 .summaryList {
   display: flex;
   flex-direction: column;
   gap: var(--ew-space-3);
-  margin: 0;
+  margin-top: var(--ew-space-2);
   padding: 0 0 var(--ew-space-4);
   border-bottom: 1px solid var(--ew-line);
-  list-style: none;
 }
 
-.summaryItem {
+/* A relic with no discrete effect to render tersely (a passive rate change,
+   or a deferred active/lifeline placeholder) — same "name, italic; text,
+   faint" treatment `RelicReactions`' own rows use, so the two read as one
+   list even though only one kind is colour-coded. */
+.summaryOther {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--ew-space-2);
+  margin: 0;
+  font-size: var(--ew-size-xs);
+  color: var(--ew-ink-faint);
 }
 
-.summaryName {
-  margin: 0;
-  font-size: var(--ew-size-sm);
-  font-weight: 500;
-  color: var(--ew-ink-bright);
+.summaryOtherName {
+  font-style: italic;
 }
 
-.summaryEffect {
-  margin: 0;
-  font-size: var(--ew-size-sm);
+.summaryOtherDesc {
   color: var(--ew-ink-dim);
 }
 

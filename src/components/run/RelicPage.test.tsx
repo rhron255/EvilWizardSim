@@ -114,22 +114,25 @@ describe('RelicPage · held relics', () => {
     expect(screen.getByRole('heading', { name: 'The Antler Baton' })).toBeInTheDocument();
   });
 
-  it('folds the wards figure from the passed-down defense readout into the page heading', () => {
+  it('shows the wards figure from the passed-down defense readout as a subtitle', () => {
     show(baseRun, wards(6));
-    expect(screen.getByRole('heading', { name: 'Your Relics (+6 Wards)' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Your Relics' })).toBeInTheDocument();
+    expect(screen.getByText('+6 Wards')).toBeInTheDocument();
   });
 
   it('says nothing about wards when no defense readout is supplied', () => {
     show(baseRun, null);
     expect(screen.getByRole('heading', { name: 'Your Relics' })).toBeInTheDocument();
-    expect(screen.queryByText(/Wards/, { selector: 'h2' })).toBeNull();
+    // The subtitle reads "+N Wards"; a held card's own "Wards +N." line is a
+    // different string and legitimately still on screen, so match precisely.
+    expect(screen.queryByText(/^\+\d+ Wards$/)).toBeNull();
   });
 });
 
 describe('RelicPage · the relic summary', () => {
   it('lists every held relic by name, with no wards figure per relic', () => {
     show(baseRun);
-    const summary = screen.getByRole('list', { name: 'Relic summary' });
+    const summary = screen.getByRole('group', { name: 'Relic summary' });
     expect(within(summary).getByText('The Bone Crown')).toBeInTheDocument();
     expect(within(summary).getByText('The Antler Baton')).toBeInTheDocument();
     // The page heading already states the total; a relic that adds wards and
@@ -140,15 +143,18 @@ describe('RelicPage · the relic summary', () => {
   it('names a relic with a trigger power by its terse effect, not the full sentence', () => {
     const run = { ...baseRun, heldArtifactIds: [...baseRun.heldArtifactIds, 'mantle_of_slow_moss'] };
     show(run);
-    const summary = screen.getByRole('list', { name: 'Relic summary' });
-    expect(within(summary).getByText('+2 Standing · The Verdant Choir')).toBeInTheDocument();
+    const summary = screen.getByRole('group', { name: 'Relic summary' });
+    // The number and its label render as separate spans (EffectList's own
+    // colour-coded markup), so check each rather than one combined string.
+    expect(within(summary).getByText('+2', { exact: true })).toBeInTheDocument();
+    expect(within(summary).getByText('Standing · The Verdant Choir')).toBeInTheDocument();
     expect(within(summary).queryByText(/At every era's end/)).toBeNull();
   });
 
   it('falls back to the descriptive sentence for a passive with no discrete effect', () => {
     const run = { ...baseRun, heldArtifactIds: [...baseRun.heldArtifactIds, 'footnote_that_bites'] };
     show(run);
-    const summary = screen.getByRole('list', { name: 'Relic summary' });
+    const summary = screen.getByRole('group', { name: 'Relic summary' });
     expect(
       within(summary).getByText('Passive: favoring a faction costs its rivals 50% less standing than usual.'),
     ).toBeInTheDocument();
@@ -156,7 +162,7 @@ describe('RelicPage · the relic summary', () => {
 
   it('says nothing when there is nothing held', () => {
     show({ ...baseRun, heldArtifactIds: [] } as RunState);
-    expect(screen.queryByRole('list', { name: 'Relic summary' })).toBeNull();
+    expect(screen.queryByRole('group', { name: 'Relic summary' })).toBeNull();
   });
 });
 
@@ -227,6 +233,6 @@ describe('RelicPage · getting back', () => {
 describe('RelicPage · focus', () => {
   it('moves focus to the page heading on mount', () => {
     show(baseRun, wards(6));
-    expect(screen.getByRole('heading', { name: 'Your Relics (+6 Wards)' })).toHaveFocus();
+    expect(screen.getByRole('heading', { name: 'Your Relics' })).toHaveFocus();
   });
 });
