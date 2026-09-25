@@ -301,3 +301,32 @@ screenshot could not have shown either way:
 (320px) — the second is where a row that fit first runs out of room. For a
 new focusable control, tab to it and press Enter/Space before calling the
 change done; a screenshot only ever proves what a mouse would have seen.
+
+### 16. An engine's own name for itself leaks onto the card
+
+The Footnote That Bites relic (issue #80) halves `CONTAGION_GAIN` — the rate
+`applyStanding` uses to spill a standing loss onto a courted faction's
+enemies. `relicPower.ts`'s text for that modifier read "Passive: standing
+lost to **contagion** is X% lower." It typechecked, it read like the rest of
+the relic panel's prose, and it shipped: "contagion" is the name a code
+comment gave the spillover mechanic (`src/types.ts`'s
+`RelicPassiveModifier` doc comment, `applyStanding`'s own comment block) —
+never a word the game teaches a player anywhere. Nothing in the run screen,
+the tutorial, or any offer card ever defines it, so the relic panel is the
+one place a player meets a term the design has no glossary for.
+
+This is failure mode 1's disclosure rule with the opposite defect: the
+NUMBER was disclosed (the percentage is right there), but the noun
+describing what moves is not one the player has. A correct number attached
+to a made-up word is not a disclosure — the player can't act on "contagion,"
+because it isn't a stat, a faction, or anything else the rest of the UI ever
+shows them.
+
+**Check:** before a relic power, offer line, or ending description ships,
+read it as the string a player sees, not as the code that generated it. If
+it names anything that only exists in `src/engine/`, `src/types.ts`, or a
+code comment — a constant, a field, an internal mechanic's own name — rewrite
+it in terms of an effect the player already sees elsewhere (a stat, a
+faction, a threshold). `rg` the shipped string for the mechanic's identifier
+name (here, `contagion`) to confirm the rewrite actually dropped it, the same
+way failure mode 2's check is a grep for the call site.

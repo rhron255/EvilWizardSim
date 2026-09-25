@@ -21,6 +21,13 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-09-25T09:00:00Z': {
+    summary: 'The Footnote That Bites now describes its power in plain terms.',
+    details: [
+      "Fixed a bug where this relic's passive described itself using a term the game never explains anywhere else.",
+      'It now reads: favoring a faction costs its rivals less standing than usual.',
+    ],
+  },
   '2026-09-24T15:30:00Z': {
     summary: 'Every background now starts with its own relic, fully powered.',
     details: [
