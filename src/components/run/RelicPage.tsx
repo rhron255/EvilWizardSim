@@ -26,27 +26,31 @@
  * line, unchanged, on every single offer of the run — repetitive rather than
  * informative once a player had seen it once. This page now opens with a
  * subtitle stating the total wards, then a plain, scannable summary: every
- * held relic's name, then its EFFECT in the same colour-coded, comma-flowed
- * notation `RelicReactions`/`EffectList` already render for an ordinary
- * offer's consequences — not the fuller descriptive sentence `relicPowerText`
- * builds around it (the "At every era's end, if …:" framing and the gating
- * condition). That fuller sentence still appears once, on the full card
- * below under "Artifacts" — this summary is the quick version, not a second
- * copy of the same disclosure. Only a `trigger` power carries a discrete
- * `Effect[]` to render that way; a `passive` rate change (the only other kind
- * authored so far) has no such list, so it falls back to its own prose, and a
- * relic with no power at all gets no effect line. This is deliberately NOT
- * the same guarantee rule 1 makes for an offer card: a player who never opens
- * this page gets no pre-commit warning about an era-end power, only the
- * resolution screen's own after-the-fact "Your relics" section — an accepted
- * gap.
+ * held relic's name on its own line, followed by its EFFECT on the line below
+ * it — a hard break, not the flex-wrap row `RelicReactions` uses on an offer
+ * card (which only drops to a second line when the first is too long to fit,
+ * so a short name and a short effect can still land side by side there; this
+ * summary always stacks the two). The effect itself uses the same
+ * colour-coded, comma-flowed notation `EffectList` already renders for an
+ * ordinary offer's consequences, not the fuller descriptive sentence
+ * `relicPowerText` builds around it (the "At every era's end, if …:" framing
+ * and the gating condition). That fuller sentence still appears once, on the
+ * full card below under "Artifacts" — this summary is the quick version, not
+ * a second copy of the same disclosure. Only a `trigger` power carries a
+ * discrete `Effect[]` to render that way; a `passive` rate change (the only
+ * other kind authored so far) has no such list, so it falls back to its own
+ * prose, and a relic with no power at all gets no effect line. This is
+ * deliberately NOT the same guarantee rule 1 makes for an offer card: a
+ * player who never opens this page gets no pre-commit warning about an
+ * era-end power, only the resolution screen's own after-the-fact "Your
+ * relics" section — an accepted gap.
  */
 
 import { useEffect, useRef } from 'react';
-import type { DefenseReadout, RelicEvent } from '../../engine';
+import type { DefenseReadout } from '../../engine';
 import type { Artifact, Faction, RelicPower, RunState } from '../../types';
 import { ArtifactCard, relicPowerText } from '../meta';
-import { RelicReactions } from './OptionCard';
+import { EffectList } from './EffectList';
 import styles from './RelicPage.module.css';
 
 type TriggerPower = Extract<RelicPower, { kind: 'trigger' }>;
@@ -105,19 +109,6 @@ export function RelicPage({ run, artifacts, factions, defense, onBack }: RelicPa
 
   const relicsTerm = defense?.terms.find((t) => t.label === 'Relics');
 
-  // One `RelicEvent` per held relic whose power carries a discrete
-  // `Effect[]` — reusing `RelicReactions` gets the colour-coded, comma-flowed
-  // rendering an ordinary offer's own consequences already use, rather than
-  // reinventing it here.
-  const triggerEvents: RelicEvent[] = held
-    .filter(hasTriggerPower)
-    .map((a) => ({ artifactId: a.id, applied: a.power.effects }));
-
-  // Everything else held — a passive rate change, a deferred active/lifeline
-  // placeholder, or no power at all — falls back to its own prose, or (no
-  // power) gets no effect line.
-  const otherHeld = held.filter((a) => !hasTriggerPower(a));
-
   const emptyText =
     lost.length > 0
       ? 'None held right now. The hero has nothing to fear from your walls.'
@@ -141,15 +132,22 @@ export function RelicPage({ run, artifacts, factions, defense, onBack }: RelicPa
 
       {held.length > 0 && (
         <div className={styles.summaryList} role="group" aria-label="Relic summary">
-          <RelicReactions events={triggerEvents} artifacts={artifacts} factions={factions} />
-          {otherHeld.map((artifact) => {
+          {held.map((artifact) => {
             const faction = factionFor(factions, artifact.factionId);
-            const description = descriptionFor(artifact, faction);
+            const description = hasTriggerPower(artifact) ? null : descriptionFor(artifact, faction);
             return (
-              <p key={artifact.id} className={styles.summaryOther}>
-                <span className={styles.summaryOtherName}>{artifact.name}</span>
-                {description && <span className={styles.summaryOtherDesc}>{description}</span>}
-              </p>
+              <div key={artifact.id} className={styles.summaryItem}>
+                <p className={styles.summaryName}>{artifact.name}</p>
+                {hasTriggerPower(artifact) && (
+                  <EffectList
+                    effects={artifact.power.effects}
+                    artifacts={artifacts}
+                    factions={factions}
+                    compact
+                  />
+                )}
+                {description && <p className={styles.summaryOtherDesc}>{description}</p>}
+              </div>
             );
           })}
         </div>
