@@ -1,14 +1,13 @@
 /**
- * The relic page (issue #78) — probes the DOM for the entry button, the
- * page heading, relic cards (or the empty state), the lost-this-run
- * section, and the keyboard path (Tab to the Relics button, Enter to open;
- * Tab to Back, Enter to return, with focus landing correctly both ways).
+ * The relic page (issue #78) and the relic power framework (issue #80).
  *
- * A brand-new run at era 1 has zero relics, so this plays a handful of eras
- * forward first (same pattern `playthrough.mjs`/`probe-ending.mjs` use:
- * click whichever offer option is enabled) to get an established run before
- * checking the populated page. It also opens the page immediately on a
- * fresh run to confirm the empty state renders correctly.
+ * Probes the DOM for the entry button, the page heading, relic cards (every
+ * origin grants one from creation now, so there is no "zero relics" state to
+ * probe any more — issue #80 retired it), the lost-this-run section, the
+ * keyboard path (Tab to the Relics button, Enter to open; Tab to Back, Enter
+ * to return, with focus landing correctly both ways), a relic's power line on
+ * its card, and the "Your relics" resolution section an era-end trigger
+ * (Mantle of Slow Moss) fires into every era.
  *
  *   node qa/probe-relics.mjs [--url http://localhost:5173]
  */
@@ -31,6 +30,10 @@ await dismissChangelogPopup(page).catch(() => {});
 await page.getByRole('button', { name: /begin a career/i }).click();
 await page.waitForTimeout(400);
 await page.getByRole('textbox').first().fill('Malachar the Unpaid');
+// Self-Taught in a Bog grants Mantle of Slow Moss, an UNCONDITIONAL era-end
+// trigger — the one power guaranteed to fire on the very first era, which is
+// what makes it the right origin for a scripted probe rather than a random one.
+await page.getByText('Self-Taught in a Bog', { exact: false }).click();
 await page.getByRole('button', { name: /begin the career/i }).click();
 await page.waitForTimeout(600);
 await dismissFirstRunGuide(page);
@@ -42,16 +45,22 @@ if (!(await openButton.isVisible().catch(() => false))) {
   problems.push('entry point: no Relics button found on a fresh run');
 }
 
-// ---- Fresh run: the empty state ---------------------------------------
+// ---- A fresh run already holds its origin relic (issue #80) -----------
 await openButton.click();
 await page.waitForTimeout(300);
 const heading = page.getByRole('heading', { name: 'Your relics' });
 if (!(await heading.isVisible().catch(() => false))) {
   problems.push('relic page: heading did not appear on open');
 }
-const emptyVisible = await page.getByText(/No relics recovered yet/).isVisible().catch(() => false);
-if (!emptyVisible) {
-  problems.push('relic page: empty state did not render for a fresh run with no relics');
+const mantleCard = page.getByText('Mantle of Slow Moss', { exact: false }).first();
+if (!(await mantleCard.isVisible().catch(() => false))) {
+  problems.push('relic page: the origin relic (Mantle of Slow Moss) is not shown on a brand-new run');
+}
+// The power line, not just the name — the acceptance item this probe exists
+// for: "the relic page shows each held relic's power line."
+const powerLine = await page.getByText(/era's end/i).isVisible().catch(() => false);
+if (!powerLine) {
+  problems.push('relic page: no power line found for the held relic');
 }
 
 // Back returns to the decision.
@@ -93,15 +102,42 @@ if (!/Relics/.test(focusedAfterBack)) {
   problems.push(`keyboard: focus did not return to the Relics button after Back (was "${focusedAfterBack}")`);
 }
 
-// ---- Play a handful of eras forward, then check a populated page -------
+await page.screenshot({ path: 'qa/screenshots/probe-relics-fresh.png', fullPage: true });
+
+// ---- Take one choice: the era-end trigger should show in "Your relics" ----
 const OPTIONS = 'button[data-option-index]:not([disabled])';
+const options = page.locator(OPTIONS);
+if ((await options.count().catch(() => 0)) === 0) {
+  problems.push('decision panel: no pickable option found for the scripted first choice');
+} else {
+  await options.nth(0).click();
+  await page.waitForTimeout(500);
+  const dialog = page.getByRole('dialog').first();
+  if (!(await dialog.isVisible({ timeout: 1000 }).catch(() => false))) {
+    problems.push('resolution: no overlay appeared after the first choice');
+  } else {
+    const relicsLabel = await dialog.getByText('Your relics').isVisible().catch(() => false);
+    if (!relicsLabel) {
+      problems.push('resolution: "Your relics" section did not appear for an era-end trigger that should have fired');
+    }
+    const attributed = await dialog.getByText('Mantle of Slow Moss', { exact: false }).isVisible().catch(() => false);
+    if (!attributed) {
+      problems.push('resolution: the era-end reaction is not attributed to Mantle of Slow Moss by name');
+    }
+    await page.screenshot({ path: 'qa/screenshots/probe-relics-resolution.png', fullPage: true });
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(400);
+  }
+}
+
+// ---- Play a handful more eras forward, then check the populated page -------
 const FLOW = 'button:not([data-option-index]):not([disabled])';
-let eras = 0;
+let eras = 1;
 for (let step = 0; step < 60 && eras < 8; step++) {
-  const options = page.locator(OPTIONS);
-  const count = await options.count().catch(() => 0);
+  const remaining = page.locator(OPTIONS);
+  const count = await remaining.count().catch(() => 0);
   if (count > 0) {
-    await options.nth(0).click();
+    await remaining.nth(0).click();
     eras++;
     await page.waitForTimeout(250);
     continue;
@@ -113,9 +149,6 @@ for (let step = 0; step < 60 && eras < 8; step++) {
   await page.waitForTimeout(250);
 }
 
-// A resolution overlay (the era's roll/consequence beat) may still be up
-// after the last click in the loop above — Enter dismisses it, same as a
-// player pressing Continue.
 if (await page.getByRole('dialog').first().isVisible({ timeout: 500 }).catch(() => false)) {
   await page.keyboard.press('Enter');
   await page.waitForTimeout(400);
@@ -127,18 +160,14 @@ const relicCount = Number((label.match(/(\d+)/) || [])[1] ?? 0);
 await openAgain.click();
 await page.waitForTimeout(300);
 
-if (relicCount > 0) {
-  const cards = await page.locator('article[data-rarity]').count().catch(() => 0);
-  if (cards === 0) {
-    problems.push(`relic page: label reports ${relicCount} relics but no relic cards rendered`);
-  } else {
-    console.log(`  relic cards : ${cards} rendered (label said ${relicCount})`);
-  }
-  const wardsLine = await page.getByText(/Relics add/).isVisible().catch(() => false);
-  if (!wardsLine) problems.push('relic page: wards figure ("Relics add N to your wards") not found');
+const cards = await page.locator('article[data-rarity]').count().catch(() => 0);
+if (cards === 0) {
+  problems.push(`relic page: label reports ${relicCount} relics but no relic cards rendered`);
 } else {
-  console.log('  relic count : 0 after 8 eras — empty state expected, not a populated-card check');
+  console.log(`  relic cards : ${cards} rendered (label said ${relicCount})`);
 }
+const wardsLine = await page.getByText(/Relics add/).isVisible().catch(() => false);
+if (!wardsLine) problems.push('relic page: wards figure ("Relics add N to your wards") not found');
 
 const lostHeading = page.getByRole('heading', { name: 'Lost this run' });
 const hasLost = await lostHeading.isVisible().catch(() => false);

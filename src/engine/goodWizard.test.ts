@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { checkEndings, createRun, decayFor, defenseOf, threatGainFor } from './index';
+import { checkEndings, createRun, decayFor, defenseOf, resolveChoice, threatGainFor } from './index';
 import type { ContentBundle } from './index';
 import { applyEffects, draftOf, projectEffects } from './effects';
 import { conditionMet } from './conditions';
@@ -173,6 +173,46 @@ describe('the rule-1 exception: nothing but good_wizard reads the counters', () 
     expect(conditionMet(run, { c: 'minGoodActs', v: 6 }, content)).toBe(false);
     expect(conditionMet(run, { c: 'maxIllActs', v: 2 }, content)).toBe(true);
     expect(conditionMet(run, { c: 'maxIllActs', v: 1 }, content)).toBe(false);
+  });
+
+  /**
+   * The relic power framework's own version of this file's promise (issue
+   * #80): `RelicEffect` excludes `goodAct`/`illAct` at the type level, so no
+   * power in the catalog CAN author one — this is the runtime half, the same
+   * belt-and-suspenders shape `scripts/validate-content.ts`'s own
+   * `checkRelicEffects` uses. Holds all four origin relics at once and drives
+   * several real eras through `resolveChoice` (era-end triggers, a pact-debt
+   * choice for Ashen Signature to react to) rather than calling the power
+   * functions directly, so a future power authored via an unsafe cast would
+   * still be caught here.
+   */
+  it('holding every origin relic through several real eras never moves goodActs/illActs', () => {
+    const relicHolder = start({
+      heldArtifactIds: [
+        'footnote_that_bites',
+        'mantle_of_slow_moss',
+        'ashen_signature',
+        'unpaid_purse',
+        ...start().heldArtifactIds,
+      ],
+      followers: 3,
+    });
+    const offer = {
+      id: 'test',
+      title: 't',
+      body: 'b',
+      phase: 'any' as const,
+      options: [
+        { kind: 'certain' as const, label: 'a', effects: [{ t: 'pactDebt' as const, v: 2 }] },
+        { kind: 'certain' as const, label: 'b', effects: [{ t: 'notoriety' as const, v: 1 }] },
+      ],
+    };
+    let run = relicHolder;
+    for (let i = 0; i < 5; i++) {
+      run = resolveChoice(run, offer, i % 2, content).next;
+    }
+    expect(run.goodActs).toBe(0);
+    expect(run.illActs).toBe(0);
   });
 });
 

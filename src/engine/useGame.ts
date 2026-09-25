@@ -127,13 +127,13 @@ type Action =
   | { type: 'dismissGuide' }
   | { type: 'viewTutorial' };
 
-function initialState(): GameState {
+function initialState(relicsResetAtBuild: string): GameState {
   return {
     screen: 'title',
     run: null,
     offer: null,
     resolution: null,
-    collection: loadCollection(),
+    collection: loadCollection(relicsResetAtBuild),
     prophecyPending: false,
     resumable: loadInProgressRun(),
     unlockedTheme: null,
@@ -326,8 +326,13 @@ export function gameReducer(state: GameState, action: Action): GameState {
   }
 }
 
-export function useGame(content: ContentBundle): Game {
-  const [state, dispatch] = useReducer(gameReducer, undefined, initialState);
+export function useGame(content: ContentBundle, relicsResetAtBuild = ''): Game {
+  // `relicsResetAtBuild` is `RELICS_RESET_AT_BUILD` (`src/version.ts`), passed
+  // in rather than imported — see the doc comment on `emptyCollection` in
+  // `persistence.ts` for why a build/version constant stays out of the
+  // engine's own imports. Read once, into the lazy initializer, the same way
+  // `useReducer`'s own `initialArg` works.
+  const [state, dispatch] = useReducer(gameReducer, relicsResetAtBuild, initialState);
 
   const { run, collection } = state;
 

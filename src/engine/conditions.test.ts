@@ -26,6 +26,7 @@ const run = (heldArtifactIds: string[]): RunState =>
     followers: 10,
     lairId: REAL_CONTENT.lairs[0].id,
     heldArtifactIds,
+    startingArtifactIds: [],
     knownArtifactIds: [],
     heroBandSeen: 0,
     factionStanding: {
@@ -43,6 +44,7 @@ const run = (heldArtifactIds: string[]): RunState =>
     goodActs: 0,
     illActs: 0,
     goodWizardVowed: false,
+    relicState: { firedOnce: [] },
     eras: [],
     seenOfferIds: [],
   }) as RunState;
@@ -69,6 +71,31 @@ describe('minArtifacts', () => {
 
   it('a threshold of zero is always met, same as an empty requires list', () => {
     expect(conditionMet(run([]), { c: 'minArtifacts', v: 0 }, REAL_CONTENT)).toBe(true);
+  });
+});
+
+/**
+ * `maxFollowers` (issue #80) — the mirror of `minFollowers`, added for a
+ * relic's `if` (Unpaid Purse's "if under 10 Followers"). No offer has ever
+ * needed "under a stock level" before; a relic trigger does.
+ */
+describe('maxFollowers', () => {
+  it('passes below the threshold', () => {
+    expect(conditionMet({ ...run([]), followers: 5 }, { c: 'maxFollowers', v: 9 }, REAL_CONTENT)).toBe(
+      true,
+    );
+  });
+
+  it('passes AT the threshold — "at or under", the same reading minFollowers gives the other direction', () => {
+    expect(conditionMet({ ...run([]), followers: 9 }, { c: 'maxFollowers', v: 9 }, REAL_CONTENT)).toBe(
+      true,
+    );
+  });
+
+  it('fails above the threshold', () => {
+    expect(conditionMet({ ...run([]), followers: 10 }, { c: 'maxFollowers', v: 9 }, REAL_CONTENT)).toBe(
+      false,
+    );
   });
 });
 

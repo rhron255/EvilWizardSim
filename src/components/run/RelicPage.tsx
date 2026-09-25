@@ -17,8 +17,9 @@
  * card the ending screen and the collection already use, so a relic's
  * presentation is not invented a second time here. "Lost this run" is
  * derived exactly the way `EndingScreen` already derives it: the union of
- * every era's `artifactsGained` and the current `heldArtifactIds`, minus
- * whatever is still held.
+ * every era's `artifactsGained`, `startingArtifactIds` (an origin's own
+ * grant — never in `eras`, see that field's doc comment in `types.ts`), and
+ * the current `heldArtifactIds`, minus whatever is still held.
  */
 
 import { useEffect, useRef } from 'react';
@@ -57,6 +58,7 @@ export function RelicPage({ run, artifacts, factions, defense, onBack }: RelicPa
   // ever gained this run, minus what is still held.
   const everGained = new Set<string>([
     ...run.eras.flatMap((e) => e.artifactsGained),
+    ...run.startingArtifactIds,
     ...run.heldArtifactIds,
   ]);
   const lost = [...everGained]

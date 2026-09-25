@@ -554,6 +554,29 @@
   line-height: 1.5;
 }
 
+.relicsLost {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-2);
+}
+
+.relicsLostLabel {
+  margin: 0;
+  font-size: var(--ew-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ew-ink-faint);
+}
+
+.relicsLostList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 /* The crossing — the only colored thing on the card. */
 
 .tier {
@@ -813,4 +836,54 @@
   color: var(--ew-ink-faint);
   line-height: 1.45;
   text-wrap: pretty;
+}
+
+/* --------------------------------------------------------------------------
+   Your relics (issue #80).
+
+   A relic's own consequence this era — an era-end tick, a once-only
+   reaction. Same inset-and-labelled treatment as `.systemic` immediately
+   above, and for the same reason: it did not come from the option the
+   player picked, so it must not look like it did.
+   -------------------------------------------------------------------------- */
+
+.relicEvents {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-2);
+  padding: var(--ew-space-3) var(--ew-space-4);
+  background: var(--ew-void);
+  border: 1px solid var(--ew-line);
+  border-left: 2px solid var(--ew-ink-ghost);
+  border-radius: var(--ew-radius-sm);
+}
+
+.relicEventsLabel {
+  margin: 0;
+  font-size: var(--ew-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ew-ink-faint);
+}
+
+.relicEventsList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.relicEventRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--ew-space-2);
+  font-size: var(--ew-size-sm);
+}
+
+.relicEventName {
+  font-style: italic;
+  color: var(--ew-ink);
 }

@@ -381,8 +381,48 @@ export const NOVELTY_BIAS = 6;
  * and was responsible for 29.4% of all careers, arriving on a clock rather
  * than on a choice. What replaced it is `pactWeight` in `offers.ts` — the more
  * you owe, the more often the Covenant's cards come up in the draw.
+ *
+ * MOVED 7 -> 6 (issue #80). The Ashen Signature — Inherited a Tower and Its
+ * Debts' origin relic — permanently removes 1 point from a career's debt
+ * trajectory the first time a choice adds any (once, ever). Against a hard
+ * integer ceiling that is not a one-time discount, it is an effective +1 to
+ * THIS constant for the quarter of careers that hold it: a wizard who would
+ * have crossed exactly 7 now tops out at 6 for the rest of the run, since
+ * nothing ever adds the point back. MEASURED (seeds 1-5, `npm run sim`):
+ * with the relic live and this constant still at 7, `Consumed by the pact,
+ * among the reckless` (target 8-18%, previously reliable at 9.5-14.2% on
+ * `main`) fell to 3.9-4.4% on every seed — disabling the Signature alone
+ * (diagnostic only, not shipped) put it back at 10.3%, confirming this relic
+ * as the dominant cause. Lowering the shared ceiling by the same one point
+ * the relic quietly adds for its holders restores the population figure
+ * without touching the relic's own described power ("adds 1 less" is the
+ * whole point of holding it) — see `src/content/artifacts.ts` for the power
+ * itself.
+ *
+ * RE-CHECKED (issue #80 review) after 391b6c6 fixed a SEPARATE bug in this
+ * same slice — Footnote That Bites was halving the wrong contagion branch —
+ * which itself moved `No single ending above 45%` (`slain_by_chosen_one`,
+ * 41%->45%) and `Trophy case: mean lairs held 3-5` out of band, and a
+ * reviewer asked whether reverting THIS constant to 7 (since it costs the
+ * ~75% of careers that never hold Ashen Signature a point they did nothing
+ * to deserve) would now recover them instead. MEASURED, seeds 1-5, with
+ * every other fix from that review already applied: reverting to 7 does
+ * not — `slain_by_chosen_one` only inches from 2/5 to 3/5 seeds passing and
+ * `Trophy case` gets WORSE, 3/5 to 0/5 — while `Consumed by the pact, among
+ * the reckless`, the target this constant exists for, collapses back from
+ * 5/5 to 1/5, exactly reproducing the original regression. Both contagion
+ * targets are a consequence of the SEPARATE fix in `effects.ts`, not of this
+ * constant, and PACT_LIMIT is not the lever for them. Staying at 6.
+ *
+ * The ~75% who never see the point back is real and not free of critique —
+ * the reviewer's alternative, a `RelicPassiveModifier` that raises a
+ * HOLDER's own effective ceiling instead of lowering everyone else's, is the
+ * architecturally cleaner fix and worth a future slice; it is a new engine
+ * mechanism (threading an effective limit through the ending check, not a
+ * one-line constant edit), not a same-review fix with a proven-safe
+ * fallback the way this constant's own measurement was.
  */
-export const PACT_LIMIT = 7;
+export const PACT_LIMIT = 6;
 
 /** Betrayed by an Apprentice: many apprentices, little loyalty. */
 export const BETRAYAL_MIN_APPRENTICES = 2;
@@ -549,11 +589,18 @@ export const COLLECTION_KEY = 'evil-wizard-sim:collection';
 export const RUN_KEY = 'evil-wizard-sim:run';
 /** The last build version acknowledged through the changelog popup (issue #67). */
 export const CHANGELOG_ACK_KEY = 'evil-wizard-sim:changelog-ack';
-/** Bump when `Collection`'s shape changes, and extend `migrateCollection`. */
-export const COLLECTION_VERSION = 5;
+/**
+ * Bump when `Collection`'s shape changes, and extend `migrateCollection`.
+ *
+ * 5 -> 6 (issue #80): added `relicsResetAt`, for the relic-collection reset
+ * that ships alongside origin relics.
+ */
+export const COLLECTION_VERSION = 6;
 /**
  * Bump when `RunState`'s shape changes; stale in-progress runs are dropped.
  *
  * 1 -> 2 (issue #23): added `goodActs`, `illActs`, `goodWizardVowed`.
+ * 2 -> 3 (issue #80): added `relicState`, for the once-only relic triggers
+ * issue #77's power framework introduces.
  */
-export const RUN_SAVE_VERSION = 2;
+export const RUN_SAVE_VERSION = 3;

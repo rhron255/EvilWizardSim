@@ -30,7 +30,7 @@ import {
 } from './content';
 import { heroNameFor, prophecyTextFor } from './content/heroes';
 import { CHANGELOG } from './content/changelog';
-import { BUILD_VERSION } from './version';
+import { BUILD_VERSION, RELICS_RESET_AT_BUILD } from './version';
 import { TitleScreen } from './screens/TitleScreen';
 import { CreationScreen } from './screens/CreationScreen';
 import { RunScreen } from './screens/RunScreen';
@@ -58,7 +58,7 @@ const CONTENT: ContentBundle = {
 };
 
 export default function App() {
-  const game = useGame(CONTENT);
+  const game = useGame(CONTENT, RELICS_RESET_AT_BUILD);
   const { run, screen } = game;
 
   /**

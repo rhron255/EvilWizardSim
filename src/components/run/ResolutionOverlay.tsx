@@ -15,8 +15,9 @@ import type { Artifact, Faction } from '../../types';
 import { tierColor, tierFor, tierGlow } from '../../theme/tokens';
 import type { Resolution } from './resolution';
 import { EffectList } from './EffectList';
-import { describeSystemic, endingName, formatOdds, systemicKey } from './effectText';
+import { artifactName, describeSystemic, endingName, formatOdds, systemicKey } from './effectText';
 import { NotorietyBadge } from './NotorietyBadge';
+import { ArtifactCard } from '../meta';
 import styles from './ResolutionOverlay.module.css';
 
 export type ResolutionOverlayProps = {
@@ -43,6 +44,10 @@ const OUTCOME_WORD: Record<Resolution['outcome'], string> = {
  * this only says out loud which side of it the player landed on.
  */
 const LONG_ODDS = 0.4;
+
+function factionFor(factions: Faction[], id: string): Faction | undefined {
+  return factions.find((f) => f.id === id);
+}
 
 export function ResolutionOverlay({
   resolution,
@@ -188,6 +193,26 @@ export function ResolutionOverlay({
           </div>
         )}
 
+        {/* A relic's own consequence this era (issue #80) — kept separate
+            from the option's own effects above for the same reason
+            `systemic` is: attributing it to the choice the player just made
+            would misname its cause. Short on purpose: the relic's power
+            line, shown wherever the relic itself is, already explains WHY;
+            this only says what it did. */}
+        {resolution.relicEvents.length > 0 && (
+          <div className={styles.relicEvents}>
+            <p className={styles.relicEventsLabel}>Your relics</p>
+            <ul className={styles.relicEventsList}>
+              {resolution.relicEvents.map((event) => (
+                <li key={event.artifactId} className={styles.relicEventRow}>
+                  <span className={styles.relicEventName}>{artifactName(event.artifactId, artifacts)}</span>
+                  <EffectList effects={event.applied} artifacts={artifacts} factions={factions} compact />
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {resolution.artifactsGained.length > 0 && (
           <div className={styles.relics}>
             {/* `data-rarity` below is the same hook `ArtifactCard` reads. This
@@ -224,6 +249,26 @@ export function ResolutionOverlay({
                 </span>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* `artifactsLost` was landing on `Resolution` unread — the card still
+            said only "Lose a held relic," the generic pre-commit phrasing,
+            even after the roll named exactly which one (issue #80 review).
+            `ArtifactCard`'s own `lost` state already has the vocabulary
+            (`RelicPage`'s "Lost this run" section uses the same one); this
+            just points it at what a single era took, right where the
+            equivalent GAIN is shown above. */}
+        {resolution.artifactsLost.length > 0 && (
+          <div className={styles.relicsLost}>
+            <p className={styles.relicsLostLabel}>Lost this era</p>
+            <ul className={styles.relicsLostList}>
+              {resolution.artifactsLost.map((a) => (
+                <li key={a.id}>
+                  <ArtifactCard artifact={a} faction={factionFor(factions, a.factionId)} lost compact />
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 

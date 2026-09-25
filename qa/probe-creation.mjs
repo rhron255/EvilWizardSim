@@ -5,6 +5,7 @@
 // is how you end up trimming the wrong 40px. This prints the box of every
 // section, plus the height of one origin card broken down by part.
 import { chromium } from 'playwright';
+import { dismissChangelogPopup } from './first-run.mjs';
 
 const arg = (f, d) => {
   const i = process.argv.indexOf(f);
@@ -16,6 +17,7 @@ const H = Number(arg('--height', '852'));
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 2 });
 await page.goto(arg('--url', 'http://localhost:5173'), { waitUntil: 'networkidle' });
+await dismissChangelogPopup(page).catch(() => {});
 await page.getByRole('button', { name: /begin a career/i }).click();
 await page.waitForTimeout(300);
 await page.getByRole('textbox').first().fill('Malachar the Unpaid');

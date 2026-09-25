@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ContentBundle, DefenseReadout } from '../../engine';
-import { DEF_LICH } from '../../engine';
+import { DEF_LICH, PACT_LIMIT } from '../../engine';
 import type { EraRecord, Offer, RunState } from '../../types';
 import * as C from '../../content';
 import { DecisionPanel } from './DecisionPanel';
@@ -62,6 +62,7 @@ const demoRun: RunState = {
     'bone_crown',
     'root_of_the_standing_vote',
   ],
+  startingArtifactIds: [],
   heroBandSeen: 0,
   factionStanding: {
     ashen_covenant: 46,
@@ -78,6 +79,7 @@ const demoRun: RunState = {
   goodActs: 0,
   illActs: 0,
   goodWizardVowed: false,
+  relicState: { firedOnce: [] },
   eras,
   seenOfferIds: eras.map((e) => e.offerId),
 };
@@ -164,7 +166,7 @@ describe('DecisionPanel · disclosure', () => {
 
   it('shows the pact ceiling as a denominator, not a bare count', () => {
     const { container } = show(demoRun);
-    expect(within(stat(container, 'Pact Debt')).getByText('2 / 7')).toBeInTheDocument();
+    expect(within(stat(container, 'Pact Debt')).getByText(`2 / ${PACT_LIMIT}`)).toBeInTheDocument();
   });
 
   it('keeps the caption reachable on a phone, where it is tap-to-reveal', async () => {

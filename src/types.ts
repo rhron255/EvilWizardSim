@@ -263,7 +263,13 @@ export type Condition =
    * `Effect`'s `goodAct`/`illAct` variants for why that restriction matters.
    */
   | { c: 'minGoodActs'; v: number }
-  | { c: 'maxIllActs'; v: number };
+  | { c: 'maxIllActs'; v: number }
+  /**
+   * Unpaid Purse's gate (issue #80, slice 3 of #77): "if under N Followers".
+   * The mirror of `minFollowers` that a relic `if` needed and no offer gate
+   * ever had a reason to ask for before.
+   */
+  | { c: 'maxFollowers'; v: number };
 
 export type Offer = {
   id: string;
@@ -295,6 +301,16 @@ export type Faction = {
   hostileTo: FactionId[];
   /** Short adjective used in ledger deed lines. */
   adjective: string;
+  /**
+   * One line naming this faction's relic THEME (issue #80's Necrolexicon
+   * acceptance item) — e.g. the Covenant: "Its relics pay you for what you
+   * owe." Never a rate and never a specific relic; authored for all six at
+   * once, since it is faction-level prose rather than something gated on how
+   * many of that faction's relics have a power yet. Required, so the
+   * compiler names every faction the moment a seventh is ever added — the
+   * same reason `Ending.hint` is required rather than optional.
+   */
+  reliquary: string;
 };
 
 /**
@@ -311,6 +327,143 @@ export type Artifact = {
   factionId: FactionId;
   rarity: Rarity;
   flavorText: string;
+  /**
+   * What this relic does, once held — issue #77's power framework, slices
+   * 3-5. `null` means "no power authored yet". Required rather than
+   * optional, the same reasoning `Ending.hint` was made required for: an
+   * optional field here would render blank on every surface that shows a
+   * relic's power (the relic page, the creation screen, the Necrolexicon)
+   * for the 28 relics this slice does not reach, and the compiler would
+   * never say so.
+   */
+  power: RelicPower | null;
+};
+
+// ---------------------------------------------------------------------------
+// Relic powers — issue #77's power framework (slice 3: issue #80)
+// ---------------------------------------------------------------------------
+
+/**
+ * The gate conditions an offer's own `requires` already uses, reused so a
+ * relic's `if` never invents a second vocabulary for "is this true right
+ * now".
+ */
+export type RelicTriggerTiming =
+  /**
+   * Evaluated once per era, against the run AFTER the chosen option's own
+   * effects have landed (see `src/engine/relics.ts`) — "reacts to the
+   * choice", in #77's own words. Combined with `once`, this is how Ashen
+   * Signature finds "the FIRST choice that adds Pact Debt": debt starts at 0
+   * and only a choice ever moves it, so `if: [{ c: 'minPactDebt', v: 1 }]`
+   * plus `once: true` names exactly that moment without a bespoke
+   * "which effect type did this option carry" primitive.
+   */
+  | 'onChoice'
+  /** Evaluated once at the end of every era, independent of what was chosen. */
+  | 'eraEnd';
+
+/** What a `passive` power changes about a base rule. One member so far. */
+export type RelicPassiveModifier = {
+  t: 'contagionLossMultiplier';
+  /**
+   * Multiplies `CONTAGION_GAIN` alone — the rate that spills a LOSS onto a
+   * COURTED faction's enemies (`applyStanding`, `src/engine/effects.ts`).
+   * The mirror direction (losing standing with a faction warms its enemies —
+   * a gain for them) uses `CONTAGION_LOSS`, untouched by this multiplier: it
+   * is not a loss to halve. Issue #80 review: this comment previously said
+   * the opposite, which is the same confusion 391b6c6 fixed in the engine
+   * itself — the next reader who trusted this comment over `effects.ts`
+   * would "fix" the engine back to the bug.
+   */
+  v: number;
+};
+
+/**
+ * What a relic's own power may do to the run — deliberately narrower than
+ * `Effect`. Excludes five members a relic must never touch: `ending`,
+ * `becomeLich` and `vowGoodWizard` are the PLAYER's own irreversible
+ * commitments, and `goodAct`/`illAct` are the Good Wizard route's one
+ * deliberate disclosure hole (see the doc comment on `Effect` above) — a
+ * relic silently moving either would open a SECOND undisclosed route into an
+ * ending, which that rule-1 exception was never written to cover.
+ */
+export type RelicEffect = Exclude<
+  Effect,
+  { t: 'ending' } | { t: 'becomeLich' } | { t: 'vowGoodWizard' } | { t: 'goodAct' } | { t: 'illAct' }
+>;
+
+/**
+ * What a relic does on its own, once held.
+ *
+ * Declared as the full four-member union now (issue #80, slice 3 of #77),
+ * even though this slice authors only `trigger` and `passive` instances —
+ * the contract only gets opened once this way rather than being reopened for
+ * `active` in slice 4 and for whatever a `lifeline` power turns out to need
+ * after it.
+ *
+ * Every kind obeys the same two rules #77 sets for the whole framework: a
+ * relic never asks a question (no new decision screens — `active` is a
+ * single tap with no follow-up choice, everything else is automatic), and it
+ * responds only to the player's own choices and the passing of eras, never to
+ * another relic's effects — `src/engine/relics.ts` is where that second rule
+ * is actually enforced, not just documented.
+ */
+export type RelicPower =
+  /**
+   * Changes a base rule for as long as the relic is held. No event, no roll,
+   * nothing to disclose beyond the relic's own power line, which every
+   * surface that shows a relic already prints. Every held passive combines —
+   * see `relicRules` in `src/engine/relics.ts` — with neutral defaults, so
+   * holding none at all reproduces today's numbers exactly.
+   */
+  | { kind: 'passive'; modifier: RelicPassiveModifier }
+  /**
+   * Fires automatically. `if` gates it beyond `when` alone, read against the
+   * run's AMBIENT state at `when` — era's end, or after this choice's own
+   * effects landed. `once`, when true, fires the power the first time it
+   * qualifies and never again this run — `RunState.relicState` remembers
+   * that, so it survives even a later era where `if` is no longer true.
+   *
+   * `watchesPositive`, `onChoice` only: fires only when the CHOSEN OPTION's
+   * OWN landed effects included a positive change of this type — never the
+   * ambient state `if` reads. The distinction is load-bearing, not
+   * cosmetic: `if: [{ c: 'minPactDebt', v: 1 }]` reads true the instant ANY
+   * OTHER source (an origin's own starting grant, a different relic) has
+   * ever put debt at or above 1, so a relic meant to react to "the first
+   * CHOICE that adds debt" would instead fire on the very first era of a
+   * run that simply started in debt, whether or not that era's choice
+   * touched debt at all. `watchesPositive` reads the option's landed
+   * effects directly (see `src/engine/relics.ts`), which is what "the
+   * chosen option's landed effects" in #77's own framework description
+   * means literally. Typed to `RelicEffect['t']`, not `Effect['t']`, for the
+   * same reason `effects` is: a relic must not react to a hidden Good
+   * Wizard counter or a run-ending effect either.
+   */
+  | {
+      kind: 'trigger';
+      when: RelicTriggerTiming;
+      if?: Condition[];
+      watchesPositive?: RelicEffect['t'];
+      once?: boolean;
+      effects: RelicEffect[];
+    }
+  /**
+   * Deferred to slice 4 (#77): a player-initiated Use button. Declared now so
+   * the union is whole; `activateRelic` and its UI plumbing do not exist in
+   * this slice — building them with no caller would be exactly the "written
+   * but never wired" trap (CLAUDE.md failure mode 2).
+   */
+  | { kind: 'active'; cost?: RelicEffect[]; effects: RelicEffect[] }
+  /** Deferred: an automatic one-time save, shaped by whichever relic needs it. */
+  | { kind: 'lifeline'; effects: RelicEffect[] };
+
+/**
+ * Tracks a run's `once` triggers, so a relic like Ashen Signature fires
+ * exactly one time ever rather than once per era its `if` happens to be true.
+ */
+export type RelicState = {
+  /** Artifact ids whose `once` trigger has already fired this run. */
+  firedOnce: string[];
 };
 
 export type Lair = {
@@ -431,6 +584,18 @@ export type RunState = {
   lairId: string;
   heldArtifactIds: string[];
   /**
+   * Relics granted by `createRun` itself (an origin's `{ t: 'artifact' }`
+   * grant), set once and never touched again. `EraRecord.artifactsGained`
+   * only ever gets an entry from `resolveChoice`, so an origin relic lost
+   * later — `loseArtifact`, the lich rite — would otherwise vanish from every
+   * "ever held" reconstruction: `recordRun`'s discovered-artifact fold,
+   * `RelicPage`'s "Lost this run", `EndingScreen`'s relic grid. All three read
+   * this alongside `eras[].artifactsGained` and `heldArtifactIds` for exactly
+   * that reason (issue #80 — a starting relic that disappears without a trace
+   * is the collection-reset regression Codex caught).
+   */
+  startingArtifactIds: string[];
+  /**
    * Relics this PLAYER has discovered in earlier careers, from the persisted
    * collection. Read-only within a run: it never changes, and it exists so a
    * random draw can prefer something new (see `NOVELTY_BIAS`).
@@ -463,6 +628,8 @@ export type RunState = {
   illActs: number;
   /** True after the Good Wizard resolution's `vowGoodWizard` — see `Effect`. */
   goodWizardVowed: boolean;
+  /** Which `once` relic triggers have already fired this run — see `RelicState`. */
+  relicState: RelicState;
   /** Append-only. Never removed, never rewritten. */
   eras: EraRecord[];
   seenOfferIds: string[];
@@ -504,6 +671,16 @@ export type Collection = {
    * page.
    */
   selectedThemeId: ThemeId;
+  /**
+   * The build timestamp this player's relic collection was last reset at
+   * (issue #80's relic-collection reset). Compared, as a plain string, against
+   * `RELICS_RESET_AT_BUILD` in `src/version.ts` — the same
+   * sortable-ISO-8601-string trick `BUILD_VERSION` already relies on. Older
+   * (or absent, from a pre-reset save) clears `discoveredArtifactIds` on load
+   * and stamps this to the current constant; a current or newer value leaves
+   * the collection untouched.
+   */
+  relicsResetAt: string;
 };
 
 // ---------------------------------------------------------------------------

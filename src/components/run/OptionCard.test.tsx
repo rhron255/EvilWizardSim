@@ -9,6 +9,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Effect, OfferOption } from '../../types';
+import type { RelicReactionPreview } from '../../engine';
 import { createRun, projectEffects } from '../../engine';
 import { REAL_CONTENT, realOfferWhere } from '../../testing/realContent';
 import * as C from '../../content';
@@ -213,6 +214,115 @@ describe('OptionCard · unaffordable (reason prop)', () => {
     );
     await user.click(screen.getByRole('button'));
     expect(onChoose).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Rule 1's newest corollary (issue #80): "any deterministic relic reaction is
+ * projected onto the offer card before the player commits." `reactions` is
+ * the prop `OfferPanel` derives from `projectReactions`; this file pins only
+ * what `OptionCard` does with it, the same contract-at-the-prop-level split
+ * the file's own header comment describes for `reason`.
+ */
+describe('OptionCard · the odds prop (effectiveOdds seam, issue #80 review)', () => {
+  /**
+   * `resolveChoice` rolls against `effectiveOdds(run, option)`, not
+   * `option.odds` directly (`run.ts`), so the card has to print the same
+   * number or a future odds-changing relic would make the roll and the
+   * printed percentage disagree. `OptionCard` cannot call `effectiveOdds`
+   * itself — it has no `RunState` — so `OfferPanel` computes it and passes
+   * it down as `odds`; this pins that the card actually PREFERS that prop
+   * over reading `option.odds` off the authored/projected option.
+   */
+  it('prints the odds prop, not option.odds, when the two disagree', () => {
+    const stubbed = 0.9;
+    expect(Math.round(gambleOption.odds * 100)).not.toBe(Math.round(stubbed * 100));
+    render(
+      <OptionCard
+        option={gambleOption}
+        odds={stubbed}
+        index={0}
+        artifacts={artifacts}
+        factions={factions}
+        onChoose={() => {}}
+      />,
+    );
+    const card = screen.getByRole('button');
+    expect(within(card).getByText('90%')).toBeInTheDocument();
+    expect(within(card).getByText('10%')).toBeInTheDocument();
+    expect(within(card).queryByText(`${Math.round(gambleOption.odds * 100)}%`)).toBeNull();
+  });
+
+  it('falls back to option.odds when the prop is not wired', () => {
+    render(
+      <OptionCard option={gambleOption} index={0} artifacts={artifacts} factions={factions} onChoose={() => {}} />,
+    );
+    const card = screen.getByRole('button');
+    const win = Math.round(gambleOption.odds * 100);
+    expect(within(card).getByText(`${win}%`)).toBeInTheDocument();
+  });
+});
+
+describe('OptionCard · relic reactions (issue #80)', () => {
+  const option: OfferOption = { kind: 'certain', label: 'Sign it', effects: [{ t: 'pactDebt', v: 2 }] };
+  const reactions: RelicReactionPreview = {
+    kind: 'certain',
+    events: [{ artifactId: 'ashen_signature', applied: [{ t: 'pactDebt', v: -1 }] }],
+  };
+
+  it('renders one attributed line for the relic that reacts, alongside the option’s own effects', () => {
+    render(
+      <OptionCard
+        option={option}
+        index={0}
+        artifacts={artifacts}
+        factions={factions}
+        reactions={reactions}
+        onChoose={() => {}}
+      />,
+    );
+    const card = screen.getByRole('button');
+    expect(within(card).getByText('The Ashen Signature')).toBeInTheDocument();
+    expect(within(card).getByText('+2')).toBeInTheDocument(); // the option's own, untouched
+    expect(within(card).getByText('−1')).toBeInTheDocument(); // the relic's own, attributed
+  });
+
+  it('renders nothing extra when no relic reacts to this option', () => {
+    render(
+      <OptionCard option={option} index={0} artifacts={artifacts} factions={factions} onChoose={() => {}} />,
+    );
+    const card = screen.getByRole('button');
+    expect(within(card).queryByText('The Ashen Signature')).not.toBeInTheDocument();
+  });
+
+  it('attributes a gamble’s two branches separately, never merging them', () => {
+    const gamble: OfferOption = {
+      kind: 'gamble',
+      label: 'Risk it',
+      odds: 0.5,
+      onSuccess: [{ t: 'pactDebt', v: 2 }],
+      onFailure: [{ t: 'pactDebt', v: 3 }],
+      successText: 'It goes well.',
+      failureText: 'It does not.',
+    };
+    const gambleReactions: RelicReactionPreview = {
+      kind: 'gamble',
+      onSuccess: [{ artifactId: 'ashen_signature', applied: [{ t: 'pactDebt', v: -1 }] }],
+      onFailure: [],
+    };
+    render(
+      <OptionCard
+        option={gamble}
+        index={0}
+        artifacts={artifacts}
+        factions={factions}
+        reactions={gambleReactions}
+        onChoose={() => {}}
+      />,
+    );
+    const card = screen.getByRole('button');
+    // Exactly one attribution — the failure branch's own preview is empty.
+    expect(within(card).getAllByText('The Ashen Signature')).toHaveLength(1);
   });
 });
 

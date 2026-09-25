@@ -30,6 +30,7 @@ const run: RunState = {
   lairId: 'sunless_cathedral',
   knownArtifactIds: [],
   heldArtifactIds: [],
+  startingArtifactIds: [],
   heroBandSeen: 0,
   factionStanding: {
     ashen_covenant: 46,
@@ -46,6 +47,7 @@ const run: RunState = {
   goodActs: 0,
   illActs: 0,
   goodWizardVowed: false,
+  relicState: { firedOnce: [] },
   eras: [],
   seenOfferIds: [],
 };

@@ -22,6 +22,7 @@ import {
   STANDING_MAX,
   STANDING_MIN,
 } from './constants';
+import { relicRules } from './relics';
 import type { Rng } from './rng';
 import { weightedPick } from './rng';
 import { clamp, clampNotoriety, clampThreat } from './systems';
@@ -50,7 +51,23 @@ export function draftOf(run: RunState): RunState {
     apprentices: { ...run.apprentices },
     eras: run.eras,
     seenOfferIds: run.seenOfferIds,
+    relicState: { firedOnce: run.relicState.firedOnce.slice() },
   };
+}
+
+/**
+ * The lich rite's mechanical forfeiture, and nothing else: every held relic
+ * and every follower, unconditionally. `run.ts`'s `becomeLich` also reports
+ * the loss onto `EffectApplication` for the resolution card; this is the bare
+ * state change alone, shared out here so `relics.ts`'s preview can put the
+ * SAME draft in front of era-end triggers that `resolveChoice` will (a relic
+ * the rite is about to forfeit must not preview an era-end reaction it will
+ * never get to fire — issue #80's era-end triggers postdate this rite by one
+ * slice, which is how the two went unreconciled).
+ */
+export function forfeitForLichdom(draft: RunState): void {
+  draft.heldArtifactIds = [];
+  draft.followers = 0;
 }
 
 const RARITY_RANK: Record<Rarity, number> = { common: 0, rare: 1, legendary: 2 };
@@ -89,7 +106,12 @@ export function applyEffects(
       }
 
       case 'standing': {
-        applyStanding(draft, effect.factionId, effect.v, index, out.applied);
+        // Read fresh on every `standing` effect, not hoisted once for the
+        // whole list: an earlier effect in THIS SAME list (an `artifact`
+        // grant, a `loseArtifact`) can change which passives are held before
+        // a later `standing` effect fires.
+        const { contagionLossMultiplier } = relicRules(draft, content);
+        applyStanding(draft, effect.factionId, effect.v, index, out.applied, contagionLossMultiplier);
         break;
       }
 
@@ -247,6 +269,18 @@ export function applyStanding(
   v: number,
   index: ContentIndex,
   applied: Effect[],
+  /**
+   * Multiplies `CONTAGION_GAIN` alone — the rate that fires when `delta > 0`
+   * and spills a NEGATIVE amount onto `factionId`'s enemies (issue #80's
+   * Footnote That Bites: "the standing lost to contagion is halved"). The
+   * `delta < 0` branch uses `CONTAGION_LOSS` to spill a small POSITIVE amount
+   * onto those same enemies — the enemy-of-my-enemy warming, not a loss — so
+   * it must stay unmodified by a multiplier named for loss. Defaults to 1 —
+   * unmodified — so every direct caller and every existing test that
+   * predates relic powers keeps producing today's numbers without having to
+   * name this parameter.
+   */
+  contagionLossMultiplier = 1,
 ): number {
   const before = draft.factionStanding[factionId] ?? 0;
   const after = clamp(Math.round(before + v), STANDING_MIN, STANDING_MAX);
@@ -256,7 +290,7 @@ export function applyStanding(
   if (delta === 0) return 0;
 
   const enemies = index.factionById.get(factionId)?.hostileTo ?? [];
-  const rate = delta > 0 ? CONTAGION_GAIN : CONTAGION_LOSS;
+  const rate = delta > 0 ? CONTAGION_GAIN * contagionLossMultiplier : CONTAGION_LOSS;
   for (const enemyId of enemies) {
     if (enemyId === factionId) continue;
     const spill = -Math.sign(delta) * Math.round(Math.abs(delta) * rate);
@@ -417,7 +451,8 @@ function moveLair(draft: RunState, v: number, index: ContentIndex): number {
  * Everything NOT in this set stays exactly as the author wrote it, because
  * projecting it would either be a lie or spoil a reveal: `artifactFrom` draws
  * at random and the card's honest promise is "a common Gilded Hand relic",
- * `loseArtifact` picks at random, and `ending`/`becomeLich` are not quantities.
+ * `loseArtifact` (usually — see below) picks at random, and `ending`/
+ * `becomeLich` are not quantities.
  */
 const PROJECTABLE: ReadonlySet<Effect['t']> = new Set([
   'notoriety',
@@ -440,12 +475,35 @@ const PROJECTABLE: ReadonlySet<Effect['t']> = new Set([
    */
   'goodAct',
   'illAct',
+  /**
+   * A fixed-id grant never draws from the rng and never guesses — the
+   * artifact is named in the content itself, issue #80's relic reviewers
+   * caught this being left out: an already-held grant echoed a "you gain X"
+   * line raw instead of correctly printing nothing, and — the more serious
+   * half — `draft.heldArtifactIds` never updated here, so a LATER `standing`
+   * effect in the same option computed `relicRules` against the run's OLD
+   * holdings even when this same option had just granted (or, see
+   * `loseArtifact` below, just removed) the very relic that standing effect's
+   * contagion multiplier depends on. `resolveChoice` applies the whole list
+   * through one `applyEffects` call and so never has this problem; projecting
+   * effect-by-effect is what let the two drift.
+   */
+  'artifact',
 ]);
 
-/** Never reached: no projectable effect draws from the rng. */
+/** Reached only for a deterministic `loseArtifact` — see `DETERMINISTIC_LOSS_RNG`. */
 const NO_RNG: Rng = () => {
   throw new Error('projectEffects: a projectable effect must not draw from the rng');
 };
+
+/**
+ * Safe ONLY when `draft.heldArtifactIds.length` is 0 or 1 at the point
+ * `loseArtifact` is reached: the case above computes
+ * `Math.floor(rng() * length)`, which is 0 regardless of what this returns
+ * when `length` is 0 or 1 — so it introduces no randomness, it exists only to
+ * satisfy the `Rng` type at a call site already proven deterministic.
+ */
+const DETERMINISTIC_LOSS_RNG: Rng = () => 0;
 
 /**
  * What an option will ACTUALLY do to this run, ready to print on the card.
@@ -486,6 +544,21 @@ export function projectEffects(
   const out: Effect[] = [];
 
   for (const effect of effects) {
+    // Which relic `loseArtifact` takes is genuinely unpredictable once 2+ are
+    // held — resolving it here would guess at the roll and risk printing a
+    // lie, the same reason `artifactFrom` is never in `PROJECTABLE`. With at
+    // most one held there is no roll to guess, so it runs for real via
+    // `DETERMINISTIC_LOSS_RNG` — not gated through `PROJECTABLE` because
+    // whether it belongs there depends on THIS draft, not the effect's type.
+    if (effect.t === 'loseArtifact') {
+      if (draft.heldArtifactIds.length >= 2) {
+        out.push(effect);
+        continue;
+      }
+      const { applied } = applyEffects(draft, [effect], DETERMINISTIC_LOSS_RNG, content);
+      out.push(...applied);
+      continue;
+    }
     if (!PROJECTABLE.has(effect.t)) {
       out.push(effect);
       continue;

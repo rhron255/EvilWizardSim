@@ -58,6 +58,7 @@ const baseRun: RunState = {
     'bone_crown',
     'root_of_the_standing_vote',
   ],
+  startingArtifactIds: [],
   heroBandSeen: 0,
   factionStanding: {
     ashen_covenant: 46,
@@ -74,6 +75,7 @@ const baseRun: RunState = {
   goodActs: 0,
   illActs: 0,
   goodWizardVowed: false,
+  relicState: { firedOnce: [] },
   eras,
   seenOfferIds: eras.map((e) => e.offerId),
 };
@@ -140,6 +142,21 @@ describe('RelicPage · lost this run', () => {
   it('omits the section entirely when nothing gained this run was lost', () => {
     show(baseRun);
     expect(screen.queryByRole('heading', { name: 'Lost this run' })).toBeNull();
+  });
+
+  it('names an origin relic that was lost, even though it never appeared in any era record', () => {
+    // An origin's relic grant lands in `createRun`, before `eras` has a single
+    // entry — `startingArtifactIds` is the only record of it, and this page
+    // must fold that in the same way `recordRun`/`EndingScreen` do (Codex
+    // review, PR #87: a starting relic silently vanished from history the
+    // moment it was lost, since neither `heldArtifactIds` nor any
+    // `era.artifactsGained` still named it).
+    // baseRun's held haul never included the Unpaid Purse, so setting only
+    // `startingArtifactIds` is enough to model "granted at creation, since lost".
+    const lostRun = { ...baseRun, startingArtifactIds: ['unpaid_purse'] };
+    show(lostRun);
+    const lostSection = screen.getByRole('heading', { name: 'Lost this run' }).closest('section')!;
+    expect(within(lostSection).getByRole('heading', { name: 'The Unpaid Purse' })).toBeInTheDocument();
   });
 });
 

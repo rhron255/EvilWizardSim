@@ -122,6 +122,27 @@ describe('projectEffects · the card equals the outcome', () => {
     expect(JSON.stringify(state)).toBe(before);
   });
 
+  /**
+   * Issue #80 review regression: a relic passive is not the same as a plain
+   * number. `run()`'s default origin (Expelled from the Pale Academy) grants
+   * Footnote That Bites, whose passive halves the contagion LOSS Pale
+   * Academy's enemies suffer while it is held. `loseArtifact` was never in
+   * `PROJECTABLE`, so a naive effect-by-effect walk left `heldArtifactIds`
+   * stale for every later effect in the SAME option — the card kept "seeing"
+   * a relic that `resolveChoice`'s single real `applyEffects` call had
+   * already removed before the very next effect ran, so the card printed
+   * HALF the spill the engine actually charges once the relic is gone.
+   */
+  it('agrees with the engine when an option both takes a relic passive away and relies on its absence', () => {
+    const state = run();
+    expect(state.heldArtifactIds).toEqual(['footnote_that_bites']);
+    const effects: Effect[] = [
+      { t: 'loseArtifact' },
+      { t: 'standing', factionId: 'pale_academy', v: 20 },
+    ];
+    expect(projectEffects(state, effects, content)).toEqual(applied(state, effects));
+  });
+
   it('projects in list order, so a second hit knows about the first', () => {
     const state = run({ followers: 10 });
     const effects: Effect[] = [

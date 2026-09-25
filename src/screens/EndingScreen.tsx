@@ -149,6 +149,7 @@ export function EndingScreen({
   const relics: ArtifactGridEntry[] = useMemo(() => {
     const recovered = new Set<string>([
       ...run.eras.flatMap((e) => e.artifactsGained),
+      ...run.startingArtifactIds,
       ...run.heldArtifactIds,
     ]);
     /**
@@ -185,7 +186,7 @@ export function EndingScreen({
           RARITY_ORDER[a.artifact.rarity] - RARITY_ORDER[b.artifact.rarity] ||
           a.artifact.name.localeCompare(b.artifact.name),
       );
-  }, [run.eras, run.heldArtifactIds, run.knownArtifactIds, artifacts]);
+  }, [run.eras, run.startingArtifactIds, run.heldArtifactIds, run.knownArtifactIds, artifacts]);
 
   const newToCollection = relics.filter((r) => r.isNew).length;
 

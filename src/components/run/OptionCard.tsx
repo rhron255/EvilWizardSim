@@ -8,10 +8,42 @@
  * the split as a quantity you can see rather than read.
  */
 
+import type { RelicEvent, RelicReactionPreview } from '../../engine';
 import type { Artifact, Effect, Faction, OfferOption } from '../../types';
 import { EffectList } from './EffectList';
-import { formatOdds } from './effectText';
+import { artifactName, formatOdds } from './effectText';
 import styles from './OptionCard.module.css';
+
+/**
+ * One attributed line per relic that actually reacts to this branch (issue
+ * #80's rule-1 requirement: "any deterministic relic reaction is projected
+ * onto the offer card before the player commits"). Reuses `EffectList`'s
+ * `compact` renderer for the effect part, so a relic whose own effect fans
+ * out (a standing gain that spills contagion) reads with the same
+ * comma-flowed vocabulary the option's own effects already use — no second
+ * rendering language invented for it.
+ */
+export function RelicReactions({
+  events,
+  artifacts,
+  factions,
+}: {
+  events: RelicEvent[];
+  artifacts: Artifact[];
+  factions: Faction[];
+}) {
+  if (events.length === 0) return null;
+  return (
+    <ul className={styles.reactions}>
+      {events.map((event) => (
+        <li key={event.artifactId} className={styles.reactionRow}>
+          <span className={styles.reactionName}>{artifactName(event.artifactId, artifacts)}</span>
+          <EffectList effects={event.applied} artifacts={artifacts} factions={factions} compact />
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 /**
  * The stock types `impliedGatesOf` (`src/engine/conditions.ts`) gates on —
@@ -67,6 +99,18 @@ export type OptionCardProps = {
    * when omitted.
    */
   rawOption?: OfferOption;
+  /**
+   * The odds a gamble actually carries for this run (`effectiveOdds`,
+   * `src/engine/relics.ts`) — what `resolveChoice` rolls against, not
+   * necessarily `option.odds`. Undefined for a test or caller that has not
+   * wired it, which falls back to `option.odds` and renders exactly like
+   * today; a `certain` option ignores this entirely. Wiring it here, rather
+   * than leaving the card to read `option.odds` on its own, is what keeps a
+   * future odds-changing relic from making the printed number and the real
+   * roll two different odds for the same option — the same seam
+   * `effectiveOdds`'s own doc comment describes.
+   */
+  odds?: number;
   /** 0-based. Rendered as the 1-based keycap and used for the number shortcut. */
   index: number;
   artifacts: Artifact[];
@@ -88,21 +132,32 @@ export type OptionCardProps = {
    * only that cost and not the option's other, still-projected effects.
    */
   reason?: string;
+  /**
+   * What a held relic will do if this option is picked (`projectReactions`,
+   * `src/engine/relics.ts`) — undefined for a test or caller that has not
+   * wired it, which renders exactly like today: no reaction lines. Computed
+   * from `rawOption`, the authored option, the same input `projectReactions`
+   * itself expects.
+   */
+  reactions?: RelicReactionPreview;
   onChoose(index: number): void;
 };
 
 export function OptionCard({
   option,
   rawOption,
+  odds,
   index,
   artifacts,
   factions,
   disabled = false,
   reason,
+  reactions,
   onChoose,
 }: OptionCardProps) {
   const isGamble = option.kind === 'gamble';
-  const successPct = isGamble ? Math.round(option.odds * 100) : 100;
+  const printedOdds = odds ?? (isGamble ? option.odds : 1);
+  const successPct = isGamble ? Math.round(printedOdds * 100) : 100;
   // Merged, not swapped: an unaffordable card keeps every projected effect
   // (contagion rows included) and only its gated stock cost reverts to the
   // authored number. See `withAuthoredStockCosts`.
@@ -152,11 +207,14 @@ export function OptionCard({
         {priced.kind === 'certain' ? (
           <span className={styles.certain}>
             <EffectList effects={priced.effects} artifacts={artifacts} factions={factions} />
+            {reactions?.kind === 'certain' && (
+              <RelicReactions events={reactions.events} artifacts={artifacts} factions={factions} />
+            )}
           </span>
         ) : (
           <span className={styles.branches}>
             <span className={styles.branch} data-branch="success">
-              <span className={`${styles.pct} ew-num`}>{formatOdds(priced.odds)}</span>
+              <span className={`${styles.pct} ew-num`}>{formatOdds(printedOdds)}</span>
               <span className={styles.arrow} aria-hidden="true">
                 →
               </span>
@@ -167,11 +225,14 @@ export function OptionCard({
                   factions={factions}
                   compact
                 />
+                {reactions?.kind === 'gamble' && (
+                  <RelicReactions events={reactions.onSuccess} artifacts={artifacts} factions={factions} />
+                )}
               </span>
             </span>
 
             <span className={styles.branch} data-branch="failure">
-              <span className={`${styles.pct} ew-num`}>{formatOdds(1 - priced.odds)}</span>
+              <span className={`${styles.pct} ew-num`}>{formatOdds(1 - printedOdds)}</span>
               <span className={styles.arrow} aria-hidden="true">
                 →
               </span>
@@ -182,6 +243,9 @@ export function OptionCard({
                   factions={factions}
                   compact
                 />
+                {reactions?.kind === 'gamble' && (
+                  <RelicReactions events={reactions.onFailure} artifacts={artifacts} factions={factions} />
+                )}
               </span>
             </span>
 

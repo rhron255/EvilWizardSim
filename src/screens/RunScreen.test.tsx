@@ -62,6 +62,7 @@ const demoRun: RunState = {
     'bone_crown',
     'root_of_the_standing_vote',
   ],
+  startingArtifactIds: [],
   heroBandSeen: 0,
   factionStanding: {
     ashen_covenant: 46,
@@ -78,6 +79,7 @@ const demoRun: RunState = {
   goodActs: 0,
   illActs: 0,
   goodWizardVowed: false,
+  relicState: { firedOnce: [] },
   eras,
   seenOfferIds: eras.map((e) => e.offerId),
 };

@@ -7,11 +7,11 @@
  */
 
 import { useCallback, useEffect, useId, useMemo, useRef } from 'react';
-import type { Artifact, Faction, Offer, OfferOption, RunState } from '../../types';
-import type { ContentBundle } from '../../engine';
-import { conditionMet, impliedGatesOf, isOptionPickable } from '../../engine';
+import type { Artifact, Effect, Faction, Offer, OfferOption, RunState } from '../../types';
+import type { ContentBundle, RelicEvent, RelicReactionPreview } from '../../engine';
+import { conditionMet, effectiveOdds, impliedGatesOf, isOptionPickable, projectReactions } from '../../engine';
 import { describeGate } from './effectText';
-import { OptionCard } from './OptionCard';
+import { OptionCard, RelicReactions } from './OptionCard';
 import styles from './OfferPanel.module.css';
 
 export type OfferPanelProps = {
@@ -66,6 +66,63 @@ function gateFor(
   };
 }
 
+// ---------------------------------------------------------------------------
+// Ambient relic reactions (styling convention 3)
+// ---------------------------------------------------------------------------
+
+function sameApplied(a: readonly Effect[], b: readonly Effect[]): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+/** Every branch of every option this offer previews — a `certain` has one, a `gamble` two. */
+function allBranches(previews: readonly RelicReactionPreview[]): RelicEvent[][] {
+  return previews.flatMap((p) => (p.kind === 'certain' ? [p.events] : [p.onSuccess, p.onFailure]));
+}
+
+/**
+ * A relic event is AMBIENT for this offer when it lands, with the exact same
+ * applied effects, on EVERY branch of EVERY option — an unconditional
+ * era-end trigger (the Mantle) fires the same way whatever gets picked, so it
+ * is not a consequence of the choice at all. Printing it on every card
+ * anyway is exactly what CLAUDE.md's styling convention 3 bans: "if two
+ * elements on one screen state the same … consequence, drop whichever copy
+ * is not the ambient line for it." This IS that ambient line — rendered once
+ * for the whole offer instead of once per card (issue #80 review).
+ *
+ * An event that varies by branch (the Purse only tops up on branches that
+ * leave followers under ten) or is absent on some — never counts as ambient,
+ * and stays exactly where it already was: attributed to the specific
+ * branch that actually produces it.
+ */
+function ambientReactionsOf(previews: readonly RelicReactionPreview[]): RelicEvent[] {
+  const branches = allBranches(previews);
+  const [first, ...rest] = branches;
+  if (!first) return [];
+  return first.filter((event) =>
+    rest.every((branch) =>
+      branch.some((e) => e.artifactId === event.artifactId && sameApplied(e.applied, event.applied)),
+    ),
+  );
+}
+
+function withoutAmbient(events: readonly RelicEvent[], ambient: readonly RelicEvent[]): RelicEvent[] {
+  const ambientIds = new Set(ambient.map((e) => e.artifactId));
+  return events.filter((e) => !ambientIds.has(e.artifactId));
+}
+
+function withoutAmbientReactions(
+  preview: RelicReactionPreview,
+  ambient: readonly RelicEvent[],
+): RelicReactionPreview {
+  return preview.kind === 'certain'
+    ? { kind: 'certain', events: withoutAmbient(preview.events, ambient) }
+    : {
+        kind: 'gamble',
+        onSuccess: withoutAmbient(preview.onSuccess, ambient),
+        onFailure: withoutAmbient(preview.onFailure, ambient),
+      };
+}
+
 export function OfferPanel({
   offer,
   rawOffer,
@@ -84,6 +141,34 @@ export function OfferPanel({
   const optionGates = useMemo(
     () => gateOptions.map((option) => gateFor(run, option, content)),
     [gateOptions, run, content],
+  );
+
+  // Rule 1: any deterministic relic reaction is projected onto the card
+  // before the commit. Computed from `gateOptions` (the AUTHORED option,
+  // same as `gateFor` above) so the preview matches what `resolveChoice` will
+  // actually apply, never a copy already rewritten by `projectEffects`.
+  const optionReactions = useMemo(
+    () => gateOptions.map((option) => projectReactions(run, option, content)),
+    [gateOptions, run, content],
+  );
+
+  // Same reasoning as `optionReactions`: computed from `gateOptions` (the
+  // AUTHORED option) so the odds printed on the card are the odds
+  // `resolveChoice` actually rolls against, via the same `effectiveOdds` seam
+  // — never `option.odds` read straight off a UI-projected copy.
+  const optionOdds = useMemo(
+    () => gateOptions.map((option) => effectiveOdds(run, option)),
+    [gateOptions, run],
+  );
+
+  // Styling convention 3: a reaction every branch of every option produces
+  // identically (an unconditional era-end trigger) is not a consequence of
+  // THIS choice, so it renders once, ambient to the offer, rather than
+  // repeated on every card — see `ambientReactionsOf`'s own doc comment.
+  const ambientReactions = useMemo(() => ambientReactionsOf(optionReactions), [optionReactions]);
+  const cardReactions = useMemo(
+    () => optionReactions.map((preview) => withoutAmbientReactions(preview, ambientReactions)),
+    [optionReactions, ambientReactions],
   );
 
   const buttons = useCallback((): HTMLButtonElement[] => {
@@ -151,6 +236,16 @@ export function OfferPanel({
           {offer.title}
         </h2>
         <p className={styles.body}>{offer.body}</p>
+
+        {/* Styling convention 3: stated once, here, for whichever option gets
+            picked — never repeated per-card once it no longer distinguishes
+            them (see `ambientReactionsOf`). */}
+        {ambientReactions.length > 0 && (
+          <div className={styles.ambientReactions}>
+            <p className={styles.ambientReactionsLabel}>Whatever you choose</p>
+            <RelicReactions events={ambientReactions} artifacts={artifacts} factions={factions} />
+          </div>
+        )}
       </header>
 
       <div className={styles.options} role="group" aria-label="Choices" ref={listRef}>
@@ -161,11 +256,13 @@ export function OfferPanel({
               key={`${offer.id}-${i}-${option.label}`}
               option={option}
               rawOption={gateOptions[i]}
+              odds={optionOdds[i]}
               index={i}
               artifacts={artifacts}
               factions={factions}
               disabled={disabled || !gate?.pickable}
               reason={gate?.reason}
+              reactions={cardReactions[i]}
               onChoose={onChoose}
             />
           );

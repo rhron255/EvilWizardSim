@@ -33,7 +33,9 @@ import {
   START_NOTORIETY,
 } from './constants';
 import type { EffectApplication } from './effects';
-import { applyEffects, draftOf } from './effects';
+import { applyEffects, draftOf, forfeitForLichdom } from './effects';
+import type { RelicEvent } from './relics';
+import { applyChoiceTriggers, applyEraEndTriggers, effectiveOdds } from './relics';
 import { projectedEpithet } from './epithets';
 import { deedLineFor } from './deeds';
 import { checkEndings } from './endings';
@@ -124,6 +126,7 @@ export function createRun(opts: CreateRunOptions, content: ContentBundle): RunSt
     followers: START_FOLLOWERS,
     lairId: index.lairLadder[0]?.id ?? '',
     heldArtifactIds: [],
+    startingArtifactIds: [],
     knownArtifactIds: Array.from(new Set(opts.knownArtifactIds ?? [])),
     heroBandSeen: 0,
     factionStanding: emptyStanding(),
@@ -134,6 +137,7 @@ export function createRun(opts: CreateRunOptions, content: ContentBundle): RunSt
     goodActs: 0,
     illActs: 0,
     goodWizardVowed: false,
+    relicState: { firedOnce: [] },
     eras: [],
     seenOfferIds: [],
   };
@@ -143,7 +147,11 @@ export function createRun(opts: CreateRunOptions, content: ContentBundle): RunSt
     // An `ending` effect here would be nonsense, so it is ignored by omission
     // (we never read `endingRequested` from this application).
     const rng = streamFor(seed, 'origin', origin.id);
-    applyEffects(run, origin.effects, rng, content);
+    const application = applyEffects(run, origin.effects, rng, content);
+    // This happens before `run.eras` has a single entry, so it is the ONLY
+    // record of a relic the origin granted — see `startingArtifactIds`'s doc
+    // comment in `types.ts` for why every "ever held" reconstruction reads it.
+    run.startingArtifactIds = application.artifactsGained.map((a) => a.id);
   }
 
   // A creation-screen pick stands until deeds earn something louder; without
@@ -164,8 +172,10 @@ function inertResolution(run: RunState): Resolution {
     text: '',
     artifactsGained: [],
     newToCollection: [],
+    artifactsLost: [],
     notorietyDelta: 0,
     systemic: [],
+    relicEvents: [],
     ending: run.ending,
     eraRecord:
       last ??
@@ -217,13 +227,12 @@ function becomeLich(draft: RunState, application: EffectApplication, content: Co
     if (artifact) application.artifactsLost.push(artifact);
     application.applied.push({ t: 'loseArtifact' });
   }
-  draft.heldArtifactIds = [];
 
   if (draft.followers !== 0) {
     application.applied.push({ t: 'followers', v: -draft.followers });
-    draft.followers = 0;
   }
 
+  forfeitForLichdom(draft);
   draft.isLich = true;
 }
 
@@ -270,7 +279,12 @@ export function resolveChoice(
     outcome = 'deterministic';
     effects = option.effects;
   } else {
-    odds = clamp(option.odds, 0, 1);
+    // `effectiveOdds`, not `option.odds` directly — the seam a future
+    // odds-changing relic (#77 slice 5's Spectacles) hooks, so the roll a
+    // player actually faces, the number the card prints, and what a bot in
+    // `scripts/simulate.ts` scores a gamble at can never drift apart onto
+    // three different odds for the same option.
+    odds = clamp(effectiveOdds(run, option), 0, 1);
     roll = rng();
     const succeeded = roll < odds;
     outcome = succeeded ? 'success' : 'failure';
@@ -287,6 +301,12 @@ export function resolveChoice(
   // ---- apply -----------------------------------------------------------
   const draft = draftOf(run);
   const application = applyEffects(draft, effects, rng, content);
+
+  // Relics react to what was just chosen — read against the run AFTER the
+  // option's own effects landed, per `RelicTriggerTiming`'s doc comment in
+  // `types.ts` — before anything else (the lich rite, era-end) can change
+  // what "the chosen option's landed effects" means.
+  const relicEvents: RelicEvent[] = applyChoiceTriggers(draft, content, rng, application.applied);
 
   let endingFromEffect: EndingId | undefined = application.endingRequested;
 
@@ -313,6 +333,11 @@ export function resolveChoice(
   // why decay and hero threat are not among them.
   const systemic: SystemicChange[] = [];
   if (!endingFromEffect) {
+    // Era-end relics (the Mantle, the Purse) fire alongside decay and threat
+    // gain — same guard, same reasoning: an era that never happens (the
+    // option just ended the run) has no "end of it" for a relic to fire at.
+    relicEvents.push(...applyEraEndTriggers(draft, content, rng));
+
     const decay = decayFor(draft);
     if (decay !== 0) draft.notoriety = clampNotoriety(draft.notoriety - decay);
 
@@ -463,6 +488,12 @@ export function resolveChoice(
     text,
     artifactsGained: application.artifactsGained,
     newToCollection,
+    // Always present, empty by default — the `systemic` pattern. Named
+    // relics lost this era (a `loseArtifact` a relic itself never causes yet,
+    // and the lich rite's own forfeiture) rather than the unnamed generic
+    // `loseArtifact` line `appliedEffects` already carries.
+    artifactsLost: application.artifactsLost,
+    relicEvents,
     notorietyDelta: draft.notoriety - startNotoriety,
     eraRecord,
     ...(roll !== undefined && odds !== undefined ? { roll, odds } : {}),

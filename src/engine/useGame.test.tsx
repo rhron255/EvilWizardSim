@@ -137,7 +137,14 @@ describe('the remembered name', () => {
 
   it('is re-confirmed by a finished career', () => {
     const c = { ...emptyCollection(), lastWizardName: 'Old Name' };
-    const run = { wizardName: 'Newer Name', heldArtifactIds: [], eras: [], ending: 'lichdom', notoriety: 4 };
+    const run = {
+      wizardName: 'Newer Name',
+      heldArtifactIds: [],
+      startingArtifactIds: [],
+      eras: [],
+      ending: 'lichdom',
+      notoriety: 4,
+    };
     expect(recordRun(c, run as never, content).lastWizardName).toBe('Newer Name');
   });
 });
@@ -177,7 +184,13 @@ describe('collection v1 -> v2', () => {
 
   it('carries the flag through a recorded run', () => {
     const c = { ...emptyCollection(), tutorialSeen: true };
-    const run = { heldArtifactIds: [], eras: [], ending: 'retired_to_swamp', notoriety: 10 };
+    const run = {
+      heldArtifactIds: [],
+      startingArtifactIds: [],
+      eras: [],
+      ending: 'retired_to_swamp',
+      notoriety: 10,
+    };
     expect(recordRun(c, run as never, content).tutorialSeen).toBe(true);
   });
 
@@ -239,7 +252,13 @@ describe('collection v2 -> v3 · the theme pointer', () => {
 
   it('leaves what the player is wearing alone when a run is recorded', () => {
     const c = { ...emptyCollection(), selectedThemeId: 'lichdom' as const };
-    const run = { heldArtifactIds: [], eras: [], ending: 'ascension', notoriety: 10 };
+    const run = {
+      heldArtifactIds: [],
+      startingArtifactIds: [],
+      eras: [],
+      ending: 'ascension',
+      notoriety: 10,
+    };
     // Finishing a career unlocks a theme; it does not put it on. The ending
     // card offers it and the player taps.
     expect(recordRun(c, run as never, content).selectedThemeId).toBe('lichdom');
@@ -280,5 +299,77 @@ describe('collection v4 -> v5 · dropping the tabs hint flag', () => {
     const written = emptyCollection();
     localStorage.setItem(COLLECTION_KEY, JSON.stringify(written));
     expect(migrateCollection(JSON.parse(localStorage.getItem(COLLECTION_KEY)!))).toEqual(written);
+  });
+});
+
+/**
+ * Collection v5 -> v6 · the relic-collection reset (issue #80).
+ *
+ * `relicsResetAt` is compared, as a plain sortable string, against the
+ * `relicsResetAtBuild` a caller passes to `migrateCollection` — never
+ * imported by the engine itself (see the doc comment on `emptyCollection`
+ * in `persistence.ts`). Endings, themes, the tutorial flag and the last name
+ * must survive every one of these untouched — this is a relic-only reset.
+ */
+describe('collection v5 -> v6 · the relic-collection reset', () => {
+  const BUILD = '2026-09-24T15:30:00Z';
+  const v5 = {
+    version: 5,
+    discoveredArtifactIds: [content.artifacts[0].id, content.artifacts[1].id],
+    endingsSeen: ['lichdom'],
+    runsCompleted: 12,
+    bestNotoriety: 71,
+    tutorialSeen: true,
+    lastWizardName: 'Malvorn',
+    selectedThemeId: 'lichdom',
+  };
+
+  it('clears the relic grid, and only the relic grid, when the stored reset is stale', () => {
+    const stale = { ...v5, relicsResetAt: '2020-01-01T00:00:00Z' };
+    const migrated = migrateCollection(stale, BUILD);
+    expect(migrated.discoveredArtifactIds).toEqual([]);
+    expect(migrated.relicsResetAt).toBe(BUILD);
+    // Nothing else about the player is reset.
+    expect(migrated.endingsSeen).toEqual(['lichdom']);
+    expect(migrated.runsCompleted).toBe(12);
+    expect(migrated.bestNotoriety).toBe(71);
+    expect(migrated.tutorialSeen).toBe(true);
+    expect(migrated.lastWizardName).toBe('Malvorn');
+    expect(migrated.selectedThemeId).toBe('lichdom');
+  });
+
+  it('leaves a current reset stamp untouched', () => {
+    const current = { ...v5, relicsResetAt: BUILD };
+    const migrated = migrateCollection(current, BUILD);
+    expect(migrated.discoveredArtifactIds).toEqual(v5.discoveredArtifactIds);
+    expect(migrated.relicsResetAt).toBe(BUILD);
+  });
+
+  it('leaves a NEWER reset stamp untouched too — a caller must never rewind it', () => {
+    const future = { ...v5, relicsResetAt: '2027-01-01T00:00:00Z' };
+    const migrated = migrateCollection(future, BUILD);
+    expect(migrated.discoveredArtifactIds).toEqual(v5.discoveredArtifactIds);
+    expect(migrated.relicsResetAt).toBe('2027-01-01T00:00:00Z');
+  });
+
+  it('treats a missing relicsResetAt (a genuine pre-reset v5 save) as stale', () => {
+    const migrated = migrateCollection({ ...v5 }, BUILD);
+    expect(migrated.discoveredArtifactIds).toEqual([]);
+    expect(migrated.relicsResetAt).toBe(BUILD);
+  });
+
+  it('never resets when the caller has no opinion (the default parameter)', () => {
+    // `loadCollection()`/`migrateCollection(raw)` with no second argument —
+    // every pre-existing call site in this file among them — must reproduce
+    // today's behaviour exactly, per the framework's own acceptance bar.
+    const migrated = migrateCollection({ ...v5 });
+    expect(migrated.discoveredArtifactIds).toEqual(v5.discoveredArtifactIds);
+    expect(migrated.relicsResetAt).toBe('');
+  });
+
+  it('reads a v6 save back exactly as written', () => {
+    const written = emptyCollection(BUILD);
+    localStorage.setItem(COLLECTION_KEY, JSON.stringify(written));
+    expect(migrateCollection(JSON.parse(localStorage.getItem(COLLECTION_KEY)!), BUILD)).toEqual(written);
   });
 });

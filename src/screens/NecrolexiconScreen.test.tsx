@@ -22,6 +22,7 @@ import { factions } from '../content/factions';
 import { endings } from '../content/endings';
 import { mechanics } from '../content/mechanics';
 import { emptyCollection } from '../engine';
+import { relicPowerText } from '../components/meta';
 import type { Collection } from '../types';
 import { NecrolexiconScreen } from './NecrolexiconScreen';
 
@@ -151,6 +152,48 @@ describe('NecrolexiconScreen · the grid shows everything from run one', () => {
     for (const f of factions) {
       expect(screen.getAllByRole('heading', { name: f.name }).length).toBeGreaterThan(0);
     }
+  });
+});
+
+/**
+ * Relic power lines (issue #80's Necrolexicon acceptance item): "Relics-tab
+ * cards show each discovered relic's power line. Locked relics stay
+ * silhouettes." One case per power `kind` the catalog actually has —
+ * `trigger` and `passive` — so a future power kind reaching the catalog with
+ * no line here is a gap this describe block should grow to cover, not a
+ * silent pass.
+ */
+describe('NecrolexiconScreen · relic power lines', () => {
+  const trigger = artifacts.find((a) => a.id === 'ashen_signature')!;
+  const passive = artifacts.find((a) => a.id === 'footnote_that_bites')!;
+
+  const collectionWithBoth: Collection = {
+    ...emptyCollection(),
+    discoveredArtifactIds: [trigger.id, passive.id],
+  };
+
+  it('picks one relic of each authored power kind for this fixture', () => {
+    expect(trigger.power?.kind).toBe('trigger');
+    expect(passive.power?.kind).toBe('passive');
+  });
+
+  it("renders a trigger relic's power line once discovered", async () => {
+    show(collectionWithBoth);
+    await goTo(/^relics$/i);
+    expect(screen.getByText(relicPowerText(trigger.power!, { factions }))).toBeInTheDocument();
+  });
+
+  it("renders a passive relic's power line once discovered", async () => {
+    show(collectionWithBoth);
+    await goTo(/^relics$/i);
+    expect(screen.getByText(relicPowerText(passive.power!, { factions }))).toBeInTheDocument();
+  });
+
+  it('withholds a locked relic\'s power line along with everything else about it', async () => {
+    show(demoEmptyCollection);
+    await goTo(/^relics$/i);
+    expect(screen.queryByText(relicPowerText(trigger.power!, { factions }))).not.toBeInTheDocument();
+    expect(screen.queryByText(relicPowerText(passive.power!, { factions }))).not.toBeInTheDocument();
   });
 });
 

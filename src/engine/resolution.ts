@@ -8,6 +8,7 @@
  */
 
 import type { Artifact, EndingId, EraRecord, Effect, Lair, Outcome, Tier } from '../types';
+import type { RelicEvent } from './relics';
 
 /**
  * A change the era-end systems made on their own, after the option resolved.
@@ -60,6 +61,23 @@ export type Resolution = {
    * up the fourth copy of a relic they already owned.
    */
   newToCollection: Artifact[];
+  /**
+   * Relics lost THIS era, named — the lich rite's forfeiture and any ordinary
+   * `loseArtifact` effect. ALWAYS PRESENT, empty when nothing was lost, the
+   * same `systemic`/`newToCollection` pattern: `appliedEffects` already
+   * carries an unnamed `loseArtifact` line for rule 1, and this is what lets
+   * a renderer say WHICH relic it was without re-deriving it from a bare
+   * effect that never named one.
+   */
+  artifactsLost: Artifact[];
+  /**
+   * What a held relic did on its OWN this era — an era-end tick, or a
+   * once-only reaction to the choice just made (issue #80's power
+   * framework). ALWAYS PRESENT, empty when no relic fired. Kept separate from
+   * `appliedEffects` for the same reason `systemic` is: attributing a relic's
+   * own consequence to the option the player picked would misname its cause.
+   */
+  relicEvents: RelicEvent[];
   notorietyDelta: number;
   /** ONLY set on an upward crossing into a `celebrate: true` tier. */
   tierCrossed?: Tier;

@@ -57,6 +57,8 @@ const demoResolutionSuccess: Resolution = {
   text: won.option.successText,
   artifactsGained: [prize],
   newToCollection: [prize],
+  artifactsLost: [],
+  relicEvents: [],
   notorietyDelta: fame,
   systemic: [],
   eraRecord: {
@@ -144,6 +146,32 @@ describe('ResolutionOverlay · a relic the collection has never held', () => {
   });
 });
 
+describe('ResolutionOverlay · a relic the era took', () => {
+  /**
+   * `Resolution.artifactsLost` used to land here unread — the card said only
+   * the generic pre-commit "Lose a held relic," even though the roll had
+   * already named exactly which one (issue #80 review). This pins that the
+   * name actually reaches the screen.
+   */
+  it('names the relic the roll actually took', () => {
+    show([], { artifactsGained: [], artifactsLost: [artifacts[0]] });
+    expect(screen.getByText('Lost this era')).toBeInTheDocument();
+    expect(screen.getByText(artifacts[0].name)).toBeInTheDocument();
+  });
+
+  it('says nothing when nothing was lost', () => {
+    show([], { artifactsLost: [] });
+    expect(screen.queryByText('Lost this era')).toBeNull();
+  });
+
+  it('shows a gain and a loss on the same card without conflating them', () => {
+    show([], { artifactsGained: [artifacts[1]], artifactsLost: [artifacts[0]] });
+    expect(screen.getByText(artifacts[1].name)).toBeInTheDocument();
+    expect(screen.getByText(artifacts[0].name)).toBeInTheDocument();
+    expect(screen.getByText('Lost this era')).toBeInTheDocument();
+  });
+});
+
 describe('ResolutionOverlay · while you were elsewhere', () => {
   it('prints the loyalty drift against the threshold it is walking toward', () => {
     show([{ t: 'loyaltyDrift', v: -5, loyalty: 22 }]);
@@ -185,6 +213,53 @@ describe('ResolutionOverlay · while you were elsewhere', () => {
   it('never reports pact debt as something that happened on its own', () => {
     show([{ t: 'loyaltyDrift', v: -5, loyalty: 22 }]);
     expect(within(section()).queryByText(/Pact Debt/)).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * "Your relics" (issue #80) — a relic's own consequence this era, kept
+ * separate from `appliedEffects` for the exact reason "while you were
+ * elsewhere" is: attributing it to the option the player just picked would
+ * misname its cause. Same pattern this file already holds `systemic` to.
+ */
+describe('ResolutionOverlay · your relics', () => {
+  const relicsSection = () => screen.getByText('Your relics').closest('div')!;
+
+  it('shows nothing at all when no relic fired', () => {
+    show([], { relicEvents: [] });
+    expect(screen.queryByText('Your relics')).not.toBeInTheDocument();
+  });
+
+  it('names the relic and what it did', () => {
+    show([], {
+      relicEvents: [{ artifactId: artifacts[0].id, applied: [{ t: 'notoriety', v: 2 }] }],
+    });
+    const block = within(relicsSection());
+    expect(block.getByText(artifacts[0].name)).toBeInTheDocument();
+    expect(block.getByText('+2')).toBeInTheDocument();
+    expect(block.getByText('Notoriety')).toBeInTheDocument();
+  });
+
+  it('keeps a relic event out of the option consequence list', () => {
+    // The option's own ledger already carries a notoriety gain
+    // (`demoResolutionSuccess.appliedEffects`); the relic's own is a SECOND,
+    // separately attributed one and must not fold into that count.
+    show([], {
+      relicEvents: [{ artifactId: artifacts[0].id, applied: [{ t: 'notoriety', v: 2 }] }],
+    });
+    expect(screen.getAllByText('Notoriety').length).toBeGreaterThan(1);
+  });
+
+  it('lists one row per relic that reacted', () => {
+    show([], {
+      relicEvents: [
+        { artifactId: artifacts[0].id, applied: [{ t: 'notoriety', v: 2 }] },
+        { artifactId: artifacts[1].id, applied: [{ t: 'followers', v: 10 }] },
+      ],
+    });
+    const block = within(relicsSection());
+    expect(block.getByText(artifacts[0].name)).toBeInTheDocument();
+    expect(block.getByText(artifacts[1].name)).toBeInTheDocument();
   });
 });
 

@@ -1,4 +1,4 @@
-import type { Mechanic } from '../types';
+import type { Mechanic, RelicPower } from '../types';
 
 /**
  * The Necrolexicon's "what does this mean?" entries (issue #66).
@@ -68,6 +68,18 @@ export const mechanics: Mechanic[] = [
       "Artifacts you have picked up along the way, each tied to one faction and graded common, rare, or legendary. A relic's wards come from its rarity, and, once held, it is yours for the rest of the career. Tap Relics during a career to see what you carry.",
   },
   {
+    id: 'relic_powers',
+    name: 'Relic powers',
+    blurb:
+      'Some relics do something beyond adding to your wards. A power acts on its own — it never asks you a question. It answers to your choices and to the eras passing, and to nothing else a relic might be doing at the same time.',
+  },
+  {
+    id: 'origins',
+    name: 'Origins',
+    blurb:
+      'How a career began. Every background comes with its own relic already in hand, on top of whatever else it grants or costs — nobody starts from nothing.',
+  },
+  {
     id: 'offers',
     name: 'Offers & gambles',
     blurb:
@@ -80,3 +92,20 @@ export const mechanics: Mechanic[] = [
       'As every good wizard comes to an end - usually by your hand, so does your life end at some point. Many endings, many choices, many rewards. Most are easier to find than your moral compass, the cool ones might take some time.',
   },
 ];
+
+/**
+ * Which Necrolexicon entry explains a given kind of relic power (issue #80's
+ * acceptance item). All four kinds map to the one `relic_powers` entry above
+ * — there is a single mechanic explaining the whole framework, not one per
+ * kind — but the `Record` is exhaustive over `RelicPower['kind']` so a new
+ * kind (an `active`/`lifeline` power actually shipping, or a fifth kind added
+ * later) cannot silently go unmapped: `scripts/validate-content.ts` looks up
+ * every AUTHORED power's kind here and fails if the mechanic it names does
+ * not exist, which only means anything because this object cannot omit one.
+ */
+export const MECHANIC_FOR_POWER_KIND: Record<RelicPower['kind'], string> = {
+  passive: 'relic_powers',
+  trigger: 'relic_powers',
+  active: 'relic_powers',
+  lifeline: 'relic_powers',
+};

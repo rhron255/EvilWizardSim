@@ -40,14 +40,17 @@ import type {
   TierId,
 } from '../src/types';
 import { writeFileSync } from 'node:fs';
-import type { ContentBundle } from '../src/engine';
+import type { ContentBundle, RelicEvent } from '../src/engine';
 import { TIERS, tierFor } from '../src/theme/tokens';
 import {
   ascensionReady,
   createRun,
   defenseOf,
+  effectiveOdds,
   isOptionPickable,
   nextOffer,
+  projectReactions,
+  relicRules,
   resolveChoice,
 } from '../src/engine';
 import {
@@ -566,23 +569,72 @@ function scoreEffects(
   return total;
 }
 
+/** The effects a held relic's reaction actually adds, in trigger order — `RelicEvent.applied` flattened across every relic that fired. */
+function reactionEffectsOf(events: readonly RelicEvent[]): Effect[] {
+  return events.flatMap((e) => e.applied);
+}
+
+/**
+ * A held relic's reaction is priced right alongside the option's own effects,
+ * not left out the way a review on this issue caught: the Ashen Signature's
+ * first debt-raising choice is scored at the FULL debt every policy prices,
+ * while `resolveChoice` actually applies the Signature's `-1 pactDebt` on top
+ * of it, and the Unpaid Purse's eraEnd payout depends on which branch a
+ * gamble lands on, exactly the kind of branch-dependent consequence
+ * `scoreEffects` needs to see to rank options the way the engine will
+ * actually resolve them. `projectReactions` is the same function the offer
+ * card previews reactions through (`OfferPanel`), so a bot sees exactly what
+ * the player is shown before committing — never a copy that can drift from
+ * it. Appended AFTER the option's own effects, matching the order
+ * `resolveChoice` actually runs them in, so a reaction's `pactDebt` delta
+ * threads through `scoreEffects`'s running clamp against the debt the
+ * option's own effects already produced, not against the pre-choice `debt`
+ * a second time.
+ */
 function optionScore(
+  run: RunState,
   option: OfferOption,
   w: Weights,
   takesLichdom: boolean,
   debt: number,
   takesGoodWizard: boolean,
 ): number {
+  const reactions = projectReactions(run, option, content);
   if (option.kind === 'certain') {
-    return scoreEffects(option.effects, w, takesLichdom, debt, takesGoodWizard);
+    const events = reactions.kind === 'certain' ? reactions.events : [];
+    return scoreEffects(
+      [...option.effects, ...reactionEffectsOf(events)],
+      w,
+      takesLichdom,
+      debt,
+      takesGoodWizard,
+    );
   }
   // Both branches are priced from the SAME starting debt, which is what makes
   // a two-way gamble legible to a policy: at 5/7 the failure branch crosses
   // the ceiling and is scored as the ending it is, so the expected value
-  // collapses exactly where a player would feel it collapse.
+  // collapses exactly where a player would feel it collapse. Scored through
+  // `effectiveOdds` — a no-op today, live for #77 slice 5's odds relic.
+  const odds = effectiveOdds(run, option);
+  const onSuccess = reactions.kind === 'gamble' ? reactions.onSuccess : [];
+  const onFailure = reactions.kind === 'gamble' ? reactions.onFailure : [];
   return (
-    option.odds * scoreEffects(option.onSuccess, w, takesLichdom, debt, takesGoodWizard) +
-    (1 - option.odds) * scoreEffects(option.onFailure, w, takesLichdom, debt, takesGoodWizard)
+    odds *
+      scoreEffects(
+        [...option.onSuccess, ...reactionEffectsOf(onSuccess)],
+        w,
+        takesLichdom,
+        debt,
+        takesGoodWizard,
+      ) +
+    (1 - odds) *
+      scoreEffects(
+        [...option.onFailure, ...reactionEffectsOf(onFailure)],
+        w,
+        takesLichdom,
+        debt,
+        takesGoodWizard,
+      )
   );
 }
 
@@ -674,14 +726,22 @@ function standingOf(effects: readonly Effect[], factionId: FactionId): number {
     .reduce((a, e) => a + e.v, 0);
 }
 
-/** Odds-weighted, for the same reason `wormOf` is. */
-function evOf(option: OfferOption, of: (effects: readonly Effect[]) => number): number {
+/**
+ * Odds-weighted, for the same reason `wormOf` is.
+ *
+ * Scores through `effectiveOdds` rather than `option.odds` directly — a
+ * no-op today (no relic in the catalog touches odds yet), but the call site
+ * is live for #77 slice 5's odds-modifying relic, so a bot's EV scoring picks
+ * that up with no change here.
+ */
+function evOf(run: RunState, option: OfferOption, of: (effects: readonly Effect[]) => number): number {
   if (option.kind === 'certain') return of(option.effects);
-  return option.odds * of(option.onSuccess) + (1 - option.odds) * of(option.onFailure);
+  const odds = effectiveOdds(run, option);
+  return odds * of(option.onSuccess) + (1 - odds) * of(option.onFailure);
 }
 
-function wormAffinity(option: OfferOption): number {
-  return evOf(option, (fx) => standingOf(fx, 'worm_below'));
+function wormAffinity(run: RunState, option: OfferOption): number {
+  return evOf(run, option, (fx) => standingOf(fx, 'worm_below'));
 }
 
 /**
@@ -706,16 +766,23 @@ const HOSTILE_TOWARD = new Map<FactionId, FactionId[]>(
  * `wormAffinity`, with the contagion route added.
  *
  * A gain for a faction hostile to the target costs the target
- * `CONTAGION_GAIN` of it; a LOSS for that faction hands the target
- * `CONTAGION_LOSS` back. Both rates come from `constants.ts`, so a change to
- * the contagion model moves the policy with it instead of leaving a bot
- * playing the old game.
+ * `CONTAGION_GAIN` of it (scaled by `relicRules(run, content)
+ * .contagionLossMultiplier`, exactly as `applyStanding` scales it —
+ * Footnote That Bites halves this route for EVERY faction courted while
+ * held, not only Pale Academy, so a bot that skipped it would price a
+ * pariah/courtier route at twice the damage the engine actually deals for
+ * the ~25% of careers holding it); a LOSS for that faction hands the target
+ * `CONTAGION_LOSS` back, untouched by the multiplier for the same reason
+ * `applyStanding` leaves it untouched. Both rates come from `constants.ts`,
+ * so a change to the contagion model moves the policy with it instead of
+ * leaving a bot playing the old game.
  */
-function spiteOf(effects: readonly Effect[], target: FactionId): number {
+function spiteOf(run: RunState, effects: readonly Effect[], target: FactionId): number {
+  const { contagionLossMultiplier } = relicRules(run, content);
   let total = -standingOf(effects, target);
   for (const enemy of HOSTILE_TOWARD.get(target) ?? []) {
     const v = standingOf(effects, enemy);
-    total += v * (v > 0 ? CONTAGION_GAIN : CONTAGION_LOSS);
+    total += v * (v > 0 ? CONTAGION_GAIN * contagionLossMultiplier : CONTAGION_LOSS);
   }
   return total;
 }
@@ -737,10 +804,10 @@ function spiteOf(effects: readonly Effect[], target: FactionId): number {
  * And a card that would overshoot is priced only for the part that counts, so
  * the policy prefers the cheap route to the line over the spectacular one.
  */
-function spiteAffinity(option: OfferOption, target: FactionId, standing: number): number {
+function spiteAffinity(run: RunState, option: OfferOption, target: FactionId, standing: number): number {
   const remaining = Math.max(0, standing - SEAL_MAX_STANDING);
   if (remaining === 0) return 0;
-  const damage = evOf(option, (fx) => spiteOf(fx, target));
+  const damage = evOf(run, option, (fx) => spiteOf(run, fx, target));
   return Math.min(damage, remaining);
 }
 
@@ -774,11 +841,11 @@ const PARIAH_SPITE = Number(process.env.PARIAH_SPITE ?? 5);
  * courtier spends its remaining eras on notoriety, the other half of a career
  * the standing chase would otherwise crowd out entirely.
  */
-function devotionAffinity(option: OfferOption, target: FactionId, standing: number): number {
+function devotionAffinity(run: RunState, option: OfferOption, target: FactionId, standing: number): number {
   const ceiling = DEVOTION_STANDING + PATRON_MARGIN + 15;
   const remaining = Math.max(0, ceiling - standing);
   if (remaining === 0) return 0;
-  const gain = evOf(option, (fx) => -spiteOf(fx, target));
+  const gain = evOf(run, option, (fx) => -spiteOf(run, fx, target));
   return Math.min(gain, remaining);
 }
 
@@ -822,7 +889,7 @@ function chooseOption(policy: Policy, run: RunState, offer: Offer, roll: number)
     // pickable certain option per offer, so this can never empty the field
     // for a policy that (unlike `safe`) also considers gambles.
     if (!isOptionPickable(run, option, content)) return;
-    let score = optionScore(option, w, takesLichdom, run.pactDebt, takesGoodWizard);
+    let score = optionScore(run, option, w, takesLichdom, run.pactDebt, takesGoodWizard);
     // A lich-seeker courts ONE faction, hard, because only the Worm Below
     // offers the rite and its gate is `minStanding worm_below 20`. Generic
     // standing-chasing spread the gain across all six and never opened it,
@@ -856,17 +923,17 @@ function chooseOption(policy: Policy, run: RunState, offer: Offer, roll: number)
         !run.isLich &&
         (run.factionStanding.worm_below ?? 0) < DEVOTION_STANDING)
     ) {
-      score += wormAffinity(option) * LICH_DEVOTION;
+      score += wormAffinity(run, option) * LICH_DEVOTION;
     }
     // The mirror of the line above: one faction, hard, in the other direction.
     if (isPariah(policy)) {
       const target = pariahTarget(policy);
-      score += spiteAffinity(option, target, run.factionStanding[target] ?? 0) * PARIAH_SPITE;
+      score += spiteAffinity(run, option, target, run.factionStanding[target] ?? 0) * PARIAH_SPITE;
     }
     // The mirror of the pariah branch above, courting instead of ruining.
     if (isCourtier(policy)) {
       const target = courtierTarget(policy);
-      score += devotionAffinity(option, target, run.factionStanding[target] ?? 0) * COURTIER_DEVOTION;
+      score += devotionAffinity(run, option, target, run.factionStanding[target] ?? 0) * COURTIER_DEVOTION;
     }
     if (score > best) {
       best = score;
@@ -932,6 +999,14 @@ type RunResult = {
    * it, so this is held-at-end UNION everything gained along the way.
    */
   discoveredIds: string[];
+  /**
+   * How many times each held relic's power fired this run, by artifact id
+   * (issue #80's per-relic fire-rate instrument). Only relics with a `power`
+   * ever appear as a key; a relic that fired zero times (held but its `if`
+   * never matched) is simply absent, same as `Resolution.relicEvents` being
+   * empty for an era where nothing fired.
+   */
+  relicFires: Record<string, number>;
   /**
    * The lowest each faction's standing ever went.
    *
@@ -1040,6 +1115,7 @@ function playRun(
   const declineDeltas: number[] = [];
   const minStanding = { ...run.factionStanding };
   const peakStanding = { ...run.factionStanding };
+  const relicFires: Record<string, number> = {};
 
   // Hard stop: a run can never legally exceed its era count, but a harness
   // that can hang is a harness nobody runs.
@@ -1051,6 +1127,9 @@ function playRun(
     const { next, resolution } = resolveChoice(run, offer, index, content);
     if (next.eras[next.eras.length - 1].phase === 'decline') {
       declineDeltas.push(resolution.eraRecord.notorietyDelta);
+    }
+    for (const event of resolution.relicEvents) {
+      relicFires[event.artifactId] = (relicFires[event.artifactId] ?? 0) + 1;
     }
     run = next;
     if (run.isLich) becameLich = true;
@@ -1090,7 +1169,12 @@ function playRun(
 
   // Mirrors `recordRun` in src/engine/persistence.ts. If that ever stops
   // agreeing with this, the harness is measuring a collection nobody owns.
-  const discovered = new Set(run.heldArtifactIds);
+  // `startingArtifactIds` (issue #80 review) is the one `recordRun` folds in
+  // that this dropped: an origin's own relic grant lands before `run.eras`
+  // has a single entry, so it is otherwise invisible here the moment it is
+  // lost before an era completes — the same gap Codex found in `recordRun`
+  // itself, reproduced by a harness that had drifted out of step with the fix.
+  const discovered = new Set([...run.heldArtifactIds, ...run.startingArtifactIds]);
   for (const era of run.eras) for (const id of era.artifactsGained) discovered.add(id);
 
   const lairIds = new Set(run.eras.map((e) => e.lairId));
@@ -1129,6 +1213,7 @@ function playRun(
     everAscensionReady,
     declineDeltas,
     discoveredIds: Array.from(discovered),
+    relicFires,
     grievancesSeen: run.seenOfferIds.filter((id) => id.startsWith('grievance_')),
     grievancesTaken: run.eras
       .filter((e) => {
@@ -1932,6 +2017,35 @@ function main(): void {
     'runs discovering nothing at all',
     pct(results.filter((r) => r.discoveredIds.length === 0).length, total),
   );
+
+  // Per-relic fire-rate instrument (issue #80). Each origin grants ONE
+  // relic, so a run only ever holds its own origin's — never all four — and
+  // "% of runs" (denominator: every run, regardless of origin) tops out near
+  // that origin's own population share (~25% each) no matter how reliably
+  // the relic fires for the wizards who actually hold it. "% of holders"
+  // (denominator: runs whose `discoveredIds` name this relic, which is every
+  // holder — the origin grant lands before `run.eras` exists, so it is
+  // never absent from `discoveredIds`) is the number that actually says
+  // whether the relic's own `if`/timing is gating it: the Purse and the
+  // Mantle should read high there (their gates barely bite), the Signature
+  // should read near the share of ITS holders who ever sign a pact at all,
+  // and the Footnote (a passive, never an event) never appears in this table
+  // at all — it has nothing to fire, only a rule to bend.
+  const poweredArtifacts = artifacts.filter((a) => a.power && a.power.kind !== 'passive');
+  if (poweredArtifacts.length > 0) {
+    console.log(rule());
+    for (const relic of poweredArtifacts) {
+      const fires = results.map((r) => r.relicFires[relic.id] ?? 0);
+      const totalFires = fires.reduce((a, b) => a + b, 0);
+      const runsWithFires = fires.filter((n) => n > 0).length;
+      const holders = results.filter((r) => r.discoveredIds.includes(relic.id)).length;
+      row(
+        `${relic.name} fires`,
+        `${totalFires} · ${pct(runsWithFires, total)} of runs · ${pct(runsWithFires, Math.max(1, holders))} of holders`,
+      );
+    }
+  }
+
   console.log(rule());
   row('mean lairs held per run', mean(results.map((r) => r.lairsHeld)).toFixed(2));
   row('mean peak lair tier', mean(results.map((r) => r.peakLairTier)).toFixed(2));

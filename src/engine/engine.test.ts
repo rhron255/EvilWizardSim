@@ -1269,7 +1269,11 @@ describe('defense', () => {
   it('counts relics and the lair, and ignores followers', () => {
     // wiki/02 gives followers a distinct job as ledger filler; letting them
     // buy safety would collapse two currencies into one.
-    const base = start({}, real);
+    // Every origin now starts a wizard holding its own relic (issue #80), so
+    // `heldArtifactIds` is cleared explicitly rather than trusted to `start`'s
+    // default origin — otherwise `armed` below (one relic) would tie with,
+    // rather than beat, a `base` that was quietly already holding one too.
+    const base = { ...start({}, real), heldArtifactIds: [] };
     const withCrowd = { ...base, followers: 500 };
     expect(defenseOf(withCrowd, real)).toBe(defenseOf(base, real));
 
@@ -1292,7 +1296,9 @@ describe('defense', () => {
    * balance constant's pinned test.
    */
   it('pins the artifact term at the extremes: none held, one of each rarity', () => {
-    const base = start({}, real);
+    // See the note in the test above: every origin now starts a wizard
+    // holding a relic, so `base` itself must be cleared to mean "none held".
+    const base = { ...start({}, real), heldArtifactIds: [] };
     const noRelics = { ...base, heldArtifactIds: [] };
     expect(artifactTermOf(noRelics, real)).toBe(0);
     expect(defenseOf(noRelics, real)).toBe(defenseOf(base, real));

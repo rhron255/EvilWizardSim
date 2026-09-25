@@ -96,6 +96,7 @@ export const factions: Faction[] = [
     // buy your way out of. Deliberately NOT the Crownlands — see the header.
     hostileTo: ['pale_academy', 'gilded_hand'],
     adjective: 'Covenant',
+    reliquary: 'Its relics pay you for what you owe.',
   },
   {
     id: 'gilded_hand',
@@ -111,6 +112,7 @@ export const factions: Faction[] = [
     // reciprocal edge costs Ascension its floor).
     hostileTo: ['verdant_choir'],
     adjective: 'Gilded',
+    reliquary: 'Its relics make good on the difference, whenever there is one.',
   },
   {
     id: 'pale_academy',
@@ -121,6 +123,7 @@ export const factions: Faction[] = [
       'Takes reputation — specifically, your standing with everyone it disapproves of. Grants legitimacy, shelter, and a great deal of reading.',
     hostileTo: ['ashen_covenant', 'worm_below'],
     adjective: 'Academy',
+    reliquary: 'Its relics have the last word, and it costs whoever argues next.',
   },
   {
     id: 'verdant_choir',
@@ -131,6 +134,7 @@ export const factions: Faction[] = [
       'Takes territory, and vetoes expansion of your lair. Grants only what grows back.',
     hostileTo: ['gilded_hand', 'pale_academy', 'crownlands'],
     adjective: 'Verdant',
+    reliquary: 'Its relics keep making your case to it, long after you stop asking.',
   },
   {
     id: 'crownlands',
@@ -146,6 +150,7 @@ export const factions: Faction[] = [
     // the most Crownlands possible way to hold a grudge.
     hostileTo: ['worm_below'],
     adjective: 'Crown',
+    reliquary: 'Its relics are paperwork with teeth, filed on your behalf.',
   },
   {
     id: 'worm_below',
@@ -156,5 +161,6 @@ export const factions: Faction[] = [
       'Takes everything, in an order of its own choosing. Grants depth, and the only road to lichdom.',
     hostileTo: ['pale_academy'],
     adjective: 'Worm',
+    reliquary: 'Its relics are patient, and do not need you to notice them working.',
   },
 ];
