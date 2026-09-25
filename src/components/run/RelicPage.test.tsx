@@ -251,7 +251,7 @@ describe('RelicPage · the Use button (issue #81)', () => {
     } as RunState;
     show(holder);
     expect(screen.queryByRole('button', { name: 'Use' })).toBeNull();
-    expect(screen.getByText('Used this career.')).toBeInTheDocument();
+    expect(screen.getByText('Used')).toBeInTheDocument();
   });
 
   it('shows no Use button for an unaffordable active', () => {

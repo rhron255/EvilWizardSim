@@ -27,6 +27,18 @@
 
 /* --- the glyph well ------------------------------------------------------ */
 
+/* Column, not the well itself — issue #81's Use button lives here too, so
+   the glyph and the one control that acts ON this relic sit in the same
+   column, stacked, rather than the button living beside the prose describing
+   the relic (which is what a relic ACTS AS, not what a relic DOES). */
+.iconColumn {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--ew-space-2);
+  flex: none;
+}
+
 .well {
   display: grid;
   place-items: center;
@@ -44,6 +56,48 @@
 .compact .well {
   width: 46px;
   height: 46px;
+}
+
+/* Styling rule 2: a control the player must find at a glance needs visual
+   weight of its own — border, pill radius, the brighter `--ew-ink` — the
+   same pattern the Relics stat's own nav button and FactionStandings' toggle
+   use. Elongated (full well width, short) rather than a compact pill, so it
+   reads as "this glyph's control" and not as a caption. */
+.useButton {
+  width: 100%;
+  padding: 3px 0;
+  border: 1px solid var(--ew-line-strong);
+  border-radius: var(--ew-radius-pill);
+  background: none;
+  font-family: var(--ew-font-ui);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--ew-ink);
+  cursor: pointer;
+  transition: border-color var(--ew-fast) var(--ew-ease), background-color var(--ew-fast) var(--ew-ease);
+}
+
+.useButton:hover,
+.useButton:focus-visible {
+  color: var(--ew-ink-bright);
+  border-color: var(--ew-ink-faint);
+  background: color-mix(in srgb, var(--ew-ink-faint) 12%, var(--ew-void));
+}
+
+/* A used active leaves its mark in the same slot the button occupied, so the
+   column's shape does not jump the moment it is spent. */
+.usedMark {
+  padding: 3px 0;
+  font-family: var(--ew-font-ui);
+  font-size: 0.5625rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--ew-ink-ghost);
 }
 
 .glyph {

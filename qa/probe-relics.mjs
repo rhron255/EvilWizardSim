@@ -262,8 +262,8 @@ if (useCount > 0) {
       `keyboard: pressing Enter on a Use button did not spend it (${useCount} -> ${remaining} remaining)`,
     );
   }
-  const spentNote = await page.getByText('Used this career.').isVisible().catch(() => false);
-  if (!spentNote) problems.push('relic page: no "Used this career." note after activating');
+  const spentNote = await page.getByText('Used').isVisible().catch(() => false);
+  if (!spentNote) problems.push('relic page: no "Used" note after activating');
 }
 
 // The second Use button, activated with Space instead of Enter (still
@@ -275,8 +275,8 @@ if (await secondUse.isVisible().catch(() => false)) {
   await page.waitForTimeout(300);
   const noneLeft = await page.getByRole('button', { name: 'Use' }).count().catch(() => 0);
   if (noneLeft !== 0) problems.push(`keyboard: Space on the last Use button left ${noneLeft} remaining`);
-  const bothSpentNotes = await page.getByText('Used this career.').count().catch(() => 0);
-  if (bothSpentNotes !== 2) problems.push(`relic page: expected 2 "Used this career." notes, found ${bothSpentNotes}`);
+  const bothSpentNotes = await page.getByText('Used').count().catch(() => 0);
+  if (bothSpentNotes !== 2) problems.push(`relic page: expected 2 "Used" notes, found ${bothSpentNotes}`);
 }
 
 await page.screenshot({ path: 'qa/screenshots/probe-relics-actives.png', fullPage: true });

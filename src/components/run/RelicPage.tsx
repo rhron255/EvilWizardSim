@@ -185,17 +185,9 @@ export function RelicPage({
                   artifact={artifact}
                   faction={factionFor(factions, artifact.factionId)}
                   showFlavour
+                  onUseActive={usable ? () => onUseRelic(artifact.id) : undefined}
+                  activeSpent={spent}
                 />
-                {usable && (
-                  <button
-                    type="button"
-                    className={styles.useButton}
-                    onClick={() => onUseRelic(artifact.id)}
-                  >
-                    Use
-                  </button>
-                )}
-                {spent && <p className={styles.spent}>Used this career.</p>}
               </li>
             );
           })}
