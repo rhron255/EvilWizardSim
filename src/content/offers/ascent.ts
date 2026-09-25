@@ -1906,6 +1906,11 @@ export const ascentOffers: Offer[] = [
           { t: 'followers', v: -18 },
           { t: 'standing', factionId: 'ashen_covenant', v: 22 },
           { t: 'notoriety', v: 4 },
+          // Issue #82: one of a handful of common-rarity grants added across
+          // existing offers to raise mean relics held per run; the recruiter
+          // takes eleven followers and leaves one of the Covenant's own
+          // trinkets behind.
+          { t: 'artifactFrom', factionId: 'ashen_covenant', rarity: 'common' },
         ],
       },
       {
