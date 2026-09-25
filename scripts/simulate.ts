@@ -1100,12 +1100,14 @@ const LEGENDARY_IDS = new Set(
 const LAIR_TIER = new Map(content.lairs.map((l) => [l.id, l.tier]));
 
 /**
- * Bot heuristics for the catalog's two actives (issue #81), run once per era
- * before the offer is scored — so an armed Pale Orrery is already reflected
- * in `effectiveOdds` when `chooseOption` reads it. Both are deliberately
- * simple: a real player would weigh the same trade-offs more legibly, and
- * the harness only needs a policy that actually uses an active sometimes,
- * not the optimal one.
+ * Bot heuristics for the catalog's five actives (issue #81's two, extended by
+ * issue #82's three), run once per era before the offer is scored — so an
+ * armed Pale Orrery is already reflected in `effectiveOdds` when
+ * `chooseOption` reads it, and a Key redraw is already reflected in the
+ * offer `chooseOption` actually scores. All five are deliberately simple: a
+ * real player would weigh the same trade-offs more legibly, and the harness
+ * only needs a policy that actually uses an active sometimes, not the
+ * optimal one.
  *
  *   - Final Ledger: followers are "ledger filler" (wiki/02) with no defense
  *     value of their own, so a bot converts a comfortable surplus into a
@@ -1115,9 +1117,23 @@ const LAIR_TIER = new Map(content.lairs.map((l) => [l.id, l.tier]));
  *     gamble at 50% or worse — the highest-stakes gamble "in reach" a bot
  *     this simple can recognise is just the first bad one it meets, since it
  *     only fires once a career anyway.
+ *   - Brazier of the Ninth Clause: spends its Hero Threat spike as soon as
+ *     debt is uncomfortable, but only if that spike would not itself put the
+ *     wizard through — a bot that traded one death for another would never
+ *     be seen doing so in the fire-rate instrument, only in a defenseOf
+ *     comparison this same heuristic already makes.
+ *   - Key to No Particular Door: redraws a DULL era — one with no faction
+ *     behind it at all — rather than trying to score every option and
+ *     compare, which is the harder problem `chooseOption` already exists to
+ *     solve for the offer it settles on.
+ *   - Sword That Was Returned: armed once the hero has closed to three
+ *     quarters of the wizard's wards, the same "ratio of the ceiling" shape
+ *     `heroBand`'s own thresholds already use.
  */
 const FINAL_LEDGER_FOLLOWER_FLOOR = 50;
 const PALE_ORRERY_RISKY_ODDS = 0.5;
+const BRAZIER_DEBT_FLOOR = 4;
+const SWORD_THREAT_RATIO = 0.75;
 
 function maybeActivateActives(run: RunState, offer: Offer, relicFires: Record<string, number>): RunState {
   let next = run;
@@ -1136,6 +1152,34 @@ function maybeActivateActives(run: RunState, offer: Offer, relicFires: Record<st
       const result = activateRelic(next, 'pale_orrery', content);
       next = result.next;
       if (result.event) relicFires['pale_orrery'] = (relicFires['pale_orrery'] ?? 0) + 1;
+    }
+  }
+
+  if (canActivateRelic(next, 'ninth_clause_brazier', content) && next.pactDebt >= BRAZIER_DEBT_FLOOR) {
+    const wards = defenseOf(next, content);
+    if (next.heroThreat + 15 < wards) {
+      const result = activateRelic(next, 'ninth_clause_brazier', content);
+      next = result.next;
+      if (result.event) relicFires['ninth_clause_brazier'] = (relicFires['ninth_clause_brazier'] ?? 0) + 1;
+    }
+  }
+
+  if (canActivateRelic(next, 'key_to_no_particular_door', content) && !offer.factionId) {
+    const result = activateRelic(next, 'key_to_no_particular_door', content);
+    next = result.next;
+    if (result.event) {
+      relicFires['key_to_no_particular_door'] = (relicFires['key_to_no_particular_door'] ?? 0) + 1;
+    }
+  }
+
+  if (canActivateRelic(next, 'sword_that_was_returned', content)) {
+    const wards = defenseOf(next, content);
+    if (wards > 0 && next.heroThreat / wards >= SWORD_THREAT_RATIO) {
+      const result = activateRelic(next, 'sword_that_was_returned', content);
+      next = result.next;
+      if (result.event) {
+        relicFires['sword_that_was_returned'] = (relicFires['sword_that_was_returned'] ?? 0) + 1;
+      }
     }
   }
 
@@ -1178,8 +1222,17 @@ function playRun(
   let guard = eraCount + 8;
   while (!run.ending && guard-- > 0) {
     if (run.eraIndex === run.prophecyEra) notorietyAtProphecy = run.notoriety;
-    const offer = nextOffer(run, content);
+    let offer = nextOffer(run, content);
+    const saltBefore = run.relicState.offerRedrawSalt;
     run = maybeActivateActives(run, offer, relicFires);
+    // The Key to No Particular Door (issue #82): mirrors `useGame.ts`'s own
+    // reducer exactly — the offer is only re-sampled when the redraw itself
+    // actually changed the salt, never merely because SOME active fired
+    // (Final Ledger's followers spend, say, must not retroactively change
+    // the era the bot is already looking at).
+    if (run.relicState.offerRedrawSalt !== saltBefore) {
+      offer = nextOffer(run, content);
+    }
     const index = chooseOption(policy, run, offer, rng());
     const { next, resolution } = resolveChoice(run, offer, index, content);
     if (next.eras[next.eras.length - 1].phase === 'decline') {
@@ -2103,6 +2156,74 @@ function main(): void {
     }
   }
 
+  // --- relic set synergy (issue #82) --------------------------------------
+  //
+  // PRINTED ONLY, never a `checks` entry — the issue's own words: "a printed
+  // synergy report... printed only, not a pass/fail check". Design rule from
+  // #77 that this instrument exists to WATCH, not enforce: "synergy comes
+  // from complementary effects, not from relics triggering relics" — nothing
+  // below measures relics reacting to each other (`relics.ts` structurally
+  // cannot produce that, see its own header comment), only whether a run
+  // that happens to hold two-plus of a THEMATIC set reads differently from
+  // the population at large.
+  //
+  // The groupings are the "Set" column from issue #82's own table — scoped to
+  // the 22 relics that table names; the ten relics from earlier slices were
+  // never given a set label there, so they are left out rather than guessed
+  // at. `discoveredIds` (ever held this run, not concurrently) is the cheap
+  // proxy available without threading a held-set snapshot through every era
+  // — good enough for a diagnostic instrument, not exact enough for a gate.
+  const RELIC_SET: Record<string, string> = {
+    bone_crown: 'School',
+    antler_baton: 'School',
+    censer_of_small_regrets: 'Gambler',
+    spectacles_of_the_third_reading: 'Gambler',
+    ninth_clause_brazier: 'Pact',
+    appraisers_monocle: 'Followers',
+    counterfeit_soul: 'Followers',
+    gilded_thumb: 'Followers',
+    seed_that_remembers: 'Followers',
+    shallow_worms_tooth: 'Followers',
+    second_stomach: 'Followers',
+    chalk_of_the_last_lecture: 'Hero',
+    weather_leash: 'Hero',
+    portcullis_tooth: 'Hero',
+    sword_that_was_returned: 'Hero',
+    pocketful_of_dark: 'Hero',
+    tenure_ring: 'Standing',
+    root_of_the_standing_vote: 'Standing',
+    writ_of_tolerated_existence: 'Standing',
+    confiscated_banner: 'Standing',
+    patient_lantern: 'Lich',
+    // key_to_no_particular_door carries no set ("—" in the issue's table).
+  };
+  const setMembers = new Map<string, string[]>();
+  for (const [id, set] of Object.entries(RELIC_SET)) {
+    const list = setMembers.get(set);
+    if (list) list.push(id);
+    else setMembers.set(set, [id]);
+  }
+  console.log(rule());
+  for (const set of Array.from(setMembers.keys()).sort()) {
+    const members = setMembers.get(set) ?? [];
+    const runsWithSet = results.filter(
+      (r) => members.filter((id) => r.discoveredIds.includes(id)).length >= 2,
+    );
+    if (runsWithSet.length === 0) {
+      row(`${set} synergy (2+ of ${members.length})`, 'n=0 in population');
+      continue;
+    }
+    const byEndingSet = new Map<EndingId, number>();
+    for (const r of runsWithSet) byEndingSet.set(r.ending, (byEndingSet.get(r.ending) ?? 0) + 1);
+    const [topEnding, topCount] = [...byEndingSet.entries()].reduce((max, cur) =>
+      cur[1] > max[1] ? cur : max,
+    );
+    row(
+      `${set} synergy (2+ of ${members.length})`,
+      `n=${runsWithSet.length} · mean notoriety ${mean(runsWithSet.map((r) => r.finalNotoriety)).toFixed(1)} · top ending ${topEnding} ${pct(topCount, runsWithSet.length)}`,
+    );
+  }
+
   console.log(rule());
   row('mean lairs held per run', mean(results.map((r) => r.lairsHeld)).toFixed(2));
   row('mean peak lair tier', mean(results.map((r) => r.peakLairTier)).toFixed(2));
@@ -2366,6 +2487,29 @@ function main(): void {
   const [minOtherEndingName, minOtherRate] = otherEndingRates.reduce((min, cur) =>
     cur[1] < min[1] ? cur : min,
   );
+
+  /**
+   * Every relic power fires at least once (issue #82), the same
+   * "population plus every dedicated cohort probe" shape the reachability
+   * check above uses, for the same reason: several powers gate on a
+   * condition (a specific ending nearly firing, a faction's own gated
+   * grant) rare enough that the 2000-run population alone would flicker.
+   */
+  const allCareers: RunResult[] = [
+    ...results,
+    ...[...probe.values()].flat(),
+    ...[...leadership.values()].flat(),
+    ...saint,
+    ...lich,
+    ...redeemed,
+  ];
+  const relicFiresAnywhere = new Map<string, number>();
+  for (const r of allCareers) {
+    for (const [id, n] of Object.entries(r.relicFires)) {
+      relicFiresAnywhere.set(id, (relicFiresAnywhere.get(id) ?? 0) + n);
+    }
+  }
+
   const checks: Array<[string, boolean, string]> = [
     [
       /*
@@ -2756,6 +2900,22 @@ function main(): void {
       'Ledger: <2% of deed lines repeat consecutively',
       repeatRate < 0.02,
       `${(repeatRate * 100).toFixed(2)}%`,
+    ],
+    [
+      // Rule 6's own reachability bar, read for relic POWERS rather than
+      // endings (issue #82's acceptance item): every one of them fires at
+      // least once somewhere this harness plays, counted across the
+      // population plus every dedicated cohort probe for the identical
+      // reason `Every authored ending occurs` above is — several of these
+      // gate on a condition (a lifeline's own ending nearly firing, a
+      // faction-gated named grant, the hero first drawing close) rare
+      // enough that the 2000-run population alone would flicker between
+      // seeds. `passive` powers are excluded, same as the printed
+      // instrument above: they have no discrete firing to count, only a
+      // rule they bend for as long as they are held.
+      `Every relic power fires at least once (${poweredArtifacts.length} powered relics, ${allCareers.length} careers)`,
+      poweredArtifacts.every((a) => (relicFiresAnywhere.get(a.id) ?? 0) > 0),
+      `${poweredArtifacts.filter((a) => (relicFiresAnywhere.get(a.id) ?? 0) > 0).length}/${poweredArtifacts.length}`,
     ],
   ];
 
