@@ -57,7 +57,7 @@ if (!(await openButton.isVisible().catch(() => false))) {
 // ---- A fresh run already holds its origin relic (issue #80) -----------
 await openButton.click();
 await page.waitForTimeout(300);
-const heading = page.getByRole('heading', { name: 'Your relics' });
+const heading = page.getByRole('heading', { name: 'Your Relics' });
 if (!(await heading.isVisible().catch(() => false))) {
   problems.push('relic page: heading did not appear on open');
 }
@@ -92,7 +92,7 @@ if (!(await heading.isVisible().catch(() => false))) {
   problems.push('keyboard: Enter on the Relics button did not open the relic page');
 }
 const focusedOnOpen = await page.evaluate(() => document.activeElement?.textContent ?? '');
-if (!/Your relics/.test(focusedOnOpen)) {
+if (!/Your Relics/.test(focusedOnOpen)) {
   problems.push(`keyboard: focus did not move to the relic page heading on open (was "${focusedOnOpen}")`);
 }
 
@@ -175,8 +175,10 @@ if (cards === 0) {
 } else {
   console.log(`  relic cards : ${cards} rendered (label said ${relicCount})`);
 }
-const wardsLine = await page.getByText(/Relics add/).isVisible().catch(() => false);
-if (!wardsLine) problems.push('relic page: wards figure ("Relics add N to your wards") not found');
+// PR #88 restyled this from a sentence ("Relics add N to your wards.") to a
+// terse subtitle under the heading ("+N Wards").
+const wardsLine = await page.getByText(/^\+\d+ Wards$/).isVisible().catch(() => false);
+if (!wardsLine) problems.push('relic page: wards subtitle ("+N Wards") not found');
 
 const lostHeading = page.getByRole('heading', { name: 'Lost this run' });
 const hasLost = await lostHeading.isVisible().catch(() => false);
