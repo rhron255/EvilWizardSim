@@ -127,21 +127,31 @@ describe('RelicPage · held relics', () => {
 });
 
 describe('RelicPage · the relic summary', () => {
-  it('lists every held relic by name with its own effect line', () => {
+  it('lists every held relic by name, with no wards figure per relic', () => {
     show(baseRun);
     const summary = screen.getByRole('list', { name: 'Relic summary' });
     expect(within(summary).getByText('The Bone Crown')).toBeInTheDocument();
     expect(within(summary).getByText('The Antler Baton')).toBeInTheDocument();
-    // Every held relic adds wards, whether or not it also has a power —
-    // the summary line states that for each one, not just the ones that do.
-    expect(within(summary).getAllByText(/^Wards \+\d+\./).length).toBe(baseRun.heldArtifactIds.length);
+    // The page heading already states the total; a relic that adds wards and
+    // nothing else (baseRun's whole haul has no power) has no line of its own.
+    expect(within(summary).queryByText(/Wards/)).toBeNull();
   });
 
-  it('names a relic with a power in its effect line, not just its wards', () => {
+  it('names a relic with a trigger power by its terse effect, not the full sentence', () => {
     const run = { ...baseRun, heldArtifactIds: [...baseRun.heldArtifactIds, 'mantle_of_slow_moss'] };
     show(run);
     const summary = screen.getByRole('list', { name: 'Relic summary' });
-    expect(within(summary).getByText(/At every era's end: \+2 Standing/)).toBeInTheDocument();
+    expect(within(summary).getByText('+2 Standing · The Verdant Choir')).toBeInTheDocument();
+    expect(within(summary).queryByText(/At every era's end/)).toBeNull();
+  });
+
+  it('falls back to the descriptive sentence for a passive with no discrete effect', () => {
+    const run = { ...baseRun, heldArtifactIds: [...baseRun.heldArtifactIds, 'footnote_that_bites'] };
+    show(run);
+    const summary = screen.getByRole('list', { name: 'Relic summary' });
+    expect(
+      within(summary).getByText('Passive: favoring a faction costs its rivals 50% less standing than usual.'),
+    ).toBeInTheDocument();
   });
 
   it('says nothing when there is nothing held', () => {

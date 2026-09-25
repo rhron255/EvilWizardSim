@@ -26,22 +26,25 @@
  * trigger fires no matter what gets picked used to print that line, unchanged,
  * on every single offer of the run — repetitive rather than informative once
  * a player had seen it once. This page now opens with a plain, scannable
- * summary instead: every held relic's name and its effect, in the same words
- * `ArtifactCard` already uses (`RELIC_WARDS` plus `relicPowerText`) — not a
- * per-era computed preview, so it covers every relic, including one with no
- * power at all or a power that only ever reacts to a choice. The full cards
- * below, under "Artifacts", are for the player who wants the faction and
- * flavour too. This is deliberately NOT the same guarantee rule 1 makes for
- * an offer card: a player who never opens this page gets no pre-commit
- * warning about an era-end power, only the resolution screen's own
- * after-the-fact "Your relics" section — an accepted gap.
+ * summary instead: every held relic's name, then its EFFECT — the same terse
+ * "+2 Standing · The Verdant Choir" notation `formatEffects` already renders
+ * for an ordinary offer, not the fuller descriptive sentence `relicPowerText`
+ * builds around it (the "At every era's end, if …:" framing and the gating
+ * condition). That fuller sentence still appears once, on the full card
+ * below under "Artifacts" — this summary is the quick version, not a second
+ * copy of the same disclosure. A relic with no `Effect[]` of its own (a bare
+ * passive rate change, or no power at all) has nothing terse to print, so it
+ * falls back to `relicPowerText` or is named with no effect line at all. This
+ * is deliberately NOT the same guarantee rule 1 makes for an offer card: a
+ * player who never opens this page gets no pre-commit warning about an
+ * era-end power, only the resolution screen's own after-the-fact "Your
+ * relics" section — an accepted gap.
  */
 
 import { useEffect, useRef } from 'react';
 import type { DefenseReadout } from '../../engine';
-import { RELIC_WARDS } from '../../engine';
 import type { Artifact, Faction, RunState } from '../../types';
-import { ArtifactCard, relicPowerText } from '../meta';
+import { ArtifactCard, formatEffects, relicPowerText } from '../meta';
 import styles from './RelicPage.module.css';
 
 export type RelicPageProps = {
@@ -56,11 +59,19 @@ function factionFor(factions: Faction[], id: string): Faction | undefined {
   return factions.find((f) => f.id === id);
 }
 
-/** The same line `ArtifactCard` prints, minus the card: wards, then the power if any. */
-function effectTextFor(artifact: Artifact, faction: Faction | undefined): string {
-  const wards = `Wards +${RELIC_WARDS[artifact.rarity]}.`;
-  if (!artifact.power) return wards;
-  return `${wards} ${relicPowerText(artifact.power, { factions: faction && [faction] })}`;
+/**
+ * The terse "+2 Standing · The Verdant Choir" reading of a relic's power, not
+ * the descriptive sentence — only a `trigger` power carries a discrete
+ * `Effect[]` to render that way. A `passive` rate change (the only other
+ * kind authored so far) has no such list, so its own prose is the only
+ * representation there is; `null` (no power) has nothing to say at all.
+ */
+function effectsFor(artifact: Artifact, faction: Faction | undefined): string | null {
+  const power = artifact.power;
+  if (!power) return null;
+  const ctx = { factions: faction && [faction] };
+  if (power.kind === 'trigger') return formatEffects(power.effects, ctx).join(', ');
+  return relicPowerText(power, ctx);
 }
 
 export function RelicPage({ run, artifacts, factions, defense, onBack }: RelicPageProps) {
@@ -112,10 +123,11 @@ export function RelicPage({ run, artifacts, factions, defense, onBack }: RelicPa
         <ul className={styles.summaryList} aria-label="Relic summary">
           {held.map((artifact) => {
             const faction = factionFor(factions, artifact.factionId);
+            const effects = effectsFor(artifact, faction);
             return (
               <li key={artifact.id} className={styles.summaryItem}>
                 <p className={styles.summaryName}>{artifact.name}</p>
-                <p className={styles.summaryEffect}>{effectTextFor(artifact, faction)}</p>
+                {effects && <p className={styles.summaryEffect}>{effects}</p>}
               </li>
             );
           })}
