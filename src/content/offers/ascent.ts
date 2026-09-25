@@ -229,10 +229,12 @@ export const ascentOffers: Offer[] = [
       {
         kind: 'certain',
         label: 'Move the wall',
+        // Issue #82: see the note on `ascent_ashen_advance`.
         effects: [
           { t: 'standing', factionId: 'verdant_choir', v: 18 },
           { t: 'followers', v: -8 },
           { t: 'notoriety', v: -3 },
+          { t: 'artifactFrom', factionId: 'verdant_choir', rarity: 'common' },
         ],
       },
       {
@@ -528,10 +530,12 @@ export const ascentOffers: Offer[] = [
       {
         kind: 'certain',
         label: 'Lecture as invited',
+        // Issue #82: see the note on `ascent_ashen_advance`.
         effects: [
           { t: 'standing', factionId: 'pale_academy', v: 15 },
           { t: 'notoriety', v: -3 },
           { t: 'followers', v: 5 },
+          { t: 'artifactFrom', factionId: 'pale_academy', rarity: 'common' },
         ],
       },
       {
@@ -624,10 +628,12 @@ export const ascentOffers: Offer[] = [
       {
         kind: 'certain',
         label: 'Bottle it and sell it',
+        // Issue #82: see the note on `ascent_ashen_advance`.
         effects: [
           { t: 'followers', v: 20 },
           { t: 'notoriety', v: 6 },
           { t: 'standing', factionId: 'worm_below', v: 5 },
+          { t: 'artifactFrom', factionId: 'worm_below', rarity: 'common' },
         ],
       },
       {
@@ -786,10 +792,15 @@ export const ascentOffers: Offer[] = [
       {
         kind: 'certain',
         label: 'Take the advance',
+        // Issue #82: one of a handful of common-rarity grants added across
+        // the catalog to raise the mean relics held per run — see the
+        // constant's own doc comment in `src/engine/constants.ts` for the
+        // measured before/after.
         effects: [
           { t: 'notoriety', v: 12 },
           { t: 'pactDebt', v: 2 },
           { t: 'standing', factionId: 'ashen_covenant', v: 12 },
+          { t: 'artifactFrom', factionId: 'ashen_covenant', rarity: 'common' },
         ],
         resultText: 'Power arrives by the usual courier. The invoice arrives by a faster one.',
       },
@@ -816,9 +827,11 @@ export const ascentOffers: Offer[] = [
       {
         kind: 'certain',
         label: 'Take the full policy',
+        // Issue #82: see the note on `ascent_ashen_advance`.
         effects: [
           { t: 'heroThreat', v: -6 },
           { t: 'standing', factionId: 'gilded_hand', v: 6 },
+          { t: 'artifactFrom', factionId: 'gilded_hand', rarity: 'common' },
         ],
       },
       {
@@ -1496,10 +1509,12 @@ export const ascentOffers: Offer[] = [
       {
         kind: 'certain',
         label: 'Pay him permanently',
+        // Issue #82: see the note on `ascent_ashen_advance`.
         effects: [
           { t: 'followers', v: -25 },
           { t: 'heroThreat', v: -9 },
           { t: 'standing', factionId: 'crownlands', v: 12 },
+          { t: 'artifactFrom', factionId: 'crownlands', rarity: 'common' },
         ],
       },
       {

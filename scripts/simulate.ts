@@ -1132,7 +1132,7 @@ const LAIR_TIER = new Map(content.lairs.map((l) => [l.id, l.tier]));
  */
 const FINAL_LEDGER_FOLLOWER_FLOOR = 50;
 const PALE_ORRERY_RISKY_ODDS = 0.5;
-const BRAZIER_DEBT_FLOOR = 4;
+const BRAZIER_DEBT_FLOOR = 5;
 const SWORD_THREAT_RATIO = 0.75;
 
 function maybeActivateActives(run: RunState, offer: Offer, relicFires: Record<string, number>): RunState {

@@ -20,9 +20,11 @@ export const declineOffers: Offer[] = [
       {
         kind: 'certain',
         label: 'Send riders to the north road',
+        // Issue #82: see the note on `decline_account_review`.
         effects: [
           { t: 'followers', v: -10 },
           { t: 'heroThreat', v: -6 },
+          { t: 'artifactFrom', factionId: 'crownlands', rarity: 'common' },
         ],
       },
       {
@@ -119,8 +121,13 @@ export const declineOffers: Offer[] = [
       {
         kind: 'certain',
         label: 'Settle in full',
+        // Issue #82: one of a handful of common-rarity grants added across
+        // the catalog to raise the mean relics held per run — see the
+        // constant's own doc comment in `src/engine/constants.ts` for the
+        // measured before/after.
         effects: [
           { t: 'standing', factionId: 'gilded_hand', v: 8 },
+          { t: 'artifactFrom', factionId: 'gilded_hand', rarity: 'common' },
         ],
         resultText: "You pay it in full. Quill's letter of thanks is, if anything, shorter than the bill.",
       },
@@ -181,11 +188,13 @@ export const declineOffers: Offer[] = [
       {
         kind: 'certain',
         label: 'Ask for shelter anyway',
+        // Issue #82: see the note on `decline_account_review`.
         effects: [
           { t: 'standing', factionId: 'pale_academy', v: 18 },
           { t: 'heroThreat', v: -7 },
           { t: 'notoriety', v: -8 },
           { t: 'followers', v: -10 },
+          { t: 'artifactFrom', factionId: 'pale_academy', rarity: 'common' },
         ],
       },
     ],
@@ -880,10 +889,12 @@ export const declineOffers: Offer[] = [
       {
         kind: 'certain',
         label: 'Feed it and hope it stops',
+        // Issue #82: see the note on `decline_account_review`.
         effects: [
           { t: 'followers', v: -20 },
           { t: 'standing', factionId: 'worm_below', v: 18 },
           { t: 'notoriety', v: 2 },
+          { t: 'artifactFrom', factionId: 'worm_below', rarity: 'common' },
         ],
         resultText: 'It stops. It also, unmistakably, wants feeding again.',
       },
@@ -1569,7 +1580,17 @@ export const declineOffers: Offer[] = [
     phase: 'decline',
     factionId: 'verdant_choir',
     requires: [{ c: 'minStanding', factionId: 'verdant_choir', v: 25 }],
-    weight: 1,
+    // Issue #82's retuning clause: raised 1 -> 4. The Weather Leash's only
+    // route into a career is this offer's own gamble, and at weight 1 the
+    // card itself was rarely drawn even once standing cleared the gate —
+    // `npm run sim`'s "Full completion" target regressed from 547 to over
+    // 2000 median runs the moment the Leash stopped being randomly drawable
+    // (see `isDoubleEdged`, `src/engine/effects.ts`), because a career now
+    // needs to both SEE this specific card and WIN its 35% gamble. Weight
+    // alone (not the odds, which stay the relic's own real gamble) recovers
+    // most of that: see the constant's own doc comment for the measured
+    // before/after.
+    weight: 4,
     options: [
       {
         kind: 'certain',
