@@ -46,8 +46,24 @@ export function conditionMet(run: RunState, condition: Condition, content: Conte
       return run.goodActs >= condition.v;
     case 'maxIllActs':
       return run.illActs <= condition.v;
-    default:
+    case 'declinePhase':
+      return run.phase === 'decline';
+    default: {
+      // Exhaustive over every CONTENT-authored `Condition` this codebase
+      // knows about — if this stops compiling, a variant was added to the
+      // union above with no case here to answer it, which is exactly the
+      // bug this line exists to catch at compile time rather than at the
+      // Weather Leash's own `if` silently failing closed forever (issue #82
+      // review: `declinePhase` was added to the type and to every renderer's
+      // own switch, but not here, so it fired never). A genuinely malformed
+      // value from untrusted JSON still cannot reach this line typed as
+      // `Condition`, so the "fail closed" doc comment above is about a
+      // shape TypeScript cannot see, not one this exhaustiveness check
+      // would ever suppress.
+      const exhaustive: never = condition;
+      void exhaustive;
       return false;
+    }
   }
 }
 
