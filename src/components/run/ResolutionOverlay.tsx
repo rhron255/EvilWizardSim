@@ -282,6 +282,32 @@ export function ResolutionOverlay({
           </p>
         )}
 
+        {/* A lifeline (issue #82): the run was about to end, and a held relic
+            spent itself instead. Its own block, not folded into `relicEvents`
+            above — that section is for a routine era-tick reaction, and this
+            is the one thing bigger than the ending line below it: the run
+            NOT ending. Styled for weight (a brighter border, like the
+            controls styling convention 2 asks for) rather than a new color —
+            `--ew-tier` stays the one chromatic reward the run pays out
+            (CLAUDE.md rule 3). */}
+        {resolution.lifeline && (
+          <div className={styles.lifeline}>
+            <p className={styles.lifelineLabel}>Lifeline</p>
+            <p className={styles.lifelineText}>
+              {artifactName(resolution.lifeline.artifactId, artifacts)} spends itself:{' '}
+              {endingName(resolution.lifeline.endingAverted)} does not happen.
+            </p>
+            {resolution.lifeline.applied.length > 0 && (
+              <EffectList
+                effects={resolution.lifeline.applied}
+                artifacts={artifacts}
+                factions={factions}
+                compact
+              />
+            )}
+          </div>
+        )}
+
         {tierCrossed && (
           <p className={styles.tier} data-celebrate={tierCrossed.celebrate ? 'true' : undefined}>
             <span className={styles.tierName}>{tierCrossed.name}</span>

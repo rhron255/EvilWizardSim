@@ -202,8 +202,15 @@ export function gameReducer(state: GameState, action: Action): GameState {
       // Same double-tap guard `choose` uses: a relic is spent during a live
       // decision, never mid-resolution or after the run has ended.
       if (!state.run || state.resolution || state.run.ending) return state;
-      const { next } = activateRelic(state.run, action.artifactId, action.content);
-      return { ...state, run: next };
+      const { next, event } = activateRelic(state.run, action.artifactId, action.content);
+      if (!event) return { ...state, run: next };
+      // The Key to No Particular Door (issue #82): its whole effect is a
+      // different `nextOffer(next, content)` for the SAME era — everything
+      // else `activateRelic` can do (a cost, a grant, `armsForesight`) is
+      // visible on the run's own stats already and needs no re-fetch here.
+      const artifact = action.content.artifacts.find((a) => a.id === action.artifactId);
+      const redrew = artifact?.power.kind === 'active' && artifact.power.redrawsOffer === true;
+      return { ...state, run: next, offer: redrew ? nextOffer(next, action.content) : state.offer };
     }
 
     case 'continue': {
