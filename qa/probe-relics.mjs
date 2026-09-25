@@ -1,5 +1,6 @@
 /**
- * The relic page (issue #78) and the relic power framework (issue #80).
+ * The relic page (issue #78), the relic power framework (issue #80), and the
+ * catalog's first actives (issue #81).
  *
  * Probes the DOM for the entry button, the page heading, relic cards (every
  * origin grants one from creation now, so there is no "zero relics" state to
@@ -8,6 +9,12 @@
  * to return, with focus landing correctly both ways), a relic's power line on
  * its card, and the "Your relics" resolution section an era-end trigger
  * (Mantle of Slow Moss) fires into every era.
+ *
+ * The last section (issue #81) reaches Final Ledger and Pale Orrery by
+ * seeding an in-progress save directly — reaching either legendary through
+ * genuine play is too rare for a scripted probe to rely on — and checks the
+ * "· N ready" entry-button suffix, both Use buttons, and the keyboard path to
+ * each one (failure mode 15: a screenshot cannot show a keypress).
  *
  *   node qa/probe-relics.mjs [--url http://localhost:5173]
  */
@@ -21,7 +28,9 @@ const arg = (flag, fallback) => {
 const URL = arg('--url', 'http://localhost:5173');
 
 const problems = [];
-const browser = await chromium.launch();
+const browser = await chromium.launch({
+  executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined,
+});
 const page = await browser.newPage({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 2 });
 page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`));
 
@@ -48,7 +57,7 @@ if (!(await openButton.isVisible().catch(() => false))) {
 // ---- A fresh run already holds its origin relic (issue #80) -----------
 await openButton.click();
 await page.waitForTimeout(300);
-const heading = page.getByRole('heading', { name: 'Your relics' });
+const heading = page.getByRole('heading', { name: 'Your Relics' });
 if (!(await heading.isVisible().catch(() => false))) {
   problems.push('relic page: heading did not appear on open');
 }
@@ -83,7 +92,7 @@ if (!(await heading.isVisible().catch(() => false))) {
   problems.push('keyboard: Enter on the Relics button did not open the relic page');
 }
 const focusedOnOpen = await page.evaluate(() => document.activeElement?.textContent ?? '');
-if (!/Your relics/.test(focusedOnOpen)) {
+if (!/Your Relics/.test(focusedOnOpen)) {
   problems.push(`keyboard: focus did not move to the relic page heading on open (was "${focusedOnOpen}")`);
 }
 
@@ -166,14 +175,113 @@ if (cards === 0) {
 } else {
   console.log(`  relic cards : ${cards} rendered (label said ${relicCount})`);
 }
-const wardsLine = await page.getByText(/Relics add/).isVisible().catch(() => false);
-if (!wardsLine) problems.push('relic page: wards figure ("Relics add N to your wards") not found');
+// PR #88 restyled this from a sentence ("Relics add N to your wards.") to a
+// terse subtitle under the heading ("+N Wards").
+const wardsLine = await page.getByText(/^\+\d+ Wards$/).isVisible().catch(() => false);
+if (!wardsLine) problems.push('relic page: wards subtitle ("+N Wards") not found');
 
 const lostHeading = page.getByRole('heading', { name: 'Lost this run' });
 const hasLost = await lostHeading.isVisible().catch(() => false);
 console.log(`  lost section: ${hasLost ? 'present' : 'absent (nothing lost yet, expected on many runs)'}`);
 
 await page.screenshot({ path: 'qa/screenshots/probe-relics-populated.png', fullPage: true });
+
+// ---- Issue #81: the Use button, seeded directly (see the file header) ----
+const seededRun = {
+  id: 'w-probe-actives',
+  seed: 42,
+  wizardName: 'Probe',
+  epithet: 'the Seeded',
+  originId: 'bog_autodidact',
+  age: 35,
+  eraIndex: 3,
+  eraCount: 16,
+  phase: 'ascent',
+  prophecyEra: 9,
+  erasSinceProphecy: 0,
+  notoriety: 30,
+  followers: 100,
+  lairId: 'rented_cellar',
+  heldArtifactIds: ['final_ledger', 'pale_orrery'],
+  startingArtifactIds: [],
+  knownArtifactIds: [],
+  heroBandSeen: 0,
+  factionStanding: {
+    ashen_covenant: 0,
+    gilded_hand: 30,
+    pale_academy: 0,
+    verdant_choir: 0,
+    crownlands: 0,
+    worm_below: 0,
+  },
+  apprentices: { count: 0, loyalty: 60 },
+  pactDebt: 0,
+  heroThreat: 0,
+  isLich: false,
+  goodActs: 0,
+  illActs: 0,
+  goodWizardVowed: false,
+  relicState: { firedOnce: [], spent: [], foresight: false },
+  eras: [],
+  seenOfferIds: [],
+};
+
+await page.evaluate((run) => {
+  localStorage.setItem('evil-wizard-sim:run', JSON.stringify({ version: 3, run }));
+}, seededRun);
+await page.reload({ waitUntil: 'networkidle' });
+await dismissChangelogPopup(page).catch(() => {});
+await page.getByRole('button', { name: /Resume run/i }).click();
+await page.waitForTimeout(400);
+
+const entryButton = page.getByRole('button', { name: /Relics/ }).first();
+const entryLabel = (await entryButton.textContent().catch(() => '')) ?? '';
+if (!/2 ready/.test(entryLabel)) {
+  problems.push(`entry button: expected "· 2 ready" for two unspent actives, got "${entryLabel}"`);
+}
+
+await entryButton.click();
+await page.waitForTimeout(300);
+
+const useButtons = page.getByRole('button', { name: 'Use' });
+const useCount = await useButtons.count().catch(() => 0);
+if (useCount !== 2) {
+  problems.push(`relic page: expected 2 Use buttons (Final Ledger, Pale Orrery), found ${useCount}`);
+}
+
+// Keyboard path on the first Use button (failure mode 15).
+if (useCount > 0) {
+  await useButtons.first().focus();
+  const focused = await page.evaluate(() => document.activeElement?.textContent ?? '');
+  if (focused !== 'Use') {
+    problems.push(`keyboard: focus is not on a Use button before Enter (was "${focused}")`);
+  }
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(300);
+  const remaining = await page.getByRole('button', { name: 'Use' }).count().catch(() => 0);
+  if (remaining !== useCount - 1) {
+    problems.push(
+      `keyboard: pressing Enter on a Use button did not spend it (${useCount} -> ${remaining} remaining)`,
+    );
+  }
+  const spentNote = await page.getByText('Used').isVisible().catch(() => false);
+  if (!spentNote) problems.push('relic page: no "Used" note after activating');
+}
+
+// The second Use button, activated with Space instead of Enter (still
+// failure mode 15 — both keys are meant to work on any button).
+const secondUse = page.getByRole('button', { name: 'Use' }).first();
+if (await secondUse.isVisible().catch(() => false)) {
+  await secondUse.focus();
+  await page.keyboard.press(' ');
+  await page.waitForTimeout(300);
+  const noneLeft = await page.getByRole('button', { name: 'Use' }).count().catch(() => 0);
+  if (noneLeft !== 0) problems.push(`keyboard: Space on the last Use button left ${noneLeft} remaining`);
+  const bothSpentNotes = await page.getByText('Used').count().catch(() => 0);
+  if (bothSpentNotes !== 2) problems.push(`relic page: expected 2 "Used" notes, found ${bothSpentNotes}`);
+}
+
+await page.screenshot({ path: 'qa/screenshots/probe-relics-actives.png', fullPage: true });
 
 await browser.close();
 

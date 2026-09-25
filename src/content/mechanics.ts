@@ -74,6 +74,12 @@ export const mechanics: Mechanic[] = [
       'Some relics do something beyond adding to your wards. A power acts on its own — it never asks you a question. It answers to your choices and to the eras passing, and to nothing else a relic might be doing at the same time.',
   },
   {
+    id: 'relic_actives',
+    name: 'Relic actives',
+    blurb:
+      "A few relics carry a Use button on the relic page instead of acting on their own. Press it once, whenever you like — never in the middle of a decision — and it is spent for the rest of the career.",
+  },
+  {
     id: 'origins',
     name: 'Origins',
     blurb:
@@ -95,17 +101,24 @@ export const mechanics: Mechanic[] = [
 
 /**
  * Which Necrolexicon entry explains a given kind of relic power (issue #80's
- * acceptance item). All four kinds map to the one `relic_powers` entry above
- * — there is a single mechanic explaining the whole framework, not one per
- * kind — but the `Record` is exhaustive over `RelicPower['kind']` so a new
- * kind (an `active`/`lifeline` power actually shipping, or a fifth kind added
- * later) cannot silently go unmapped: `scripts/validate-content.ts` looks up
- * every AUTHORED power's kind here and fails if the mechanic it names does
+ * acceptance item, extended by #81). `passive`, `trigger`, and `lifeline` map
+ * to the one `relic_powers` entry above — a relic that acts on its own needs
+ * only one mechanic explaining the whole automatic framework — but `active`
+ * gets its own (`relic_actives`), since a Use button is precisely the one
+ * kind that is NOT automatic. The `Record` stays exhaustive over
+ * `RelicPower['kind']` so a new kind (a `lifeline` power actually shipping,
+ * or a fifth kind added later) cannot silently go unmapped:
+ * `scripts/validate-content.ts` looks up every AUTHORED power's kind here and
+ * fails if the mechanic it names does
  * not exist, which only means anything because this object cannot omit one.
  */
 export const MECHANIC_FOR_POWER_KIND: Record<RelicPower['kind'], string> = {
   passive: 'relic_powers',
   trigger: 'relic_powers',
-  active: 'relic_powers',
+  // Its own entry, not `relic_powers` (issue #81 acceptance item): an active
+  // is the one kind that is NOT automatic — it is the whole reason a Use
+  // button exists at all, which the generic "acts on its own" blurb above
+  // would directly contradict.
+  active: 'relic_actives',
   lifeline: 'relic_powers',
 };

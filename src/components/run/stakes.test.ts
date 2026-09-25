@@ -15,6 +15,7 @@ import type { DefenseReadout } from '../../engine';
 import type { RunState } from '../../types';
 import { lairs, origins } from '../../content';
 import { siegeFor, stakesFor } from './stakes';
+import { REAL_CONTENT } from '../../testing/realContent';
 
 const run = (over: Partial<RunState> = {}): RunState =>
   ({
@@ -48,12 +49,40 @@ const run = (over: Partial<RunState> = {}): RunState =>
     goodActs: 0,
     illActs: 0,
     goodWizardVowed: false,
+    relicState: { firedOnce: [], spent: [], foresight: false },
     eras: [],
     seenOfferIds: [],
     ...over,
   }) as RunState;
 
 const pact = (r: RunState) => stakesFor(r).find((s) => s.label === 'Pact Debt')!;
+const relics = (r: RunState, content?: Parameters<typeof stakesFor>[1]) =>
+  stakesFor(r, content).find((s) => s.label === 'Relics')!;
+
+describe('the Relics stake · "· N ready" (issue #81)', () => {
+  it('is a plain count with no content supplied, regardless of what is held', () => {
+    expect(relics(run({ heldArtifactIds: ['final_ledger'] })).value).toBe('1');
+  });
+
+  it('appends "· N ready" once content is supplied and an active is unspent', () => {
+    const holder = run({ heldArtifactIds: ['final_ledger'], followers: 100 });
+    expect(relics(holder, REAL_CONTENT).value).toBe('1 · 1 ready');
+  });
+
+  it('omits the suffix once the only active is spent', () => {
+    const holder = run({
+      heldArtifactIds: ['final_ledger'],
+      followers: 100,
+      relicState: { firedOnce: [], spent: ['final_ledger'], foresight: false },
+    });
+    expect(relics(holder, REAL_CONTENT).value).toBe('1');
+  });
+
+  it('omits the suffix for a relic with an automatic power', () => {
+    const holder = run({ heldArtifactIds: ['cinder_testament'] });
+    expect(relics(holder, REAL_CONTENT).value).toBe('1');
+  });
+});
 
 describe('pact debt disclosure', () => {
   it('shows the ceiling as a denominator', () => {

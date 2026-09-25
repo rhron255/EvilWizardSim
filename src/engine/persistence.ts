@@ -226,6 +226,7 @@ export function recordRun(c: Collection, run: RunState, content: ContentBundle):
   };
   run.heldArtifactIds.forEach(consider);
   run.startingArtifactIds.forEach(consider);
+  run.activeGrantedArtifactIds.forEach(consider);
   for (const era of run.eras) era.artifactsGained.forEach(consider);
 
   const endingsSeen = c.endingsSeen.slice();
@@ -323,7 +324,25 @@ export function loadInProgressRun(): RunState | null {
     clearInProgressRun();
     return null;
   }
-  const run = wrapper.run;
+  // Issue #81 grows `relicState` with `spent`/`foresight`, and adds
+  // `activeGrantedArtifactIds` alongside `startingArtifactIds`, deliberately
+  // with NO `RUN_SAVE_VERSION` bump ("the shape was already reserved in
+  // slice 3" — #81's own text) — so a save written by slice 3's build (or by
+  // an earlier build of #81 itself, before `activeGrantedArtifactIds`
+  // existed) still passes `looksLikeRun` above (it never checked any of
+  // these) but arrives here missing them. Defaulted on load rather than
+  // added to the shape check, the same reasoning `emptyCollection`'s own
+  // migration defaults use: a field this additive does not deserve a
+  // save-format rejection.
+  const run: RunState = {
+    ...wrapper.run,
+    relicState: {
+      firedOnce: wrapper.run.relicState.firedOnce,
+      spent: wrapper.run.relicState.spent ?? [],
+      foresight: wrapper.run.relicState.foresight ?? false,
+    },
+    activeGrantedArtifactIds: wrapper.run.activeGrantedArtifactIds ?? [],
+  };
   if (run.ending) {
     clearInProgressRun();
     return null;

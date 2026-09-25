@@ -21,6 +21,14 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-09-25T13:00:00Z': {
+    summary: 'The six legendary relics do something now, and two of them you can trigger yourself.',
+    details: [
+      'The Cinder Testament, Final Ledger, Pale Orrery, Old-Growth Charter, Unbroken Line, and Long Appetite all have powers of their own.',
+      'The Final Ledger and the Pale Orrery each carry a one-time Use button on the relic page.',
+      'Your relic collection has been reset once more for this update, since the legendaries you already found were powerless finds when you saw them.',
+    ],
+  },
   '2026-09-25T10:00:00Z': {
     summary: 'The Relics page now opens with what every relic you hold actually does.',
     details: [

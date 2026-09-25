@@ -31,6 +31,7 @@ const run: RunState = {
   knownArtifactIds: [],
   heldArtifactIds: [],
   startingArtifactIds: [],
+  activeGrantedArtifactIds: [],
   heroBandSeen: 0,
   factionStanding: {
     ashen_covenant: 46,
@@ -47,7 +48,7 @@ const run: RunState = {
   goodActs: 0,
   illActs: 0,
   goodWizardVowed: false,
-  relicState: { firedOnce: [] },
+  relicState: { firedOnce: [], spent: [], foresight: false },
   eras: [],
   seenOfferIds: [],
 };

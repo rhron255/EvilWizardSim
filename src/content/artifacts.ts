@@ -95,7 +95,19 @@ export const artifacts: Artifact[] = [
     rarity: 'legendary',
     flavorText:
       'Every pact the Covenant has ever signed, bound in one volume, in the order they were made. Your name is in it. It was in it before you signed.',
-    power: null,
+    // Issue #81, slice 4 of #77: every choice that adds Pact Debt gets the
+    // Testament's own attention, not once but every time — the ledger keeps
+    // its own tally regardless of what `ashen_signature` (issue #80) already
+    // discounted on the same run. `watchesPositive`, not `if`: reads the
+    // CHOICE's own landed effects, so a run that merely starts or sits in
+    // debt (an origin's own grant, an earlier era) never arms it on its own.
+    // Magnitude is a placeholder; the sim tunes it.
+    power: {
+      kind: 'trigger',
+      when: 'onChoice',
+      watchesPositive: 'pactDebt',
+      effects: [{ t: 'notoriety', v: 3 }],
+    },
   },
 
   // ---------------------------------------------------------------------
@@ -161,7 +173,13 @@ export const artifacts: Artifact[] = [
     rarity: 'legendary',
     flavorText:
       'Records every transaction the Hand has ever completed, including several you have not made yet. The Hand insists this is not a threat. It is, however, an invoice.',
-    power: null,
+    // Issue #81, slice 4 of #77: the catalog's first active. `grants` names
+    // the rarity; `activateRelic` (src/engine/relics.ts) decides WHICH
+    // faction at the moment of use — your best-standing one, whichever that
+    // is then — because a relic power is data about the relic, not a
+    // forecast of who a given career will favour. Magnitude (the Followers
+    // cost) is a placeholder; the sim tunes it.
+    power: { kind: 'active', cost: [{ t: 'followers', v: -25 }], effects: [], grants: { rarity: 'rare' } },
   },
 
   // ---------------------------------------------------------------------
@@ -214,7 +232,13 @@ export const artifacts: Artifact[] = [
     rarity: 'legendary',
     flavorText:
       'Models the heavens accurately, including the parts that have not happened yet. It is kept in a room with no door, on the reasoning that a locked door implies somebody, somewhere, has a key.',
-    power: null,
+    // Issue #81, slice 4 of #77: the catalog's second active. `armsForesight`
+    // sets `RunState.relicState.foresight`, which `effectiveOdds`
+    // (src/engine/relics.ts) reads to make the very next gamble certain —
+    // the card shows 100% because the odds genuinely are, not because the
+    // card is lying for once. No cost: the Orrery only ever fires once in a
+    // career, which is the whole price.
+    power: { kind: 'active', effects: [], armsForesight: true },
   },
 
   // ---------------------------------------------------------------------
@@ -280,7 +304,12 @@ export const artifacts: Artifact[] = [
     rarity: 'legendary',
     flavorText:
       'A tree old enough to have voted against the Choir’s founding charter, and lost. It has not forgiven this. Neither, structurally, has the charter.',
-    power: null,
+    // Issue #81, slice 4 of #77: "gaining Choir standing costs its enemies
+    // nothing" — scoped to `verdant_choir` alone via `factionId`, unlike
+    // `footnote_that_bites`'s own unscoped halving (issue #80). A player
+    // holding both zeroes Choir contagion outright and still halves every
+    // OTHER faction's, per `relicRules`' own combination rule.
+    power: { kind: 'passive', modifier: { t: 'contagionLossMultiplier', v: 0, factionId: 'verdant_choir' } },
   },
 
   // ---------------------------------------------------------------------
@@ -329,7 +358,12 @@ export const artifacts: Artifact[] = [
     rarity: 'legendary',
     flavorText:
       'The complete genealogy of the hero-bloodline, sealed in one roll. Whoever holds it holds the name of the Chosen One’s grandmother, and every party to the matter understands what that means.',
-    power: null,
+    // Issue #81, slice 4 of #77: "your fame feeds the hero's threat at half
+    // the rate" — halves the `HERO_FAME_COEF * notoriety` term of
+    // `threatGainFor` alone (src/engine/systems.ts); the clock term
+    // (`HERO_THREAT_BASE`/`HERO_THREAT_RAMP`) still runs at its ordinary
+    // pace. Magnitude is a placeholder; the sim tunes it.
+    power: { kind: 'passive', modifier: { t: 'fameThreatMultiplier', v: 0.5 } },
   },
 
   // ---------------------------------------------------------------------
@@ -378,6 +412,17 @@ export const artifacts: Artifact[] = [
     rarity: 'legendary',
     flavorText:
       'The Worm’s hunger, decanted and worn at the hip. It is not a weapon. It is a share, and shares can be called in.',
-    power: null,
+    // Issue #81, slice 4 of #77: "+1 Notoriety per 10 Followers spent" —
+    // proportional to a choice's own cost, which `scaled` (not a fixed
+    // `effects` entry) reads off the SAME source `watchesPositive` does: the
+    // chosen option's own landed effects, never the ambient run, so paying
+    // down debt with a stash you already had before this choice never fires
+    // it on its own. Magnitudes are placeholders; the sim tunes them.
+    power: {
+      kind: 'trigger',
+      when: 'onChoice',
+      effects: [],
+      scaled: { watches: 'followers', perUnit: 10, perUnitEffect: { t: 'notoriety', v: 1 } },
+    },
   },
 ];

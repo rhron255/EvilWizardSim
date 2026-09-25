@@ -18,8 +18,10 @@
  * presentation is not invented a second time here. "Lost this run" is
  * derived exactly the way `EndingScreen` already derives it: the union of
  * every era's `artifactsGained`, `startingArtifactIds` (an origin's own
- * grant — never in `eras`, see that field's doc comment in `types.ts`), and
- * the current `heldArtifactIds`, minus whatever is still held.
+ * grant), `activeGrantedArtifactIds` (an active's own grant, issue #81 —
+ * neither ever lands in `eras`, see either field's doc comment in
+ * `types.ts`), and the current `heldArtifactIds`, minus whatever is still
+ * held.
  *
  * *Amended to drop the offer card's "Whatever you choose" line.* A relic
  * whose era-end trigger fires no matter what gets picked used to print that
@@ -47,7 +49,8 @@
  */
 
 import { useEffect, useRef } from 'react';
-import type { DefenseReadout } from '../../engine';
+import { canActivateRelic } from '../../engine';
+import type { ContentBundle, DefenseReadout } from '../../engine';
 import type { Artifact, Faction, RelicPower, RunState } from '../../types';
 import { ArtifactCard, relicPowerText } from '../meta';
 import { EffectList } from './EffectList';
@@ -63,8 +66,15 @@ export type RelicPageProps = {
   run: RunState;
   artifacts: Artifact[];
   factions: Faction[];
+  content: ContentBundle;
   defense?: DefenseReadout | null;
   onBack(): void;
+  /**
+   * Spends a held relic's active power (issue #81). Only ever called for an
+   * artifact `canActivateRelic` currently allows — the Use button below is
+   * the only caller, and it does not render when that check is false.
+   */
+  onUseRelic(artifactId: string): void;
 };
 
 function factionFor(factions: Faction[], id: string): Faction | undefined {
@@ -81,7 +91,15 @@ function descriptionFor(artifact: Artifact, faction: Faction | undefined): strin
   return relicPowerText(artifact.power, { factions: faction && [faction] });
 }
 
-export function RelicPage({ run, artifacts, factions, defense, onBack }: RelicPageProps) {
+export function RelicPage({
+  run,
+  artifacts,
+  factions,
+  content,
+  defense,
+  onBack,
+  onUseRelic,
+}: RelicPageProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   // Focus moves to the page heading on open — the same "the switch was
@@ -100,6 +118,7 @@ export function RelicPage({ run, artifacts, factions, defense, onBack }: RelicPa
   const everGained = new Set<string>([
     ...run.eras.flatMap((e) => e.artifactsGained),
     ...run.startingArtifactIds,
+    ...run.activeGrantedArtifactIds,
     ...run.heldArtifactIds,
   ]);
   const lost = [...everGained]
@@ -159,15 +178,22 @@ export function RelicPage({ run, artifacts, factions, defense, onBack }: RelicPa
         <p className={styles.empty}>{emptyText}</p>
       ) : (
         <ul className={styles.grid}>
-          {held.map((artifact) => (
-            <li key={artifact.id}>
-              <ArtifactCard
-                artifact={artifact}
-                faction={factionFor(factions, artifact.factionId)}
-                showFlavour
-              />
-            </li>
-          ))}
+          {held.map((artifact) => {
+            const isActive = artifact.power?.kind === 'active';
+            const usable = isActive && canActivateRelic(run, artifact.id, content);
+            const spent = isActive && run.relicState.spent.includes(artifact.id);
+            return (
+              <li key={artifact.id}>
+                <ArtifactCard
+                  artifact={artifact}
+                  faction={factionFor(factions, artifact.factionId)}
+                  showFlavour
+                  onUseActive={usable ? () => onUseRelic(artifact.id) : undefined}
+                  activeSpent={spent}
+                />
+              </li>
+            );
+          })}
         </ul>
       )}
 

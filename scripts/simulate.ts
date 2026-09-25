@@ -43,7 +43,9 @@ import { writeFileSync } from 'node:fs';
 import type { ContentBundle, RelicEvent } from '../src/engine';
 import { TIERS, tierFor } from '../src/theme/tokens';
 import {
+  activateRelic,
   ascensionReady,
+  canActivateRelic,
   createRun,
   defenseOf,
   effectiveOdds,
@@ -767,22 +769,33 @@ const HOSTILE_TOWARD = new Map<FactionId, FactionId[]>(
  *
  * A gain for a faction hostile to the target costs the target
  * `CONTAGION_GAIN` of it (scaled by `relicRules(run, content)
- * .contagionLossMultiplier`, exactly as `applyStanding` scales it —
- * Footnote That Bites halves this route for EVERY faction courted while
- * held, not only Pale Academy, so a bot that skipped it would price a
- * pariah/courtier route at twice the damage the engine actually deals for
- * the ~25% of careers holding it); a LOSS for that faction hands the target
+ * .contagionLossMultiplierFor(enemy)` — `enemy` is the faction whose OWN
+ * gain is spilling, exactly what `applyStanding` itself keys the multiplier
+ * by, never `target`, which only ever receives the spillover. Footnote That
+ * Bites halves this route for EVERY faction courted while held, not only
+ * Pale Academy, so a bot that skipped it would price a pariah/courtier
+ * route at twice the damage the engine actually deals for the ~25% of
+ * careers holding it; Old-Growth Charter, issue #81, zeroes the same route
+ * but only when the faction being courted is the Verdant Choir); a LOSS for that faction hands the target
  * `CONTAGION_LOSS` back, untouched by the multiplier for the same reason
  * `applyStanding` leaves it untouched. Both rates come from `constants.ts`,
  * so a change to the contagion model moves the policy with it instead of
  * leaving a bot playing the old game.
  */
 function spiteOf(run: RunState, effects: readonly Effect[], target: FactionId): number {
-  const { contagionLossMultiplier } = relicRules(run, content);
+  const { contagionLossMultiplierFor } = relicRules(run, content);
   let total = -standingOf(effects, target);
   for (const enemy of HOSTILE_TOWARD.get(target) ?? []) {
     const v = standingOf(effects, enemy);
-    total += v * (v > 0 ? CONTAGION_GAIN * contagionLossMultiplier : CONTAGION_LOSS);
+    // PR #89 review (Codex): `applyStanding` keys the multiplier by the
+    // faction whose OWN gain is spilling — `enemy`, the one actually being
+    // courted directly in this branch — never by `target`, who only
+    // receives the spillover. Old-Growth Charter scopes to Verdant Choir;
+    // reading `target` here would zero contagion whenever a WORM courtier
+    // spills onto the Choir, instead of when a Choir courtier spills onto
+    // its own enemies, which is the exact reversal the relic's own wording
+    // ("gaining CHOIR standing costs its enemies nothing") rules out.
+    total += v * (v > 0 ? CONTAGION_GAIN * contagionLossMultiplierFor(enemy) : CONTAGION_LOSS);
   }
   return total;
 }
@@ -1086,6 +1099,49 @@ const LEGENDARY_IDS = new Set(
 
 const LAIR_TIER = new Map(content.lairs.map((l) => [l.id, l.tier]));
 
+/**
+ * Bot heuristics for the catalog's two actives (issue #81), run once per era
+ * before the offer is scored — so an armed Pale Orrery is already reflected
+ * in `effectiveOdds` when `chooseOption` reads it. Both are deliberately
+ * simple: a real player would weigh the same trade-offs more legibly, and
+ * the harness only needs a policy that actually uses an active sometimes,
+ * not the optimal one.
+ *
+ *   - Final Ledger: followers are "ledger filler" (wiki/02) with no defense
+ *     value of their own, so a bot converts a comfortable surplus into a
+ *     relic rather than let it sit — "below some Followers floor" reads as
+ *     "once there is a floor's worth to spare".
+ *   - Pale Orrery: armed the moment ANY reachable option this era is a
+ *     gamble at 50% or worse — the highest-stakes gamble "in reach" a bot
+ *     this simple can recognise is just the first bad one it meets, since it
+ *     only fires once a career anyway.
+ */
+const FINAL_LEDGER_FOLLOWER_FLOOR = 50;
+const PALE_ORRERY_RISKY_ODDS = 0.5;
+
+function maybeActivateActives(run: RunState, offer: Offer, relicFires: Record<string, number>): RunState {
+  let next = run;
+
+  if (canActivateRelic(next, 'final_ledger', content) && next.followers >= FINAL_LEDGER_FOLLOWER_FLOOR) {
+    const result = activateRelic(next, 'final_ledger', content);
+    next = result.next;
+    if (result.event) relicFires['final_ledger'] = (relicFires['final_ledger'] ?? 0) + 1;
+  }
+
+  if (canActivateRelic(next, 'pale_orrery', content)) {
+    const facesRiskyGamble = offer.options.some(
+      (o) => o.kind === 'gamble' && o.odds <= PALE_ORRERY_RISKY_ODDS,
+    );
+    if (facesRiskyGamble) {
+      const result = activateRelic(next, 'pale_orrery', content);
+      next = result.next;
+      if (result.event) relicFires['pale_orrery'] = (relicFires['pale_orrery'] ?? 0) + 1;
+    }
+  }
+
+  return next;
+}
+
 function playRun(
   seed: number,
   eraCount: number,
@@ -1123,6 +1179,7 @@ function playRun(
   while (!run.ending && guard-- > 0) {
     if (run.eraIndex === run.prophecyEra) notorietyAtProphecy = run.notoriety;
     const offer = nextOffer(run, content);
+    run = maybeActivateActives(run, offer, relicFires);
     const index = chooseOption(policy, run, offer, rng());
     const { next, resolution } = resolveChoice(run, offer, index, content);
     if (next.eras[next.eras.length - 1].phase === 'decline') {

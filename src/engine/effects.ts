@@ -47,11 +47,16 @@ export function draftOf(run: RunState): RunState {
   return {
     ...run,
     heldArtifactIds: run.heldArtifactIds.slice(),
+    activeGrantedArtifactIds: run.activeGrantedArtifactIds.slice(),
     factionStanding: { ...run.factionStanding },
     apprentices: { ...run.apprentices },
     eras: run.eras,
     seenOfferIds: run.seenOfferIds,
-    relicState: { firedOnce: run.relicState.firedOnce.slice() },
+    relicState: {
+      firedOnce: run.relicState.firedOnce.slice(),
+      spent: run.relicState.spent.slice(),
+      foresight: run.relicState.foresight,
+    },
   };
 }
 
@@ -110,8 +115,15 @@ export function applyEffects(
         // whole list: an earlier effect in THIS SAME list (an `artifact`
         // grant, a `loseArtifact`) can change which passives are held before
         // a later `standing` effect fires.
-        const { contagionLossMultiplier } = relicRules(draft, content);
-        applyStanding(draft, effect.factionId, effect.v, index, out.applied, contagionLossMultiplier);
+        const { contagionLossMultiplierFor } = relicRules(draft, content);
+        applyStanding(
+          draft,
+          effect.factionId,
+          effect.v,
+          index,
+          out.applied,
+          contagionLossMultiplierFor(effect.factionId),
+        );
         break;
       }
 

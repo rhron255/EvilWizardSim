@@ -56,13 +56,15 @@ function offerOf(effects: Effect[]): Offer {
 describe('relicRules · combined passives', () => {
   it('is neutral with no relics held', () => {
     const bare = run(ORIGIN.bog, { heldArtifactIds: [] });
-    expect(relicRules(bare, content)).toEqual({ contagionLossMultiplier: 1 });
+    const rules = relicRules(bare, content);
+    expect(rules.contagionLossMultiplierFor('pale_academy')).toBe(1);
+    expect(rules.fameThreatMultiplier).toBe(1);
   });
 
   it('halves the contagion-loss multiplier while Footnote That Bites is held', () => {
     const holder = run(ORIGIN.academy);
     expect(holder.heldArtifactIds).toContain('footnote_that_bites');
-    expect(relicRules(holder, content).contagionLossMultiplier).toBe(0.5);
+    expect(relicRules(holder, content).contagionLossMultiplierFor('pale_academy')).toBe(0.5);
   });
 
   it('halves standing actually LOST to contagion, end to end', () => {

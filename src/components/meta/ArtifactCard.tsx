@@ -46,6 +46,23 @@ export type ArtifactCardProps = {
    * unchanged with this left off.
    */
   showFlavour?: boolean;
+  /**
+   * An active power's Use button (issue #81), rendered under the glyph in
+   * the icon column rather than as a caption line — the button acts ON the
+   * relic, so it lives in the same column as the relic's own portrait, not
+   * beside the prose describing it. Omitted (the default) renders no button
+   * at all, which is every caller except the relic page. The relic page
+   * itself only ever passes it once `canActivateRelic` is already true —
+   * this component has no opinion on affordability, it just renders what
+   * it's given.
+   */
+  onUseActive?(): void;
+  /**
+   * True once this relic's active has already been spent this career.
+   * Swaps the button for a static "Used" mark instead of hiding it outright
+   * — meaningless (and ignored) without `onUseActive` or on a `locked` card.
+   */
+  activeSpent?: boolean;
 };
 
 const RARITY_PIPS = { common: 1, rare: 2, legendary: 3 } as const;
@@ -61,6 +78,8 @@ export function ArtifactCard({
   faction,
   compact,
   showFlavour,
+  onUseActive,
+  activeSpent,
 }: ArtifactCardProps) {
   const classes = [
     styles.card,
@@ -91,14 +110,33 @@ export function ArtifactCard({
         <CornerMarks className={styles.corner} inset={6} length={11} />
       )}
 
-      <div className={styles.well}>
-        <ArtifactGlyph
-          id={artifact.id}
-          name={artifact.name}
-          size={glyphSize}
-          locked={locked}
-          className={styles.glyph}
-        />
+      <div className={styles.iconColumn}>
+        <div className={styles.well}>
+          <ArtifactGlyph
+            id={artifact.id}
+            name={artifact.name}
+            size={glyphSize}
+            locked={locked}
+            className={styles.glyph}
+          />
+        </div>
+        {!locked && activeSpent && <span className={styles.usedMark}>Used</span>}
+        {!locked && !activeSpent && onUseActive && (
+          // PR #89 review: the visible glyph is the single word "Use" on
+          // every card, and a button's accessible name does not inherit the
+          // card's own `<h4>` heading — with two actives held at once, both
+          // buttons would announce identically to a screen reader or voice
+          // control. `aria-label` names which relic without lengthening the
+          // one word sighted players actually read.
+          <button
+            type="button"
+            className={styles.useButton}
+            onClick={onUseActive}
+            aria-label={`Use ${artifact.name}`}
+          >
+            Use
+          </button>
+        )}
       </div>
 
       <div className={styles.body}>

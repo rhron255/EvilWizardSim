@@ -141,6 +141,7 @@ describe('the remembered name', () => {
       wizardName: 'Newer Name',
       heldArtifactIds: [],
       startingArtifactIds: [],
+      activeGrantedArtifactIds: [],
       eras: [],
       ending: 'lichdom',
       notoriety: 4,
@@ -187,6 +188,7 @@ describe('collection v1 -> v2', () => {
     const run = {
       heldArtifactIds: [],
       startingArtifactIds: [],
+      activeGrantedArtifactIds: [],
       eras: [],
       ending: 'retired_to_swamp',
       notoriety: 10,
@@ -255,6 +257,7 @@ describe('collection v2 -> v3 · the theme pointer', () => {
     const run = {
       heldArtifactIds: [],
       startingArtifactIds: [],
+      activeGrantedArtifactIds: [],
       eras: [],
       ending: 'ascension',
       notoriety: 10,

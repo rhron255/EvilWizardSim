@@ -3,7 +3,11 @@
   display: grid;
   grid-template-columns: auto 1fr;
   gap: var(--ew-space-4);
-  align-items: start;
+  /* `stretch`, not `start`: the icon column needs the row's full height so
+     the Use button (issue #81) can fill whatever the glyph well leaves
+     under it. A card with no button is unaffected — its column has nothing
+     to stretch INTO, since `.well` itself stays `flex: none`. */
+  align-items: stretch;
   padding: var(--ew-space-4);
   background: var(--ew-panel);
   border: 1px solid var(--ew-line);
@@ -27,6 +31,18 @@
 
 /* --- the glyph well ------------------------------------------------------ */
 
+/* Column, not the well itself — issue #81's Use button lives here too, so
+   the glyph and the one control that acts ON this relic sit in the same
+   column, stacked, rather than the button living beside the prose describing
+   the relic (which is what a relic ACTS AS, not what a relic DOES). */
+.iconColumn {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--ew-space-2);
+  flex: none;
+}
+
 .well {
   display: grid;
   place-items: center;
@@ -44,6 +60,77 @@
 .compact .well {
   width: 46px;
   height: 46px;
+}
+
+/* Styling rule 2: a control the player must find at a glance needs visual
+   weight of its own — border, a RESTING fill (not just a hover one, so it
+   reads as a control before the pointer ever finds it), pill radius, the
+   brighter `--ew-ink`. `flex: 1` claims every pixel of the icon column the
+   well leaves behind (the column now stretches to the row's full height,
+   above), and the label turns with it: `vertical-rl` runs the text
+   top-to-bottom and rotates each letter 90° along the way, the standard way
+   a vertical strip this narrow (56px, or 46px `.compact`) stays legible
+   instead of trying to wrap "USE" across multiple horizontal lines. The
+   180° flip on top of that reads bottom-to-top instead — the conventional
+   orientation for a label on the LEFT edge of its own content, so a player
+   tilts their head left to read it rather than right. */
+.useButton {
+  flex: 1;
+  width: 100%;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  padding: var(--ew-space-2) 0;
+  border: 1px solid var(--ew-line-strong);
+  border-radius: var(--ew-radius-pill);
+  background: color-mix(in srgb, var(--ew-ink-faint) 7%, var(--ew-void));
+  font-family: var(--ew-font-ui);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ew-ink);
+  cursor: pointer;
+  transition: border-color var(--ew-fast) var(--ew-ease), background-color var(--ew-fast) var(--ew-ease);
+}
+
+.useButton:hover,
+.useButton:focus-visible {
+  color: var(--ew-ink-bright);
+  border-color: var(--ew-ink-faint);
+  background: color-mix(in srgb, var(--ew-ink-faint) 16%, var(--ew-void));
+}
+
+/* A used active leaves its mark in the same slot the button occupied — same
+   shape, same turned label — so the column does not jump the moment it is
+   spent. The fill is fainter than the button's own resting one and the
+   border a step dimmer (`--ew-line`, not `--ew-line-strong`): still enough
+   to read as "this slot used to be a control," never enough to look
+   pressable again. */
+.usedMark {
+  flex: 1;
+  width: 100%;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  padding: var(--ew-space-2) 0;
+  border: 1px solid var(--ew-line);
+  border-radius: var(--ew-radius-pill);
+  background: color-mix(in srgb, var(--ew-ink-faint) 4%, var(--ew-void));
+  font-family: var(--ew-font-ui);
+  font-size: 0.5625rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ew-ink-ghost);
 }
 
 .glyph {
@@ -135,6 +222,11 @@
   font-size: var(--ew-size-sm);
   line-height: 1.5;
   color: var(--ew-ink);
+  /* `relicPowerText`'s `active` case (issue #81 review) is the one kind that
+     returns embedded `\n`s — a cost/effect split reads better on its own
+     lines than run together in one sentence. Every other kind's text has
+     none, so this is a no-op for them. */
+  white-space: pre-line;
 }
 
 .flavour {

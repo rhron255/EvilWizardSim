@@ -49,8 +49,8 @@ export {
 } from './endings';
 export { conditionMet, conditionsMet, impliedGatesOf } from './conditions';
 export { projectEffects } from './effects';
-export type { RelicEvent, RelicReactionPreview, RelicRules } from './relics';
-export { relicRules, effectiveOdds, projectReactions } from './relics';
+export type { ActivateRelicResult, RelicEvent, RelicReactionPreview, RelicRules } from './relics';
+export { activateRelic, canActivateRelic, relicRules, effectiveOdds, projectReactions } from './relics';
 
 export {
   loadCollection,

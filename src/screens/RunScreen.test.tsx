@@ -63,6 +63,7 @@ const demoRun: RunState = {
     'root_of_the_standing_vote',
   ],
   startingArtifactIds: [],
+  activeGrantedArtifactIds: [],
   heroBandSeen: 0,
   factionStanding: {
     ashen_covenant: 46,
@@ -79,7 +80,7 @@ const demoRun: RunState = {
   goodActs: 0,
   illActs: 0,
   goodWizardVowed: false,
-  relicState: { firedOnce: [] },
+  relicState: { firedOnce: [], spent: [], foresight: false },
   eras,
   seenOfferIds: eras.map((e) => e.offerId),
 };
@@ -118,6 +119,7 @@ const show = (
       content={content}
       onChoose={() => {}}
       onContinue={onContinue}
+      onUseRelic={() => {}}
       defense={null}
       themeId={themeId}
     />,

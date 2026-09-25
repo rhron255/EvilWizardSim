@@ -1,5 +1,9 @@
 /**
- * The relic power framework (issue #80, slice 3 of #77).
+ * The relic power framework (issue #80, slice 3 of #77), extended by slice 4
+ * (issue #81) with a `scaled` trigger (Long Appetite), a per-faction passive
+ * scope and a second passive modifier (Old-Growth Charter, Unbroken Line),
+ * and the catalog's first actives (Final Ledger, Pale Orrery — see the
+ * "Actives" section at the bottom of this file).
  *
  * Two design rules from #77 are enforced HERE, not just documented on the
  * type:
@@ -25,12 +29,24 @@
  * grant).
  */
 
-import type { Artifact, Effect, EndingId, OfferOption, RelicPower, RunState } from '../types';
+import type {
+  Artifact,
+  Effect,
+  EndingId,
+  FactionId,
+  OfferOption,
+  Rarity,
+  RelicEffect,
+  RelicPower,
+  RunState,
+} from '../types';
 import type { ContentBundle } from './content-port';
 import { indexOf } from './content-port';
 import { conditionsMet } from './conditions';
+import { NOVELTY_BIAS } from './constants';
 import { applyEffects, draftOf, forfeitForLichdom } from './effects';
 import type { Rng } from './rng';
+import { streamFor, weightedPick } from './rng';
 
 // ---------------------------------------------------------------------------
 // Passives
@@ -38,34 +54,52 @@ import type { Rng } from './rng';
 
 export type RelicRules = {
   /**
-   * Multiplies `CONTAGION_GAIN` in `applyStanding` (`effects.ts`) — the rate
-   * that spills a LOSS onto a courted faction's enemies, which is what
-   * "the standing lost to contagion is halved" actually means. 1 with no
+   * Multiplies `CONTAGION_GAIN` in `applyStanding` (`effects.ts`) for a GIVEN
+   * faction's gain — the rate that spills a LOSS onto that faction's
+   * enemies. A function rather than a plain number since issue #81's
+   * Old-Growth Charter scopes its own zeroing to Verdant Choir alone (see
+   * `RelicPassiveModifier`'s doc comment in `types.ts`), so the answer can
+   * differ by faction even within one run. 1 for every faction with no
    * relic held — the neutral default that makes "no relics held" reproduce
    * today's behaviour exactly, per #77's own acceptance bar.
    */
-  contagionLossMultiplier: number;
+  contagionLossMultiplierFor(factionId: FactionId): number;
+  /**
+   * Multiplies the fame term of `threatGainFor` (`systems.ts`) — Unbroken
+   * Line's own scope, see `RelicPassiveModifier`. 1 with no relic held.
+   */
+  fameThreatMultiplier: number;
 };
-
-const NEUTRAL_RULES: RelicRules = { contagionLossMultiplier: 1 };
 
 /**
  * Combine every held relic's `passive` power into one set of rule
  * modifiers. Multiple relics with the same modifier COMBINE (multiplicatively
- * — so two future 50% relics would compound to 25%, not merely tie), which is
- * the "combines the held passives" #80 asks for, even though only one such
- * passive exists in the catalog today.
+ * — so two 50% relics would compound to 25%, not merely tie).
  */
 export function relicRules(run: RunState, content: ContentBundle): RelicRules {
   const index = indexOf(content);
-  let contagionLossMultiplier = NEUTRAL_RULES.contagionLossMultiplier;
+  let unscopedContagionLossMultiplier = 1;
+  const scopedContagionLossMultiplier = new Map<FactionId, number>();
+  let fameThreatMultiplier = 1;
   for (const id of run.heldArtifactIds) {
     const power = index.artifactById.get(id)?.power;
-    if (power?.kind === 'passive' && power.modifier.t === 'contagionLossMultiplier') {
-      contagionLossMultiplier *= power.modifier.v;
+    if (power?.kind !== 'passive') continue;
+    if (power.modifier.t === 'contagionLossMultiplier') {
+      if (power.modifier.factionId) {
+        const prior = scopedContagionLossMultiplier.get(power.modifier.factionId) ?? 1;
+        scopedContagionLossMultiplier.set(power.modifier.factionId, prior * power.modifier.v);
+      } else {
+        unscopedContagionLossMultiplier *= power.modifier.v;
+      }
+    } else if (power.modifier.t === 'fameThreatMultiplier') {
+      fameThreatMultiplier *= power.modifier.v;
     }
   }
-  return { contagionLossMultiplier };
+  return {
+    contagionLossMultiplierFor: (factionId) =>
+      unscopedContagionLossMultiplier * (scopedContagionLossMultiplier.get(factionId) ?? 1),
+    fameThreatMultiplier,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -73,15 +107,20 @@ export function relicRules(run: RunState, content: ContentBundle): RelicRules {
 // ---------------------------------------------------------------------------
 
 /**
- * The odds a gamble ACTUALLY carries for this run — a pass-through today,
- * because no relic in this slice touches odds. Bots in `scripts/simulate.ts`
- * score gambles through this rather than reading `option.odds` directly, so a
- * future odds-modifying relic (#77 slice 5's Spectacles) changes one function
- * body instead of every call site that scores a gamble.
+ * The odds a gamble ACTUALLY carries for this run. Bots in
+ * `scripts/simulate.ts` score gambles through this rather than reading
+ * `option.odds` directly, so the roll a player actually faces, the number the
+ * card prints, and what a bot scores a gamble at can never drift apart onto
+ * three different odds for the same option.
+ *
+ * The Pale Orrery (issue #81) is the first relic to actually use this seam:
+ * while `run.relicState.foresight` is armed, every gamble reads as certain.
+ * `resolveChoice` is what clears the flag once a gamble genuinely resolves —
+ * this function only reads it, never mutates.
  */
 export function effectiveOdds(run: RunState, option: OfferOption): number {
-  void run;
-  return option.kind === 'gamble' ? option.odds : 1;
+  if (option.kind !== 'gamble') return 1;
+  return run.relicState.foresight ? 1 : option.odds;
 }
 
 // ---------------------------------------------------------------------------
@@ -127,6 +166,30 @@ function watchSatisfied(power: TriggerPower, choiceEffects: readonly Effect[] | 
 }
 
 /**
+ * Long Appetite's own mechanism: `power.scaled`, floored into whole units off
+ * a NEGATIVE landed instance of `watches` in the choice's own effects (never
+ * ambient — same source `watchesPositive` reads), then multiplied by
+ * `perUnitEffect`. Summed across every matching landed effect, though today's
+ * catalog only ever lands one `followers` effect per choice. Returns `[]` when
+ * there is nothing to scale (no matching effect, `eraEnd` timing with no
+ * `choiceEffects`, or the magnitude is under one whole unit) — the caller
+ * treats an empty result exactly like a `watchesPositive` miss.
+ */
+function scaledEffectsFor(
+  scaled: TriggerPower['scaled'],
+  choiceEffects: readonly Effect[] | undefined,
+): RelicEffect[] {
+  if (!scaled) return [];
+  let units = 0;
+  for (const e of choiceEffects ?? []) {
+    if (e.t !== scaled.watches || !('v' in e) || e.v >= 0) continue;
+    units += Math.floor(Math.abs(e.v) / scaled.perUnit);
+  }
+  if (units <= 0) return [];
+  return [{ ...scaled.perUnitEffect, v: scaled.perUnitEffect.v * units }];
+}
+
+/**
  * Fire every held trigger of one timing against `draft`, mutating it in
  * place, and return an event per relic that actually applied something.
  *
@@ -161,9 +224,18 @@ function fireTriggers(
   const snapshot = draftOf(draft);
   for (const { artifact, power } of heldTriggers(draft, content, when)) {
     if (power.once && draft.relicState.firedOnce.includes(artifact.id)) continue;
-    if (!watchSatisfied(power, choiceEffects)) continue;
+    const scaledEffects = scaledEffectsFor(power.scaled, choiceEffects);
+    // A `scaled` trigger fires on whatever produced a non-empty
+    // `scaledEffects` even with no `watchesPositive` set (Long Appetite has
+    // neither `watchesPositive` nor fixed `effects`) — the two gates are
+    // independent ways of saying "did the thing this relic cares about
+    // actually happen", and a trigger authoring only one of them must not be
+    // silently gated by the other's default of "true".
+    if (!watchSatisfied(power, choiceEffects) && scaledEffects.length === 0) continue;
     if (!conditionsMet(snapshot, power.if, content)) continue;
-    const application = applyEffects(draft, power.effects, rng, content);
+    const effectsToApply = [...power.effects, ...scaledEffects];
+    if (effectsToApply.length === 0) continue;
+    const application = applyEffects(draft, effectsToApply, rng, content);
     if (power.once) draft.relicState.firedOnce.push(artifact.id);
     if (application.applied.length > 0) {
       events.push({ artifactId: artifact.id, applied: application.applied });
@@ -291,4 +363,136 @@ export function projectReactions(
     onSuccess: preview(option.onSuccess),
     onFailure: preview(option.onFailure),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Actives (issue #81, slice 4 of #77)
+// ---------------------------------------------------------------------------
+//
+// A relic never asks a question, and an active is no exception: the tap
+// itself is the only decision, with nothing to configure and no follow-up
+// choice. Once per career, enforced against `RunState.relicState.spent`
+// rather than `firedOnce` — that list belongs to an AUTOMATIC trigger's own
+// one-time firing (Ashen Signature), a different guard for a different
+// reason.
+
+/**
+ * Whether `artifactId`'s active can be used right now: held, actually an
+ * `active` power, not already spent, and its `cost` (if any) affordable.
+ * The relic page uses this to decide whether a Use button appears at all,
+ * and `activateRelic` re-checks it so a stale click can never spend twice or
+ * dip a stat below its floor.
+ */
+export function canActivateRelic(run: RunState, artifactId: string, content: ContentBundle): boolean {
+  const power = indexOf(content).artifactById.get(artifactId)?.power;
+  if (!power || power.kind !== 'active') return false;
+  if (!run.heldArtifactIds.includes(artifactId)) return false;
+  if (run.relicState.spent.includes(artifactId)) return false;
+  for (const cost of power.cost ?? []) {
+    if (cost.t === 'followers' && cost.v < 0 && run.followers < -cost.v) return false;
+  }
+  return true;
+}
+
+/** Faction standing order breaks ties by `content.factions`' own authored order — deterministic, never a coin flip. */
+function bestStandingFactionId(run: RunState, content: ContentBundle): FactionId | undefined {
+  let best: FactionId | undefined;
+  let bestValue = -Infinity;
+  for (const faction of content.factions) {
+    const value = run.factionStanding[faction.id] ?? 0;
+    if (value > bestValue) {
+      bestValue = value;
+      best = faction.id;
+    }
+  }
+  return best;
+}
+
+/**
+ * A `power.grants` draw (Final Ledger's own use today): a relic of `rarity`
+ * from the player's best-standing faction, preferring one never held
+ * (`NOVELTY_BIAS`, the same weighting `drawArtifact` in `effects.ts` uses for
+ * an ordinary `artifactFrom`). Falls to that faction's commons if every relic
+ * of `rarity` is already held, and to `undefined` — spending the cost for
+ * nothing, same as an ordinary `artifactFrom` against an exhausted or
+ * locked-out faction — only when the whole faction's vault is empty of
+ * anything not already held.
+ */
+function drawGrantedRelic(
+  draft: RunState,
+  content: ContentBundle,
+  rng: Rng,
+  rarity: Rarity,
+): Artifact | undefined {
+  const index = indexOf(content);
+  const factionId = bestStandingFactionId(draft, content);
+  if (!factionId) return undefined;
+  const held = new Set(draft.heldArtifactIds);
+  const unheld = (index.artifactsByFaction.get(factionId) ?? []).filter((a) => !held.has(a.id));
+  const exact = unheld.filter((a) => a.rarity === rarity);
+  const candidates = exact.length > 0 ? exact : unheld.filter((a) => a.rarity === 'common');
+  if (candidates.length === 0) return undefined;
+  const known = new Set(draft.knownArtifactIds);
+  return weightedPick(rng, candidates, (a) => (known.has(a.id) ? 1 : NOVELTY_BIAS));
+}
+
+export type ActivateRelicResult = {
+  next: RunState;
+  /** `null` when `canActivateRelic` was false — nothing happened. */
+  event: RelicEvent | null;
+};
+
+/**
+ * Spends an `active` power. Pure: derives its own rng stream from `run.seed`
+ * (keyed on the artifact id and the era it was used in) rather than taking
+ * one as a parameter, so the caller does not have to thread one through for
+ * a player-initiated action the way `resolveChoice`'s own era rng is threaded
+ * for an offer.
+ */
+export function activateRelic(
+  run: RunState,
+  artifactId: string,
+  content: ContentBundle,
+): ActivateRelicResult {
+  if (!canActivateRelic(run, artifactId, content)) return { next: run, event: null };
+  const power = indexOf(content).artifactById.get(artifactId)?.power as Extract<
+    RelicPower,
+    { kind: 'active' }
+  >;
+
+  const draft = draftOf(run);
+  const rng = streamFor(run.seed, 'relicActive', artifactId, run.eraIndex);
+  const applied: Effect[] = [];
+
+  if (power.cost) {
+    const costApplication = applyEffects(draft, power.cost, rng, content);
+    applied.push(...costApplication.applied);
+  }
+
+  if (power.grants) {
+    const relic = drawGrantedRelic(draft, content, rng, power.grants.rarity);
+    if (relic) {
+      draft.heldArtifactIds.push(relic.id);
+      // PR #89 review (Codex): `eras[].artifactsGained` never gets an entry
+      // for this — an active fires between eras, at the player's own
+      // choosing, not from `resolveChoice` — so without its own record a
+      // Final Ledger grant that is later lost (`loseArtifact`, the lich
+      // rite) would vanish from every "ever held" reconstruction the same
+      // way an origin relic used to before `startingArtifactIds` existed.
+      draft.activeGrantedArtifactIds.push(relic.id);
+      applied.push({ t: 'artifact', artifactId: relic.id });
+    }
+  }
+
+  if (power.armsForesight) {
+    draft.relicState.foresight = true;
+  }
+
+  if (power.effects.length > 0) {
+    const application = applyEffects(draft, power.effects, rng, content);
+    applied.push(...application.applied);
+  }
+
+  draft.relicState.spent = [...draft.relicState.spent, artifactId];
+  return { next: draft, event: { artifactId, applied } };
 }

@@ -41,6 +41,7 @@ function finished(ending: RunState['ending'], collection: Collection): GameState
     wizardName: 'Malvorn',
     heldArtifactIds: [],
     startingArtifactIds: [],
+    activeGrantedArtifactIds: [],
     knownArtifactIds: [],
     eras: [],
     notoriety: 40,

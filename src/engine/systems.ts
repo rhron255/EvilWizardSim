@@ -116,13 +116,26 @@ export function decayFor(run: Pick<RunState, 'phase' | 'erasSinceProphecy' | 'is
  *
  * Whole numbers, per `clampThreat`. `HERO_FAME_COEF` stays fractional — it is
  * the per-point weight of fame, not a quantity the run ever stores.
+ *
+ * `fameThreatMultiplier` (issue #81's Unbroken Line: "your fame feeds the
+ * hero's threat at half the rate") multiplies the FAME term alone — the
+ * `HERO_THREAT_BASE`/`HERO_THREAT_RAMP` clock term is untouched. Defaults to
+ * 1 so every pre-#81 caller (and `goodWizard.test.ts`'s own direct calls)
+ * keeps reproducing today's numbers without naming this parameter; a caller
+ * that holds `content` computes the real value through
+ * `relicRules(run, content).fameThreatMultiplier` (`relics.ts`) and passes it
+ * in — this function stays engine-content-agnostic like every other system
+ * in this file.
  */
 export function threatGainFor(
   run: Pick<RunState, 'phase' | 'erasSinceProphecy' | 'notoriety'>,
+  fameThreatMultiplier = 1,
 ): number {
   if (run.phase !== 'decline') return 0;
   const gain =
-    HERO_THREAT_BASE + HERO_THREAT_RAMP * run.erasSinceProphecy + HERO_FAME_COEF * run.notoriety;
+    HERO_THREAT_BASE +
+    HERO_THREAT_RAMP * run.erasSinceProphecy +
+    HERO_FAME_COEF * run.notoriety * fameThreatMultiplier;
   return Math.round(gain);
 }
 

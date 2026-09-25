@@ -40,6 +40,7 @@ const demoRun: RunState = {
   knownArtifactIds: [],
   heldArtifactIds: [],
   startingArtifactIds: [],
+  activeGrantedArtifactIds: [],
   heroBandSeen: 0,
   factionStanding: {
     ashen_covenant: 46,
@@ -56,7 +57,7 @@ const demoRun: RunState = {
   goodActs: 0,
   illActs: 0,
   goodWizardVowed: false,
-  relicState: { firedOnce: [] },
+  relicState: { firedOnce: [], spent: [], foresight: false },
   eras,
   seenOfferIds: eras.map((e) => e.offerId),
 };

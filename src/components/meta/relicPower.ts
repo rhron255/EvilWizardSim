@@ -100,17 +100,33 @@ function ifPhrase(conditions: Condition[] | undefined, ctx: RelicPowerContext): 
 
 export function relicPowerText(power: RelicPower, ctx: RelicPowerContext = {}): string {
   switch (power.kind) {
-    case 'passive':
-      switch (power.modifier.t) {
+    case 'passive': {
+      const modifier = power.modifier;
+      switch (modifier.t) {
         case 'contagionLossMultiplier': {
-          const pct = Math.round((1 - power.modifier.v) * 100);
+          // "Contagion" is the engine's own internal name for this mechanic
+          // (CLAUDE.md: "the engine's vocabulary is not the player's",
+          // failure mode 16) — every branch here describes the OBSERVABLE
+          // effect instead, in the same words regardless of whether the
+          // relic scopes it to one faction (Old-Growth Charter) or not
+          // (Footnote That Bites).
+          const pct = Math.round((1 - modifier.v) * 100);
+          if (modifier.factionId) {
+            const scope = pct >= 100 ? 'nothing' : `${pct}% less standing than usual`;
+            return `Passive: favoring ${factionName(modifier.factionId, ctx)} costs its rivals ${scope}.`;
+          }
           return `Passive: favoring a faction costs its rivals ${pct}% less standing than usual.`;
         }
+        case 'fameThreatMultiplier': {
+          const pct = Math.round(modifier.v * 100);
+          return `Passive: your fame feeds the hero's threat at ${pct}% the rate.`;
+        }
         default: {
-          const exhaustive: never = power.modifier.t;
+          const exhaustive: never = modifier;
           return String(exhaustive);
         }
       }
+    }
 
     case 'trigger': {
       const timing = power.when === 'eraEnd' ? "every era's end" : 'the choice you make';
@@ -139,14 +155,39 @@ export function relicPowerText(power: RelicPower, ctx: RelicPowerContext = {}): 
             : gate
               ? `At ${timing}, if ${gate}`
               : `At ${timing}`;
-      return `${lead}: ${effectsText(power.effects, ctx)}.`;
+      // Long Appetite (issue #81): magnitude proportional to the choice's own
+      // cost, so it earns its own clause rather than folding into
+      // `effectsText`, which only knows fixed magnitudes.
+      const scaledPhrase = power.scaled
+        ? `${effectsText([power.scaled.perUnitEffect], ctx)} per ${power.scaled.perUnit} ${statLabel(power.scaled.watches)} spent`
+        : '';
+      const body = [effectsText(power.effects, ctx), scaledPhrase].filter(Boolean).join(', ');
+      return `${lead}: ${body}.`;
     }
 
-    // Neither kind is authored yet (deferred to slice 4/5 of #77) — a
-    // generic, honest placeholder rather than a blank line, so a future
-    // relic that ships one is never the first thing to render it.
-    case 'active':
-      return 'Active: usable once, on demand.';
+    case 'active': {
+      // PR #89 review (rhron255): a header line plus one line each for the
+      // cost and the effect reads better than one long run-on sentence,
+      // especially for Final Ledger's grant, which is already the longest
+      // clause `effectsText` produces. `ArtifactCard`'s `.power` rule is the
+      // one that turns this `\n` into an actual line break (`white-space:
+      // pre-line`) — every other `kind` here returns none, so it is a no-op
+      // for them.
+      const lines = ['Single-use effect. Activate for:'];
+      if (power.cost && power.cost.length > 0) lines.push(effectsText(power.cost, ctx));
+      const grantText = power.grants
+        ? `a ${power.grants.rarity} relic from your best-standing faction`
+        : '';
+      const foresightText = power.armsForesight ? 'your next gamble succeeds' : '';
+      const effectsPart = power.effects.length > 0 ? effectsText(power.effects, ctx) : '';
+      const body = [grantText, foresightText, effectsPart].filter(Boolean).join(', ');
+      lines.push(`${body}.`);
+      return lines.join('\n');
+    }
+
+    // Not authored yet (deferred to slice 5 of #77) — a generic, honest
+    // placeholder rather than a blank line, so a future relic that ships one
+    // is never the first thing to render it.
     case 'lifeline':
       return 'Lifeline: saves you once, automatically.';
 
