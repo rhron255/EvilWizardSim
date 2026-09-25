@@ -50,9 +50,14 @@ const baseRun: RunState = {
   notoriety: 81,
   followers: 1284,
   lairId: 'sunless_cathedral',
-  knownArtifactIds: ['ninth_clause_brazier', 'antler_baton'],
+  // `censer_of_small_regrets`, not `ninth_clause_brazier` (issue #82 gave
+  // the Brazier an active power, which would put an unwanted Use button on
+  // every fixture built from this run — the "the Use button" describe block
+  // below needs a run with none among its held relics until it adds one of
+  // its own).
+  knownArtifactIds: ['censer_of_small_regrets', 'antler_baton'],
   heldArtifactIds: [
-    'ninth_clause_brazier',
+    'censer_of_small_regrets',
     'antler_baton',
     'cinder_testament',
     'bone_crown',

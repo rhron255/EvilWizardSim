@@ -1832,8 +1832,12 @@ export const ascentOffers: Offer[] = [
       {
         kind: 'certain',
         label: 'Borrow within the rules',
+        // The Tenure Ring's only route into a career (issue #82, double-edged
+        // — never drawn at random, see `isDoubleEdged` in
+        // `src/engine/effects.ts`). A named grant, not `artifactFrom`: this
+        // used to draw a random common Pale Academy relic.
         effects: [
-          { t: 'artifactFrom', factionId: 'pale_academy', rarity: 'common' },
+          { t: 'artifact', artifactId: 'tenure_ring' },
           { t: 'standing', factionId: 'pale_academy', v: 10 },
           { t: 'notoriety', v: 3 },
         ],

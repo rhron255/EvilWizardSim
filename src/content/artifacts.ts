@@ -45,7 +45,16 @@ export const artifacts: Artifact[] = [
     rarity: 'common',
     flavorText:
       'It fits everyone, which should tell you something about how it was measured.',
-    power: null,
+    // Issue #82, slice 5 of #77: "when a choice costs you an Apprentice,
+    // +4 Notoriety." `watchesNegative`, not `if` — reads the CHOICE's own
+    // landed effects, so a school that merely sits thin from an earlier era
+    // never arms it on its own. Magnitude is a placeholder; the sim tunes it.
+    power: {
+      kind: 'trigger',
+      when: 'onChoice',
+      watchesNegative: 'apprentices',
+      effects: [{ t: 'notoriety', v: 4 }],
+    },
   },
   {
     id: 'ashen_signature',
@@ -77,7 +86,15 @@ export const artifacts: Artifact[] = [
     rarity: 'common',
     flavorText:
       'Burns whatever you are least proud of. An ordinary life fuels it for a week. Yours gets it through a long evening.',
-    power: null,
+    // Issue #82: "when you lose a gamble, +3 Notoriety" — the one power that
+    // reads the roll's own outcome (`watchesGambleFailure`) rather than a
+    // landed effect. Magnitude is a placeholder; the sim tunes it.
+    power: {
+      kind: 'trigger',
+      when: 'onChoice',
+      watchesGambleFailure: true,
+      effects: [{ t: 'notoriety', v: 3 }],
+    },
   },
   {
     id: 'ninth_clause_brazier',
@@ -86,7 +103,16 @@ export const artifacts: Artifact[] = [
     rarity: 'rare',
     flavorText:
       'The first eight clauses concern delivery, scheduling, and the condition of the room. The ninth is why the brazier exists, and is not read aloud in company.',
-    power: null,
+    // Issue #82: the catalog's third active — a straight trade, not a
+    // gated `cost`: burn off debt, and draw the hero's eye for it.
+    // Magnitudes are placeholders; the sim tunes them.
+    power: {
+      kind: 'active',
+      effects: [
+        { t: 'pactDebt', v: -3 },
+        { t: 'heroThreat', v: 15 },
+      ],
+    },
   },
   {
     id: 'cinder_testament',
@@ -120,7 +146,15 @@ export const artifacts: Artifact[] = [
     rarity: 'common',
     flavorText:
       'Reveals the true worth of any object, expressed as the figure its owner would accept on a sufficiently bad day.',
-    power: null,
+    // Issue #82: "when a choice costs you a relic, +15 Followers" —
+    // `watchesEffect`, not `watchesNegative`: `loseArtifact` carries no `v`
+    // to sign. Magnitude is a placeholder; the sim tunes it.
+    power: {
+      kind: 'trigger',
+      when: 'onChoice',
+      watchesEffect: 'loseArtifact',
+      effects: [{ t: 'followers', v: 15 }],
+    },
   },
   {
     id: 'counterfeit_soul',
@@ -129,7 +163,10 @@ export const artifacts: Artifact[] = [
     rarity: 'common',
     flavorText:
       'Not a soul. Indistinguishable from one under examination, which the Hand maintains is the same thing at the point of sale.',
-    power: null,
+    // Issue #82: "the first relic a choice would take is this one" — every
+    // `loseArtifact` names the Soul first, while it is held, instead of a
+    // random pick. See `RelicRules.lossPriorityArtifactId`.
+    power: { kind: 'passive', modifier: { t: 'loseArtifactPriority' } },
   },
   {
     id: 'unpaid_purse',
@@ -155,7 +192,11 @@ export const artifacts: Artifact[] = [
     rarity: 'rare',
     flavorText:
       'Opens one door, once, somewhere. Sold honestly, at a fair price, with the limitation stated in advance, and there has never been a complaint the Hand was obliged to hear.',
-    power: null,
+    // Issue #82: the catalog's fourth active — "redraw this era's offer."
+    // Nothing on `RunState` a card could disclose moves; the salt
+    // `nextOffer` mixes in (`RelicState.offerRedrawSalt`) is the whole
+    // effect. See `redrawsOffer` on `RelicPower` in `src/types.ts`.
+    power: { kind: 'active', effects: [], redrawsOffer: true },
   },
   {
     id: 'gilded_thumb',
@@ -164,7 +205,10 @@ export const artifacts: Artifact[] = [
     rarity: 'rare',
     flavorText:
       'For weighing. It adds exactly as much as is customary, and what is customary has never been written down.',
-    power: null,
+    // Issue #82: "Followers you gain are increased by half" — multiplies a
+    // POSITIVE `followers` effect alone, never a cost. Magnitude is a
+    // placeholder; the sim tunes it.
+    power: { kind: 'passive', modifier: { t: 'followersGainMultiplier', v: 1.5 } },
   },
   {
     id: 'final_ledger',
@@ -192,7 +236,10 @@ export const artifacts: Artifact[] = [
     rarity: 'common',
     flavorText:
       'Writes on any surface and cannot be wiped away by the hand that wrote it. Three lecture halls have been abandoned rather than repainted.',
-    power: null,
+    // Issue #82: "Notoriety decay −1 an era" — a flat, additive reduction,
+    // floored at 0 in `decayFor`. Magnitude is a placeholder; the sim tunes
+    // it.
+    power: { kind: 'passive', modifier: { t: 'decayReduction', v: 1 } },
   },
   {
     id: 'tenure_ring',
@@ -201,7 +248,18 @@ export const artifacts: Artifact[] = [
     rarity: 'common',
     flavorText:
       'Cannot be removed by any force, including the wearer’s employer. That is the entire enchantment.',
-    power: null,
+    // Issue #82, double-edged: "Academy standing held between −50 and +45 —
+    // never sealed, never Archmage." The floor keeps `sealed_in_gem` out of
+    // reach (SEAL_MAX_STANDING is −55); the ceiling keeps DEVOTION_STANDING
+    // (50) out of reach too, so the Academy's reliquary upgrade and its
+    // crown are both capped along with the seal — the trade the ⚔ marks.
+    // Reachable only by a named grant (`isDoubleEdged` derives this from the
+    // narrowed band itself, never an authored flag) — see
+    // `ascent_pale_academy_loan` in `src/content/offers/ascent.ts`.
+    power: {
+      kind: 'passive',
+      modifier: { t: 'standingBand', factionId: 'pale_academy', min: -50, max: 45 },
+    },
   },
   {
     id: 'footnote_that_bites',
@@ -223,7 +281,10 @@ export const artifacts: Artifact[] = [
     rarity: 'rare',
     flavorText:
       'Show what a document will mean once it has been argued over for eleven years. Wearing them is exhausting, and the Academy issues them accordingly.',
-    power: null,
+    // Issue #82: "+10% odds on every gamble" — added directly in
+    // `effectiveOdds`, the same seam the Pale Orrery's `armsForesight`
+    // already uses. Magnitude is a placeholder; the sim tunes it.
+    power: { kind: 'passive', modifier: { t: 'gambleOddsBonus', v: 0.1 } },
   },
   {
     id: 'pale_orrery',
@@ -251,7 +312,15 @@ export const artifacts: Artifact[] = [
     rarity: 'common',
     flavorText:
       'Held by whoever is speaking. The Choir’s entire constitutional order is this stick and an agreement about this stick.',
-    power: null,
+    // Issue #82: "when you answer a Choir offer, +5 Apprentice Loyalty" —
+    // `watchesOfferFaction` reads which CARD the choice was, not its
+    // consequences. Magnitude is a placeholder; the sim tunes it.
+    power: {
+      kind: 'trigger',
+      when: 'onChoice',
+      watchesOfferFaction: 'verdant_choir',
+      effects: [{ t: 'loyalty', v: 5 }],
+    },
   },
   {
     id: 'seed_that_remembers',
@@ -260,7 +329,23 @@ export const artifacts: Artifact[] = [
     rarity: 'common',
     flavorText:
       'Grows into whatever was standing on that spot before. Do not plant it near anything you built.',
-    power: null,
+    // Issue #82: "when a choice costs you a relic, a random common Choir
+    // relic" in the issue's own wording — authored instead as a NAMED grant
+    // of the Mantle of Slow Moss ("grows into whatever was standing on that
+    // spot before" is the Seed's own flavor text, so a specific relic
+    // growing back fits at least as well as a random one). `artifactFrom` is
+    // forbidden inside a relic's own effects (`FORBIDDEN_RELIC_EFFECTS`,
+    // `scripts/validate-content.ts`): `projectReactions`'s preview runs a
+    // trigger's effects through a throwing `NO_RNG`, and a random draw would
+    // crash it — the same reason every other trigger's `effects` in this
+    // catalog is already a fixed grant or a plain magnitude, never a draw.
+    // The same `watchesEffect` gate the Appraiser's Monocle uses.
+    power: {
+      kind: 'trigger',
+      when: 'onChoice',
+      watchesEffect: 'loseArtifact',
+      effects: [{ t: 'artifact', artifactId: 'mantle_of_slow_moss' }],
+    },
   },
   {
     id: 'mantle_of_slow_moss',
@@ -286,7 +371,22 @@ export const artifacts: Artifact[] = [
     rarity: 'rare',
     flavorText:
       'One storm, kept. It is fed weekly, and it does know the difference between you and everyone else in the room.',
-    power: null,
+    // Issue #82, double-edged: "Decline era end → −4 Followers, −3 Hero
+    // Threat" — unconditional (no watch) and pays an ongoing Followers tax
+    // for the Hero Threat relief, every decline era it is held (`isDoubleEdged`
+    // derives the ⚔ from the negative-Followers effect itself, never an
+    // authored flag). Reachable only by a named grant — see
+    // `decline_the_verdant_offer` in `src/content/offers/decline.ts`.
+    // Magnitudes are placeholders; the sim tunes them.
+    power: {
+      kind: 'trigger',
+      when: 'eraEnd',
+      if: [{ c: 'declinePhase' }],
+      effects: [
+        { t: 'followers', v: -4 },
+        { t: 'heroThreat', v: -3 },
+      ],
+    },
   },
   {
     id: 'root_of_the_standing_vote',
@@ -295,7 +395,24 @@ export const artifacts: Artifact[] = [
     rarity: 'rare',
     flavorText:
       'An oak stump entitled to speak in Choir assembly. It has never abstained, and its record on questions of masonry is unbroken.',
-    power: null,
+    // Issue #82: the catalog's first lifeline — "cancels the first faction
+    // reprisal (standing reset to −40)." `covers` names the same six ids
+    // `REPRISAL_BY_FACTION` maps to in `src/engine/endings.ts`, cross-checked
+    // by `scripts/validate-content.ts`. −40 clears every faction's ordinary
+    // SEAL_MAX_STANDING (−55) and the Writ's own widened one (−75) alike,
+    // with headroom.
+    power: {
+      kind: 'lifeline',
+      covers: [
+        'eternally_repurposed',
+        'liquidated',
+        'sealed_in_gem',
+        'turned_to_fertilizer',
+        'exiled_and_overrun',
+        'consumed',
+      ],
+      recovery: { t: 'standingReset', v: -40 },
+    },
   },
   {
     id: 'old_growth_charter',
@@ -322,7 +439,15 @@ export const artifacts: Artifact[] = [
     rarity: 'common',
     flavorText:
       'Certifies that the Crownlands are aware of you and have elected, for the present, to file rather than to act. Renewable annually. Never renewed on time.',
-    power: null,
+    // Issue #82: "the Crownlands' reprisal needs −75, not −55" — read
+    // through `reprisalThresholdFor`, the same function `reprisalEnding`
+    // (`src/engine/endings.ts`) and the header (`src/components/run/
+    // allegiances.ts`) both consult, so the engine's trigger and the
+    // player's warning can never name two different lines.
+    power: {
+      kind: 'passive',
+      modifier: { t: 'reprisalThreshold', factionId: 'crownlands', v: -75 },
+    },
   },
   {
     id: 'confiscated_banner',
@@ -331,7 +456,17 @@ export const artifacts: Artifact[] = [
     rarity: 'common',
     flavorText:
       'Taken from a rebellion the Crown does not concede occurred. It still smells of the field, which the archivists have stopped raising.',
-    power: null,
+    // Issue #82: "when a choice lowers Crownlands standing, +2 Notoriety" —
+    // `watchesFactionId` scopes `watchesNegative` to Crownlands alone,
+    // including a spillover loss from courting one of its enemies. Magnitude
+    // is a placeholder; the sim tunes it.
+    power: {
+      kind: 'trigger',
+      when: 'onChoice',
+      watchesNegative: 'standing',
+      watchesFactionId: 'crownlands',
+      effects: [{ t: 'notoriety', v: 2 }],
+    },
   },
   {
     id: 'portcullis_tooth',
@@ -340,7 +475,15 @@ export const artifacts: Artifact[] = [
     rarity: 'rare',
     flavorText:
       'A single iron spike from the gate at Hollow March, which held for nine days against something that does not appear anywhere in the report.',
-    power: null,
+    // Issue #82: the catalog's second lifeline — "stops the hero's killing
+    // blow once (threat drops to 80% of wards)." Covers only
+    // `slain_by_chosen_one`; the recovery is computed against the CURRENT
+    // wards at the moment it fires, never an authored flat number.
+    power: {
+      kind: 'lifeline',
+      covers: ['slain_by_chosen_one'],
+      recovery: { t: 'threatToWardsFraction', fraction: 0.8 },
+    },
   },
   {
     id: 'sword_that_was_returned',
@@ -349,7 +492,9 @@ export const artifacts: Artifact[] = [
     rarity: 'rare',
     flavorText:
       'A hero’s blade, handed back by the hero, in person, with a short statement the Crown has sealed for two hundred years.',
-    power: null,
+    // Issue #82: the catalog's fifth active — a plain, uncosted relief.
+    // Magnitude is a placeholder; the sim tunes it.
+    power: { kind: 'active', effects: [{ t: 'heroThreat', v: -25 }] },
   },
   {
     id: 'unbroken_line',
@@ -376,7 +521,18 @@ export const artifacts: Artifact[] = [
     rarity: 'common',
     flavorText:
       'Genuine subterranean darkness, portable, still cold from the journey. It keeps for about a century. This one is not fresh.',
-    power: null,
+    // Issue #82: "Once: the first time the hero draws close (warn band),
+    // −10 Hero Threat" — fires at the SAME crossing the era-end block's own
+    // narrated beat marks (`heroBandSeen` advancing past `calm`), never a
+    // second reading of hero threat. See `'heroApproach'` on
+    // `RelicTriggerTiming` in `src/types.ts`. Magnitude is a placeholder;
+    // the sim tunes it.
+    power: {
+      kind: 'trigger',
+      when: 'heroApproach',
+      once: true,
+      effects: [{ t: 'heroThreat', v: -10 }],
+    },
   },
   {
     id: 'shallow_worms_tooth',
@@ -385,7 +541,16 @@ export const artifacts: Artifact[] = [
     rarity: 'common',
     flavorText:
       'From one of the small ones. The Worm Below regards the small ones the way a country regards its coastline: an outer edge, and not the country.',
-    power: null,
+    // Issue #82: "when a choice costs you Followers, +2 Worm standing" —
+    // `watchesNegative` reads the choice's own landed cost, never an ambient
+    // floor a career merely started at. Magnitude is a placeholder; the sim
+    // tunes it.
+    power: {
+      kind: 'trigger',
+      when: 'onChoice',
+      watchesNegative: 'followers',
+      effects: [{ t: 'standing', factionId: 'worm_below', v: 2 }],
+    },
   },
   {
     id: 'patient_lantern',
@@ -394,7 +559,10 @@ export const artifacts: Artifact[] = [
     rarity: 'rare',
     flavorText:
       'It casts no light. It shows you the way regardless, and it does not hurry, and it will go on showing you the way for some time after you have stopped walking.',
-    power: null,
+    // Issue #82: "survives the lich rite, so you keep it and its wards" —
+    // the one relic power that changes what `forfeitForLichdom`
+    // (`src/engine/effects.ts`) takes, rather than a rate or a threshold.
+    power: { kind: 'passive', modifier: { t: 'survivesLichRite' } },
   },
   {
     id: 'second_stomach',
@@ -403,7 +571,10 @@ export const artifacts: Artifact[] = [
     rarity: 'rare',
     flavorText:
       'Yours now. It digests what the first one declined, and it has firm views about the schedule.',
-    power: null,
+    // Issue #82: "choices cost a quarter fewer Followers" — multiplies a
+    // NEGATIVE `followers` effect alone, never a gain (the Gilded Thumb's
+    // own mirror).
+    power: { kind: 'passive', modifier: { t: 'followersCostMultiplier', v: 0.75 } },
   },
   {
     id: 'long_appetite',

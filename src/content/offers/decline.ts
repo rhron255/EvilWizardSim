@@ -1593,8 +1593,15 @@ export const declineOffers: Offer[] = [
         kind: 'gamble',
         label: 'Ask for the deep grove instead',
         odds: 0.35,
+        // The Weather Leash's only route into a career (issue #82,
+        // double-edged — never drawn at random, see `isDoubleEdged` in
+        // `src/engine/effects.ts`). A named grant, not `artifactFrom`: this
+        // used to draw a random rare Verdant Choir relic. Still gated behind
+        // the gamble, same as before — the card discloses it before the
+        // commit either way (a fixed `{ t: 'artifact', … }` grant is
+        // projectable, per `PROJECTABLE` in `src/engine/effects.ts`).
         onSuccess: [
-          { t: 'artifactFrom', factionId: 'verdant_choir', rarity: 'rare' },
+          { t: 'artifact', artifactId: 'weather_leash' },
           { t: 'notoriety', v: 12 },
           { t: 'standing', factionId: 'verdant_choir', v: 10 },
         ],

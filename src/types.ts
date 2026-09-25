@@ -335,15 +335,14 @@ export type Artifact = {
   rarity: Rarity;
   flavorText: string;
   /**
-   * What this relic does, once held — issue #77's power framework, slices
-   * 3-5. `null` means "no power authored yet". Required rather than
-   * optional, the same reasoning `Ending.hint` was made required for: an
-   * optional field here would render blank on every surface that shows a
-   * relic's power (the relic page, the creation screen, the Necrolexicon)
-   * for the 28 relics this slice does not reach, and the compiler would
-   * never say so.
+   * What this relic does, once held — issue #77's power framework,
+   * completed by slice 5 (issue #82). Non-null: every one of the 32 relics
+   * now has a power, and the compiler names any future relic that ships
+   * without one — the same reasoning `Ending.hint` was made required for.
+   * It was `RelicPower | null` through slices 3-4, while most of the
+   * catalog still had nothing authored; see git history for that shape.
    */
-  power: RelicPower | null;
+  power: RelicPower;
 };
 
 // ---------------------------------------------------------------------------
