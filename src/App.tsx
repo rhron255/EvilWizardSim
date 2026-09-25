@@ -166,6 +166,7 @@ export default function App() {
             content={CONTENT}
             onChoose={game.choose}
             onContinue={game.continueAfterResolution}
+            onUseRelic={game.useRelic}
             defense={defense}
             themeId={themeId}
           />

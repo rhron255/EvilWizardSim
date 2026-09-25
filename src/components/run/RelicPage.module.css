@@ -135,6 +135,38 @@
   list-style: none;
 }
 
+/* Styling rule 2: a control the player must find at a glance needs visual
+   weight of its own, not the faint caption tone — same border/pill/brighter-
+   ink pattern `FactionStandings`'s toggle and `DecisionPanel`'s Relics button
+   use. */
+.useButton {
+  display: block;
+  width: fit-content;
+  margin-top: var(--ew-space-2);
+  padding: var(--ew-space-1) var(--ew-space-3);
+  border: 1px solid var(--ew-line-strong);
+  border-radius: var(--ew-radius-pill);
+  font-size: var(--ew-size-xs);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--ew-ink);
+  cursor: pointer;
+  transition: border-color var(--ew-fast) var(--ew-ease), background-color var(--ew-fast) var(--ew-ease);
+}
+
+.useButton:hover,
+.useButton:focus-visible {
+  color: var(--ew-ink-bright);
+  border-color: var(--ew-ink-faint);
+  background: color-mix(in srgb, var(--ew-ink-faint) 12%, var(--ew-void));
+}
+
+.spent {
+  margin: var(--ew-space-2) 0 0;
+  font-size: var(--ew-size-xs);
+  color: var(--ew-ink-faint);
+}
+
 .lostSection {
   display: flex;
   flex-direction: column;

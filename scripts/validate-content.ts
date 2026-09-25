@@ -387,7 +387,7 @@ for (const artifact of artifacts) {
 
   // A signature, not the id — two DIFFERENT relics landing on the exact same
   // power is very likely a copy-paste, not a deliberate design choice, this
-  // early in the catalog (only four powers exist at all).
+  // early in the catalog (ten powers exist at all, as of issue #81).
   const signature = JSON.stringify(power);
   const priorOwner = powerSignatures.get(signature);
   if (priorOwner) {

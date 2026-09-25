@@ -113,7 +113,7 @@ const demoRun: RunState = {
   goodActs: 0,
   illActs: 0,
   goodWizardVowed: false,
-  relicState: { firedOnce: [] },
+  relicState: { firedOnce: [], spent: [], foresight: false },
   eras: demoEras,
   seenOfferIds: demoEras.map((e) => e.offerId),
   ending: 'slain_by_chosen_one',

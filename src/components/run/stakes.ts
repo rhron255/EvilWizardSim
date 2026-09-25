@@ -26,13 +26,14 @@
 import {
   BETRAYAL_MAX_LOYALTY,
   BETRAYAL_MIN_APPRENTICES,
+  canActivateRelic,
   DEF_LAIR,
   DEF_LICH,
   heroBand,
   PACT_LIMIT,
   threatGainFor,
 } from '../../engine';
-import type { DefenseReadout, DefenseTerm } from '../../engine';
+import type { ContentBundle, DefenseReadout, DefenseTerm } from '../../engine';
 import type { RunState } from '../../types';
 
 export type Stake = {
@@ -61,13 +62,29 @@ function followersStake(run: RunState): Stake {
   };
 }
 
-function relicsStake(run: RunState): Stake {
+/**
+ * `content`, optional: every caller that predates issue #81's actives (and
+ * every existing test) omits it and gets the plain count back, unchanged.
+ * When supplied, the value grows a `· N ready` suffix while at least one
+ * held relic's active is unspent — the entry button's own acceptance text
+ * from #81 ("shows '· 1 ready' while one is held").
+ */
+function relicsStake(run: RunState, content?: ContentBundle): Stake {
   const n = run.heldArtifactIds.length;
+  const ready = content ? readyActiveCount(run, content) : 0;
   return {
     label: 'Relics',
-    value: String(n),
+    value: ready > 0 ? `${n} · ${ready} ready` : String(n),
     caption: n === 0 ? 'each one is defence against the hero' : 'your defence against the hero',
   };
+}
+
+function readyActiveCount(run: RunState, content: ContentBundle): number {
+  let n = 0;
+  for (const id of run.heldArtifactIds) {
+    if (canActivateRelic(run, id, content)) n += 1;
+  }
+  return n;
 }
 
 function apprenticesStake(run: RunState): Stake {
@@ -159,10 +176,10 @@ export function lichSentence(run: RunState): string | null {
   return `Undeath adds ${DEF_LICH} Wards · Notoriety no longer decays`;
 }
 
-export function stakesFor(run: RunState): Stake[] {
+export function stakesFor(run: RunState, content?: ContentBundle): Stake[] {
   return [
     followersStake(run),
-    relicsStake(run),
+    relicsStake(run, content),
     apprenticesStake(run),
     loyaltyStake(run),
     pactStake(run),
@@ -264,7 +281,12 @@ function siegeSentence(
   return `he kills you above ${wards} · his threat +${rate} an era · ${clause}`;
 }
 
-export function siegeFor(run: RunState, defense: DefenseReadout): Siege | null {
+/**
+ * `fameThreatMultiplier` mirrors `threatGainFor`'s own default of 1 —
+ * callers with no relic-aware content (every pre-#81 test) get today's rate
+ * unmodified; `DecisionPanel` passes the real one through `relicRules`.
+ */
+export function siegeFor(run: RunState, defense: DefenseReadout, fameThreatMultiplier = 1): Siege | null {
   if (run.phase !== 'decline') return null;
   const raw = defense.total > 0 ? run.heroThreat / defense.total : 0;
   const ratio = Math.max(0, Math.min(1, raw));
@@ -273,7 +295,7 @@ export function siegeFor(run: RunState, defense: DefenseReadout): Siege | null {
   const band = heroBand(run.heroThreat, defense.total);
   const tone: Siege['tone'] = band === 'calm' ? 'calm' : band === 'warn' ? 'warn' : 'danger';
   const wards = Math.round(defense.total);
-  const rate = Math.round(threatGainFor(run));
+  const rate = Math.round(threatGainFor(run, fameThreatMultiplier));
   // Largest first, so `terms[0]` is what is keeping the player alive. This is
   // the field's only consumer and the reason it exists — it was computed and
   // rendered nowhere for a while, which is failure mode 2 in miniature.

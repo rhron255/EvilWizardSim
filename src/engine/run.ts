@@ -35,7 +35,7 @@ import {
 import type { EffectApplication } from './effects';
 import { applyEffects, draftOf, forfeitForLichdom } from './effects';
 import type { RelicEvent } from './relics';
-import { applyChoiceTriggers, applyEraEndTriggers, effectiveOdds } from './relics';
+import { applyChoiceTriggers, applyEraEndTriggers, effectiveOdds, relicRules } from './relics';
 import { projectedEpithet } from './epithets';
 import { deedLineFor } from './deeds';
 import { checkEndings } from './endings';
@@ -137,7 +137,7 @@ export function createRun(opts: CreateRunOptions, content: ContentBundle): RunSt
     goodActs: 0,
     illActs: 0,
     goodWizardVowed: false,
-    relicState: { firedOnce: [] },
+    relicState: { firedOnce: [], spent: [], foresight: false },
     eras: [],
     seenOfferIds: [],
   };
@@ -300,6 +300,14 @@ export function resolveChoice(
 
   // ---- apply -----------------------------------------------------------
   const draft = draftOf(run);
+
+  // Pale Orrery (issue #81): consumed by the NEXT gamble that actually
+  // resolves, whether it wins or loses — `effectiveOdds` already made this
+  // one certain, so the flag's job is done the moment the roll above ran.
+  if (option.kind === 'gamble' && run.relicState.foresight) {
+    draft.relicState.foresight = false;
+  }
+
   const application = applyEffects(draft, effects, rng, content);
 
   // Relics react to what was just chosen — read against the run AFTER the
@@ -341,7 +349,7 @@ export function resolveChoice(
     const decay = decayFor(draft);
     if (decay !== 0) draft.notoriety = clampNotoriety(draft.notoriety - decay);
 
-    const threatGain = threatGainFor(draft);
+    const threatGain = threatGainFor(draft, relicRules(draft, content).fameThreatMultiplier);
     if (threatGain !== 0) {
       draft.heroThreat = clampThreat(draft.heroThreat + threatGain);
     }

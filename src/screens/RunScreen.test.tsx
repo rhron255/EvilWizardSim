@@ -79,7 +79,7 @@ const demoRun: RunState = {
   goodActs: 0,
   illActs: 0,
   goodWizardVowed: false,
-  relicState: { firedOnce: [] },
+  relicState: { firedOnce: [], spent: [], foresight: false },
   eras,
   seenOfferIds: eras.map((e) => e.offerId),
 };
@@ -118,6 +118,7 @@ const show = (
       content={content}
       onChoose={() => {}}
       onContinue={onContinue}
+      onUseRelic={() => {}}
       defense={null}
       themeId={themeId}
     />,

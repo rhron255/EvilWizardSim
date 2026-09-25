@@ -44,7 +44,7 @@ const run = (heldArtifactIds: string[]): RunState =>
     goodActs: 0,
     illActs: 0,
     goodWizardVowed: false,
-    relicState: { firedOnce: [] },
+    relicState: { firedOnce: [], spent: [], foresight: false },
     eras: [],
     seenOfferIds: [],
   }) as RunState;

@@ -9,7 +9,7 @@ import type { DefenseReadout } from '../../engine';
 import type { EraRecord, RunState } from '../../types';
 import { artifacts, factions } from '../../content';
 import { RelicPage } from './RelicPage';
-import { realDeed } from '../../testing/realContent';
+import { realDeed, REAL_CONTENT } from '../../testing/realContent';
 
 const wards = (relicsValue: number): DefenseReadout => ({
   total: 120,
@@ -75,7 +75,7 @@ const baseRun: RunState = {
   goodActs: 0,
   illActs: 0,
   goodWizardVowed: false,
-  relicState: { firedOnce: [] },
+  relicState: { firedOnce: [], spent: [], foresight: false },
   eras,
   seenOfferIds: eras.map((e) => e.offerId),
 };
@@ -101,9 +101,18 @@ const show = (
   run: RunState,
   defense: DefenseReadout | null = wards(6),
   onBack: () => void = () => {},
+  onUseRelic: (id: string) => void = () => {},
 ) =>
   render(
-    <RelicPage run={run} artifacts={artifacts} factions={factions} defense={defense} onBack={onBack} />,
+    <RelicPage
+      run={run}
+      artifacts={artifacts}
+      factions={factions}
+      content={REAL_CONTENT}
+      defense={defense}
+      onBack={onBack}
+      onUseRelic={onUseRelic}
+    />,
   );
 
 describe('RelicPage · held relics', () => {
@@ -216,6 +225,48 @@ describe('RelicPage · the empty state', () => {
     show(allLostRun, wards(0));
     expect(screen.queryByText(/No relics recovered yet/)).toBeNull();
     expect(screen.getByRole('heading', { name: 'Lost this run' })).toBeInTheDocument();
+  });
+});
+
+describe('RelicPage · the Use button (issue #81)', () => {
+  it('shows a Use button for an unspent active relic, and calls onUseRelic with its id', async () => {
+    const holder = {
+      ...baseRun,
+      followers: 100,
+      heldArtifactIds: [...baseRun.heldArtifactIds, 'final_ledger'],
+    } as RunState;
+    const onUseRelic = vi.fn();
+    show(holder, wards(6), () => {}, onUseRelic);
+    const useButton = screen.getByRole('button', { name: 'Use' });
+    await userEvent.click(useButton);
+    expect(onUseRelic).toHaveBeenCalledWith('final_ledger');
+  });
+
+  it('shows no Use button once the active is spent, and says so instead', () => {
+    const holder = {
+      ...baseRun,
+      followers: 100,
+      heldArtifactIds: [...baseRun.heldArtifactIds, 'final_ledger'],
+      relicState: { firedOnce: [], spent: ['final_ledger'], foresight: false },
+    } as RunState;
+    show(holder);
+    expect(screen.queryByRole('button', { name: 'Use' })).toBeNull();
+    expect(screen.getByText('Used this career.')).toBeInTheDocument();
+  });
+
+  it('shows no Use button for an unaffordable active', () => {
+    const holder = {
+      ...baseRun,
+      followers: 5,
+      heldArtifactIds: [...baseRun.heldArtifactIds, 'final_ledger'],
+    } as RunState;
+    show(holder);
+    expect(screen.queryByRole('button', { name: 'Use' })).toBeNull();
+  });
+
+  it('shows no Use button for a relic with an automatic power', () => {
+    show(baseRun); // holds cinder_testament — a trigger, not an active
+    expect(screen.queryByRole('button', { name: 'Use' })).toBeNull();
   });
 });
 

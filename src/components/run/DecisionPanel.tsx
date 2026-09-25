@@ -18,6 +18,7 @@
 
 import { useId, useState } from 'react';
 import type { Ref } from 'react';
+import { relicRules } from '../../engine';
 import type { ContentBundle, DefenseReadout } from '../../engine';
 import type { Artifact, Faction, Offer, RunState } from '../../types';
 import { nextThreatFor, patronFor, reprisalSentence } from './allegiances';
@@ -78,9 +79,10 @@ export function DecisionPanel({
 
   const threat = nextThreatFor(run);
   const patron = patronFor(run, factions);
-  const stakes = stakesFor(run);
+  const stakes = stakesFor(run, content);
   const lich = lichSentence(run);
-  const siege = defense == null ? null : siegeFor(run, defense);
+  const siege =
+    defense == null ? null : siegeFor(run, defense, relicRules(run, content).fameThreatMultiplier);
 
   return (
     <div className={styles.panel}>

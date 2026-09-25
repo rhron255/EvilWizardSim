@@ -47,7 +47,8 @@
  */
 
 import { useEffect, useRef } from 'react';
-import type { DefenseReadout } from '../../engine';
+import { canActivateRelic } from '../../engine';
+import type { ContentBundle, DefenseReadout } from '../../engine';
 import type { Artifact, Faction, RelicPower, RunState } from '../../types';
 import { ArtifactCard, relicPowerText } from '../meta';
 import { EffectList } from './EffectList';
@@ -63,8 +64,15 @@ export type RelicPageProps = {
   run: RunState;
   artifacts: Artifact[];
   factions: Faction[];
+  content: ContentBundle;
   defense?: DefenseReadout | null;
   onBack(): void;
+  /**
+   * Spends a held relic's active power (issue #81). Only ever called for an
+   * artifact `canActivateRelic` currently allows — the Use button below is
+   * the only caller, and it does not render when that check is false.
+   */
+  onUseRelic(artifactId: string): void;
 };
 
 function factionFor(factions: Faction[], id: string): Faction | undefined {
@@ -81,7 +89,15 @@ function descriptionFor(artifact: Artifact, faction: Faction | undefined): strin
   return relicPowerText(artifact.power, { factions: faction && [faction] });
 }
 
-export function RelicPage({ run, artifacts, factions, defense, onBack }: RelicPageProps) {
+export function RelicPage({
+  run,
+  artifacts,
+  factions,
+  content,
+  defense,
+  onBack,
+  onUseRelic,
+}: RelicPageProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   // Focus moves to the page heading on open — the same "the switch was
@@ -159,15 +175,30 @@ export function RelicPage({ run, artifacts, factions, defense, onBack }: RelicPa
         <p className={styles.empty}>{emptyText}</p>
       ) : (
         <ul className={styles.grid}>
-          {held.map((artifact) => (
-            <li key={artifact.id}>
-              <ArtifactCard
-                artifact={artifact}
-                faction={factionFor(factions, artifact.factionId)}
-                showFlavour
-              />
-            </li>
-          ))}
+          {held.map((artifact) => {
+            const isActive = artifact.power?.kind === 'active';
+            const usable = isActive && canActivateRelic(run, artifact.id, content);
+            const spent = isActive && run.relicState.spent.includes(artifact.id);
+            return (
+              <li key={artifact.id}>
+                <ArtifactCard
+                  artifact={artifact}
+                  faction={factionFor(factions, artifact.factionId)}
+                  showFlavour
+                />
+                {usable && (
+                  <button
+                    type="button"
+                    className={styles.useButton}
+                    onClick={() => onUseRelic(artifact.id)}
+                  >
+                    Use
+                  </button>
+                )}
+                {spent && <p className={styles.spent}>Used this career.</p>}
+              </li>
+            );
+          })}
         </ul>
       )}
 

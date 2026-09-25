@@ -60,6 +60,8 @@ export type RunScreenProps = {
   content: ContentBundle;
   onChoose(i: number): void;
   onContinue(): void;
+  /** Spends a held relic's active power (issue #81) from the relic page. */
+  onUseRelic(artifactId: string): void;
   /**
    * Current defence, itemised, from the engine. Passed down rather than
    * computed here so the screen stays presentational. Feeds the decline-phase
@@ -81,6 +83,7 @@ export function RunScreen({
   content,
   onChoose,
   onContinue,
+  onUseRelic,
   defense,
   themeId,
 }: RunScreenProps) {
@@ -144,7 +147,15 @@ export function RunScreen({
         <FactionStandings run={run} factions={factions} />
 
         {view === 'relics' ? (
-          <RelicPage run={run} artifacts={artifacts} factions={factions} defense={defense} onBack={backToDecision} />
+          <RelicPage
+            run={run}
+            artifacts={artifacts}
+            factions={factions}
+            content={content}
+            defense={defense}
+            onBack={backToDecision}
+            onUseRelic={onUseRelic}
+          />
         ) : (
           <DecisionPanel
             run={run}

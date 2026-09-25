@@ -323,7 +323,21 @@ export function loadInProgressRun(): RunState | null {
     clearInProgressRun();
     return null;
   }
-  const run = wrapper.run;
+  // Issue #81 grows `relicState` with `spent`/`foresight`, deliberately with
+  // NO `RUN_SAVE_VERSION` bump ("the shape was already reserved in slice 3" —
+  // #81's own text) — so a save written by slice 3's build still passes
+  // `looksLikeRun` above (it only ever checked `firedOnce`) but arrives here
+  // missing both fields. Defaulted on load rather than added to the shape
+  // check, the same reasoning `emptyCollection`'s own migration defaults use:
+  // a field this additive does not deserve a save-format rejection.
+  const run: RunState = {
+    ...wrapper.run,
+    relicState: {
+      firedOnce: wrapper.run.relicState.firedOnce,
+      spent: wrapper.run.relicState.spent ?? [],
+      foresight: wrapper.run.relicState.foresight ?? false,
+    },
+  };
   if (run.ending) {
     clearInProgressRun();
     return null;

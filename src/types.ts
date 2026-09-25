@@ -362,21 +362,42 @@ export type RelicTriggerTiming =
   /** Evaluated once at the end of every era, independent of what was chosen. */
   | 'eraEnd';
 
-/** What a `passive` power changes about a base rule. One member so far. */
-export type RelicPassiveModifier = {
-  t: 'contagionLossMultiplier';
+/**
+ * What a `passive` power changes about a base rule.
+ *
+ * `contagionLossMultiplier` predates issue #81's `factionId` field (issue
+ * #80's Footnote That Bites, unscoped — it multiplies contagion off ANY
+ * faction's gain). Old-Growth Charter ("gaining CHOIR standing costs its
+ * enemies nothing") needs the narrower reading, so the field is optional and
+ * scopes the multiplier to gains in that one faction alone; omitted keeps
+ * Footnote's own unscoped behaviour unchanged. `relicRules` combines a held
+ * unscoped modifier and a held scoped one multiplicatively for the faction
+ * the scoped one names, same as two unscoped ones already combine.
+ */
+export type RelicPassiveModifier =
+  | {
+      t: 'contagionLossMultiplier';
+      /**
+       * Multiplies `CONTAGION_GAIN` alone — the rate that spills a LOSS onto a
+       * COURTED faction's enemies (`applyStanding`, `src/engine/effects.ts`).
+       * The mirror direction (losing standing with a faction warms its enemies —
+       * a gain for them) uses `CONTAGION_LOSS`, untouched by this multiplier: it
+       * is not a loss to halve. Issue #80 review: this comment previously said
+       * the opposite, which is the same confusion 391b6c6 fixed in the engine
+       * itself — the next reader who trusted this comment over `effects.ts`
+       * would "fix" the engine back to the bug.
+       */
+      v: number;
+      factionId?: FactionId;
+    }
   /**
-   * Multiplies `CONTAGION_GAIN` alone — the rate that spills a LOSS onto a
-   * COURTED faction's enemies (`applyStanding`, `src/engine/effects.ts`).
-   * The mirror direction (losing standing with a faction warms its enemies —
-   * a gain for them) uses `CONTAGION_LOSS`, untouched by this multiplier: it
-   * is not a loss to halve. Issue #80 review: this comment previously said
-   * the opposite, which is the same confusion 391b6c6 fixed in the engine
-   * itself — the next reader who trusted this comment over `effects.ts`
-   * would "fix" the engine back to the bug.
+   * Unbroken Line (issue #81): "your fame feeds the hero's threat at half the
+   * rate." Multiplies `HERO_FAME_COEF * notoriety` alone inside
+   * `threatGainFor` — the ramp-over-time term (`HERO_THREAT_BASE` +
+   * `HERO_THREAT_RAMP`) is untouched, because the relic's own wording names
+   * fame, not the clock.
    */
-  v: number;
-};
+  | { t: 'fameThreatMultiplier'; v: number };
 
 /**
  * What a relic's own power may do to the run — deliberately narrower than
@@ -446,14 +467,54 @@ export type RelicPower =
       watchesPositive?: RelicEffect['t'];
       once?: boolean;
       effects: RelicEffect[];
+      /**
+       * Long Appetite (issue #81): "+1 Notoriety per 10 Followers spent" is
+       * proportional to the choice's own cost, which a fixed `effects` list
+       * cannot express. `watches` reads the same source `watchesPositive`
+       * does — the CHOSEN OPTION's own landed effects, `onChoice` only — for
+       * a NEGATIVE instance of that type; `perUnit` floors its magnitude into
+       * whole units, and `perUnitEffect` is multiplied by that unit count and
+       * applied on top of `effects`. Still fully data, still projectable:
+       * `relics.ts` runs the identical computation in the preview and for
+       * real, the same guarantee `effects` alone already had.
+       */
+      scaled?: {
+        watches: RelicEffect['t'];
+        perUnit: number;
+        /** Constrained to a numeric-magnitude effect — there is a unit count to multiply it by. */
+        perUnitEffect: Extract<RelicEffect, { v: number }>;
+      };
     }
   /**
-   * Deferred to slice 4 (#77): a player-initiated Use button. Declared now so
-   * the union is whole; `activateRelic` and its UI plumbing do not exist in
-   * this slice — building them with no caller would be exactly the "written
-   * but never wired" trap (CLAUDE.md failure mode 2).
+   * A player-initiated Use button (issue #81, slice 4 of #77 — deferred by
+   * slice 3 to avoid the "written but never wired" trap, CLAUDE.md failure
+   * mode 2). `activateRelic` in `src/engine/relics.ts` applies `cost` (if any,
+   * and only if the run can afford it), then `grants`/`armsForesight` (if
+   * either is set), then `effects`, and records the relic in
+   * `RunState.relicState.spent` so it fires at most once per career.
+   *
+   * `grants` and `armsForesight` exist because two real actives need
+   * something `RelicEffect[]` cannot express, structurally rather than by
+   * hard-coding either relic's id in the engine:
+   *
+   *   - Final Ledger: "a random rare relic from your best-standing faction" —
+   *     WHICH faction is decided at the moment of use, not authored.
+   *     `grants: { rarity }` names the rarity; `activateRelic` finds the
+   *     faction and draws.
+   *   - Pale Orrery: "your next gamble succeeds" — a flag on
+   *     `RunState.relicState.foresight`, not a stat `applyEffects` knows how
+   *     to move. `armsForesight: true` sets it.
+   *
+   * Both are still structured data `relicPowerText` can derive a line from,
+   * same as any `RelicEffect` — see `src/components/meta/relicPower.ts`.
    */
-  | { kind: 'active'; cost?: RelicEffect[]; effects: RelicEffect[] }
+  | {
+      kind: 'active';
+      cost?: RelicEffect[];
+      effects: RelicEffect[];
+      grants?: { rarity: Rarity };
+      armsForesight?: boolean;
+    }
   /** Deferred: an automatic one-time save, shaped by whichever relic needs it. */
   | { kind: 'lifeline'; effects: RelicEffect[] };
 
@@ -464,6 +525,21 @@ export type RelicPower =
 export type RelicState = {
   /** Artifact ids whose `once` trigger has already fired this run. */
   firedOnce: string[];
+  /**
+   * Artifact ids whose `active` power has already been used this run (issue
+   * #81). Distinct from `firedOnce`, which tracks an AUTOMATIC trigger's own
+   * one-time firing — an active is player-initiated, and "at most once per
+   * career" is enforced against this list, not that one.
+   */
+  spent: string[];
+  /**
+   * True while the Pale Orrery's "your next gamble succeeds" is armed (issue
+   * #81). Read by `effectiveOdds` (`src/engine/relics.ts`) and cleared by
+   * `resolveChoice` the moment a gamble actually resolves, so it consumes
+   * exactly the next gamble the player rolls, not every gamble for the rest
+   * of the career.
+   */
+  foresight: boolean;
 };
 
 export type Lair = {

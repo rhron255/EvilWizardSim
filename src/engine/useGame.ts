@@ -26,6 +26,7 @@ import { isThemeUnlocked } from '../theme/themes';
 import type { ContentBundle } from './content-port';
 import type { Resolution } from './resolution';
 import { createRun, resolveChoice } from './run';
+import { activateRelic } from './relics';
 import { nextOffer } from './offers';
 import { randomSeed } from './rng';
 import {
@@ -47,6 +48,8 @@ export type Game = {
   begin(): void;
   create(name: string, epithet: string, originId: string, eraCount: number): void;
   choose(optionIndex: number): void;
+  /** Spends a held relic's `active` power (issue #81). A no-op if it cannot be used right now. */
+  useRelic(artifactId: string): void;
   continueAfterResolution(): void;
   acknowledgeProphecy(): void;
   playAgain(): void;
@@ -115,6 +118,7 @@ type Action =
       content: ContentBundle;
     }
   | { type: 'choose'; optionIndex: number; content: ContentBundle }
+  | { type: 'useRelic'; artifactId: string; content: ContentBundle }
   | { type: 'continue'; content: ContentBundle }
   | { type: 'acknowledgeProphecy'; content: ContentBundle }
   | { type: 'playAgain' }
@@ -192,6 +196,14 @@ export function gameReducer(state: GameState, action: Action): GameState {
         resolution,
         prophecyPending: crossedIntoProphecy,
       };
+    }
+
+    case 'useRelic': {
+      // Same double-tap guard `choose` uses: a relic is spent during a live
+      // decision, never mid-resolution or after the run has ended.
+      if (!state.run || state.resolution || state.run.ending) return state;
+      const { next } = activateRelic(state.run, action.artifactId, action.content);
+      return { ...state, run: next };
     }
 
     case 'continue': {
@@ -366,6 +378,11 @@ export function useGame(content: ContentBundle, relicsResetAtBuild = ''): Game {
     [content],
   );
 
+  const useRelic = useCallback(
+    (artifactId: string) => dispatch({ type: 'useRelic', artifactId, content }),
+    [content],
+  );
+
   const continueAfterResolution = useCallback(
     () => dispatch({ type: 'continue', content }),
     [content],
@@ -397,6 +414,7 @@ export function useGame(content: ContentBundle, relicsResetAtBuild = ''): Game {
       begin,
       create,
       choose,
+      useRelic,
       continueAfterResolution,
       acknowledgeProphecy,
       playAgain,
@@ -435,6 +453,7 @@ export function useGame(content: ContentBundle, relicsResetAtBuild = ''): Game {
       begin,
       create,
       choose,
+      useRelic,
       continueAfterResolution,
       acknowledgeProphecy,
       playAgain,
