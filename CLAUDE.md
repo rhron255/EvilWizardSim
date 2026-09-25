@@ -232,6 +232,13 @@ then open the file for the story and the exact check.
    PNGs back**, then repeat at `--width 320 --height 568` for anything with a
    row of controls (failure mode 15). 393px is the target device, not an
    afterthought; 320px is where a row that fit there runs out of room.
+   **Opening or updating a PR for a visual change always attaches the
+   screenshot(s) that prove it** — the same PNGs this step already produces,
+   not a fresh round taken just for the PR. A reviewer approving a UI change
+   from the diff alone is reading `<div>`s, not the screen a player sees; the
+   picture is part of the review, not decoration on it. This applies to every
+   visual change, however small — a copy tweak on an existing screen still
+   gets the screenshot that shows the new copy in place.
 4. New focusable control (button, link, anything a player can Tab to)? Tab to
    it and press Enter/Space before calling it done — a screenshot cannot show
    a keypress (failure mode 15).
