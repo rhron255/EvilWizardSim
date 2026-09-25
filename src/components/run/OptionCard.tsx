@@ -23,7 +23,7 @@ import styles from './OptionCard.module.css';
  * comma-flowed vocabulary the option's own effects already use — no second
  * rendering language invented for it.
  */
-function RelicReactions({
+export function RelicReactions({
   events,
   artifacts,
   factions,
@@ -99,6 +99,18 @@ export type OptionCardProps = {
    * when omitted.
    */
   rawOption?: OfferOption;
+  /**
+   * The odds a gamble actually carries for this run (`effectiveOdds`,
+   * `src/engine/relics.ts`) — what `resolveChoice` rolls against, not
+   * necessarily `option.odds`. Undefined for a test or caller that has not
+   * wired it, which falls back to `option.odds` and renders exactly like
+   * today; a `certain` option ignores this entirely. Wiring it here, rather
+   * than leaving the card to read `option.odds` on its own, is what keeps a
+   * future odds-changing relic from making the printed number and the real
+   * roll two different odds for the same option — the same seam
+   * `effectiveOdds`'s own doc comment describes.
+   */
+  odds?: number;
   /** 0-based. Rendered as the 1-based keycap and used for the number shortcut. */
   index: number;
   artifacts: Artifact[];
@@ -134,6 +146,7 @@ export type OptionCardProps = {
 export function OptionCard({
   option,
   rawOption,
+  odds,
   index,
   artifacts,
   factions,
@@ -143,7 +156,8 @@ export function OptionCard({
   onChoose,
 }: OptionCardProps) {
   const isGamble = option.kind === 'gamble';
-  const successPct = isGamble ? Math.round(option.odds * 100) : 100;
+  const printedOdds = odds ?? (isGamble ? option.odds : 1);
+  const successPct = isGamble ? Math.round(printedOdds * 100) : 100;
   // Merged, not swapped: an unaffordable card keeps every projected effect
   // (contagion rows included) and only its gated stock cost reverts to the
   // authored number. See `withAuthoredStockCosts`.
@@ -200,7 +214,7 @@ export function OptionCard({
         ) : (
           <span className={styles.branches}>
             <span className={styles.branch} data-branch="success">
-              <span className={`${styles.pct} ew-num`}>{formatOdds(priced.odds)}</span>
+              <span className={`${styles.pct} ew-num`}>{formatOdds(printedOdds)}</span>
               <span className={styles.arrow} aria-hidden="true">
                 →
               </span>
@@ -218,7 +232,7 @@ export function OptionCard({
             </span>
 
             <span className={styles.branch} data-branch="failure">
-              <span className={`${styles.pct} ew-num`}>{formatOdds(1 - priced.odds)}</span>
+              <span className={`${styles.pct} ew-num`}>{formatOdds(1 - printedOdds)}</span>
               <span className={styles.arrow} aria-hidden="true">
                 →
               </span>

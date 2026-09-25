@@ -35,7 +35,7 @@ import {
 import type { EffectApplication } from './effects';
 import { applyEffects, draftOf, forfeitForLichdom } from './effects';
 import type { RelicEvent } from './relics';
-import { applyChoiceTriggers, applyEraEndTriggers } from './relics';
+import { applyChoiceTriggers, applyEraEndTriggers, effectiveOdds } from './relics';
 import { projectedEpithet } from './epithets';
 import { deedLineFor } from './deeds';
 import { checkEndings } from './endings';
@@ -279,7 +279,12 @@ export function resolveChoice(
     outcome = 'deterministic';
     effects = option.effects;
   } else {
-    odds = clamp(option.odds, 0, 1);
+    // `effectiveOdds`, not `option.odds` directly — the seam a future
+    // odds-changing relic (#77 slice 5's Spectacles) hooks, so the roll a
+    // player actually faces, the number the card prints, and what a bot in
+    // `scripts/simulate.ts` scores a gamble at can never drift apart onto
+    // three different odds for the same option.
+    odds = clamp(effectiveOdds(run, option), 0, 1);
     roll = rng();
     const succeeded = roll < odds;
     outcome = succeeded ? 'success' : 'failure';

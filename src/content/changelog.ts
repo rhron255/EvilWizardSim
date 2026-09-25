@@ -26,6 +26,8 @@ export const CHANGELOG: Changelog = {
     details: [
       'Each of the four origins grants a named relic with a power of its own, shown on the creation screen and on the relic page.',
       'Your relic collection has been reset once for this update, since starting relics change what counts as familiar.',
+      'Signing a pact now caps one point sooner, since a background relic can already shave a point off it for you.',
+      'A career already in progress when this update lands will need to start over, since how a run saves has changed too.',
     ],
   },
   '2026-09-24T14:00:00Z': {

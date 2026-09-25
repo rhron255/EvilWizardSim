@@ -43,6 +43,22 @@
   text-wrap: pretty;
 }
 
+/* A relic reaction every option produces identically (issue #80 review,
+   styling convention 3) — stated once here rather than once per card. */
+.ambientReactions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ambientReactionsLabel {
+  margin: 0;
+  font-size: var(--ew-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ew-ink-faint);
+}
+
 .options {
   display: flex;
   flex-direction: column;

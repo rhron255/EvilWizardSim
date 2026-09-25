@@ -146,6 +146,32 @@ describe('ResolutionOverlay · a relic the collection has never held', () => {
   });
 });
 
+describe('ResolutionOverlay · a relic the era took', () => {
+  /**
+   * `Resolution.artifactsLost` used to land here unread — the card said only
+   * the generic pre-commit "Lose a held relic," even though the roll had
+   * already named exactly which one (issue #80 review). This pins that the
+   * name actually reaches the screen.
+   */
+  it('names the relic the roll actually took', () => {
+    show([], { artifactsGained: [], artifactsLost: [artifacts[0]] });
+    expect(screen.getByText('Lost this era')).toBeInTheDocument();
+    expect(screen.getByText(artifacts[0].name)).toBeInTheDocument();
+  });
+
+  it('says nothing when nothing was lost', () => {
+    show([], { artifactsLost: [] });
+    expect(screen.queryByText('Lost this era')).toBeNull();
+  });
+
+  it('shows a gain and a loss on the same card without conflating them', () => {
+    show([], { artifactsGained: [artifacts[1]], artifactsLost: [artifacts[0]] });
+    expect(screen.getByText(artifacts[1].name)).toBeInTheDocument();
+    expect(screen.getByText(artifacts[0].name)).toBeInTheDocument();
+    expect(screen.getByText('Lost this era')).toBeInTheDocument();
+  });
+});
+
 describe('ResolutionOverlay · while you were elsewhere', () => {
   it('prints the loyalty drift against the threshold it is walking toward', () => {
     show([{ t: 'loyaltyDrift', v: -5, loyalty: 22 }]);

@@ -15,7 +15,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { impliedGatesOf, projectEffects } from '../../engine';
+import { createRun, impliedGatesOf, projectEffects } from '../../engine';
 import type { ContentBundle } from '../../engine';
 import type { Effect, EraRecord, Offer, OfferOption, RunState } from '../../types';
 import * as C from '../../content';
@@ -339,5 +339,65 @@ describe('OfferPanel · affordability', () => {
     expect(affordable).not.toHaveAttribute('aria-label');
     await user.keyboard(String(gatedAt + 1));
     expect(onChoose).toHaveBeenCalledWith(gatedAt);
+  });
+});
+
+describe('OfferPanel · ambient relic reactions (issue #80 review, styling convention 3)', () => {
+  /**
+   * The Mantle of Slow Moss (Self-Taught-in-a-Bog's origin relic) is an
+   * UNCONDITIONAL era-end trigger: it fires the identical reaction whichever
+   * option a player picks. Printing it on every one of three-plus cards is
+   * exactly the repeated disclosure convention 3 bans — it should read once,
+   * ambient to the offer, and the per-card lists should fall silent for it.
+   */
+  it('states an option-invariant era-end reaction once, not once per card', () => {
+    const bogRun = createRun({ wizardName: 'Test', originId: 'bog_autodidact', eraCount: 16, seed: 3 }, content);
+    const offer: Offer = {
+      id: 'test_offer',
+      title: 'Test',
+      body: 'Test.',
+      phase: 'any',
+      options: [
+        { kind: 'certain', label: 'Option A', effects: [{ t: 'notoriety', v: 1 }] },
+        { kind: 'certain', label: 'Option B', effects: [{ t: 'followers', v: 2 }] },
+        {
+          kind: 'gamble',
+          label: 'Option C',
+          odds: 0.5,
+          onSuccess: [{ t: 'notoriety', v: 3 }],
+          onFailure: [{ t: 'notoriety', v: -1 }],
+          successText: 's',
+          failureText: 'f',
+        },
+      ],
+    };
+    show(offer, false, bogRun);
+    expect(screen.getByText('Whatever you choose')).toBeInTheDocument();
+    expect(screen.getAllByText('Mantle of Slow Moss')).toHaveLength(1);
+  });
+
+  it('still attributes an option-DEPENDENT reaction to its own card, not to the ambient line', () => {
+    // Unpaid Purse only tops followers up on a branch that leaves the wizard
+    // under ten — that varies by option (A pushes past the line, B does
+    // not), so the reaction must stay per-card rather than merge into one
+    // ambient line that would falsely promise it either way.
+    const estateRun = createRun(
+      { wizardName: 'Test', originId: 'sold_masters_estate', eraCount: 16, seed: 3 },
+      content,
+    );
+    const poorRun = { ...estateRun, followers: 3 };
+    const offer: Offer = {
+      id: 'test_offer_2',
+      title: 'Test',
+      body: 'Test.',
+      phase: 'any',
+      options: [
+        { kind: 'certain', label: 'Option A', effects: [{ t: 'followers', v: 20 }] },
+        { kind: 'certain', label: 'Option B', effects: [{ t: 'notoriety', v: 1 }] },
+      ],
+    };
+    show(offer, false, poorRun);
+    expect(screen.queryByText('Whatever you choose')).toBeNull();
+    expect(screen.getAllByText('The Unpaid Purse')).toHaveLength(1);
   });
 });

@@ -15,6 +15,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { Effect, Offer, OfferOption, RunState } from '../types';
+import type { ContentBundle } from './content-port';
 import { createRun, resolveChoice } from './run';
 import { applyChoiceTriggers, applyEraEndTriggers, effectiveOdds, projectReactions, relicRules } from './relics';
 import { emptyCollection, recordRun } from './persistence';
@@ -187,6 +188,63 @@ describe('era-end triggers', () => {
   });
 });
 
+describe('fireTriggers · relics never respond to each other', () => {
+  /**
+   * Issue #80 review: `heldTriggers` already snapshots WHO fires before any
+   * of them run (it returns a plain array, so a relic another relic's
+   * effects add or remove mid-pass still gets its fixed turn) — but nothing
+   * did the same for WHETHER each one's `if` is met, so a relic earlier in
+   * `heldArtifactIds` could change draft state a LATER relic's `if` then read
+   * LIVE, arming it within the same pass. That made the ordering of an
+   * unordered array a hidden gameplay input, and contradicted this file's own
+   * header ("relics respond only to your choices and the passing of time,
+   * never to each other").
+   *
+   * Two synthetic era-end relics pin the fix, since no two real ones happen
+   * to interact this way today: A drops followers by 5 unconditionally; B's
+   * `if` requires followers at or under 9 — the same `maxFollowers`
+   * condition the real Unpaid Purse uses. Starting at 12, real play must
+   * never let A's drop arm B in the SAME pass.
+   */
+  it("does not let an earlier relic's effect arm a later relic's `if` within one pass", () => {
+    const syntheticContent: ContentBundle = {
+      ...content,
+      artifacts: [
+        ...content.artifacts,
+        {
+          id: 'test_relic_a',
+          name: 'Test Relic A',
+          factionId: content.artifacts[0].factionId,
+          rarity: 'common',
+          flavorText: 'x',
+          power: { kind: 'trigger', when: 'eraEnd', effects: [{ t: 'followers', v: -5 }] },
+        },
+        {
+          id: 'test_relic_b',
+          name: 'Test Relic B',
+          factionId: content.artifacts[0].factionId,
+          rarity: 'common',
+          flavorText: 'x',
+          power: {
+            kind: 'trigger',
+            when: 'eraEnd',
+            if: [{ c: 'maxFollowers', v: 9 }],
+            effects: [{ t: 'notoriety', v: 1 }],
+          },
+        },
+      ],
+    };
+    const state: RunState = {
+      ...run(ORIGIN.bog, { heldArtifactIds: ['test_relic_a', 'test_relic_b'] }),
+      followers: 12,
+    };
+    const rng = streamFor(state.seed, 'test');
+    const events = applyEraEndTriggers(state, syntheticContent, rng);
+    expect(events.some((e) => e.artifactId === 'test_relic_a')).toBe(true);
+    expect(events.some((e) => e.artifactId === 'test_relic_b')).toBe(false);
+  });
+});
+
 describe('once-only triggers · Ashen Signature', () => {
   it('reacts to the CHOICE raising Pact Debt, not to the ambient run', () => {
     // Inherited a Tower and Its Debts starts pactDebt at 2 from the ORIGIN
@@ -275,6 +333,38 @@ describe('projectReactions · never draws from the rng', () => {
     const state = run(ORIGIN.tower);
     const option: OfferOption = { kind: 'certain', label: 'x', effects: [{ t: 'loseArtifact' }] };
     expect(() => projectReactions(state, option, content)).not.toThrow();
+  });
+});
+
+describe('projectReactions · a relic the SAME option removes', () => {
+  /**
+   * Issue #80 review regression: with only one relic held, `loseArtifact` is
+   * not a coin flip — there is exactly one candidate, so the preview must
+   * treat the loss as certain rather than pretending the relic is still
+   * there. Repro from review: a Self-Taught-in-a-Bog wizard holding only the
+   * (unconditional, era-end) Mantle of Slow Moss picks an option that sells
+   * it off; the card previously still showed the Mantle's standing reaction,
+   * which `resolveChoice` never produces because the relic is already gone
+   * by the time the era-end block runs.
+   */
+  it('shows no era-end reaction for the single relic an option is about to lose, matching resolveChoice', () => {
+    const bog = run(ORIGIN.bog);
+    expect(bog.heldArtifactIds).toEqual(['mantle_of_slow_moss']);
+    const sellsIt: OfferOption = {
+      kind: 'certain',
+      label: 'x',
+      effects: [{ t: 'loseArtifact' }, { t: 'followers', v: 20 }, { t: 'notoriety', v: -2 }],
+    };
+    const offer: Offer = { id: 'o', title: 't', body: 'b', phase: 'any', options: [sellsIt, sellsIt] };
+
+    const preview = projectReactions(bog, sellsIt, content);
+    expect(preview.kind).toBe('certain');
+    const predicted = preview.kind === 'certain' ? preview.events : [];
+    expect(predicted).toEqual([]);
+
+    const { next, resolution } = resolveChoice(bog, offer, 0, content);
+    expect(next.heldArtifactIds).toEqual([]);
+    expect(resolution.relicEvents).toEqual(predicted);
   });
 });
 

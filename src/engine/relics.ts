@@ -25,7 +25,7 @@
  * grant).
  */
 
-import type { Artifact, Effect, OfferOption, RelicPower, RunState } from '../types';
+import type { Artifact, Effect, EndingId, OfferOption, RelicPower, RunState } from '../types';
 import type { ContentBundle } from './content-port';
 import { indexOf } from './content-port';
 import { conditionsMet } from './conditions';
@@ -38,7 +38,9 @@ import type { Rng } from './rng';
 
 export type RelicRules = {
   /**
-   * Multiplies `CONTAGION_LOSS` in `applyStanding` (`effects.ts`). 1 with no
+   * Multiplies `CONTAGION_GAIN` in `applyStanding` (`effects.ts`) — the rate
+   * that spills a LOSS onto a courted faction's enemies, which is what
+   * "the standing lost to contagion is halved" actually means. 1 with no
    * relic held — the neutral default that makes "no relics held" reproduce
    * today's behaviour exactly, per #77's own acceptance bar.
    */
@@ -144,10 +146,23 @@ function fireTriggers(
   choiceEffects?: readonly Effect[],
 ): RelicEvent[] {
   const events: RelicEvent[] = [];
+  // Frozen once, before any relic in this pass fires. `heldTriggers` below
+  // already captures WHO fires this way (it returns a plain array, so the
+  // `for...of` iterates a fixed list even if an earlier relic's effects add
+  // or remove a relic from `draft.heldArtifactIds` mid-pass) — but until now
+  // nothing did the same for WHETHER each one's `if` is met, so a relic
+  // earlier in `heldArtifactIds` order could change draft state that a LATER
+  // relic's `if` then read live, arming it within the same pass. That
+  // contradicts this file's own header ("relics respond only to your choices
+  // and the passing of time, never to each other") and made the ordering of
+  // an unordered array (`heldArtifactIds`) a hidden gameplay input. Every
+  // `if` this pass evaluates now reads the run as it stood walking INTO the
+  // pass, matching what `heldTriggers` already guarantees for `heldArtifactIds`.
+  const snapshot = draftOf(draft);
   for (const { artifact, power } of heldTriggers(draft, content, when)) {
     if (power.once && draft.relicState.firedOnce.includes(artifact.id)) continue;
     if (!watchSatisfied(power, choiceEffects)) continue;
-    if (!conditionsMet(draft, power.if, content)) continue;
+    if (!conditionsMet(snapshot, power.if, content)) continue;
     const application = applyEffects(draft, power.effects, rng, content);
     if (power.once) draft.relicState.firedOnce.push(artifact.id);
     if (application.applied.length > 0) {
@@ -180,23 +195,19 @@ export function applyEraEndTriggers(draft: RunState, content: ContentBundle, rng
 // Projection — what the card should print, before the commit (rule 1)
 // ---------------------------------------------------------------------------
 
-/** Never reached: everything `preview` below feeds `applyEffects` is pre-filtered to exclude these. */
+/** Reached only for a deterministic `loseArtifact` — see `DETERMINISTIC_LOSS_RNG`. */
 const NO_RNG: Rng = () => {
   throw new Error('projectReactions: a relic reaction must not draw from the rng');
 };
 
 /**
- * The only two `Effect` cases `applyEffects` ever draws from the rng for
- * (`effects.ts`). A card's authored list is not restricted to `RelicEffect`
- * — most offers are free to grant or lose a relic — so a preview cannot run
- * the option's FULL effects through `applyEffects` the way `resolveChoice`
- * does with its real seeded stream; it would throw the instant a previewed
- * option happened to carry one of these two, which is common in the real
- * catalog. Excluding them is safe for every relic condition this slice
- * authors (none reads `heldArtifactIds`), the same way `projectEffects`
- * already leaves both un-resolved rather than guessing at a draw.
+ * Safe ONLY when `draft.heldArtifactIds.length` is 0 or 1 at the point
+ * `loseArtifact` is reached: `effects.ts`'s case computes
+ * `Math.floor(rng() * length)`, which is 0 regardless of what this returns
+ * when `length` is 0 or 1, so it introduces no randomness — it exists only to
+ * satisfy the `Rng` type at a call site already proven deterministic below.
  */
-const RNG_EFFECT_TYPES: ReadonlySet<Effect['t']> = new Set(['artifactFrom', 'loseArtifact']);
+const DETERMINISTIC_LOSS_RNG: Rng = () => 0;
 
 export type RelicReactionPreview =
   | { kind: 'certain'; events: RelicEvent[] }
@@ -235,12 +246,34 @@ export function projectReactions(
 ): RelicReactionPreview {
   const preview = (effects: readonly Effect[]): RelicEvent[] => {
     const draft = draftOf(run);
-    const deterministic = effects.filter((e) => !RNG_EFFECT_TYPES.has(e.t));
-    const application = applyEffects(draft, deterministic, NO_RNG, content);
-    const choiceEvents = applyChoiceTriggers(draft, content, NO_RNG, application.applied);
 
-    let endingRequested = application.endingRequested;
-    const riteTaken = application.lichRequested || endingRequested === 'lichdom';
+    // Walked one effect at a time, in order — not handed to `applyEffects` as
+    // one list — so `draft.heldArtifactIds` is correct BEFORE each effect
+    // runs, the same way `resolveChoice`'s single real call naturally is. A
+    // `artifactFrom` draw is always skipped: which relic arrives is
+    // unknowable ahead of the roll, the same reason `projectEffects` leaves
+    // it un-resolved. `loseArtifact` is skipped too, but ONLY when 2+ relics
+    // are held — with at most one held, there is no suspense about which one
+    // is lost, so it runs for real (see `DETERMINISTIC_LOSS_RNG`). Skipping
+    // either means the trigger evaluation below runs against a draft that
+    // still holds a relic the option is about to take, or doesn't yet hold
+    // one it's about to grant — an accepted gap in the same place
+    // `projectEffects` accepts it, not a new one.
+    const appliedEffects: Effect[] = [];
+    let endingRequested: EndingId | undefined;
+    let lichRequested = false;
+    for (const effect of effects) {
+      if (effect.t === 'artifactFrom') continue;
+      if (effect.t === 'loseArtifact' && draft.heldArtifactIds.length >= 2) continue;
+      const rng = effect.t === 'loseArtifact' ? DETERMINISTIC_LOSS_RNG : NO_RNG;
+      const application = applyEffects(draft, [effect], rng, content);
+      appliedEffects.push(...application.applied);
+      if (!endingRequested) endingRequested = application.endingRequested;
+      if (application.lichRequested) lichRequested = true;
+    }
+    const choiceEvents = applyChoiceTriggers(draft, content, NO_RNG, appliedEffects);
+
+    const riteTaken = lichRequested || endingRequested === 'lichdom';
     if (riteTaken && !run.isLich) {
       forfeitForLichdom(draft);
       if (endingRequested === 'lichdom' && run.eraIndex + 1 < run.eraCount) {

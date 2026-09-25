@@ -116,14 +116,22 @@ export function relicPowerText(power: RelicPower, ctx: RelicPowerContext = {}): 
       const timing = power.when === 'eraEnd' ? "every era's end" : 'the choice you make';
       // `watchesPositive` reads the CHOICE's own effects, not the ambient
       // run (see the doc comment on `RelicPower` in `types.ts`) — phrased
-      // distinctly from `if` so the text does not imply the wrong one.
+      // distinctly from `if` so the text does not imply the wrong one. The
+      // two are not mutually exclusive on the type, though: a trigger can
+      // watch the choice AND still gate on ambient state (e.g. a notoriety
+      // floor), and dropping `if` whenever `watchesPositive` happened to be
+      // set was a real disclosure gap — the gate silently vanished from
+      // every surface that renders a power (issue #80 review).
       const watchPhrase = power.watchesPositive
         ? `the choice raises your ${statLabel(power.watchesPositive)}`
         : '';
-      const gate = watchPhrase || ifPhrase(power.if, ctx);
+      const ifClause = ifPhrase(power.if, ctx);
+      const gate = [watchPhrase, ifClause].filter(Boolean).join(' and ');
       const lead =
         power.once && power.watchesPositive
-          ? `Once, the first choice that raises your ${statLabel(power.watchesPositive)}`
+          ? ifClause
+            ? `Once, the first time ${gate}`
+            : `Once, the first choice that raises your ${statLabel(power.watchesPositive)}`
           : power.once
             ? gate
               ? `Once, the first time ${gate}`

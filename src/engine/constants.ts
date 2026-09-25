@@ -397,10 +397,30 @@ export const NOVELTY_BIAS = 6;
  * the relic quietly adds for its holders restores the population figure
  * without touching the relic's own described power ("adds 1 less" is the
  * whole point of holding it) — see `src/content/artifacts.ts` for the power
- * itself. Every other target checked at seeds 1-5 stayed inside its band
- * (Ascension and the rarity-ordering check were already failing on `main`
- * before this slice; see the PR description for the full before/after
- * table).
+ * itself.
+ *
+ * RE-CHECKED (issue #80 review) after 391b6c6 fixed a SEPARATE bug in this
+ * same slice — Footnote That Bites was halving the wrong contagion branch —
+ * which itself moved `No single ending above 45%` (`slain_by_chosen_one`,
+ * 41%->45%) and `Trophy case: mean lairs held 3-5` out of band, and a
+ * reviewer asked whether reverting THIS constant to 7 (since it costs the
+ * ~75% of careers that never hold Ashen Signature a point they did nothing
+ * to deserve) would now recover them instead. MEASURED, seeds 1-5, with
+ * every other fix from that review already applied: reverting to 7 does
+ * not — `slain_by_chosen_one` only inches from 2/5 to 3/5 seeds passing and
+ * `Trophy case` gets WORSE, 3/5 to 0/5 — while `Consumed by the pact, among
+ * the reckless`, the target this constant exists for, collapses back from
+ * 5/5 to 1/5, exactly reproducing the original regression. Both contagion
+ * targets are a consequence of the SEPARATE fix in `effects.ts`, not of this
+ * constant, and PACT_LIMIT is not the lever for them. Staying at 6.
+ *
+ * The ~75% who never see the point back is real and not free of critique —
+ * the reviewer's alternative, a `RelicPassiveModifier` that raises a
+ * HOLDER's own effective ceiling instead of lowering everyone else's, is the
+ * architecturally cleaner fix and worth a future slice; it is a new engine
+ * mechanism (threading an effective limit through the ending check, not a
+ * one-line constant edit), not a same-review fix with a proven-safe
+ * fallback the way this constant's own measurement was.
  */
 export const PACT_LIMIT = 6;
 

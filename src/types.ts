@@ -365,7 +365,16 @@ export type RelicTriggerTiming =
 /** What a `passive` power changes about a base rule. One member so far. */
 export type RelicPassiveModifier = {
   t: 'contagionLossMultiplier';
-  /** Multiplies `CONTAGION_LOSS` alone — a courted faction's spill is untouched. */
+  /**
+   * Multiplies `CONTAGION_GAIN` alone — the rate that spills a LOSS onto a
+   * COURTED faction's enemies (`applyStanding`, `src/engine/effects.ts`).
+   * The mirror direction (losing standing with a faction warms its enemies —
+   * a gain for them) uses `CONTAGION_LOSS`, untouched by this multiplier: it
+   * is not a loss to halve. Issue #80 review: this comment previously said
+   * the opposite, which is the same confusion 391b6c6 fixed in the engine
+   * itself — the next reader who trusted this comment over `effects.ts`
+   * would "fix" the engine back to the bug.
+   */
   v: number;
 };
 

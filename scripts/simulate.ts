@@ -49,6 +49,7 @@ import {
   effectiveOdds,
   isOptionPickable,
   nextOffer,
+  relicRules,
   resolveChoice,
 } from '../src/engine';
 import {
@@ -718,16 +719,23 @@ const HOSTILE_TOWARD = new Map<FactionId, FactionId[]>(
  * `wormAffinity`, with the contagion route added.
  *
  * A gain for a faction hostile to the target costs the target
- * `CONTAGION_GAIN` of it; a LOSS for that faction hands the target
- * `CONTAGION_LOSS` back. Both rates come from `constants.ts`, so a change to
- * the contagion model moves the policy with it instead of leaving a bot
- * playing the old game.
+ * `CONTAGION_GAIN` of it (scaled by `relicRules(run, content)
+ * .contagionLossMultiplier`, exactly as `applyStanding` scales it —
+ * Footnote That Bites halves this route for EVERY faction courted while
+ * held, not only Pale Academy, so a bot that skipped it would price a
+ * pariah/courtier route at twice the damage the engine actually deals for
+ * the ~25% of careers holding it); a LOSS for that faction hands the target
+ * `CONTAGION_LOSS` back, untouched by the multiplier for the same reason
+ * `applyStanding` leaves it untouched. Both rates come from `constants.ts`,
+ * so a change to the contagion model moves the policy with it instead of
+ * leaving a bot playing the old game.
  */
-function spiteOf(effects: readonly Effect[], target: FactionId): number {
+function spiteOf(run: RunState, effects: readonly Effect[], target: FactionId): number {
+  const { contagionLossMultiplier } = relicRules(run, content);
   let total = -standingOf(effects, target);
   for (const enemy of HOSTILE_TOWARD.get(target) ?? []) {
     const v = standingOf(effects, enemy);
-    total += v * (v > 0 ? CONTAGION_GAIN : CONTAGION_LOSS);
+    total += v * (v > 0 ? CONTAGION_GAIN * contagionLossMultiplier : CONTAGION_LOSS);
   }
   return total;
 }
@@ -752,7 +760,7 @@ function spiteOf(effects: readonly Effect[], target: FactionId): number {
 function spiteAffinity(run: RunState, option: OfferOption, target: FactionId, standing: number): number {
   const remaining = Math.max(0, standing - SEAL_MAX_STANDING);
   if (remaining === 0) return 0;
-  const damage = evOf(run, option, (fx) => spiteOf(fx, target));
+  const damage = evOf(run, option, (fx) => spiteOf(run, fx, target));
   return Math.min(damage, remaining);
 }
 
@@ -790,7 +798,7 @@ function devotionAffinity(run: RunState, option: OfferOption, target: FactionId,
   const ceiling = DEVOTION_STANDING + PATRON_MARGIN + 15;
   const remaining = Math.max(0, ceiling - standing);
   if (remaining === 0) return 0;
-  const gain = evOf(run, option, (fx) => -spiteOf(fx, target));
+  const gain = evOf(run, option, (fx) => -spiteOf(run, fx, target));
   return Math.min(gain, remaining);
 }
 
@@ -1114,7 +1122,12 @@ function playRun(
 
   // Mirrors `recordRun` in src/engine/persistence.ts. If that ever stops
   // agreeing with this, the harness is measuring a collection nobody owns.
-  const discovered = new Set(run.heldArtifactIds);
+  // `startingArtifactIds` (issue #80 review) is the one `recordRun` folds in
+  // that this dropped: an origin's own relic grant lands before `run.eras`
+  // has a single entry, so it is otherwise invisible here the moment it is
+  // lost before an era completes — the same gap Codex found in `recordRun`
+  // itself, reproduced by a harness that had drifted out of step with the fix.
+  const discovered = new Set([...run.heldArtifactIds, ...run.startingArtifactIds]);
   for (const era of run.eras) for (const id of era.artifactsGained) discovered.add(id);
 
   const lairIds = new Set(run.eras.map((e) => e.lairId));
@@ -1958,13 +1971,19 @@ function main(): void {
     pct(results.filter((r) => r.discoveredIds.length === 0).length, total),
   );
 
-  // Per-relic fire-rate instrument (issue #80). Every origin relic is held
-  // from era one, so "% of runs" here also reads as "% of runs that reached
-  // this relic's own condition at least once" — the Purse and the Mantle
-  // should read high (their `if`/timing barely gates them), the Signature
-  // should read near the share of runs that ever sign a pact at all, and the
-  // Footnote (a passive, never an event) never appears — it has nothing to
-  // fire, only a rule to bend, so it is intentionally absent from this list.
+  // Per-relic fire-rate instrument (issue #80). Each origin grants ONE
+  // relic, so a run only ever holds its own origin's — never all four — and
+  // "% of runs" (denominator: every run, regardless of origin) tops out near
+  // that origin's own population share (~25% each) no matter how reliably
+  // the relic fires for the wizards who actually hold it. "% of holders"
+  // (denominator: runs whose `discoveredIds` name this relic, which is every
+  // holder — the origin grant lands before `run.eras` exists, so it is
+  // never absent from `discoveredIds`) is the number that actually says
+  // whether the relic's own `if`/timing is gating it: the Purse and the
+  // Mantle should read high there (their gates barely bite), the Signature
+  // should read near the share of ITS holders who ever sign a pact at all,
+  // and the Footnote (a passive, never an event) never appears in this table
+  // at all — it has nothing to fire, only a rule to bend.
   const poweredArtifacts = artifacts.filter((a) => a.power && a.power.kind !== 'passive');
   if (poweredArtifacts.length > 0) {
     console.log(rule());
@@ -1972,7 +1991,11 @@ function main(): void {
       const fires = results.map((r) => r.relicFires[relic.id] ?? 0);
       const totalFires = fires.reduce((a, b) => a + b, 0);
       const runsWithFires = fires.filter((n) => n > 0).length;
-      row(`${relic.name} fires`, `${totalFires} · ${pct(runsWithFires, total)} of runs`);
+      const holders = results.filter((r) => r.discoveredIds.includes(relic.id)).length;
+      row(
+        `${relic.name} fires`,
+        `${totalFires} · ${pct(runsWithFires, total)} of runs · ${pct(runsWithFires, Math.max(1, holders))} of holders`,
+      );
     }
   }
 

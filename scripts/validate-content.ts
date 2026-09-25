@@ -319,19 +319,35 @@ const FORBIDDEN_RELIC_EFFECTS: ReadonlySet<Effect['t']> = new Set([
   'vowGoodWizard',
   'goodAct',
   'illAct',
+  /**
+   * `RelicEffect` (types.ts) does NOT exclude these two at the type level —
+   * only the five above. `applyChoiceTriggers`/`applyEraEndTriggers` run a
+   * relic's own effects through `applyEffects` with a real seeded rng when
+   * `resolveChoice` fires them for real, but `projectReactions` (relics.ts)
+   * previews the SAME call with a throwing `NO_RNG`, because a preview must
+   * never draw from a stream `resolveChoice` hasn't rolled yet (rule 1: the
+   * card can't spoil or guess a reveal). A relic power authoring either of
+   * these would crash the run screen on its very first offer — caught in
+   * review (PR #87) before any relic actually used one, which is exactly
+   * what this check exists to keep true.
+   */
+  'artifactFrom',
+  'loseArtifact',
 ]);
 
 /**
- * `RelicEffect` already excludes these five at the TYPE level (see
- * `src/types.ts`), so this can only fire past a cast or an unchecked JS
- * caller — belt-and-suspenders for the one rule #77 calls out by name: "no
- * relic can touch endings, the rite, the vow, or the hidden Good Wizard
- * counters."
+ * `RelicEffect` excludes five of these seven at the TYPE level (see
+ * `src/types.ts`); the other two (`artifactFrom`, `loseArtifact`) compile
+ * fine but crash the preview path, so this is the only thing stopping them —
+ * belt-and-suspenders for the five, load-bearing for the two.
  */
 function checkRelicEffects(where: string, effects: readonly Effect[]) {
   for (const e of effects) {
     if (FORBIDDEN_RELIC_EFFECTS.has(e.t)) {
-      fail(where, `power touches "${e.t}" — relics may never move an ending, the rite, the vow, or a hidden Good Wizard counter`);
+      fail(
+        where,
+        `power touches "${e.t}" — relics may never move an ending, the rite, the vow, a hidden Good Wizard counter, or draw a random relic (the preview path cannot resolve that draw without crashing)`,
+      );
     }
   }
   checkEffects(where, effects);

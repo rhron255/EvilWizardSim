@@ -17,6 +17,7 @@ import type { Resolution } from './resolution';
 import { EffectList } from './EffectList';
 import { artifactName, describeSystemic, endingName, formatOdds, systemicKey } from './effectText';
 import { NotorietyBadge } from './NotorietyBadge';
+import { ArtifactCard } from '../meta';
 import styles from './ResolutionOverlay.module.css';
 
 export type ResolutionOverlayProps = {
@@ -43,6 +44,10 @@ const OUTCOME_WORD: Record<Resolution['outcome'], string> = {
  * this only says out loud which side of it the player landed on.
  */
 const LONG_ODDS = 0.4;
+
+function factionFor(factions: Faction[], id: string): Faction | undefined {
+  return factions.find((f) => f.id === id);
+}
 
 export function ResolutionOverlay({
   resolution,
@@ -244,6 +249,26 @@ export function ResolutionOverlay({
                 </span>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* `artifactsLost` was landing on `Resolution` unread — the card still
+            said only "Lose a held relic," the generic pre-commit phrasing,
+            even after the roll named exactly which one (issue #80 review).
+            `ArtifactCard`'s own `lost` state already has the vocabulary
+            (`RelicPage`'s "Lost this run" section uses the same one); this
+            just points it at what a single era took, right where the
+            equivalent GAIN is shown above. */}
+        {resolution.artifactsLost.length > 0 && (
+          <div className={styles.relicsLost}>
+            <p className={styles.relicsLostLabel}>Lost this era</p>
+            <ul className={styles.relicsLostList}>
+              {resolution.artifactsLost.map((a) => (
+                <li key={a.id}>
+                  <ArtifactCard artifact={a} faction={factionFor(factions, a.factionId)} lost compact />
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
