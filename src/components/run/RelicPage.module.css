@@ -62,29 +62,37 @@
   outline-offset: 4px;
 }
 
-/* The era-end preview that used to sit on the offer card under "Whatever
-   you choose", moved here as a plain "what your relics passively do"
-   summary. */
-.passives {
+/* The compact "name, then effect" line for every held relic — what used to
+   sit on the offer card under "Whatever you choose" for an era-end power
+   alone now covers every relic here, in the same words `ArtifactCard` prints
+   on the fuller card below. Bordered like `Masthead`'s own sections
+   (styling convention 1) so it reads as its own thing, closed off before
+   "Artifacts" begins. */
+.summaryList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-3);
+  margin: 0;
+  padding: 0 0 var(--ew-space-4);
+  border-bottom: 1px solid var(--ew-line);
+  list-style: none;
+}
+
+.summaryItem {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding-bottom: var(--ew-space-4);
-  border-bottom: 1px solid var(--ew-line);
 }
 
-.passivesLabel {
+.summaryName {
   margin: 0;
-  font-size: var(--ew-size-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: var(--ew-ink-faint);
+  font-size: var(--ew-size-sm);
+  font-weight: 500;
+  color: var(--ew-ink-bright);
 }
 
-.wards {
+.summaryEffect {
   margin: 0;
-  padding-bottom: var(--ew-space-4);
-  border-bottom: 1px solid var(--ew-line);
   font-size: var(--ew-size-sm);
   color: var(--ew-ink-dim);
 }
@@ -116,7 +124,10 @@
   border-top: 1px solid var(--ew-line);
 }
 
-.lostHeading {
+/* Shared by "Artifacts" and "Lost this run" — a subsection label one step
+   down from the page heading, the same treatment `.lostHeading` used before
+   "Artifacts" needed the identical style. */
+.subHeading {
   margin: 0;
   font-size: var(--ew-size-xs);
   letter-spacing: 0.14em;

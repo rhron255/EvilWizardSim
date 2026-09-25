@@ -85,13 +85,13 @@ function allBranches(previews: readonly RelicReactionPreview[]): RelicEvent[][] 
  * era-end trigger (the Mantle) fires the same way whatever gets picked, so it
  * is not a consequence of the choice at all. It used to be printed once, here
  * on the offer card, under a "Whatever you choose" label — dropped because it
- * repeated identically on every offer of the run. That disclosure now lives
- * on the Relics page instead (a plain "what your relics passively do"
- * summary, not tied to any one offer — see `projectPassiveReactions`), so
- * this function's only remaining job is what it always also did: keep the
- * same event off every option's OWN card, per CLAUDE.md's styling
- * convention 3 ("if two elements on one screen state the same … consequence,
- * drop whichever copy is not the ambient line for it").
+ * repeated identically on every offer of the run. The Relics page now opens
+ * with a plain "name, then effect" line for every held relic instead (see
+ * `RelicPage`), not tied to any one offer, so this function's only remaining
+ * job is what it always also did: keep the same event off every option's OWN
+ * card, per CLAUDE.md's styling convention 3 ("if two elements on one screen
+ * state the same … consequence, drop whichever copy is not the ambient line
+ * for it").
  *
  * An event that varies by branch (the Purse only tops up on branches that
  * leave followers under ten) or is absent on some — never counts as ambient,

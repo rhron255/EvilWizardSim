@@ -292,21 +292,3 @@ export function projectReactions(
     onFailure: preview(option.onFailure),
   };
 }
-
-/**
- * What a held relic will do at this era's end, read straight off `run` as it
- * stands right now — no offer, no choice. For the Relics page: a plain "what
- * your relics passively do" summary, not a per-choice disclosure surface.
- * Unlike `projectReactions`, this never applies a choice's own effects
- * first, so an era-end trigger whose `if` depends on something only a
- * choice can change may read differently here than what actually lands once
- * the player commits. Accepted deliberately: the offer card no longer
- * carries this preview at all (it used to, once per offer, under a
- * "Whatever you choose" line — dropped for repeating identically every
- * era), and the resolution screen's own "Your relics" section (`RelicEvent`,
- * applied for real) still states the true numbers after the fact — this
- * page is a between-choices summary, not rule 1's pre-commit guarantee.
- */
-export function projectPassiveReactions(run: RunState, content: ContentBundle): RelicEvent[] {
-  return applyEraEndTriggers(draftOf(run), content, NO_RNG);
-}

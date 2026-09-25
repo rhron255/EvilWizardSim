@@ -22,10 +22,10 @@ import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
   '2026-09-25T10:00:00Z': {
-    summary: 'Relics that act on their own now say so on the Relics page, not on every card.',
+    summary: 'The Relics page now opens with what every relic you hold actually does.',
     details: [
       'A relic that does something every era no matter what you pick used to repeat that line under every single offer.',
-      'It now shows once, at the top of the Relics page, under Passive effects this era.',
+      'The Relics page now opens with your total wards and a plain summary of every held relic and its effect, with the full cards below.',
     ],
   },
   '2026-09-25T09:00:00Z': {

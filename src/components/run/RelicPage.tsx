@@ -21,32 +21,31 @@
  * grant — never in `eras`, see that field's doc comment in `types.ts`), and
  * the current `heldArtifactIds`, minus whatever is still held.
  *
- * *Amended to drop the offer card's "Whatever you choose" line.* A relic
- * whose era-end trigger fires no matter what gets picked used to print that
- * line, unchanged, on every single offer of the run — repetitive rather than
- * informative once a player had seen it once. That disclosure now lives
- * here instead, at the top of the page, as "Passive effects this era" — a
- * plain summary of what a held relic's era-end power will do, read straight
- * off `run` via `projectPassiveReactions` rather than off any one offer. It
- * is deliberately NOT the same guarantee rule 1 makes for an offer card: a
- * player who never opens this page gets no pre-commit warning, only the
- * resolution screen's own after-the-fact "Your relics" section — an accepted
- * gap, because the numbers this section shows can still depend on
- * conditions a choice might change before era-end actually runs (see
- * `projectPassiveReactions`'s own doc comment).
+ * *Amended to drop the offer card's "Whatever you choose" line, and to fold
+ * the wards figure into this page's own heading.* A relic whose era-end
+ * trigger fires no matter what gets picked used to print that line, unchanged,
+ * on every single offer of the run — repetitive rather than informative once
+ * a player had seen it once. This page now opens with a plain, scannable
+ * summary instead: every held relic's name and its effect, in the same words
+ * `ArtifactCard` already uses (`RELIC_WARDS` plus `relicPowerText`) — not a
+ * per-era computed preview, so it covers every relic, including one with no
+ * power at all or a power that only ever reacts to a choice. The full cards
+ * below, under "Artifacts", are for the player who wants the faction and
+ * flavour too. This is deliberately NOT the same guarantee rule 1 makes for
+ * an offer card: a player who never opens this page gets no pre-commit
+ * warning about an era-end power, only the resolution screen's own
+ * after-the-fact "Your relics" section — an accepted gap.
  */
 
 import { useEffect, useRef } from 'react';
-import type { ContentBundle, DefenseReadout } from '../../engine';
-import { projectPassiveReactions } from '../../engine';
+import type { DefenseReadout } from '../../engine';
+import { RELIC_WARDS } from '../../engine';
 import type { Artifact, Faction, RunState } from '../../types';
-import { ArtifactCard } from '../meta';
-import { RelicReactions } from './OptionCard';
+import { ArtifactCard, relicPowerText } from '../meta';
 import styles from './RelicPage.module.css';
 
 export type RelicPageProps = {
   run: RunState;
-  content: ContentBundle;
   artifacts: Artifact[];
   factions: Faction[];
   defense?: DefenseReadout | null;
@@ -57,7 +56,14 @@ function factionFor(factions: Faction[], id: string): Faction | undefined {
   return factions.find((f) => f.id === id);
 }
 
-export function RelicPage({ run, content, artifacts, factions, defense, onBack }: RelicPageProps) {
+/** The same line `ArtifactCard` prints, minus the card: wards, then the power if any. */
+function effectTextFor(artifact: Artifact, faction: Faction | undefined): string {
+  const wards = `Wards +${RELIC_WARDS[artifact.rarity]}.`;
+  if (!artifact.power) return wards;
+  return `${wards} ${relicPowerText(artifact.power, { factions: faction && [faction] })}`;
+}
+
+export function RelicPage({ run, artifacts, factions, defense, onBack }: RelicPageProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   // Focus moves to the page heading on open — the same "the switch was
@@ -66,8 +72,6 @@ export function RelicPage({ run, content, artifacts, factions, defense, onBack }
   useEffect(() => {
     headingRef.current?.focus({ preventScroll: true });
   }, []);
-
-  const passiveReactions = projectPassiveReactions(run, content);
 
   const held = run.heldArtifactIds
     .map((id) => artifacts.find((a) => a.id === id))
@@ -87,6 +91,11 @@ export function RelicPage({ run, content, artifacts, factions, defense, onBack }
 
   const relicsTerm = defense?.terms.find((t) => t.label === 'Relics');
 
+  const emptyText =
+    lost.length > 0
+      ? 'None held right now. The hero has nothing to fear from your walls.'
+      : 'No relics recovered yet. The hero has nothing to fear from your walls.';
+
   return (
     <div className={styles.page}>
       <div className={styles.backBar}>
@@ -96,28 +105,27 @@ export function RelicPage({ run, content, artifacts, factions, defense, onBack }
       </div>
 
       <h2 className={styles.heading} tabIndex={-1} ref={headingRef}>
-        Your relics
+        Your Relics{relicsTerm ? ` (+${Math.round(relicsTerm.value)} Wards)` : ''}
       </h2>
 
-      {passiveReactions.length > 0 && (
-        <div className={styles.passives}>
-          <p className={styles.passivesLabel}>Passive effects this era</p>
-          <RelicReactions events={passiveReactions} artifacts={artifacts} factions={factions} />
-        </div>
+      {held.length > 0 && (
+        <ul className={styles.summaryList} aria-label="Relic summary">
+          {held.map((artifact) => {
+            const faction = factionFor(factions, artifact.factionId);
+            return (
+              <li key={artifact.id} className={styles.summaryItem}>
+                <p className={styles.summaryName}>{artifact.name}</p>
+                <p className={styles.summaryEffect}>{effectTextFor(artifact, faction)}</p>
+              </li>
+            );
+          })}
+        </ul>
       )}
 
-      {relicsTerm && (
-        <p className={styles.wards}>
-          Relics add <span className="ew-num">{Math.round(relicsTerm.value)}</span> to your wards.
-        </p>
-      )}
+      <h3 className={styles.subHeading}>Artifacts</h3>
 
       {held.length === 0 ? (
-        <p className={styles.empty}>
-          {lost.length > 0
-            ? 'None held right now. The hero has nothing to fear from your walls.'
-            : 'No relics recovered yet. The hero has nothing to fear from your walls.'}
-        </p>
+        <p className={styles.empty}>{emptyText}</p>
       ) : (
         <ul className={styles.grid}>
           {held.map((artifact) => (
@@ -134,7 +142,7 @@ export function RelicPage({ run, content, artifacts, factions, defense, onBack }
 
       {lost.length > 0 && (
         <section className={styles.lostSection}>
-          <h3 className={styles.lostHeading}>Lost this run</h3>
+          <h3 className={styles.subHeading}>Lost this run</h3>
           <ul className={styles.grid}>
             {lost.map((artifact) => (
               <li key={artifact.id}>

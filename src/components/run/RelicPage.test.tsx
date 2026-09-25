@@ -9,7 +9,7 @@ import type { DefenseReadout } from '../../engine';
 import type { EraRecord, RunState } from '../../types';
 import { artifacts, factions } from '../../content';
 import { RelicPage } from './RelicPage';
-import { realDeed, REAL_CONTENT } from '../../testing/realContent';
+import { realDeed } from '../../testing/realContent';
 
 const wards = (relicsValue: number): DefenseReadout => ({
   total: 120,
@@ -103,32 +103,50 @@ const show = (
   onBack: () => void = () => {},
 ) =>
   render(
-    <RelicPage
-      run={run}
-      content={REAL_CONTENT}
-      artifacts={artifacts}
-      factions={factions}
-      defense={defense}
-      onBack={onBack}
-    />,
+    <RelicPage run={run} artifacts={artifacts} factions={factions} defense={defense} onBack={onBack} />,
   );
 
 describe('RelicPage · held relics', () => {
-  it('renders every held relic by name', () => {
+  it('renders every held relic by name, under the Artifacts heading', () => {
     show(baseRun);
+    expect(screen.getByRole('heading', { name: 'Artifacts' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'The Bone Crown' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'The Antler Baton' })).toBeInTheDocument();
   });
 
-  it('prints the wards figure from the passed-down defense readout', () => {
+  it('folds the wards figure from the passed-down defense readout into the page heading', () => {
     show(baseRun, wards(6));
-    expect(screen.getByText(/Relics add/)).toBeInTheDocument();
-    expect(screen.getByText('6')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Your Relics (+6 Wards)' })).toBeInTheDocument();
   });
 
   it('says nothing about wards when no defense readout is supplied', () => {
     show(baseRun, null);
-    expect(screen.queryByText(/Relics add/)).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Your Relics' })).toBeInTheDocument();
+    expect(screen.queryByText(/Wards/, { selector: 'h2' })).toBeNull();
+  });
+});
+
+describe('RelicPage · the relic summary', () => {
+  it('lists every held relic by name with its own effect line', () => {
+    show(baseRun);
+    const summary = screen.getByRole('list', { name: 'Relic summary' });
+    expect(within(summary).getByText('The Bone Crown')).toBeInTheDocument();
+    expect(within(summary).getByText('The Antler Baton')).toBeInTheDocument();
+    // Every held relic adds wards, whether or not it also has a power —
+    // the summary line states that for each one, not just the ones that do.
+    expect(within(summary).getAllByText(/^Wards \+\d+\./).length).toBe(baseRun.heldArtifactIds.length);
+  });
+
+  it('names a relic with a power in its effect line, not just its wards', () => {
+    const run = { ...baseRun, heldArtifactIds: [...baseRun.heldArtifactIds, 'mantle_of_slow_moss'] };
+    show(run);
+    const summary = screen.getByRole('list', { name: 'Relic summary' });
+    expect(within(summary).getByText(/At every era's end: \+2 Standing/)).toBeInTheDocument();
+  });
+
+  it('says nothing when there is nothing held', () => {
+    show({ ...baseRun, heldArtifactIds: [] } as RunState);
+    expect(screen.queryByRole('list', { name: 'Relic summary' })).toBeNull();
   });
 });
 
@@ -185,21 +203,6 @@ describe('RelicPage · the empty state', () => {
   });
 });
 
-describe('RelicPage · passive effects', () => {
-  it('previews an unconditional era-end trigger for a held relic', () => {
-    const run = { ...baseRun, heldArtifactIds: [...baseRun.heldArtifactIds, 'mantle_of_slow_moss'] };
-    show(run);
-    const label = screen.getByText('Passive effects this era');
-    expect(label).toBeInTheDocument();
-    expect(within(label.parentElement!).getByText('Mantle of Slow Moss')).toBeInTheDocument();
-  });
-
-  it('says nothing when no held relic has an era-end power', () => {
-    show(baseRun);
-    expect(screen.queryByText('Passive effects this era')).toBeNull();
-  });
-});
-
 describe('RelicPage · getting back', () => {
   it('has exactly one back control, and it calls back', async () => {
     const onBack = vi.fn();
@@ -213,7 +216,7 @@ describe('RelicPage · getting back', () => {
 
 describe('RelicPage · focus', () => {
   it('moves focus to the page heading on mount', () => {
-    show(baseRun);
-    expect(screen.getByRole('heading', { name: 'Your relics' })).toHaveFocus();
+    show(baseRun, wards(6));
+    expect(screen.getByRole('heading', { name: 'Your Relics (+6 Wards)' })).toHaveFocus();
   });
 });

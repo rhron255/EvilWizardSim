@@ -50,7 +50,7 @@ export {
 export { conditionMet, conditionsMet, impliedGatesOf } from './conditions';
 export { projectEffects } from './effects';
 export type { RelicEvent, RelicReactionPreview, RelicRules } from './relics';
-export { relicRules, effectiveOdds, projectReactions, projectPassiveReactions } from './relics';
+export { relicRules, effectiveOdds, projectReactions } from './relics';
 
 export {
   loadCollection,
