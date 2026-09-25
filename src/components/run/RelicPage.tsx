@@ -18,8 +18,10 @@
  * presentation is not invented a second time here. "Lost this run" is
  * derived exactly the way `EndingScreen` already derives it: the union of
  * every era's `artifactsGained`, `startingArtifactIds` (an origin's own
- * grant — never in `eras`, see that field's doc comment in `types.ts`), and
- * the current `heldArtifactIds`, minus whatever is still held.
+ * grant), `activeGrantedArtifactIds` (an active's own grant, issue #81 —
+ * neither ever lands in `eras`, see either field's doc comment in
+ * `types.ts`), and the current `heldArtifactIds`, minus whatever is still
+ * held.
  *
  * *Amended to drop the offer card's "Whatever you choose" line.* A relic
  * whose era-end trigger fires no matter what gets picked used to print that
@@ -116,6 +118,7 @@ export function RelicPage({
   const everGained = new Set<string>([
     ...run.eras.flatMap((e) => e.artifactsGained),
     ...run.startingArtifactIds,
+    ...run.activeGrantedArtifactIds,
     ...run.heldArtifactIds,
   ]);
   const lost = [...everGained]

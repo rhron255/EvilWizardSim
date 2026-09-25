@@ -59,6 +59,7 @@ const baseRun: RunState = {
     'root_of_the_standing_vote',
   ],
   startingArtifactIds: [],
+  activeGrantedArtifactIds: [],
   heroBandSeen: 0,
   factionStanding: {
     ashen_covenant: 46,
@@ -208,6 +209,17 @@ describe('RelicPage · lost this run', () => {
     const lostSection = screen.getByRole('heading', { name: 'Lost this run' }).closest('section')!;
     expect(within(lostSection).getByRole('heading', { name: 'The Unpaid Purse' })).toBeInTheDocument();
   });
+
+  it('names an active-granted relic that was lost, even though it never appeared in any era record either (issue #81, PR #89 review)', () => {
+    // Final Ledger's own grant lands via `activateRelic`, between eras, never
+    // through `resolveChoice` — `activeGrantedArtifactIds` is the only record
+    // of it, the same shape of gap `startingArtifactIds` closes for an
+    // origin's own grant.
+    const lostRun = { ...baseRun, activeGrantedArtifactIds: ['unpaid_purse'] };
+    show(lostRun);
+    const lostSection = screen.getByRole('heading', { name: 'Lost this run' }).closest('section')!;
+    expect(within(lostSection).getByRole('heading', { name: 'The Unpaid Purse' })).toBeInTheDocument();
+  });
 });
 
 describe('RelicPage · the empty state', () => {
@@ -237,7 +249,7 @@ describe('RelicPage · the Use button (issue #81)', () => {
     } as RunState;
     const onUseRelic = vi.fn();
     show(holder, wards(6), () => {}, onUseRelic);
-    const useButton = screen.getByRole('button', { name: 'Use' });
+    const useButton = screen.getByRole('button', { name: /^Use /i });
     await userEvent.click(useButton);
     expect(onUseRelic).toHaveBeenCalledWith('final_ledger');
   });
@@ -250,7 +262,7 @@ describe('RelicPage · the Use button (issue #81)', () => {
       relicState: { firedOnce: [], spent: ['final_ledger'], foresight: false },
     } as RunState;
     show(holder);
-    expect(screen.queryByRole('button', { name: 'Use' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Use /i })).toBeNull();
     expect(screen.getByText('Used')).toBeInTheDocument();
   });
 
@@ -261,12 +273,12 @@ describe('RelicPage · the Use button (issue #81)', () => {
       heldArtifactIds: [...baseRun.heldArtifactIds, 'final_ledger'],
     } as RunState;
     show(holder);
-    expect(screen.queryByRole('button', { name: 'Use' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Use /i })).toBeNull();
   });
 
   it('shows no Use button for a relic with an automatic power', () => {
     show(baseRun); // holds cinder_testament — a trigger, not an active
-    expect(screen.queryByRole('button', { name: 'Use' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Use /i })).toBeNull();
   });
 });
 

@@ -21,6 +21,7 @@ import { describe, expect, it } from 'vitest';
 import type { Effect, Offer, OfferOption, RunState } from '../types';
 import { createRun, resolveChoice } from './run';
 import { activateRelic, canActivateRelic, projectReactions, relicRules } from './relics';
+import { emptyCollection, recordRun } from './persistence';
 import { REAL_CONTENT as content } from '../testing/realContent';
 
 const BOG_ORIGIN = 'bog_autodidact'; // Mantle of Slow Moss — irrelevant to every test here except as a neutral base.
@@ -216,6 +217,32 @@ describe('activateRelic / canActivateRelic · the catalog\'s first actives', () 
       expect(granted?.factionId).toBe('gilded_hand'); // the best-standing faction
       expect(granted?.rarity).toBe('rare');
       expect(next.heldArtifactIds).toContain(grantedId);
+      // PR #89 review (Codex): the grant has to survive in some record
+      // besides `heldArtifactIds` — an active fires between eras, never
+      // through `resolveChoice`, so `eras[].artifactsGained` never gets an
+      // entry for it. Without `activeGrantedArtifactIds`, losing this relic
+      // later would make it vanish from every "ever held" reconstruction.
+      expect(next.activeGrantedArtifactIds).toEqual([grantedId]);
+    });
+
+    it('survives being lost afterward, in recordRun and in the "ever held" union RelicPage/EndingScreen both use', () => {
+      const flush = run({
+        heldArtifactIds: ['final_ledger'],
+        followers: 40,
+        factionStanding: { ...run().factionStanding, gilded_hand: 30 },
+      });
+      const { next: granted } = activateRelic(flush, 'final_ledger', content);
+      const grantedId = granted.activeGrantedArtifactIds[0];
+      expect(grantedId).toBeDefined();
+
+      // Lost before any era completes — `eras` stays empty, and the relic is
+      // gone from `heldArtifactIds` too, the same shape of gap
+      // `startingArtifactIds` was introduced to close for an origin's grant.
+      const lost: RunState = { ...granted, heldArtifactIds: [], eras: [] };
+      expect(lost.eras.flatMap((e) => e.artifactsGained)).not.toContain(grantedId);
+
+      const collection = recordRun(emptyCollection(), lost, content);
+      expect(collection.discoveredArtifactIds).toContain(grantedId);
     });
 
     it('can never be used twice', () => {

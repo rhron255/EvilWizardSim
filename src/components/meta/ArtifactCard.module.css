@@ -106,9 +106,11 @@
 }
 
 /* A used active leaves its mark in the same slot the button occupied — same
-   turned label, no fill — so the column's shape does not jump the moment
-   it is spent, but the fill still goes with the button rather than lingering
-   on a control that no longer does anything. */
+   shape, same turned label — so the column does not jump the moment it is
+   spent. The fill is fainter than the button's own resting one and the
+   border a step dimmer (`--ew-line`, not `--ew-line-strong`): still enough
+   to read as "this slot used to be a control," never enough to look
+   pressable again. */
 .usedMark {
   flex: 1;
   width: 100%;
@@ -120,6 +122,9 @@
   text-orientation: mixed;
   transform: rotate(180deg);
   padding: var(--ew-space-2) 0;
+  border: 1px solid var(--ew-line);
+  border-radius: var(--ew-radius-pill);
+  background: color-mix(in srgb, var(--ew-ink-faint) 4%, var(--ew-void));
   font-family: var(--ew-font-ui);
   font-size: 0.5625rem;
   font-weight: 500;
@@ -217,6 +222,11 @@
   font-size: var(--ew-size-sm);
   line-height: 1.5;
   color: var(--ew-ink);
+  /* `relicPowerText`'s `active` case (issue #81 review) is the one kind that
+     returns embedded `\n`s — a cost/effect split reads better on its own
+     lines than run together in one sentence. Every other kind's text has
+     none, so this is a no-op for them. */
+  white-space: pre-line;
 }
 
 .flavour {

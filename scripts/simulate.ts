@@ -769,12 +769,14 @@ const HOSTILE_TOWARD = new Map<FactionId, FactionId[]>(
  *
  * A gain for a faction hostile to the target costs the target
  * `CONTAGION_GAIN` of it (scaled by `relicRules(run, content)
- * .contagionLossMultiplierFor(target)`, exactly as `applyStanding` scales
- * it — Footnote That Bites halves this route for EVERY faction courted
- * while held, not only Pale Academy, so a bot that skipped it would price a
- * pariah/courtier route at twice the damage the engine actually deals for
- * the ~25% of careers holding it; Old-Growth Charter, issue #81, zeroes the
- * same route but only for the Verdant Choir); a LOSS for that faction hands the target
+ * .contagionLossMultiplierFor(enemy)` — `enemy` is the faction whose OWN
+ * gain is spilling, exactly what `applyStanding` itself keys the multiplier
+ * by, never `target`, which only ever receives the spillover. Footnote That
+ * Bites halves this route for EVERY faction courted while held, not only
+ * Pale Academy, so a bot that skipped it would price a pariah/courtier
+ * route at twice the damage the engine actually deals for the ~25% of
+ * careers holding it; Old-Growth Charter, issue #81, zeroes the same route
+ * but only when the faction being courted is the Verdant Choir); a LOSS for that faction hands the target
  * `CONTAGION_LOSS` back, untouched by the multiplier for the same reason
  * `applyStanding` leaves it untouched. Both rates come from `constants.ts`,
  * so a change to the contagion model moves the policy with it instead of
@@ -785,7 +787,15 @@ function spiteOf(run: RunState, effects: readonly Effect[], target: FactionId): 
   let total = -standingOf(effects, target);
   for (const enemy of HOSTILE_TOWARD.get(target) ?? []) {
     const v = standingOf(effects, enemy);
-    total += v * (v > 0 ? CONTAGION_GAIN * contagionLossMultiplierFor(target) : CONTAGION_LOSS);
+    // PR #89 review (Codex): `applyStanding` keys the multiplier by the
+    // faction whose OWN gain is spilling — `enemy`, the one actually being
+    // courted directly in this branch — never by `target`, who only
+    // receives the spillover. Old-Growth Charter scopes to Verdant Choir;
+    // reading `target` here would zero contagion whenever a WORM courtier
+    // spills onto the Choir, instead of when a Choir courtier spills onto
+    // its own enemies, which is the exact reversal the relic's own wording
+    // ("gaining CHOIR standing costs its enemies nothing") rules out.
+    total += v * (v > 0 ? CONTAGION_GAIN * contagionLossMultiplierFor(enemy) : CONTAGION_LOSS);
   }
   return total;
 }

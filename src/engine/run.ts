@@ -127,6 +127,7 @@ export function createRun(opts: CreateRunOptions, content: ContentBundle): RunSt
     lairId: index.lairLadder[0]?.id ?? '',
     heldArtifactIds: [],
     startingArtifactIds: [],
+    activeGrantedArtifactIds: [],
     knownArtifactIds: Array.from(new Set(opts.knownArtifactIds ?? [])),
     heroBandSeen: 0,
     factionStanding: emptyStanding(),

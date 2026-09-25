@@ -46,6 +46,7 @@ const demoRunAtProphecy: RunState = {
   heroBandSeen: 0,
   heldArtifactIds: ['bone_crown'],
   startingArtifactIds: [],
+  activeGrantedArtifactIds: [],
   factionStanding: {
     ashen_covenant: 62,
     gilded_hand: 18,

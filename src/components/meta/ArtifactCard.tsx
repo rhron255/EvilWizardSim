@@ -122,7 +122,18 @@ export function ArtifactCard({
         </div>
         {!locked && activeSpent && <span className={styles.usedMark}>Used</span>}
         {!locked && !activeSpent && onUseActive && (
-          <button type="button" className={styles.useButton} onClick={onUseActive}>
+          // PR #89 review: the visible glyph is the single word "Use" on
+          // every card, and a button's accessible name does not inherit the
+          // card's own `<h4>` heading — with two actives held at once, both
+          // buttons would announce identically to a screen reader or voice
+          // control. `aria-label` names which relic without lengthening the
+          // one word sighted players actually read.
+          <button
+            type="button"
+            className={styles.useButton}
+            onClick={onUseActive}
+            aria-label={`Use ${artifact.name}`}
+          >
             Use
           </button>
         )}

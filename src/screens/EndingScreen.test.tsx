@@ -98,6 +98,7 @@ const demoRun: RunState = {
     'antler_baton',
   ],
   startingArtifactIds: [],
+  activeGrantedArtifactIds: [],
   factionStanding: {
     ashen_covenant: 62,
     gilded_hand: 18,

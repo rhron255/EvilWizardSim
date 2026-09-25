@@ -672,6 +672,19 @@ export type RunState = {
    */
   startingArtifactIds: string[];
   /**
+   * Relics granted by an `active` power's own `grants` (issue #81 — Final
+   * Ledger), the same shape of gap `startingArtifactIds` closes for an
+   * origin's grant: `activateRelic` (`src/engine/relics.ts`) fires between
+   * eras, at the player's own choosing, so the grant never lands in any
+   * `EraRecord.artifactsGained`. Without a record of its own, a Final
+   * Ledger relic that was later lost — `loseArtifact`, the lich rite — would
+   * vanish from every "ever held" reconstruction exactly the way an origin
+   * relic used to. `recordRun`, `RelicPage`'s "Lost this run", and
+   * `EndingScreen`'s relic grid all read this alongside `startingArtifactIds`
+   * and `eras[].artifactsGained` for that reason.
+   */
+  activeGrantedArtifactIds: string[];
+  /**
    * Relics this PLAYER has discovered in earlier careers, from the persisted
    * collection. Read-only within a run: it never changes, and it exists so a
    * random draw can prefer something new (see `NOVELTY_BIAS`).

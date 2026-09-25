@@ -166,14 +166,23 @@ export function relicPowerText(power: RelicPower, ctx: RelicPowerContext = {}): 
     }
 
     case 'active': {
-      const costText = power.cost && power.cost.length > 0 ? `${effectsText(power.cost, ctx)} → ` : '';
+      // PR #89 review (rhron255): a header line plus one line each for the
+      // cost and the effect reads better than one long run-on sentence,
+      // especially for Final Ledger's grant, which is already the longest
+      // clause `effectsText` produces. `ArtifactCard`'s `.power` rule is the
+      // one that turns this `\n` into an actual line break (`white-space:
+      // pre-line`) — every other `kind` here returns none, so it is a no-op
+      // for them.
+      const lines = ['Single-use effect. Activate for:'];
+      if (power.cost && power.cost.length > 0) lines.push(effectsText(power.cost, ctx));
       const grantText = power.grants
         ? `a ${power.grants.rarity} relic from your best-standing faction`
         : '';
       const foresightText = power.armsForesight ? 'your next gamble succeeds' : '';
       const effectsPart = power.effects.length > 0 ? effectsText(power.effects, ctx) : '';
       const body = [grantText, foresightText, effectsPart].filter(Boolean).join(', ');
-      return `Active, once: ${costText}${body}.`;
+      lines.push(`${body}.`);
+      return lines.join('\n');
     }
 
     // Not authored yet (deferred to slice 5 of #77) — a generic, honest

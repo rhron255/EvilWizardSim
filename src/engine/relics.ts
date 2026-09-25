@@ -473,6 +473,13 @@ export function activateRelic(
     const relic = drawGrantedRelic(draft, content, rng, power.grants.rarity);
     if (relic) {
       draft.heldArtifactIds.push(relic.id);
+      // PR #89 review (Codex): `eras[].artifactsGained` never gets an entry
+      // for this — an active fires between eras, at the player's own
+      // choosing, not from `resolveChoice` — so without its own record a
+      // Final Ledger grant that is later lost (`loseArtifact`, the lich
+      // rite) would vanish from every "ever held" reconstruction the same
+      // way an origin relic used to before `startingArtifactIds` existed.
+      draft.activeGrantedArtifactIds.push(relic.id);
       applied.push({ t: 'artifact', artifactId: relic.id });
     }
   }
