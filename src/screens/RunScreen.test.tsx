@@ -199,14 +199,14 @@ describe('RunScreen · the relic page', () => {
     const openButton = screen.getByRole('button', { name: /Relics · 5/ });
     await userEvent.click(openButton);
 
-    expect(screen.getByRole('heading', { name: 'Your relics' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Your Relics/ })).toBeInTheDocument();
     // The decision content is gone while the relic page is open.
     expect(screen.queryByRole('heading', { name: demoOffer.title })).toBeNull();
 
     const backButton = screen.getAllByRole('button', { name: /Back to the decision/ })[0];
     await userEvent.click(backButton);
 
-    expect(screen.queryByRole('heading', { name: 'Your relics' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: /Your Relics/ })).toBeNull();
     expect(screen.getByRole('heading', { name: demoOffer.title })).toBeInTheDocument();
   });
 
@@ -221,7 +221,7 @@ describe('RunScreen · the relic page', () => {
     const openButton = screen.getByRole('button', { name: /Relics · 5/ });
     await userEvent.click(openButton);
 
-    expect(screen.getByRole('heading', { name: 'Your relics' })).toHaveFocus();
+    expect(screen.getByRole('heading', { name: /Your Relics/ })).toHaveFocus();
 
     const backButton = screen.getAllByRole('button', { name: /Back to the decision/ })[0];
     await userEvent.click(backButton);
@@ -235,7 +235,7 @@ describe('RunScreen · the relic page', () => {
     openButton.focus();
     await userEvent.keyboard('{Enter}');
 
-    expect(screen.getByRole('heading', { name: 'Your relics' })).toHaveFocus();
+    expect(screen.getByRole('heading', { name: /Your Relics/ })).toHaveFocus();
 
     const backButton = screen.getAllByRole('button', { name: /Back to the decision/ })[0];
     backButton.focus();

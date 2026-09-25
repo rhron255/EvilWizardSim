@@ -347,10 +347,12 @@ describe('OfferPanel · ambient relic reactions (issue #80 review, styling conve
    * The Mantle of Slow Moss (Self-Taught-in-a-Bog's origin relic) is an
    * UNCONDITIONAL era-end trigger: it fires the identical reaction whichever
    * option a player picks. Printing it on every one of three-plus cards is
-   * exactly the repeated disclosure convention 3 bans — it should read once,
-   * ambient to the offer, and the per-card lists should fall silent for it.
+   * exactly the repeated disclosure convention 3 bans. That disclosure moved
+   * to the Relics page entirely (see `RelicPage.test.tsx`), so the offer
+   * card's own job is now just to stay silent about it — on the shared
+   * "Whatever you choose" line (now gone) and on every card alike.
    */
-  it('states an option-invariant era-end reaction once, not once per card', () => {
+  it('omits an option-invariant era-end reaction from the offer card entirely', () => {
     const bogRun = createRun({ wizardName: 'Test', originId: 'bog_autodidact', eraCount: 16, seed: 3 }, content);
     const offer: Offer = {
       id: 'test_offer',
@@ -372,8 +374,8 @@ describe('OfferPanel · ambient relic reactions (issue #80 review, styling conve
       ],
     };
     show(offer, false, bogRun);
-    expect(screen.getByText('Whatever you choose')).toBeInTheDocument();
-    expect(screen.getAllByText('Mantle of Slow Moss')).toHaveLength(1);
+    expect(screen.queryByText('Whatever you choose')).toBeNull();
+    expect(screen.queryByText('Mantle of Slow Moss')).toBeNull();
   });
 
   it('still attributes an option-DEPENDENT reaction to its own card, not to the ambient line', () => {

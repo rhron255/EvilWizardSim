@@ -11,7 +11,7 @@ import type { Artifact, Effect, Faction, Offer, OfferOption, RunState } from '..
 import type { ContentBundle, RelicEvent, RelicReactionPreview } from '../../engine';
 import { conditionMet, effectiveOdds, impliedGatesOf, isOptionPickable, projectReactions } from '../../engine';
 import { describeGate } from './effectText';
-import { OptionCard, RelicReactions } from './OptionCard';
+import { OptionCard } from './OptionCard';
 import styles from './OfferPanel.module.css';
 
 export type OfferPanelProps = {
@@ -83,11 +83,15 @@ function allBranches(previews: readonly RelicReactionPreview[]): RelicEvent[][] 
  * A relic event is AMBIENT for this offer when it lands, with the exact same
  * applied effects, on EVERY branch of EVERY option — an unconditional
  * era-end trigger (the Mantle) fires the same way whatever gets picked, so it
- * is not a consequence of the choice at all. Printing it on every card
- * anyway is exactly what CLAUDE.md's styling convention 3 bans: "if two
- * elements on one screen state the same … consequence, drop whichever copy
- * is not the ambient line for it." This IS that ambient line — rendered once
- * for the whole offer instead of once per card (issue #80 review).
+ * is not a consequence of the choice at all. It used to be printed once, here
+ * on the offer card, under a "Whatever you choose" label — dropped because it
+ * repeated identically on every offer of the run. The Relics page now opens
+ * with a plain "name, then effect" line for every held relic instead (see
+ * `RelicPage`), not tied to any one offer, so this function's only remaining
+ * job is what it always also did: keep the same event off every option's OWN
+ * card, per CLAUDE.md's styling convention 3 ("if two elements on one screen
+ * state the same … consequence, drop whichever copy is not the ambient line
+ * for it").
  *
  * An event that varies by branch (the Purse only tops up on branches that
  * leave followers under ten) or is absent on some — never counts as ambient,
@@ -236,16 +240,6 @@ export function OfferPanel({
           {offer.title}
         </h2>
         <p className={styles.body}>{offer.body}</p>
-
-        {/* Styling convention 3: stated once, here, for whichever option gets
-            picked — never repeated per-card once it no longer distinguishes
-            them (see `ambientReactionsOf`). */}
-        {ambientReactions.length > 0 && (
-          <div className={styles.ambientReactions}>
-            <p className={styles.ambientReactionsLabel}>Whatever you choose</p>
-            <RelicReactions events={ambientReactions} artifacts={artifacts} factions={factions} />
-          </div>
-        )}
       </header>
 
       <div className={styles.options} role="group" aria-label="Choices" ref={listRef}>

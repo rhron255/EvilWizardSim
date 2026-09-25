@@ -21,6 +21,20 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-09-25T10:00:00Z': {
+    summary: 'The Relics page now opens with what every relic you hold actually does.',
+    details: [
+      'A relic that does something every era no matter what you pick used to repeat that line under every single offer.',
+      'The Relics page now opens with your total wards and a plain summary of every held relic and its effect, with the full cards below.',
+    ],
+  },
+  '2026-09-25T09:00:00Z': {
+    summary: 'The Footnote That Bites now describes its power in plain terms.',
+    details: [
+      "Fixed a bug where this relic's passive described itself using a term the game never explains anywhere else.",
+      'It now reads: favoring a faction costs its rivals less standing than usual.',
+    ],
+  },
   '2026-09-24T15:30:00Z': {
     summary: 'Every background now starts with its own relic, fully powered.',
     details: [

@@ -104,7 +104,7 @@ export function relicPowerText(power: RelicPower, ctx: RelicPowerContext = {}): 
       switch (power.modifier.t) {
         case 'contagionLossMultiplier': {
           const pct = Math.round((1 - power.modifier.v) * 100);
-          return `Passive: standing lost to contagion is ${pct}% lower.`;
+          return `Passive: favoring a faction costs its rivals ${pct}% less standing than usual.`;
         }
         default: {
           const exhaustive: never = power.modifier.t;

@@ -48,6 +48,14 @@
   background: color-mix(in srgb, var(--ew-ink-faint) 12%, var(--ew-void));
 }
 
+/* Heading and the wards subtitle sit close together as one title block —
+   `.page`'s own gap already separates this group from what follows. */
+.titleGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-1);
+}
+
 .heading {
   margin: 0;
   font-family: var(--ew-font-display);
@@ -62,11 +70,49 @@
   outline-offset: 4px;
 }
 
-.wards {
+.subtitle {
   margin: 0;
-  padding-bottom: var(--ew-space-4);
-  border-bottom: 1px solid var(--ew-line);
   font-size: var(--ew-size-sm);
+  color: var(--ew-ink-dim);
+}
+
+/* The "name, then effect" block for every held relic, one below the other —
+   what used to sit on the offer card under "Whatever you choose" for an
+   era-end power alone now covers every relic here. Bordered like
+   `Masthead`'s own sections (styling convention 1) so it reads as its own
+   thing, closed off before "Artifacts" begins. The extra `margin-top` is a
+   line break of its own, beyond `.page`'s base gap, so the title block above
+   doesn't read as crowding straight into the summary. */
+.summaryList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-3);
+  margin-top: var(--ew-space-2);
+  padding: 0 0 var(--ew-space-4);
+  border-bottom: 1px solid var(--ew-line);
+}
+
+/* One relic's own name-then-effect pair. A hard line break between the two —
+   `flex-direction: column`, not the flex-wrap ROW an offer card's own
+   `RelicReactions` uses — so a short name and a short effect never land on
+   the same line the way they could there. */
+.summaryItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--ew-size-xs);
+}
+
+.summaryName {
+  margin: 0;
+  font-style: italic;
+  color: var(--ew-ink-faint);
+}
+
+/* A relic with no discrete effect to render tersely (a passive rate change,
+   or a deferred active/lifeline placeholder) falls back to this line. */
+.summaryOtherDesc {
+  margin: 0;
   color: var(--ew-ink-dim);
 }
 
@@ -97,7 +143,10 @@
   border-top: 1px solid var(--ew-line);
 }
 
-.lostHeading {
+/* Shared by "Artifacts" and "Lost this run" — a subsection label one step
+   down from the page heading, the same treatment `.lostHeading` used before
+   "Artifacts" needed the identical style. */
+.subHeading {
   margin: 0;
   font-size: var(--ew-size-xs);
   letter-spacing: 0.14em;

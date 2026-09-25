@@ -20,13 +20,44 @@
  * every era's `artifactsGained`, `startingArtifactIds` (an origin's own
  * grant — never in `eras`, see that field's doc comment in `types.ts`), and
  * the current `heldArtifactIds`, minus whatever is still held.
+ *
+ * *Amended to drop the offer card's "Whatever you choose" line.* A relic
+ * whose era-end trigger fires no matter what gets picked used to print that
+ * line, unchanged, on every single offer of the run — repetitive rather than
+ * informative once a player had seen it once. This page now opens with a
+ * subtitle stating the total wards, then a plain, scannable summary: every
+ * held relic's name on its own line, followed by its EFFECT on the line below
+ * it — a hard break, not the flex-wrap row `RelicReactions` uses on an offer
+ * card (which only drops to a second line when the first is too long to fit,
+ * so a short name and a short effect can still land side by side there; this
+ * summary always stacks the two). The effect itself uses the same
+ * colour-coded, comma-flowed notation `EffectList` already renders for an
+ * ordinary offer's consequences, not the fuller descriptive sentence
+ * `relicPowerText` builds around it (the "At every era's end, if …:" framing
+ * and the gating condition). That fuller sentence still appears once, on the
+ * full card below under "Artifacts" — this summary is the quick version, not
+ * a second copy of the same disclosure. Only a `trigger` power carries a
+ * discrete `Effect[]` to render that way; a `passive` rate change (the only
+ * other kind authored so far) has no such list, so it falls back to its own
+ * prose, and a relic with no power at all gets no effect line. This is
+ * deliberately NOT the same guarantee rule 1 makes for an offer card: a
+ * player who never opens this page gets no pre-commit warning about an
+ * era-end power, only the resolution screen's own after-the-fact "Your
+ * relics" section — an accepted gap.
  */
 
 import { useEffect, useRef } from 'react';
 import type { DefenseReadout } from '../../engine';
-import type { Artifact, Faction, RunState } from '../../types';
-import { ArtifactCard } from '../meta';
+import type { Artifact, Faction, RelicPower, RunState } from '../../types';
+import { ArtifactCard, relicPowerText } from '../meta';
+import { EffectList } from './EffectList';
 import styles from './RelicPage.module.css';
+
+type TriggerPower = Extract<RelicPower, { kind: 'trigger' }>;
+
+function hasTriggerPower(artifact: Artifact): artifact is Artifact & { power: TriggerPower } {
+  return artifact.power?.kind === 'trigger';
+}
 
 export type RelicPageProps = {
   run: RunState;
@@ -38,6 +69,16 @@ export type RelicPageProps = {
 
 function factionFor(factions: Faction[], id: string): Faction | undefined {
   return factions.find((f) => f.id === id);
+}
+
+/**
+ * The descriptive fallback for a relic with no discrete `Effect[]` to render
+ * tersely — a `passive` rate change, or one of the deferred `active`/
+ * `lifeline` placeholders. `null` (no power) has nothing to say at all.
+ */
+function descriptionFor(artifact: Artifact, faction: Faction | undefined): string | null {
+  if (!artifact.power) return null;
+  return relicPowerText(artifact.power, { factions: faction && [faction] });
 }
 
 export function RelicPage({ run, artifacts, factions, defense, onBack }: RelicPageProps) {
@@ -68,6 +109,11 @@ export function RelicPage({ run, artifacts, factions, defense, onBack }: RelicPa
 
   const relicsTerm = defense?.terms.find((t) => t.label === 'Relics');
 
+  const emptyText =
+    lost.length > 0
+      ? 'None held right now. The hero has nothing to fear from your walls.'
+      : 'No relics recovered yet. The hero has nothing to fear from your walls.';
+
   return (
     <div className={styles.page}>
       <div className={styles.backBar}>
@@ -76,22 +122,41 @@ export function RelicPage({ run, artifacts, factions, defense, onBack }: RelicPa
         </button>
       </div>
 
-      <h2 className={styles.heading} tabIndex={-1} ref={headingRef}>
-        Your relics
-      </h2>
+      <div className={styles.titleGroup}>
+        <h2 className={styles.heading} tabIndex={-1} ref={headingRef}>
+          Your Relics
+        </h2>
 
-      {relicsTerm && (
-        <p className={styles.wards}>
-          Relics add <span className="ew-num">{Math.round(relicsTerm.value)}</span> to your wards.
-        </p>
+        {relicsTerm && <p className={styles.subtitle}>+{Math.round(relicsTerm.value)} Wards</p>}
+      </div>
+
+      {held.length > 0 && (
+        <div className={styles.summaryList} role="group" aria-label="Relic summary">
+          {held.map((artifact) => {
+            const faction = factionFor(factions, artifact.factionId);
+            const description = hasTriggerPower(artifact) ? null : descriptionFor(artifact, faction);
+            return (
+              <div key={artifact.id} className={styles.summaryItem}>
+                <p className={styles.summaryName}>{artifact.name}</p>
+                {hasTriggerPower(artifact) && (
+                  <EffectList
+                    effects={artifact.power.effects}
+                    artifacts={artifacts}
+                    factions={factions}
+                    compact
+                  />
+                )}
+                {description && <p className={styles.summaryOtherDesc}>{description}</p>}
+              </div>
+            );
+          })}
+        </div>
       )}
 
+      <h3 className={styles.subHeading}>Artifacts</h3>
+
       {held.length === 0 ? (
-        <p className={styles.empty}>
-          {lost.length > 0
-            ? 'None held right now. The hero has nothing to fear from your walls.'
-            : 'No relics recovered yet. The hero has nothing to fear from your walls.'}
-        </p>
+        <p className={styles.empty}>{emptyText}</p>
       ) : (
         <ul className={styles.grid}>
           {held.map((artifact) => (
@@ -108,7 +173,7 @@ export function RelicPage({ run, artifacts, factions, defense, onBack }: RelicPa
 
       {lost.length > 0 && (
         <section className={styles.lostSection}>
-          <h3 className={styles.lostHeading}>Lost this run</h3>
+          <h3 className={styles.subHeading}>Lost this run</h3>
           <ul className={styles.grid}>
             {lost.map((artifact) => (
               <li key={artifact.id}>

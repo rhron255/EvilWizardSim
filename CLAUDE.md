@@ -219,6 +219,7 @@ then open the file for the story and the exact check.
 | 13 | A derived visual that saturates early | Assert a bar/meter/scale's mapping at the EXTREMES, not a typical value. |
 | 14 | A cost the engine clamps to nothing | Ask what happens at zero whenever an effect spends a countable balance for a fixed benefit. |
 | 15 | Verified at one width, with no hand on the keyboard | Shoot the 393px reference AND 320px; tab to and activate every new focusable control. |
+| 16 | An engine's own name for itself leaks onto the card | `rg` the shipped string for any internal identifier (a mechanic's own name, a constant, a field) before calling player-facing text done. |
 
 ## Working on this
 
@@ -231,6 +232,13 @@ then open the file for the story and the exact check.
    PNGs back**, then repeat at `--width 320 --height 568` for anything with a
    row of controls (failure mode 15). 393px is the target device, not an
    afterthought; 320px is where a row that fit there runs out of room.
+   **Opening or updating a PR for a visual change always attaches the
+   screenshot(s) that prove it** — the same PNGs this step already produces,
+   not a fresh round taken just for the PR. A reviewer approving a UI change
+   from the diff alone is reading `<div>`s, not the screen a player sees; the
+   picture is part of the review, not decoration on it. This applies to every
+   visual change, however small — a copy tweak on an existing screen still
+   gets the screenshot that shows the new copy in place.
 4. New focusable control (button, link, anything a player can Tab to)? Tab to
    it and press Enter/Space before calling it done — a screenshot cannot show
    a keypress (failure mode 15).
@@ -285,3 +293,17 @@ content pack a different argument rather than a different engine.
 Changing what a mechanic does means changing everything describing it in the same
 commit: the KDoc, the wiki page, `README.md`, and any UI caption that states a
 threshold. `rg` the old wording before calling it done.
+
+### The engine's vocabulary is not the player's
+
+`src/engine/` and `src/types.ts` name things for the people maintaining them:
+"contagion", `hostileTo`, `clamp`, `CONTAGION_GAIN`. None of those words are
+ever taught to a player — not in the tutorial, not on any card. Player-facing
+text (a relic power's description, an offer's body or `resultText`, an ending
+hint, a changelog entry) describes the effect a player can observe, in terms
+the rest of the UI already uses (a stat, a faction, a threshold), never the
+mechanism's own internal name. See failure mode 16 (`wiki/07_failure_modes.md`)
+for the shipped example — `relicPower.ts` printed "standing lost to contagion"
+straight from the code comment describing the mechanic. Before calling
+player-facing text done, `rg` the shipped string for any internal
+identifier and rewrite around it if one shows up.
