@@ -20,16 +20,33 @@
  * every era's `artifactsGained`, `startingArtifactIds` (an origin's own
  * grant — never in `eras`, see that field's doc comment in `types.ts`), and
  * the current `heldArtifactIds`, minus whatever is still held.
+ *
+ * *Amended to drop the offer card's "Whatever you choose" line.* A relic
+ * whose era-end trigger fires no matter what gets picked used to print that
+ * line, unchanged, on every single offer of the run — repetitive rather than
+ * informative once a player had seen it once. That disclosure now lives
+ * here instead, at the top of the page, as "Passive effects this era" — a
+ * plain summary of what a held relic's era-end power will do, read straight
+ * off `run` via `projectPassiveReactions` rather than off any one offer. It
+ * is deliberately NOT the same guarantee rule 1 makes for an offer card: a
+ * player who never opens this page gets no pre-commit warning, only the
+ * resolution screen's own after-the-fact "Your relics" section — an accepted
+ * gap, because the numbers this section shows can still depend on
+ * conditions a choice might change before era-end actually runs (see
+ * `projectPassiveReactions`'s own doc comment).
  */
 
 import { useEffect, useRef } from 'react';
-import type { DefenseReadout } from '../../engine';
+import type { ContentBundle, DefenseReadout } from '../../engine';
+import { projectPassiveReactions } from '../../engine';
 import type { Artifact, Faction, RunState } from '../../types';
 import { ArtifactCard } from '../meta';
+import { RelicReactions } from './OptionCard';
 import styles from './RelicPage.module.css';
 
 export type RelicPageProps = {
   run: RunState;
+  content: ContentBundle;
   artifacts: Artifact[];
   factions: Faction[];
   defense?: DefenseReadout | null;
@@ -40,7 +57,7 @@ function factionFor(factions: Faction[], id: string): Faction | undefined {
   return factions.find((f) => f.id === id);
 }
 
-export function RelicPage({ run, artifacts, factions, defense, onBack }: RelicPageProps) {
+export function RelicPage({ run, content, artifacts, factions, defense, onBack }: RelicPageProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   // Focus moves to the page heading on open — the same "the switch was
@@ -49,6 +66,8 @@ export function RelicPage({ run, artifacts, factions, defense, onBack }: RelicPa
   useEffect(() => {
     headingRef.current?.focus({ preventScroll: true });
   }, []);
+
+  const passiveReactions = projectPassiveReactions(run, content);
 
   const held = run.heldArtifactIds
     .map((id) => artifacts.find((a) => a.id === id))
@@ -79,6 +98,13 @@ export function RelicPage({ run, artifacts, factions, defense, onBack }: RelicPa
       <h2 className={styles.heading} tabIndex={-1} ref={headingRef}>
         Your relics
       </h2>
+
+      {passiveReactions.length > 0 && (
+        <div className={styles.passives}>
+          <p className={styles.passivesLabel}>Passive effects this era</p>
+          <RelicReactions events={passiveReactions} artifacts={artifacts} factions={factions} />
+        </div>
+      )}
 
       {relicsTerm && (
         <p className={styles.wards}>

@@ -9,7 +9,7 @@ import type { DefenseReadout } from '../../engine';
 import type { EraRecord, RunState } from '../../types';
 import { artifacts, factions } from '../../content';
 import { RelicPage } from './RelicPage';
-import { realDeed } from '../../testing/realContent';
+import { realDeed, REAL_CONTENT } from '../../testing/realContent';
 
 const wards = (relicsValue: number): DefenseReadout => ({
   total: 120,
@@ -103,7 +103,14 @@ const show = (
   onBack: () => void = () => {},
 ) =>
   render(
-    <RelicPage run={run} artifacts={artifacts} factions={factions} defense={defense} onBack={onBack} />,
+    <RelicPage
+      run={run}
+      content={REAL_CONTENT}
+      artifacts={artifacts}
+      factions={factions}
+      defense={defense}
+      onBack={onBack}
+    />,
   );
 
 describe('RelicPage · held relics', () => {
@@ -175,6 +182,21 @@ describe('RelicPage · the empty state', () => {
     show(allLostRun, wards(0));
     expect(screen.queryByText(/No relics recovered yet/)).toBeNull();
     expect(screen.getByRole('heading', { name: 'Lost this run' })).toBeInTheDocument();
+  });
+});
+
+describe('RelicPage · passive effects', () => {
+  it('previews an unconditional era-end trigger for a held relic', () => {
+    const run = { ...baseRun, heldArtifactIds: [...baseRun.heldArtifactIds, 'mantle_of_slow_moss'] };
+    show(run);
+    const label = screen.getByText('Passive effects this era');
+    expect(label).toBeInTheDocument();
+    expect(within(label.parentElement!).getByText('Mantle of Slow Moss')).toBeInTheDocument();
+  });
+
+  it('says nothing when no held relic has an era-end power', () => {
+    show(baseRun);
+    expect(screen.queryByText('Passive effects this era')).toBeNull();
   });
 });
 

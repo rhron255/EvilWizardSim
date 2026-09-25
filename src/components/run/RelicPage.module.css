@@ -62,6 +62,25 @@
   outline-offset: 4px;
 }
 
+/* The era-end preview that used to sit on the offer card under "Whatever
+   you choose", moved here as a plain "what your relics passively do"
+   summary. */
+.passives {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: var(--ew-space-4);
+  border-bottom: 1px solid var(--ew-line);
+}
+
+.passivesLabel {
+  margin: 0;
+  font-size: var(--ew-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ew-ink-faint);
+}
+
 .wards {
   margin: 0;
   padding-bottom: var(--ew-space-4);

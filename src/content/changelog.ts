@@ -21,6 +21,13 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-09-25T10:00:00Z': {
+    summary: 'Relics that act on their own now say so on the Relics page, not on every card.',
+    details: [
+      'A relic that does something every era no matter what you pick used to repeat that line under every single offer.',
+      'It now shows once, at the top of the Relics page, under Passive effects this era.',
+    ],
+  },
   '2026-09-25T09:00:00Z': {
     summary: 'The Footnote That Bites now describes its power in plain terms.',
     details: [

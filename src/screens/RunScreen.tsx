@@ -144,7 +144,14 @@ export function RunScreen({
         <FactionStandings run={run} factions={factions} />
 
         {view === 'relics' ? (
-          <RelicPage run={run} artifacts={artifacts} factions={factions} defense={defense} onBack={backToDecision} />
+          <RelicPage
+            run={run}
+            content={content}
+            artifacts={artifacts}
+            factions={factions}
+            defense={defense}
+            onBack={backToDecision}
+          />
         ) : (
           <DecisionPanel
             run={run}
