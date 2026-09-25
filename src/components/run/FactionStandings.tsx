@@ -39,22 +39,24 @@
 
 import { useId, useState } from 'react';
 import { allegiancesFor, extremeAllegiances } from './allegiances';
+import type { ContentBundle } from '../../engine';
 import type { Faction, RunState } from '../../types';
 import styles from './FactionStandings.module.css';
 
 export type FactionStandingsProps = {
   run: RunState;
   factions: Faction[];
+  content: ContentBundle;
 };
 
-export function FactionStandings({ run, factions }: FactionStandingsProps) {
+export function FactionStandings({ run, factions, content }: FactionStandingsProps) {
   // Local state, not lifted: this component is mounted for the whole run now
   // that there is no second tab to unmount it — see the doc comment `Ledger`
   // used to carry for why that would once have mattered.
   const [expanded, setExpanded] = useState(false);
   const listId = useId();
 
-  const allegiances = allegiancesFor(run, factions);
+  const allegiances = allegiancesFor(run, factions, content);
   const extremes = extremeAllegiances(allegiances);
   const shown = expanded ? allegiances : extremes;
   const collapsible = allegiances.length > extremes.length;

@@ -48,9 +48,23 @@ export {
   leadershipEnding,
 } from './endings';
 export { conditionMet, conditionsMet, impliedGatesOf } from './conditions';
-export { projectEffects } from './effects';
-export type { ActivateRelicResult, RelicEvent, RelicReactionPreview, RelicRules } from './relics';
-export { activateRelic, canActivateRelic, relicRules, effectiveOdds, projectReactions } from './relics';
+export { projectEffects, isDoubleEdged } from './effects';
+export type {
+  ActivateRelicResult,
+  LifelineOutcome,
+  RelicEvent,
+  RelicReactionPreview,
+  RelicRules,
+  StandingBand,
+} from './relics';
+export {
+  activateRelic,
+  canActivateRelic,
+  relicRules,
+  effectiveOdds,
+  projectReactions,
+  applyLifeline,
+} from './relics';
 
 export {
   loadCollection,

@@ -9,7 +9,7 @@
  * A `+15 Notoriety` that clamped at 99 lands as `+4`, and the UI can say so.
  */
 
-import type { Artifact, Effect, EndingId, FactionId, Rarity, RunState } from '../types';
+import type { Artifact, Effect, EndingId, FactionId, Rarity, RelicEffect, RunState } from '../types';
 import type { ContentBundle, ContentIndex } from './content-port';
 import { indexOf } from './content-port';
 import {
@@ -56,26 +56,81 @@ export function draftOf(run: RunState): RunState {
       firedOnce: run.relicState.firedOnce.slice(),
       spent: run.relicState.spent.slice(),
       foresight: run.relicState.foresight,
+      offerRedrawSalt: run.relicState.offerRedrawSalt,
     },
   };
 }
 
 /**
  * The lich rite's mechanical forfeiture, and nothing else: every held relic
- * and every follower, unconditionally. `run.ts`'s `becomeLich` also reports
- * the loss onto `EffectApplication` for the resolution card; this is the bare
- * state change alone, shared out here so `relics.ts`'s preview can put the
- * SAME draft in front of era-end triggers that `resolveChoice` will (a relic
- * the rite is about to forfeit must not preview an era-end reaction it will
- * never get to fire — issue #80's era-end triggers postdate this rite by one
- * slice, which is how the two went unreconciled).
+ * and every follower, unconditionally — EXCEPT a relic whose own power
+ * `survivesLichRite` (the Patient Lantern, issue #82): "survives the lich
+ * rite, so you keep it and its wards." `run.ts`'s `becomeLich` also reports
+ * the loss onto `EffectApplication` for the resolution card, filtered the
+ * same way so a surviving relic is never named among the losses; this is the
+ * bare state change alone, shared out here so `relics.ts`'s preview can put
+ * the SAME draft in front of era-end triggers that `resolveChoice` will (a
+ * relic the rite is about to forfeit must not preview an era-end reaction it
+ * will never get to fire — issue #80's era-end triggers postdate this rite by
+ * one slice, which is how the two went unreconciled).
  */
-export function forfeitForLichdom(draft: RunState): void {
-  draft.heldArtifactIds = [];
+export function forfeitForLichdom(draft: RunState, content: ContentBundle): void {
+  const rules = relicRules(draft, content);
+  draft.heldArtifactIds = draft.heldArtifactIds.filter((id) => rules.survivesLichRite(id));
   draft.followers = 0;
 }
 
 const RARITY_RANK: Record<Rarity, number> = { common: 0, rare: 1, legendary: 2 };
+
+// ---------------------------------------------------------------------------
+// Double-edged relics (issue #82) — offered by name only, never drawn
+// ---------------------------------------------------------------------------
+
+function isCostEffect(e: RelicEffect): boolean {
+  switch (e.t) {
+    case 'followers':
+    case 'apprentices':
+    case 'loyalty':
+    case 'standing':
+    case 'lairTier':
+      return e.v < 0;
+    default:
+      return false;
+  }
+}
+
+/**
+ * A relic reachable only by a NAMED grant, never by a random draw — the
+ * Tenure Ring and the Weather Leash (issue #82). Derived from the power's own
+ * STRUCTURE, never an authored flag (CLAUDE.md failure mode 4): a
+ * `standingBand` passive that narrows a faction's floor or ceiling past the
+ * ordinary range trades safety for capped upside, and an unconditional
+ * era-end trigger (no watch, no `scaled`) that carries a negative,
+ * cost-shaped effect taxes the holder every era it is held. Either shape is
+ * a price a relic drawn at random should never attach to a career without
+ * the player choosing it by name — see `drawArtifact` below and
+ * `drawGrantedRelic` in `src/engine/relics.ts`, its only two callers.
+ */
+export function isDoubleEdged(artifact: Artifact): boolean {
+  const power = artifact.power;
+  if (!power) return false;
+  if (power.kind === 'passive' && power.modifier.t === 'standingBand') {
+    return power.modifier.max < STANDING_MAX || power.modifier.min > STANDING_MIN;
+  }
+  if (
+    power.kind === 'trigger' &&
+    power.when === 'eraEnd' &&
+    !power.watchesPositive &&
+    !power.watchesNegative &&
+    !power.watchesEffect &&
+    !power.watchesOfferFaction &&
+    !power.watchesGambleFailure &&
+    !power.scaled
+  ) {
+    return power.effects.some(isCostEffect);
+  }
+  return false;
+}
 
 /**
  * Apply `effects` to `draft` in order, mutating it.
@@ -103,8 +158,16 @@ export function applyEffects(
       }
 
       case 'followers': {
+        // Read fresh, same reasoning the `standing` case documents below: an
+        // earlier effect in this same list can change which passives are
+        // held before a later `followers` effect fires. The Gilded Thumb
+        // (issue #82) scales a GAIN alone, the Second Stomach a COST alone —
+        // never both on the same delta, so only one multiplier ever applies.
+        const rules = relicRules(draft, content);
+        const scaled =
+          effect.v > 0 ? effect.v * rules.followersGainMultiplier : effect.v * rules.followersCostMultiplier;
         const before = draft.followers;
-        draft.followers = Math.max(0, Math.round(before + effect.v));
+        draft.followers = Math.max(0, Math.round(before + scaled));
         const delta = draft.followers - before;
         if (delta !== 0) out.applied.push({ t: 'followers', v: delta });
         break;
@@ -115,14 +178,15 @@ export function applyEffects(
         // whole list: an earlier effect in THIS SAME list (an `artifact`
         // grant, a `loseArtifact`) can change which passives are held before
         // a later `standing` effect fires.
-        const { contagionLossMultiplierFor } = relicRules(draft, content);
+        const rules = relicRules(draft, content);
         applyStanding(
           draft,
           effect.factionId,
           effect.v,
           index,
           out.applied,
-          contagionLossMultiplierFor(effect.factionId),
+          rules.contagionLossMultiplierFor(effect.factionId),
+          rules.standingBandFor,
         );
         break;
       }
@@ -150,7 +214,16 @@ export function applyEffects(
 
       case 'loseArtifact': {
         if (draft.heldArtifactIds.length === 0) break;
-        const doomedId = draft.heldArtifactIds[Math.floor(rng() * draft.heldArtifactIds.length)];
+        // The Counterfeit Soul (issue #82): "the first relic a choice would
+        // take is this one." When held, `loseArtifact` names it directly and
+        // never touches `rng` at all — see `lossIsDeterministic`, which is
+        // what lets the projection below resolve this case for real even
+        // with 2+ relics held, as long as the Soul is one of them.
+        const priorityId = relicRules(draft, content).lossPriorityArtifactId;
+        const doomedId =
+          priorityId && draft.heldArtifactIds.includes(priorityId)
+            ? priorityId
+            : draft.heldArtifactIds[Math.floor(rng() * draft.heldArtifactIds.length)];
         draft.heldArtifactIds = draft.heldArtifactIds.filter((id) => id !== doomedId);
         const artifact = index.artifactById.get(doomedId);
         if (artifact) out.artifactsLost.push(artifact);
@@ -275,6 +348,11 @@ export function applyEffects(
  * recursion, no cascades — and each secondary change is pushed onto
  * `applied` so the resolution card shows the whole bill.
  */
+/** `{ min: STANDING_MIN, max: STANDING_MAX }` — every faction's ordinary, unclamped band. */
+function ordinaryStandingBand(): { min: number; max: number } {
+  return { min: STANDING_MIN, max: STANDING_MAX };
+}
+
 export function applyStanding(
   draft: RunState,
   factionId: FactionId,
@@ -293,9 +371,23 @@ export function applyStanding(
    * name this parameter.
    */
   contagionLossMultiplier = 1,
+  /**
+   * The Tenure Ring's own seam (issue #82): a per-faction override of
+   * `[STANDING_MIN, STANDING_MAX]`, read for BOTH the faction this effect
+   * directly targets and every enemy it spills onto below — a relic that
+   * holds a faction's ceiling down must hold it down against contagion too,
+   * not only against a direct grant. Defaults to the ordinary, unclamped
+   * band for every caller that predates relic-authored bands.
+   */
+  standingBandFor: (factionId: FactionId) => { min: number; max: number } = ordinaryStandingBand,
 ): number {
+  const band = standingBandFor(factionId);
   const before = draft.factionStanding[factionId] ?? 0;
-  const after = clamp(Math.round(before + v), STANDING_MIN, STANDING_MAX);
+  const after = clamp(
+    Math.round(before + v),
+    Math.max(STANDING_MIN, band.min),
+    Math.min(STANDING_MAX, band.max),
+  );
   const delta = after - before;
   draft.factionStanding = { ...draft.factionStanding, [factionId]: after };
   if (delta !== 0) applied.push({ t: 'standing', factionId, v: delta });
@@ -307,8 +399,13 @@ export function applyStanding(
     if (enemyId === factionId) continue;
     const spill = -Math.sign(delta) * Math.round(Math.abs(delta) * rate);
     if (spill === 0) continue;
+    const enemyBand = standingBandFor(enemyId);
     const enemyBefore = draft.factionStanding[enemyId] ?? 0;
-    const enemyAfter = clamp(enemyBefore + spill, STANDING_MIN, STANDING_MAX);
+    const enemyAfter = clamp(
+      enemyBefore + spill,
+      Math.max(STANDING_MIN, enemyBand.min),
+      Math.min(STANDING_MAX, enemyBand.max),
+    );
     if (enemyAfter === enemyBefore) continue;
     draft.factionStanding = { ...draft.factionStanding, [enemyId]: enemyAfter };
     applied.push({ t: 'standing', factionId: enemyId, v: enemyAfter - enemyBefore });
@@ -354,7 +451,9 @@ function drawArtifact(
   if (standing <= ARTIFACT_LOCKOUT_STANDING) return undefined;
 
   const held = new Set(draft.heldArtifactIds);
-  const unheld = (index.artifactsByFaction.get(factionId) ?? []).filter((a) => !held.has(a.id));
+  const unheld = (index.artifactsByFaction.get(factionId) ?? []).filter(
+    (a) => !held.has(a.id) && !isDoubleEdged(a),
+  );
   if (unheld.length === 0) return undefined;
 
   // An explicit rarity is an EXACT request: content asking for a legendary is
@@ -509,13 +608,28 @@ const NO_RNG: Rng = () => {
 };
 
 /**
- * Safe ONLY when `draft.heldArtifactIds.length` is 0 or 1 at the point
- * `loseArtifact` is reached: the case above computes
- * `Math.floor(rng() * length)`, which is 0 regardless of what this returns
- * when `length` is 0 or 1 — so it introduces no randomness, it exists only to
- * satisfy the `Rng` type at a call site already proven deterministic.
+ * Safe ONLY when `lossIsDeterministic` says so: either 0 or 1 relic held (the
+ * case above computes `Math.floor(rng() * length)`, which is 0 regardless of
+ * what this returns at that length, so it introduces no randomness), or the
+ * Counterfeit Soul's `loseArtifactPriority` names the target directly and the
+ * case never calls `rng` at all. Exists only to satisfy the `Rng` type at a
+ * call site already proven not to need real randomness.
  */
 const DETERMINISTIC_LOSS_RNG: Rng = () => 0;
+
+/**
+ * Whether THIS draft's `loseArtifact` has a knowable outcome — either too few
+ * relics held for the pick to be a real roll, or the Counterfeit Soul (issue
+ * #82) is held and always names itself first regardless of how many other
+ * relics are held. Shared by `projectEffects` and `relics.ts`'s
+ * `projectReactions`, the two places rule 1 requires the same honest
+ * resolve-or-stay-abstract call.
+ */
+export function lossIsDeterministic(draft: RunState, content: ContentBundle): boolean {
+  if (draft.heldArtifactIds.length <= 1) return true;
+  const priorityId = relicRules(draft, content).lossPriorityArtifactId;
+  return priorityId !== undefined && draft.heldArtifactIds.includes(priorityId);
+}
 
 /**
  * What an option will ACTUALLY do to this run, ready to print on the card.
@@ -557,13 +671,13 @@ export function projectEffects(
 
   for (const effect of effects) {
     // Which relic `loseArtifact` takes is genuinely unpredictable once 2+ are
-    // held — resolving it here would guess at the roll and risk printing a
-    // lie, the same reason `artifactFrom` is never in `PROJECTABLE`. With at
-    // most one held there is no roll to guess, so it runs for real via
-    // `DETERMINISTIC_LOSS_RNG` — not gated through `PROJECTABLE` because
-    // whether it belongs there depends on THIS draft, not the effect's type.
+    // held (unless the Counterfeit Soul settles it — see
+    // `lossIsDeterministic`) — resolving it here otherwise would guess at the
+    // roll and risk printing a lie, the same reason `artifactFrom` is never
+    // in `PROJECTABLE`. Not gated through `PROJECTABLE` because whether it
+    // belongs there depends on THIS draft, not the effect's type.
     if (effect.t === 'loseArtifact') {
-      if (draft.heldArtifactIds.length >= 2) {
+      if (!lossIsDeterministic(draft, content)) {
         out.push(effect);
         continue;
       }

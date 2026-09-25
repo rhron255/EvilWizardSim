@@ -33,8 +33,12 @@ import {
   GOOD_WIZARD_RESOLUTION_GOOD,
   LICH_RELIC_REQUIREMENT,
   PACT_LIMIT,
+  SEAL_MAX_STANDING,
+  STANDING_MAX,
+  STANDING_MIN,
 } from '../src/engine/constants';
 import { pactRoleOf } from '../src/engine/content-port';
+import { isDoubleEdged } from '../src/engine/effects';
 
 const problems: string[] = [];
 const warnings: string[] = [];
@@ -365,18 +369,52 @@ for (const artifact of artifacts) {
     fail(where, `MECHANIC_FOR_POWER_KIND["${power.kind}"] names "${mechanicId}", no such mechanic exists`);
   }
 
-  if (power.kind === 'trigger' || power.kind === 'active' || power.kind === 'lifeline') {
+  if (power.kind === 'trigger' || power.kind === 'active') {
     checkRelicEffects(where, power.effects);
     if (power.kind === 'active' && power.cost) checkRelicEffects(`${where} cost`, power.cost);
   }
   if (power.kind === 'trigger') {
     for (const c of power.if ?? []) checkCondition(where, c);
-    // `watchesPositive` reads the CHOSEN OPTION's own landed effects — there
-    // is no single option to read at era's end, so pairing it with `eraEnd`
+    // A watch that reads the CHOSEN OPTION's own landed effects — there is
+    // no single option to read at era's end, so pairing one with `eraEnd`
     // is a content mistake, not a meaningful power (see `RelicPower`'s doc
     // comment in `src/types.ts`).
-    if (power.watchesPositive && power.when !== 'onChoice') {
-      fail(where, `watchesPositive is only meaningful for an "onChoice" trigger, this one is "${power.when}"`);
+    const onChoiceOnly =
+      power.watchesPositive ||
+      power.watchesNegative ||
+      power.watchesEffect ||
+      power.watchesOfferFaction ||
+      power.watchesGambleFailure;
+    if (onChoiceOnly && power.when !== 'onChoice') {
+      fail(where, `a "watches…" gate is only meaningful for an "onChoice" trigger, this one is "${power.when}"`);
+    }
+    if (power.watchesFactionId && !power.watchesPositive && !power.watchesNegative) {
+      fail(where, `watchesFactionId is set with neither watchesPositive nor watchesNegative to scope`);
+    }
+  }
+  // A lifeline's `covers` and `recovery` are never a plain `RelicEffect`
+  // list (see `LifelineRecovery` in `src/types.ts`) — checked on their own
+  // terms instead of through `checkRelicEffects`.
+  if (power.kind === 'lifeline') {
+    if (power.covers.length === 0) {
+      fail(where, 'a lifeline must cover at least one ending');
+    }
+    for (const endingId of power.covers) {
+      if (!endings.some((e) => e.id === endingId)) {
+        fail(where, `covers "${endingId}", which is not an authored ending`);
+      }
+    }
+    if (power.recovery.t === 'threatToWardsFraction') {
+      if (!(power.recovery.fraction > 0 && power.recovery.fraction < 1)) {
+        fail(where, `threatToWardsFraction must be between 0 and 1 exclusive, is ${power.recovery.fraction}`);
+      }
+    } else if (power.recovery.t === 'standingReset') {
+      if (power.recovery.v < STANDING_MIN || power.recovery.v > STANDING_MAX) {
+        fail(where, `standingReset.v (${power.recovery.v}) is outside [${STANDING_MIN}, ${STANDING_MAX}]`);
+      }
+      if (power.recovery.v <= SEAL_MAX_STANDING) {
+        fail(where, `standingReset.v (${power.recovery.v}) must clear SEAL_MAX_STANDING (${SEAL_MAX_STANDING}) — a reset that leaves the reprisal condition still true is not a rescue`);
+      }
     }
   }
 
@@ -394,6 +432,43 @@ for (const artifact of artifacts) {
     fail(where, `power is identical to "${priorOwner}"'s — give it its own, or note why it repeats`);
   } else {
     powerSignatures.set(signature, artifact.id);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Double-edged relics (issue #82) — reachable only by a NAMED grant
+// ---------------------------------------------------------------------------
+
+/**
+ * `isDoubleEdged` (`src/engine/effects.ts`) already keeps a double-edged
+ * relic out of every random draw at the engine level — this checks the OTHER
+ * half: that the catalog actually grants it BY NAME somewhere, so it is not
+ * merely unreachable at random but unreachable, full stop (CLAUDE.md rule 6).
+ */
+const namedArtifactGrants = new Set<string>();
+for (const origin of origins) {
+  for (const effect of origin.effects) {
+    if (effect.t === 'artifact') namedArtifactGrants.add(effect.artifactId);
+  }
+}
+for (const offer of offers) {
+  for (const option of offer.options) {
+    const branches = option.kind === 'certain' ? [option.effects] : [option.onSuccess, option.onFailure];
+    for (const branch of branches) {
+      for (const effect of branch) {
+        if (effect.t === 'artifact') namedArtifactGrants.add(effect.artifactId);
+      }
+    }
+  }
+}
+
+for (const artifact of artifacts) {
+  if (!isDoubleEdged(artifact)) continue;
+  if (!namedArtifactGrants.has(artifact.id)) {
+    fail(
+      `artifact "${artifact.id}"`,
+      'is double-edged (derived from its own power) but no origin or offer grants it by name — it is unreachable',
+    );
   }
 }
 

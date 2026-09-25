@@ -39,9 +39,9 @@ import {
   DEVOTION_STANDING,
   PACT_LIMIT,
   PATRON_MARGIN,
-  SEAL_MAX_STANDING,
   SEAL_MIN_NOTORIETY,
 } from './constants';
+import { relicRules } from './relics';
 import { defenseOf } from './systems';
 
 /**
@@ -106,8 +106,8 @@ export const LEADERSHIP_BY_FACTION: Record<FactionId, EndingId> = {
 };
 
 /**
- * Which faction is closest to acting — LOWEST STANDING WINS, ties broken by
- * `FACTION_ORDER`.
+ * Which faction is closest to acting — SMALLEST MARGIN over its OWN reprisal
+ * threshold wins, ties broken by `FACTION_ORDER`.
  *
  * All six reprisals are live in every phase, exactly as the Academy's always
  * was — there is no longer a decline-only subset to filter out. (A previous
@@ -125,15 +125,25 @@ export const LEADERSHIP_BY_FACTION: Record<FactionId, EndingId> = {
  * taking the first match would be a seed-dependent nondeterminism bug that no
  * single playthrough would show, so the rule is stated, tested, and shared
  * with the UI rather than left to object key order.
+ *
+ * MARGIN, not raw standing, since the Writ of Tolerated Existence (issue #82)
+ * can move a faction's OWN threshold: comparing raw standing alone could name
+ * the Crownlands "nearest" while its Writ-widened threshold leaves it nowhere
+ * close, silently hiding a different faction that is genuinely about to act —
+ * the exact "a warning pointing at a different faction than the one about to
+ * act would be worse than silence" failure this function's own doc comment
+ * already warns against, just from a route that didn't exist until now.
  */
-export function nearestReprisalFaction(run: RunState): FactionId | undefined {
+export function nearestReprisalFaction(run: RunState, content: ContentBundle): FactionId | undefined {
+  const reprisalThresholdFor = relicRules(run, content).reprisalThresholdFor;
   let candidate: FactionId | undefined;
-  let candidateStanding = Infinity;
+  let candidateMargin = Infinity;
   for (const factionId of FACTION_ORDER) {
     const standing = run.factionStanding[factionId] ?? 0;
-    if (standing < candidateStanding) {
+    const margin = standing - reprisalThresholdFor(factionId);
+    if (margin < candidateMargin) {
       candidate = factionId;
-      candidateStanding = standing;
+      candidateMargin = margin;
     }
   }
   return candidate;
@@ -161,9 +171,15 @@ export function nearestReprisalFaction(run: RunState): FactionId | undefined {
  */
 export function reprisalEnding(run: RunState, content: ContentBundle): EndingId | undefined {
   if (run.notoriety < SEAL_MIN_NOTORIETY) return undefined;
-  const faction = nearestReprisalFaction(run);
+  const faction = nearestReprisalFaction(run, content);
   if (faction === undefined) return undefined;
-  if ((run.factionStanding[faction] ?? 0) > SEAL_MAX_STANDING) return undefined;
+  // The Writ of Tolerated Existence (issue #82): this faction's own threshold
+  // may sit lower than the ordinary `SEAL_MAX_STANDING` — see
+  // `reprisalThresholdFor` on `RelicRules` (`src/engine/relics.ts`), the same
+  // function `nearestReprisalFaction` above and the header
+  // (`src/components/run/allegiances.ts`) both read.
+  const threshold = relicRules(run, content).reprisalThresholdFor(faction);
+  if ((run.factionStanding[faction] ?? 0) > threshold) return undefined;
   const ending = REPRISAL_BY_FACTION[faction];
   return indexOf(content).endingById.has(ending) ? ending : undefined;
 }

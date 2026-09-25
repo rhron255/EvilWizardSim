@@ -76,7 +76,7 @@ const baseRun: RunState = {
   goodActs: 0,
   illActs: 0,
   goodWizardVowed: false,
-  relicState: { firedOnce: [], spent: [], foresight: false },
+  relicState: { firedOnce: [], spent: [], foresight: false, offerRedrawSalt: 0 },
   eras,
   seenOfferIds: eras.map((e) => e.offerId),
 };
@@ -259,7 +259,7 @@ describe('RelicPage · the Use button (issue #81)', () => {
       ...baseRun,
       followers: 100,
       heldArtifactIds: [...baseRun.heldArtifactIds, 'final_ledger'],
-      relicState: { firedOnce: [], spent: ['final_ledger'], foresight: false },
+      relicState: { firedOnce: [], spent: ['final_ledger'], foresight: false, offerRedrawSalt: 0 },
     } as RunState;
     show(holder);
     expect(screen.queryByRole('button', { name: /^Use /i })).toBeNull();

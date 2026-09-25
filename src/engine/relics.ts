@@ -34,7 +34,9 @@ import type {
   Effect,
   EndingId,
   FactionId,
+  LifelineRecovery,
   OfferOption,
+  Outcome,
   Rarity,
   RelicEffect,
   RelicPower,
@@ -43,14 +45,17 @@ import type {
 import type { ContentBundle } from './content-port';
 import { indexOf } from './content-port';
 import { conditionsMet } from './conditions';
-import { NOVELTY_BIAS } from './constants';
-import { applyEffects, draftOf, forfeitForLichdom } from './effects';
+import { NOVELTY_BIAS, SEAL_MAX_STANDING, STANDING_MAX, STANDING_MIN } from './constants';
+import { applyEffects, draftOf, forfeitForLichdom, isDoubleEdged, lossIsDeterministic } from './effects';
 import type { Rng } from './rng';
 import { streamFor, weightedPick } from './rng';
+import { clampThreat, defenseOf } from './systems';
 
 // ---------------------------------------------------------------------------
 // Passives
 // ---------------------------------------------------------------------------
+
+export type StandingBand = { min: number; max: number };
 
 export type RelicRules = {
   /**
@@ -69,36 +74,122 @@ export type RelicRules = {
    * Line's own scope, see `RelicPassiveModifier`. 1 with no relic held.
    */
   fameThreatMultiplier: number;
+  /** The Gilded Thumb (issue #82): multiplies a POSITIVE `followers` effect alone. 1 with no relic held. */
+  followersGainMultiplier: number;
+  /** The Second Stomach (issue #82): multiplies a NEGATIVE `followers` effect alone. 1 with no relic held. */
+  followersCostMultiplier: number;
+  /** Chalk of the Last Lecture (issue #82): a flat, additive reduction to `decayFor`'s result. 0 with no relic held. */
+  decayReduction: number;
+  /** Spectacles of the Third Reading (issue #82): added to a gamble's odds before the roll, in `effectiveOdds`. 0 with no relic held. */
+  gambleOddsBonus: number;
+  /** The Counterfeit Soul (issue #82): the artifact id a `loseArtifact` effect must name first, if held. `undefined` with no relic held. */
+  lossPriorityArtifactId: string | undefined;
+  /** The Patient Lantern (issue #82): true for the one held artifact id `forfeitForLichdom` must not take. False for every id with no relic held. */
+  survivesLichRite(artifactId: string): boolean;
+  /**
+   * The Tenure Ring (issue #82): the standing band this faction is clamped
+   * to, for as long as the relic is held. `{ min: STANDING_MIN, max:
+   * STANDING_MAX }` — the ordinary, unclamped range — for every faction with
+   * no relic held.
+   */
+  standingBandFor(factionId: FactionId): StandingBand;
+  /**
+   * The Writ of Tolerated Existence (issue #82): the standing this faction's
+   * reprisal needs to reach — `SEAL_MAX_STANDING` for every faction with no
+   * relic held.
+   */
+  reprisalThresholdFor(factionId: FactionId): number;
 };
 
 /**
  * Combine every held relic's `passive` power into one set of rule
- * modifiers. Multiple relics with the same modifier COMBINE (multiplicatively
- * — so two 50% relics would compound to 25%, not merely tie).
+ * modifiers. Multiple relics with the SAME modifier COMBINE — multiplicatively
+ * for a rate (so two 50% relics would compound to 25%, not merely tie),
+ * additively for a flat reduction, and toward the MORE PROTECTIVE reading for
+ * a band or a threshold (issue #82) — though today's catalog authors at most
+ * one relic per modifier, so combination is a future-proofing rule rather
+ * than something any run can currently exercise.
  */
 export function relicRules(run: RunState, content: ContentBundle): RelicRules {
   const index = indexOf(content);
   let unscopedContagionLossMultiplier = 1;
   const scopedContagionLossMultiplier = new Map<FactionId, number>();
   let fameThreatMultiplier = 1;
+  let followersGainMultiplier = 1;
+  let followersCostMultiplier = 1;
+  let decayReduction = 0;
+  let gambleOddsBonus = 0;
+  let lossPriorityArtifactId: string | undefined;
+  const survivesLichRiteIds = new Set<string>();
+  const standingBand = new Map<FactionId, StandingBand>();
+  const reprisalThreshold = new Map<FactionId, number>();
+
   for (const id of run.heldArtifactIds) {
     const power = index.artifactById.get(id)?.power;
     if (power?.kind !== 'passive') continue;
-    if (power.modifier.t === 'contagionLossMultiplier') {
-      if (power.modifier.factionId) {
-        const prior = scopedContagionLossMultiplier.get(power.modifier.factionId) ?? 1;
-        scopedContagionLossMultiplier.set(power.modifier.factionId, prior * power.modifier.v);
-      } else {
-        unscopedContagionLossMultiplier *= power.modifier.v;
+    const modifier = power.modifier;
+    switch (modifier.t) {
+      case 'contagionLossMultiplier':
+        if (modifier.factionId) {
+          const prior = scopedContagionLossMultiplier.get(modifier.factionId) ?? 1;
+          scopedContagionLossMultiplier.set(modifier.factionId, prior * modifier.v);
+        } else {
+          unscopedContagionLossMultiplier *= modifier.v;
+        }
+        break;
+      case 'fameThreatMultiplier':
+        fameThreatMultiplier *= modifier.v;
+        break;
+      case 'followersGainMultiplier':
+        followersGainMultiplier *= modifier.v;
+        break;
+      case 'followersCostMultiplier':
+        followersCostMultiplier *= modifier.v;
+        break;
+      case 'decayReduction':
+        decayReduction += modifier.v;
+        break;
+      case 'gambleOddsBonus':
+        gambleOddsBonus += modifier.v;
+        break;
+      case 'loseArtifactPriority':
+        if (lossPriorityArtifactId === undefined) lossPriorityArtifactId = id;
+        break;
+      case 'survivesLichRite':
+        survivesLichRiteIds.add(id);
+        break;
+      case 'standingBand': {
+        const prior = standingBand.get(modifier.factionId);
+        standingBand.set(modifier.factionId, {
+          min: prior ? Math.max(prior.min, modifier.min) : modifier.min,
+          max: prior ? Math.min(prior.max, modifier.max) : modifier.max,
+        });
+        break;
       }
-    } else if (power.modifier.t === 'fameThreatMultiplier') {
-      fameThreatMultiplier *= power.modifier.v;
+      case 'reprisalThreshold': {
+        const prior = reprisalThreshold.get(modifier.factionId);
+        reprisalThreshold.set(modifier.factionId, prior === undefined ? modifier.v : Math.min(prior, modifier.v));
+        break;
+      }
+      default: {
+        const exhaustive: never = modifier;
+        void exhaustive;
+      }
     }
   }
+
   return {
     contagionLossMultiplierFor: (factionId) =>
       unscopedContagionLossMultiplier * (scopedContagionLossMultiplier.get(factionId) ?? 1),
     fameThreatMultiplier,
+    followersGainMultiplier,
+    followersCostMultiplier,
+    decayReduction,
+    gambleOddsBonus,
+    lossPriorityArtifactId,
+    survivesLichRite: (artifactId) => survivesLichRiteIds.has(artifactId),
+    standingBandFor: (factionId) => standingBand.get(factionId) ?? { min: STANDING_MIN, max: STANDING_MAX },
+    reprisalThresholdFor: (factionId) => reprisalThreshold.get(factionId) ?? SEAL_MAX_STANDING,
   };
 }
 
@@ -118,9 +209,14 @@ export function relicRules(run: RunState, content: ContentBundle): RelicRules {
  * `resolveChoice` is what clears the flag once a gamble genuinely resolves —
  * this function only reads it, never mutates.
  */
-export function effectiveOdds(run: RunState, option: OfferOption): number {
+export function effectiveOdds(run: RunState, option: OfferOption, content?: ContentBundle): number {
   if (option.kind !== 'gamble') return 1;
-  return run.relicState.foresight ? 1 : option.odds;
+  if (run.relicState.foresight) return 1;
+  // `content` optional: every caller that predates the Spectacles of the
+  // Third Reading (issue #82) — and every existing test — omits it and gets
+  // `option.odds` back unmodified, same as before this relic existed.
+  const bonus = content ? relicRules(run, content).gambleOddsBonus : 0;
+  return bonus > 0 ? Math.min(1, option.odds + bonus) : option.odds;
 }
 
 // ---------------------------------------------------------------------------
@@ -154,15 +250,63 @@ function heldTriggers(
 }
 
 /**
- * True unless `power.watchesPositive` is set and the CHOICE's own landed
- * effects (`choiceEffects` — `undefined` for the `eraEnd` timing, which has
- * no single choice to read) contain no positive instance of that type.
+ * Whether an effect in `choiceEffects` counts, once its type and sign match
+ * — narrowed to ONE faction when `power.watchesFactionId` is set (Confiscated
+ * Banner: "lowers CROWNLANDS standing", not any faction's). Ignored for an
+ * effect with no `factionId` of its own.
  */
-function watchSatisfied(power: TriggerPower, choiceEffects: readonly Effect[] | undefined): boolean {
-  if (!power.watchesPositive) return true;
-  return (choiceEffects ?? []).some(
-    (e) => e.t === power.watchesPositive && 'v' in e && e.v > 0,
-  );
+function watchFactionMatches(power: TriggerPower, e: Effect): boolean {
+  if (!power.watchesFactionId) return true;
+  return 'factionId' in e && e.factionId === power.watchesFactionId;
+}
+
+/**
+ * True unless one of `power`'s watch gates fails — ALL that are set on the
+ * power must pass (issue #82 generalises this beyond the original single
+ * `watchesPositive` gate to five, composed with AND):
+ *
+ *   - `watchesPositive` / `watchesNegative`: the CHOICE's own landed effects
+ *     (`choiceEffects` — `undefined` for a timing with no single choice to
+ *     read) contain a matching-signed instance of that type, optionally
+ *     narrowed to one faction by `watchesFactionId`.
+ *   - `watchesEffect`: `choiceEffects` contains that type at all, regardless
+ *     of sign — the only reading available for an effect with no magnitude
+ *     (`loseArtifact`).
+ *   - `watchesOfferFaction`: the era's OFFER itself belonged to this faction.
+ *   - `watchesGambleFailure`: the choice was a gamble that resolved to
+ *     failure.
+ *
+ * A power with none of the five set is satisfied unconditionally, same as
+ * the original function this replaces.
+ */
+function watchSatisfied(
+  power: TriggerPower,
+  choiceEffects: readonly Effect[] | undefined,
+  offerFactionId: FactionId | undefined,
+  outcome: Outcome | undefined,
+): boolean {
+  if (power.watchesOfferFaction && power.watchesOfferFaction !== offerFactionId) return false;
+  if (power.watchesGambleFailure && outcome !== 'failure') return false;
+  if (
+    power.watchesPositive &&
+    !(choiceEffects ?? []).some(
+      (e) => e.t === power.watchesPositive && 'v' in e && e.v > 0 && watchFactionMatches(power, e),
+    )
+  ) {
+    return false;
+  }
+  if (
+    power.watchesNegative &&
+    !(choiceEffects ?? []).some(
+      (e) => e.t === power.watchesNegative && 'v' in e && e.v < 0 && watchFactionMatches(power, e),
+    )
+  ) {
+    return false;
+  }
+  if (power.watchesEffect && !(choiceEffects ?? []).some((e) => e.t === power.watchesEffect)) {
+    return false;
+  }
+  return true;
 }
 
 /**
@@ -207,6 +351,8 @@ function fireTriggers(
   rng: Rng,
   when: TriggerPower['when'],
   choiceEffects?: readonly Effect[],
+  offerFactionId?: FactionId,
+  outcome?: Outcome,
 ): RelicEvent[] {
   const events: RelicEvent[] = [];
   // Frozen once, before any relic in this pass fires. `heldTriggers` below
@@ -231,7 +377,7 @@ function fireTriggers(
     // independent ways of saying "did the thing this relic cares about
     // actually happen", and a trigger authoring only one of them must not be
     // silently gated by the other's default of "true".
-    if (!watchSatisfied(power, choiceEffects) && scaledEffects.length === 0) continue;
+    if (!watchSatisfied(power, choiceEffects, offerFactionId, outcome) && scaledEffects.length === 0) continue;
     if (!conditionsMet(snapshot, power.if, content)) continue;
     const effectsToApply = [...power.effects, ...scaledEffects];
     if (effectsToApply.length === 0) continue;
@@ -247,20 +393,37 @@ function fireTriggers(
 /**
  * Called from `resolveChoice` immediately after the chosen option's own
  * effects land. `choiceEffects` is that option's landed effects
- * (`EffectApplication.applied`) — what `watchesPositive` reads.
+ * (`EffectApplication.applied`) — what `watchesPositive`/`watchesNegative`/
+ * `watchesEffect` read. `offerFactionId` and `outcome` are the two other
+ * things "the choice you made" can mean (issue #82): which CARD it was, and
+ * how a gamble on it resolved — see `watchesOfferFaction`/
+ * `watchesGambleFailure` on `RelicPower` in `types.ts`.
  */
 export function applyChoiceTriggers(
   draft: RunState,
   content: ContentBundle,
   rng: Rng,
   choiceEffects: readonly Effect[],
+  offerFactionId?: FactionId,
+  outcome?: Outcome,
 ): RelicEvent[] {
-  return fireTriggers(draft, content, rng, 'onChoice', choiceEffects);
+  return fireTriggers(draft, content, rng, 'onChoice', choiceEffects, offerFactionId, outcome);
 }
 
 /** Called from `resolveChoice`'s era-end block — skipped, like decay, when the era ended the run. */
 export function applyEraEndTriggers(draft: RunState, content: ContentBundle, rng: Rng): RelicEvent[] {
   return fireTriggers(draft, content, rng, 'eraEnd');
+}
+
+/**
+ * Called from `resolveChoice`'s era-end block at the EXACT moment
+ * `heroBandSeen` advances past `calm` for the first time — Pocketful of
+ * Dark's own timing (issue #82; see `'heroApproach'` on
+ * `RelicTriggerTiming` in `types.ts`). Skipped, like every other era-end
+ * system, when the era ended the run.
+ */
+export function applyHeroApproachTriggers(draft: RunState, content: ContentBundle, rng: Rng): RelicEvent[] {
+  return fireTriggers(draft, content, rng, 'heroApproach');
 }
 
 // ---------------------------------------------------------------------------
@@ -315,8 +478,10 @@ export function projectReactions(
   run: RunState,
   option: OfferOption,
   content: ContentBundle,
+  /** The offer's own faction, if any — what `watchesOfferFaction` (issue #82) reads. */
+  offerFactionId?: FactionId,
 ): RelicReactionPreview {
-  const preview = (effects: readonly Effect[]): RelicEvent[] => {
+  const preview = (effects: readonly Effect[], outcome: Outcome): RelicEvent[] => {
     const draft = draftOf(run);
 
     // Walked one effect at a time, in order — not handed to `applyEffects` as
@@ -336,18 +501,22 @@ export function projectReactions(
     let lichRequested = false;
     for (const effect of effects) {
       if (effect.t === 'artifactFrom') continue;
-      if (effect.t === 'loseArtifact' && draft.heldArtifactIds.length >= 2) continue;
+      // The Counterfeit Soul (issue #82) can make a 2+-held `loseArtifact`
+      // just as knowable as a 0-or-1-held one — see `lossIsDeterministic`,
+      // the same call `projectEffects` (`effects.ts`) makes for the offer
+      // card's own numbers.
+      if (effect.t === 'loseArtifact' && !lossIsDeterministic(draft, content)) continue;
       const rng = effect.t === 'loseArtifact' ? DETERMINISTIC_LOSS_RNG : NO_RNG;
       const application = applyEffects(draft, [effect], rng, content);
       appliedEffects.push(...application.applied);
       if (!endingRequested) endingRequested = application.endingRequested;
       if (application.lichRequested) lichRequested = true;
     }
-    const choiceEvents = applyChoiceTriggers(draft, content, NO_RNG, appliedEffects);
+    const choiceEvents = applyChoiceTriggers(draft, content, NO_RNG, appliedEffects, offerFactionId, outcome);
 
     const riteTaken = lichRequested || endingRequested === 'lichdom';
     if (riteTaken && !run.isLich) {
-      forfeitForLichdom(draft);
+      forfeitForLichdom(draft, content);
       if (endingRequested === 'lichdom' && run.eraIndex + 1 < run.eraCount) {
         endingRequested = undefined;
       }
@@ -357,11 +526,11 @@ export function projectReactions(
     return [...choiceEvents, ...applyEraEndTriggers(draft, content, NO_RNG)];
   };
 
-  if (option.kind === 'certain') return { kind: 'certain', events: preview(option.effects) };
+  if (option.kind === 'certain') return { kind: 'certain', events: preview(option.effects, 'deterministic') };
   return {
     kind: 'gamble',
-    onSuccess: preview(option.onSuccess),
-    onFailure: preview(option.onFailure),
+    onSuccess: preview(option.onSuccess, 'success'),
+    onFailure: preview(option.onFailure, 'failure'),
   };
 }
 
@@ -428,7 +597,9 @@ function drawGrantedRelic(
   const factionId = bestStandingFactionId(draft, content);
   if (!factionId) return undefined;
   const held = new Set(draft.heldArtifactIds);
-  const unheld = (index.artifactsByFaction.get(factionId) ?? []).filter((a) => !held.has(a.id));
+  const unheld = (index.artifactsByFaction.get(factionId) ?? []).filter(
+    (a) => !held.has(a.id) && !isDoubleEdged(a),
+  );
   const exact = unheld.filter((a) => a.rarity === rarity);
   const candidates = exact.length > 0 ? exact : unheld.filter((a) => a.rarity === 'common');
   if (candidates.length === 0) return undefined;
@@ -488,6 +659,16 @@ export function activateRelic(
     draft.relicState.foresight = true;
   }
 
+  // The Key to No Particular Door (issue #82): bumps the salt `nextOffer`
+  // (`src/engine/offers.ts`) mixes into its own sampling stream, so the SAME
+  // `(seed, eraIndex)` draws a different, still-seeded offer. Nothing on the
+  // run's own stats moves, so there is no `RelicEffect` to push onto
+  // `applied` for it — the redraw itself, visible the moment the player
+  // returns to the decision, is the whole disclosure.
+  if (power.redrawsOffer) {
+    draft.relicState.offerRedrawSalt += 1;
+  }
+
   if (power.effects.length > 0) {
     const application = applyEffects(draft, power.effects, rng, content);
     applied.push(...application.applied);
@@ -495,4 +676,81 @@ export function activateRelic(
 
   draft.relicState.spent = [...draft.relicState.spent, artifactId];
   return { next: draft, event: { artifactId, applied } };
+}
+
+// ---------------------------------------------------------------------------
+// Lifelines (issue #82, slice 5 of #77)
+// ---------------------------------------------------------------------------
+
+export type LifelineOutcome = {
+  artifactId: string;
+  endingAverted: EndingId;
+  recovery: LifelineRecovery;
+  /** The recovery's own consequence, as a real delta — what `resolveChoice` folds into `Resolution.lifeline`. */
+  applied: Effect[];
+};
+
+/**
+ * Checked once, immediately after `checkEndings` finds a terminal state
+ * (`resolveChoice`, `src/engine/run.ts`). Walks the held relics in
+ * `heldArtifactIds` order (the same deterministic order every other relic
+ * scan here uses) and spends the FIRST unspent lifeline that `covers`
+ * `endingId`; `undefined` if none qualifies, in which case the ending stands.
+ *
+ * `reprisalFactionId` is the faction `nearestReprisalFaction` already named
+ * for THIS ending, threaded in by the caller rather than re-derived here —
+ * `standingReset` needs it and this function has no reason to import
+ * `endings.ts` just to recompute an answer the caller already has.
+ */
+export function applyLifeline(
+  draft: RunState,
+  content: ContentBundle,
+  endingId: EndingId,
+  reprisalFactionId: FactionId | undefined,
+): LifelineOutcome | undefined {
+  const index = indexOf(content);
+  for (const id of draft.heldArtifactIds) {
+    const power = index.artifactById.get(id)?.power;
+    if (!power || power.kind !== 'lifeline') continue;
+    if (draft.relicState.firedOnce.includes(id)) continue;
+    if (!power.covers.includes(endingId)) continue;
+    const applied = applyLifelineRecovery(draft, content, power.recovery, reprisalFactionId);
+    draft.relicState.firedOnce.push(id);
+    return { artifactId: id, endingAverted: endingId, recovery: power.recovery, applied };
+  }
+  return undefined;
+}
+
+/**
+ * The recovery itself, as a real, disclosable delta — never a fixed
+ * `RelicEffect`, because both real lifelines SET a stat off a value only
+ * known at the moment they fire (see `LifelineRecovery` in `types.ts`).
+ * Never touches the threshold the ending checked against — only the stat.
+ */
+function applyLifelineRecovery(
+  draft: RunState,
+  content: ContentBundle,
+  recovery: LifelineRecovery,
+  reprisalFactionId: FactionId | undefined,
+): Effect[] {
+  switch (recovery.t) {
+    case 'threatToWardsFraction': {
+      const before = draft.heroThreat;
+      const wards = defenseOf(draft, content);
+      draft.heroThreat = clampThreat(wards * recovery.fraction);
+      const delta = draft.heroThreat - before;
+      return delta !== 0 ? [{ t: 'heroThreat', v: delta }] : [];
+    }
+    case 'standingReset': {
+      if (!reprisalFactionId) return [];
+      const before = draft.factionStanding[reprisalFactionId] ?? 0;
+      draft.factionStanding = { ...draft.factionStanding, [reprisalFactionId]: recovery.v };
+      const delta = recovery.v - before;
+      return delta !== 0 ? [{ t: 'standing', factionId: reprisalFactionId, v: delta }] : [];
+    }
+    default: {
+      const exhaustive: never = recovery;
+      return exhaustive;
+    }
+  }
 }

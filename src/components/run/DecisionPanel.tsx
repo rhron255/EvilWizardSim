@@ -77,7 +77,7 @@ export function DecisionPanel({
   const [openStat, setOpenStat] = useState<string | null>(null);
   const captionId = useId();
 
-  const threat = nextThreatFor(run);
+  const threat = nextThreatFor(run, content);
   const patron = patronFor(run, factions);
   const stakes = stakesFor(run, content);
   const lich = lichSentence(run);

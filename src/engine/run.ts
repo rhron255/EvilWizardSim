@@ -34,11 +34,18 @@ import {
 } from './constants';
 import type { EffectApplication } from './effects';
 import { applyEffects, draftOf, forfeitForLichdom } from './effects';
-import type { RelicEvent } from './relics';
-import { applyChoiceTriggers, applyEraEndTriggers, effectiveOdds, relicRules } from './relics';
+import type { LifelineOutcome, RelicEvent } from './relics';
+import {
+  applyChoiceTriggers,
+  applyEraEndTriggers,
+  applyHeroApproachTriggers,
+  applyLifeline,
+  effectiveOdds,
+  relicRules,
+} from './relics';
 import { projectedEpithet } from './epithets';
 import { deedLineFor } from './deeds';
-import { checkEndings } from './endings';
+import { checkEndings, nearestReprisalFaction } from './endings';
 import { isOptionPickable, QUIET_ERA_OFFER } from './offers';
 import { hashString, randomSeed, streamFor } from './rng';
 import {
@@ -138,7 +145,7 @@ export function createRun(opts: CreateRunOptions, content: ContentBundle): RunSt
     goodActs: 0,
     illActs: 0,
     goodWizardVowed: false,
-    relicState: { firedOnce: [], spent: [], foresight: false },
+    relicState: { firedOnce: [], spent: [], foresight: false, offerRedrawSalt: 0 },
     eras: [],
     seenOfferIds: [],
   };
@@ -222,8 +229,13 @@ function inertResolution(run: RunState): Resolution {
  */
 function becomeLich(draft: RunState, application: EffectApplication, content: ContentBundle): void {
   const index = indexOf(content);
+  // The Patient Lantern (issue #82): "survives the lich rite, so you keep it
+  // and its wards." Excluded from both the report below and the forfeiture
+  // itself (`forfeitForLichdom`) — see `RelicRules.survivesLichRite`.
+  const survives = relicRules(draft, content).survivesLichRite;
 
   for (const id of draft.heldArtifactIds) {
+    if (survives(id)) continue;
     const artifact = index.artifactById.get(id);
     if (artifact) application.artifactsLost.push(artifact);
     application.applied.push({ t: 'loseArtifact' });
@@ -233,7 +245,7 @@ function becomeLich(draft: RunState, application: EffectApplication, content: Co
     application.applied.push({ t: 'followers', v: -draft.followers });
   }
 
-  forfeitForLichdom(draft);
+  forfeitForLichdom(draft, content);
   draft.isLich = true;
 }
 
@@ -285,7 +297,7 @@ export function resolveChoice(
     // player actually faces, the number the card prints, and what a bot in
     // `scripts/simulate.ts` scores a gamble at can never drift apart onto
     // three different odds for the same option.
-    odds = clamp(effectiveOdds(run, option), 0, 1);
+    odds = clamp(effectiveOdds(run, option, content), 0, 1);
     roll = rng();
     const succeeded = roll < odds;
     outcome = succeeded ? 'success' : 'failure';
@@ -314,8 +326,17 @@ export function resolveChoice(
   // Relics react to what was just chosen — read against the run AFTER the
   // option's own effects landed, per `RelicTriggerTiming`'s doc comment in
   // `types.ts` — before anything else (the lich rite, era-end) can change
-  // what "the chosen option's landed effects" means.
-  const relicEvents: RelicEvent[] = applyChoiceTriggers(draft, content, rng, application.applied);
+  // what "the chosen option's landed effects" means. `offer.factionId` and
+  // `outcome` are the other two things "the choice you made" can mean (issue
+  // #82) — which CARD it was, and how a gamble on it resolved.
+  const relicEvents: RelicEvent[] = applyChoiceTriggers(
+    draft,
+    content,
+    rng,
+    application.applied,
+    offer.factionId,
+    outcome,
+  );
 
   let endingFromEffect: EndingId | undefined = application.endingRequested;
 
@@ -347,7 +368,9 @@ export function resolveChoice(
     // option just ended the run) has no "end of it" for a relic to fire at.
     relicEvents.push(...applyEraEndTriggers(draft, content, rng));
 
-    const decay = decayFor(draft);
+    // Chalk of the Last Lecture (issue #82): a flat, floored-at-0 reduction
+    // to the decay `decayFor` would otherwise apply.
+    const decay = decayFor(draft, relicRules(draft, content).decayReduction);
     if (decay !== 0) draft.notoriety = clampNotoriety(draft.notoriety - decay);
 
     const threatGain = threatGainFor(draft, relicRules(draft, content).fameThreatMultiplier);
@@ -378,6 +401,10 @@ export function resolveChoice(
     if (rank > draft.heroBandSeen) {
       draft.heroBandSeen = rank;
       if (band !== 'calm') {
+        // Pocketful of Dark (issue #82): fires at the exact same crossing
+        // this narrated beat marks — see `'heroApproach'` on
+        // `RelicTriggerTiming` in `types.ts`.
+        relicEvents.push(...applyHeroApproachTriggers(draft, content, rng));
         systemic.push({
           t: 'heroApproach',
           band,
@@ -472,6 +499,19 @@ export function resolveChoice(
   // ---- ending check, after EVERY era -----------------------------------
   draft.ending = endingFromEffect ?? checkEndings(draft, content);
 
+  // Lifelines (issue #82): checked once, immediately after an ending is
+  // found — never before, and never re-run afterward. Spends the FIRST
+  // unspent lifeline that covers this ending, applies its recovery, and
+  // clears `draft.ending` so the run continues. `nearestReprisalFaction` is
+  // only meaningful for a reprisal ending, but it is cheap and
+  // `applyLifeline` ignores it for every other kind — see `standingReset`'s
+  // own doc comment in `relics.ts`.
+  let lifeline: LifelineOutcome | undefined;
+  if (draft.ending) {
+    lifeline = applyLifeline(draft, content, draft.ending, nearestReprisalFaction(draft, content));
+    if (lifeline) draft.ending = undefined;
+  }
+
   draft.epithet = projectedEpithet(draft, content);
 
   // Relics this player has never held in ANY career. The collection is the
@@ -506,6 +546,7 @@ export function resolveChoice(
     notorietyDelta: draft.notoriety - startNotoriety,
     eraRecord,
     ...(roll !== undefined && odds !== undefined ? { roll, odds } : {}),
+    ...(lifeline ? { lifeline } : {}),
   };
 
   const crossed = tierCrossing(startNotoriety, draft.notoriety);

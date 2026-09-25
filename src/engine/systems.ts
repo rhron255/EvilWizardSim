@@ -103,11 +103,22 @@ export function erasSinceProphecyFor(eraIndex: number, prophecyEra: number): num
  * wiki/04: `decayPerEra = base * (1 + erasSinceProphecy * 0.15)`, zero during
  * ascent, zero for a lich. Rounded, because the ledger shows whole numbers and
  * a fractional slide would read as a rendering bug.
+ *
+ * `reduction` (issue #82's Chalk of the Last Lecture: "Notoriety decay −1 an
+ * era") is subtracted after rounding and floored at 0 — a relic cannot make
+ * decay run backward. Defaults to 0 so every pre-#82 caller (and every
+ * existing test) keeps producing today's numbers without naming this
+ * parameter; a caller that holds `content` passes
+ * `relicRules(run, content).decayReduction` (`relics.ts`) — this function
+ * stays engine-content-agnostic like every other system in this file.
  */
-export function decayFor(run: Pick<RunState, 'phase' | 'erasSinceProphecy' | 'isLich'>): number {
+export function decayFor(
+  run: Pick<RunState, 'phase' | 'erasSinceProphecy' | 'isLich'>,
+  reduction = 0,
+): number {
   if (run.phase !== 'decline') return 0;
   if (run.isLich) return 0;
-  return Math.round(DECAY_BASE * (1 + run.erasSinceProphecy * DECAY_RAMP));
+  return Math.max(0, Math.round(DECAY_BASE * (1 + run.erasSinceProphecy * DECAY_RAMP)) - reduction);
 }
 
 /**

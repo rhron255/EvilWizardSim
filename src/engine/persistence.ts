@@ -333,13 +333,15 @@ export function loadInProgressRun(): RunState | null {
   // these) but arrives here missing them. Defaulted on load rather than
   // added to the shape check, the same reasoning `emptyCollection`'s own
   // migration defaults use: a field this additive does not deserve a
-  // save-format rejection.
+  // save-format rejection. Issue #82 grows it again with `offerRedrawSalt`,
+  // the same way and for the same reason.
   const run: RunState = {
     ...wrapper.run,
     relicState: {
       firedOnce: wrapper.run.relicState.firedOnce,
       spent: wrapper.run.relicState.spent ?? [],
       foresight: wrapper.run.relicState.foresight ?? false,
+      offerRedrawSalt: wrapper.run.relicState.offerRedrawSalt ?? 0,
     },
     activeGrantedArtifactIds: wrapper.run.activeGrantedArtifactIds ?? [],
   };

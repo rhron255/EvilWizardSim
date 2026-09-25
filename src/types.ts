@@ -269,7 +269,14 @@ export type Condition =
    * The mirror of `minFollowers` that a relic `if` needed and no offer gate
    * ever had a reason to ask for before.
    */
-  | { c: 'maxFollowers'; v: number };
+  | { c: 'maxFollowers'; v: number }
+  /**
+   * The Weather Leash's own gate (issue #82, slice 5 of #77): true only
+   * during the decline phase. Nothing needed this before — every existing
+   * phase restriction lives on `Offer.phase` itself, which an era-end relic
+   * trigger (evaluated against the run, not an offer) has no equivalent of.
+   */
+  | { c: 'declinePhase' };
 
 export type Offer = {
   id: string;
@@ -360,7 +367,22 @@ export type RelicTriggerTiming =
    */
   | 'onChoice'
   /** Evaluated once at the end of every era, independent of what was chosen. */
-  | 'eraEnd';
+  | 'eraEnd'
+  /**
+   * Pocketful of Dark (issue #82, slice 5): fires at the SAME moment
+   * `resolveChoice`'s own era-end block narrates the hero's approach for the
+   * first time — immediately after `heroBandSeen` advances past `calm`, so
+   * "the first time the hero draws close" is the identical event the
+   * header's own beat already marks, not a second reading of hero threat
+   * invented here (see `src/engine/relics.ts`'s `applyHeroApproachTriggers`).
+   * Deliberately absent from the offer card's pre-commit preview
+   * (`projectReactions`): whether the band crosses THIS era depends on decay
+   * and threat gain, which that preview does not compute — see its own doc
+   * comment. That is an accepted silent gap, the same one every other
+   * era-end relic reaction already has on the offer card per `RelicPage`'s
+   * own doc comment ("an accepted gap").
+   */
+  | 'heroApproach';
 
 /**
  * What a `passive` power changes about a base rule.
@@ -397,7 +419,60 @@ export type RelicPassiveModifier =
    * `HERO_THREAT_RAMP`) is untouched, because the relic's own wording names
    * fame, not the clock.
    */
-  | { t: 'fameThreatMultiplier'; v: number };
+  | { t: 'fameThreatMultiplier'; v: number }
+  /** The Gilded Thumb (issue #82): multiplies a POSITIVE `followers` effect alone — never a cost. */
+  | { t: 'followersGainMultiplier'; v: number }
+  /** The Second Stomach (issue #82): multiplies a NEGATIVE `followers` effect alone — never a gain. */
+  | { t: 'followersCostMultiplier'; v: number }
+  /**
+   * Chalk of the Last Lecture (issue #82): a flat reduction to `decayFor`'s
+   * result, floored at 0 there — additive across multiple holders, the same
+   * combination rule as every other passive, though only one relic authors
+   * this today.
+   */
+  | { t: 'decayReduction'; v: number }
+  /**
+   * Spectacles of the Third Reading (issue #82): added directly to a
+   * gamble's odds before the roll, the same seam `effectiveOdds` already
+   * gives the Pale Orrery's `armsForesight`. Additive across multiple
+   * holders; `effectiveOdds` clamps the sum to 1.
+   */
+  | { t: 'gambleOddsBonus'; v: number }
+  /**
+   * The Counterfeit Soul (issue #82): a `loseArtifact` effect always names
+   * THE HOLDER of this modifier first, while it is held, instead of a random
+   * pick — see `relicRules`' `lossPriorityArtifactId` and the `loseArtifact`
+   * case in `src/engine/effects.ts`. No `v`: "the first relic a choice would
+   * take is this one" names itself, nothing else to parameterise.
+   */
+  | { t: 'loseArtifactPriority' }
+  /**
+   * The Patient Lantern (issue #82): excluded from the lich rite's
+   * forfeiture — see `forfeitForLichdom` in `src/engine/effects.ts`. The one
+   * relic power that changes what `becomeLich` takes, rather than a rate or
+   * a threshold.
+   */
+  | { t: 'survivesLichRite' }
+  /**
+   * The Tenure Ring (issue #82, double-edged): clamps ONE faction's standing
+   * to `[min, max]` for as long as the relic is held — narrower on BOTH
+   * ends than the ordinary `[STANDING_MIN, STANDING_MAX]` range, never
+   * wider. `applyStanding` (`src/engine/effects.ts`) reads this through
+   * `standingBandFor`, the one function both the engine and the header
+   * (`src/components/run/allegiances.ts`) read so the clamp and its display
+   * never drift apart. `drawArtifact` derives "double-edged" from a
+   * narrowed `max` here, never from an authored flag — see `isDoubleEdged`.
+   */
+  | { t: 'standingBand'; factionId: FactionId; min: number; max: number }
+  /**
+   * The Writ of Tolerated Existence (issue #82): this faction's reprisal
+   * needs standing at or under `v` instead of the ordinary
+   * `SEAL_MAX_STANDING`. Read through `reprisalThresholdFor`, the shared
+   * function `reprisalEnding` (`src/engine/endings.ts`) and the header
+   * (`src/components/run/allegiances.ts`) both consult, so the engine's
+   * trigger and the player's warning can never name two different lines.
+   */
+  | { t: 'reprisalThreshold'; factionId: FactionId; v: number };
 
 /**
  * What a relic's own power may do to the run — deliberately narrower than
@@ -465,6 +540,49 @@ export type RelicPower =
       when: RelicTriggerTiming;
       if?: Condition[];
       watchesPositive?: RelicEffect['t'];
+      /**
+       * Issue #82: the mirror of `watchesPositive` for a relic that reacts
+       * to a COST rather than a gain — Bone Crown ("costs you an
+       * Apprentice"), Shallow Worm's Tooth ("costs you Followers"). Same
+       * source as `watchesPositive` (the CHOSEN option's own landed
+       * effects, `onChoice` only) and the same reason it exists: an
+       * ambient `if` on the stat's floor would fire on a run that merely
+       * STARTED there, not on the choice that actually spent it. Checks
+       * `e.v < 0` where `watchesPositive` checks `e.v > 0` — never both on
+       * the same power, they read opposite signs of the same effect type.
+       */
+      watchesNegative?: RelicEffect['t'];
+      /**
+       * Issue #82: watches for the PRESENCE of an effect type that carries
+       * no magnitude to sign — `loseArtifact` chief among them (Appraiser's
+       * Monocle, Seed That Remembers: "when a choice costs you a relic").
+       * `watchesPositive`/`watchesNegative` both require `'v' in e`, which
+       * `loseArtifact` never satisfies; this is the third, magnitude-free
+       * reading of "the chosen option's own landed effects."
+       */
+      watchesEffect?: RelicEffect['t'];
+      /**
+       * Scopes `watchesPositive`/`watchesNegative` to ONE faction, read off
+       * a `standing` effect's own `factionId` — Confiscated Banner ("lowers
+       * CROWNLANDS standing", not any faction's contagion spill included).
+       * Ignored unless the watched type is `'standing'`.
+       */
+      watchesFactionId?: FactionId;
+      /**
+       * Fires only when the era's OFFER itself belonged to this faction —
+       * Antler Baton ("when you answer a Choir offer"). Distinct from every
+       * watch above: those read the choice's CONSEQUENCES; this reads which
+       * CARD it was, so `resolveChoice` threads the offer's own `factionId`
+       * in alongside `choiceEffects` rather than deriving it from them.
+       */
+      watchesOfferFaction?: FactionId;
+      /**
+       * Fires only when the choice was a GAMBLE that resolved to failure —
+       * Censer of Small Regrets ("when you lose a gamble"). The one watch
+       * that reads the roll's OUTCOME rather than its effects. `onChoice`
+       * only, like every watch above.
+       */
+      watchesGambleFailure?: boolean;
       once?: boolean;
       effects: RelicEffect[];
       /**
@@ -514,9 +632,48 @@ export type RelicPower =
       effects: RelicEffect[];
       grants?: { rarity: Rarity };
       armsForesight?: boolean;
+      /**
+       * The Key to No Particular Door (issue #82): redraws this era's
+       * offer. A pure engine action rather than a `RelicEffect` — nothing on
+       * `RunState` a card could disclose moves, only the salt `nextOffer`
+       * (`src/engine/offers.ts`) mixes into its own sampling stream, so the
+       * SAME era can land on a different, still-seeded card. See
+       * `RelicState.offerRedrawSalt`.
+       */
+      redrawsOffer?: boolean;
     }
-  /** Deferred: an automatic one-time save, shaped by whichever relic needs it. */
-  | { kind: 'lifeline'; effects: RelicEffect[] };
+  /**
+   * An automatic, one-time rescue from a specific ending (issue #82, slice 5
+   * of #77 — deferred by slices 3-4 as a bare placeholder). Checked once,
+   * right after `checkEndings` finds a terminal state
+   * (`src/engine/relics.ts`'s `applyLifeline`, called from `resolveChoice`):
+   * if a held, UNSPENT lifeline `covers` that ending, it is spent
+   * (`RunState.relicState.firedOnce` — the same one-time ledger an automatic
+   * `trigger` uses, since a lifeline is automatic too, never
+   * player-initiated), its `recovery` is applied, and the run continues.
+   *
+   * NEVER changes the THRESHOLD the ending itself checks — `recovery`
+   * repositions the STAT, not the ceiling or floor it was measured against,
+   * so the very same ending can still be reached again later the ordinary
+   * way. That is what "lifeline", not "immunity", means here.
+   */
+  | { kind: 'lifeline'; covers: EndingId[]; recovery: LifelineRecovery };
+
+/**
+ * What a lifeline restores, in place of the ending it cancels — narrower
+ * than `RelicEffect` because both real lifelines need to SET a stat off a
+ * value only known at the moment it fires (the current wards, the
+ * triggering faction), which no fixed authored delta can express. Kept a
+ * closed, purpose-built union rather than a generic "set stat to value"
+ * primitive — the same restraint `active`'s `grants`/`armsForesight` show:
+ * open the vocabulary only as far as a REAL lifeline needs it, per issue
+ * #82's own two.
+ */
+export type LifelineRecovery =
+  /** Portcullis Tooth: hero threat drops to `fraction` of the CURRENT wards, computed at the moment it fires. */
+  | { t: 'threatToWardsFraction'; fraction: number }
+  /** Root of the Standing Vote: the reprisal's own triggering faction resets to `v`. */
+  | { t: 'standingReset'; v: number };
 
 /**
  * Tracks a run's `once` triggers, so a relic like Ashen Signature fires
@@ -540,6 +697,15 @@ export type RelicState = {
    * of the career.
    */
   foresight: boolean;
+  /**
+   * Bumped by one each time the Key to No Particular Door's active redraws
+   * the era's offer (issue #82). Mixed into `nextOffer`'s own sampling
+   * stream (`src/engine/offers.ts`) as an extra salt, so the SAME
+   * `(seed, eraIndex)` can land on a different offer without `nextOffer`
+   * losing its purity: two runs with identical seeds and identical choices
+   * — including whether this was used — still resolve identically.
+   */
+  offerRedrawSalt: number;
 };
 
 export type Lair = {

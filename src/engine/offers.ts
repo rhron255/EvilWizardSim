@@ -336,7 +336,19 @@ export function nextOffer(run: RunState, content: ContentBundle): Offer {
   }
 
   const { pool } = buildOfferPool(run, content);
-  const rng = streamFor(run.seed, 'offer', run.eraIndex);
+  // The Key to No Particular Door (issue #82): once `relicState.offerRedrawSalt`
+  // has been bumped by a use of the active (`activateRelic`,
+  // `src/engine/relics.ts`), it becomes an extra label mixed into the same
+  // seeded stream. The salt-free call is kept as its own branch, not merely
+  // "salt 0", because `streamFor(seed, 'offer', eraIndex)` and
+  // `streamFor(seed, 'offer', eraIndex, 0)` mix a different number of parts
+  // and so derive DIFFERENT streams (see `deriveSeed`) — every run that has
+  // never used the Key must keep drawing from the exact stream every save
+  // and every test made before this relic existed.
+  const rng =
+    run.relicState.offerRedrawSalt > 0
+      ? streamFor(run.seed, 'offer', run.eraIndex, run.relicState.offerRedrawSalt)
+      : streamFor(run.seed, 'offer', run.eraIndex);
   return (
     weightedPick(
       rng,

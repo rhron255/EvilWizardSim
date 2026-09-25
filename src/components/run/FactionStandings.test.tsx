@@ -9,6 +9,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { RunState } from '../../types';
 import { factions } from '../../content';
+import { REAL_CONTENT } from '../../testing/realContent';
 import { FactionStandings } from './FactionStandings';
 
 // A mid-decline run's standing: the Ashen Covenant is highest, the
@@ -48,12 +49,12 @@ const run: RunState = {
   goodActs: 0,
   illActs: 0,
   goodWizardVowed: false,
-  relicState: { firedOnce: [], spent: [], foresight: false },
+  relicState: { firedOnce: [], spent: [], foresight: false, offerRedrawSalt: 0 },
   eras: [],
   seenOfferIds: [],
 };
 
-const show = (r: RunState) => render(<FactionStandings run={r} factions={factions} />);
+const show = (r: RunState) => render(<FactionStandings run={r} factions={factions} content={REAL_CONTENT} />);
 
 describe('FactionStandings · collapsed by default', () => {
   it('starts showing only the two most extreme factions', () => {

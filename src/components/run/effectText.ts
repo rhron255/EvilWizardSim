@@ -412,6 +412,7 @@ export function describeGate(condition: Condition, run: RunState, content: Conte
     case 'minGoodActs':
     case 'maxIllActs':
     case 'maxFollowers':
+    case 'declinePhase':
       return 'Requirements not currently met.';
 
     default: {

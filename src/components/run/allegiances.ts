@@ -30,11 +30,12 @@
 import {
   ARTIFACT_LOCKOUT_STANDING,
   DEVOTION_STANDING,
-  SEAL_MAX_STANDING,
   SEAL_MIN_NOTORIETY,
   nearestReprisalFaction,
   patronFaction,
+  relicRules,
 } from '../../engine';
+import type { ContentBundle } from '../../engine';
 import type { Faction, FactionId, RunState } from '../../types';
 
 export type Allegiance = {
@@ -144,8 +145,8 @@ const REPRISAL_SUBJECT: Record<FactionId, string> = {
  * always was, so there is no longer a phase gate to consult here — every
  * faction's bar reads lethal on the same standing-only rule.
  */
-function toneFor(standing: number): Allegiance['tone'] {
-  if (standing <= SEAL_MAX_STANDING + 12) return 'lethal';
+function toneFor(standing: number, reprisalThreshold: number): Allegiance['tone'] {
+  if (standing <= reprisalThreshold + 12) return 'lethal';
   if (standing <= ARTIFACT_LOCKOUT_STANDING) return 'locked';
   if (standing >= DEVOTION_STANDING) return 'devoted';
   if (standing >= 20) return 'warm';
@@ -153,17 +154,23 @@ function toneFor(standing: number): Allegiance['tone'] {
   return 'neutral';
 }
 
-function noteFor(run: RunState, id: FactionId, standing: number, tone: Allegiance['tone']): string {
+function noteFor(
+  run: RunState,
+  id: FactionId,
+  standing: number,
+  tone: Allegiance['tone'],
+  reprisalThreshold: number,
+): string {
   if (tone === 'lethal') {
     const act = REPRISAL_ACT[id];
-    if (standing <= SEAL_MAX_STANDING) {
+    if (standing <= reprisalThreshold) {
       return run.notoriety >= SEAL_MIN_NOTORIETY
         ? `${act} now`
         : `${act} once you pass ${SEAL_MIN_NOTORIETY} Notoriety`;
     }
     return run.notoriety >= SEAL_MIN_NOTORIETY
-      ? `${act} at ${SEAL_MAX_STANDING}`
-      : `${act} at ${SEAL_MAX_STANDING}, once you pass ${SEAL_MIN_NOTORIETY} Notoriety`;
+      ? `${act} at ${reprisalThreshold}`
+      : `${act} at ${reprisalThreshold}, once you pass ${SEAL_MIN_NOTORIETY} Notoriety`;
   }
   if (tone === 'locked') return 'their relics are locked to you';
   if (tone === 'devoted') return 'their reliquary is open';
@@ -172,22 +179,27 @@ function noteFor(run: RunState, id: FactionId, standing: number, tone: Allegianc
   return 'indifferent';
 }
 
-export function allegiancesFor(run: RunState, factions: Faction[]): Allegiance[] {
+export function allegiancesFor(run: RunState, factions: Faction[], content: ContentBundle): Allegiance[] {
+  // The Writ of Tolerated Existence (issue #82): this faction's own
+  // reprisal threshold may sit lower than the ordinary `SEAL_MAX_STANDING`
+  // — read through the SAME function `reprisalEnding` (`src/engine/
+  // endings.ts`) consults, so the bar's tick and the engine's actual
+  // trigger can never name two different lines.
+  const reprisalThresholdFor = relicRules(run, content).reprisalThresholdFor;
   return factions.map((f) => {
     const standing = run.factionStanding[f.id] ?? 0;
-    const tone = toneFor(standing);
+    const threshold = reprisalThresholdFor(f.id);
+    const tone = toneFor(standing, threshold);
     return {
       id: f.id,
       name: f.name,
       short: SHORT_NAME[f.id],
       standing,
       ratio: Math.max(-1, Math.min(1, standing / 100)),
-      // Every faction can end a run now, so every bar carries the tick. The
-      // threshold does not vary by faction, only what happens when you cross
-      // it does.
-      sealAt: REPRISAL_NOUN[f.id] ? Math.max(-1, Math.min(1, SEAL_MAX_STANDING / 100)) : null,
+      // Every faction can end a run now, so every bar carries the tick.
+      sealAt: REPRISAL_NOUN[f.id] ? Math.max(-1, Math.min(1, threshold / 100)) : null,
       tone,
-      note: noteFor(run, f.id, standing, tone),
+      note: noteFor(run, f.id, standing, tone, threshold),
     };
   });
 }
@@ -246,12 +258,13 @@ export type ReprisalWarning = {
   armed: boolean;
 };
 
-function reprisalStatus(factionId: FactionId, run: RunState): ReprisalWarning {
+function reprisalStatus(factionId: FactionId, run: RunState, content: ContentBundle): ReprisalWarning {
   const standing = run.factionStanding[factionId] ?? 0;
+  const threshold = relicRules(run, content).reprisalThresholdFor(factionId);
   return {
     factionId,
     standing,
-    margin: standing - SEAL_MAX_STANDING,
+    margin: standing - threshold,
     armed: run.notoriety >= SEAL_MIN_NOTORIETY,
   };
 }
@@ -273,10 +286,10 @@ function reprisalStatus(factionId: FactionId, run: RunState): ReprisalWarning {
  * alarm built on it, dead code rather than a live distinction. Both were
  * removed rather than left as an unreachable branch.)
  */
-export function nextThreatFor(run: RunState): ReprisalWarning | null {
-  const factionId = nearestReprisalFaction(run);
+export function nextThreatFor(run: RunState, content: ContentBundle): ReprisalWarning | null {
+  const factionId = nearestReprisalFaction(run, content);
   if (factionId === undefined) return null;
-  return reprisalStatus(factionId, run);
+  return reprisalStatus(factionId, run, content);
 }
 
 /**

@@ -152,17 +152,20 @@ export function OfferPanel({
   // same as `gateFor` above) so the preview matches what `resolveChoice` will
   // actually apply, never a copy already rewritten by `projectEffects`.
   const optionReactions = useMemo(
-    () => gateOptions.map((option) => projectReactions(run, option, content)),
-    [gateOptions, run, content],
+    () => gateOptions.map((option) => projectReactions(run, option, content, offer.factionId)),
+    [gateOptions, run, content, offer.factionId],
   );
 
   // Same reasoning as `optionReactions`: computed from `gateOptions` (the
   // AUTHORED option) so the odds printed on the card are the odds
   // `resolveChoice` actually rolls against, via the same `effectiveOdds` seam
-  // — never `option.odds` read straight off a UI-projected copy.
+  // — never `option.odds` read straight off a UI-projected copy. `content`
+  // is what lets it see the Spectacles of the Third Reading's own bonus
+  // (issue #82) — omitting it here would silently under-print the odds the
+  // engine will actually roll against.
   const optionOdds = useMemo(
-    () => gateOptions.map((option) => effectiveOdds(run, option)),
-    [gateOptions, run],
+    () => gateOptions.map((option) => effectiveOdds(run, option, content)),
+    [gateOptions, run, content],
   );
 
   // Styling convention 3: a reaction every branch of every option produces
