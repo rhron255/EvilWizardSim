@@ -1,0 +1,261 @@
+/**
+ * The Good Wizard route's rule-1 exception (issue #23) — enforced, not just
+ * asserted.
+ *
+ * `goodActs`/`illActs` are the one deliberate hole in "an effect exists so
+ * nothing is ever smuggled into prose undisclosed" (see the doc comment on
+ * `Effect` in `types.ts`), defensible on exactly one ground: the route can
+ * only ever ADD an ending, never end a run early, never close a door, never
+ * move any other threshold. These tests are what pays for that claim — if a
+ * future change wires either counter into a defense term, a weighting, or
+ * any condition besides `minGoodActs`/`maxIllActs`, the sweep below goes red.
+ */
+
+import { describe, expect, it } from 'vitest';
+import { checkEndings, createRun, decayFor, defenseOf, resolveChoice, threatGainFor } from './index';
+import type { ContentBundle } from './index';
+import { applyEffects, draftOf, projectEffects } from './effects';
+import { conditionMet } from './conditions';
+import { REAL_CONTENT } from '../testing/realContent';
+import type { Condition, Effect, RunState } from '../types';
+
+const content: ContentBundle = REAL_CONTENT;
+
+const start = (over: Partial<RunState> = {}): RunState => ({
+  ...createRun({ wizardName: 'Test', originId: content.origins[0].id, eraCount: 16, seed: 7 }, content),
+  ...over,
+});
+
+describe('the rule-1 exception: nothing but good_wizard reads the counters', () => {
+  it('does not move defenseOf, threatGainFor, or decayFor', () => {
+    const base = start({ phase: 'decline', erasSinceProphecy: 3, notoriety: 40, heroThreat: 20 });
+    const baseline = {
+      defense: defenseOf(base, content),
+      threat: threatGainFor(base),
+      decay: decayFor(base),
+    };
+    for (const goodActs of [0, 1, 4, 8, 50]) {
+      for (const illActs of [0, 1, 3, 20]) {
+        const run = { ...base, goodActs, illActs };
+        expect(defenseOf(run, content)).toBe(baseline.defense);
+        expect(threatGainFor(run)).toBe(baseline.threat);
+        expect(decayFor(run)).toBe(baseline.decay);
+      }
+    }
+  });
+
+  it('does not change checkEndings for any branch except the age-limit good_wizard check', () => {
+    // One representative run per earlier branch in checkEndings' priority
+    // order — ascension, slain, reprisal, betrayal, pact — each replayed at a
+    // spread of goodActs/illActs. If either counter ever moved one of these,
+    // the branch it moved would flip here.
+    const cases: Partial<RunState>[] = [
+      { phase: 'decline', heroThreat: 999, notoriety: 50 }, // slain
+      {
+        phase: 'decline',
+        notoriety: 60,
+        factionStanding: { ...start().factionStanding, pale_academy: -60 },
+      }, // reprisal
+      { phase: 'decline', apprentices: { count: 3, loyalty: 0 } }, // betrayed
+      { phase: 'decline', pactDebt: 7 }, // consumed by pact
+      { phase: 'decline', eraIndex: 16, eraCount: 16 }, // age limit, no vow
+    ];
+
+    for (const over of cases) {
+      const base = start(over);
+      const baseline = checkEndings(base, content);
+      for (const goodActs of [0, 4, 8, 50]) {
+        for (const illActs of [0, 1, 20]) {
+          const run = { ...base, goodActs, illActs };
+          expect(checkEndings(run, content)).toBe(baseline);
+        }
+      }
+    }
+  });
+
+  it('is checked FIRST at the age limit, ahead of lichdom, UNLESS the wizard is also a lich', () => {
+    // Vowed, never took the rite — the plain `good_wizard` branch.
+    const run = start({ phase: 'decline', eraIndex: 16, eraCount: 16, isLich: false, goodWizardVowed: true });
+    expect(checkEndings(run, content)).toBe('good_wizard');
+  });
+
+  it('falls through to lichdom when the vow was never taken', () => {
+    const run = start({ phase: 'decline', eraIndex: 16, eraCount: 16, isLich: true, goodWizardVowed: false });
+    expect(checkEndings(run, content)).toBe('lichdom');
+  });
+
+  /**
+   * Issue #25's real bug, not just its disclosure gap: `virtue_resolution_
+   * the_quiet_ledger` gates on `minGoodActs`/`maxIllActs` alone, nothing
+   * excludes `isLich`, and the vow moves neither hidden counter — so a lich
+   * who then vows used to reach this branch with BOTH flags true and get
+   * plain `good_wizard`, discarding the relics and followers the rite
+   * already forfeited under an ending that never mentioned the rite.
+   * `arch_lich` is the true answer for that career, checked ahead of both
+   * plain branches rather than choosing between them.
+   */
+  it('reads arch_lich, not good_wizard, for a wizard who is both', () => {
+    const run = start({ phase: 'decline', eraIndex: 16, eraCount: 16, isLich: true, goodWizardVowed: true });
+    expect(checkEndings(run, content)).toBe('arch_lich');
+  });
+
+  /**
+   * Issue #43: a prior fix (Codex's) revoked the vow whenever a later
+   * illAct pushed `illActs` past `GOOD_WIZARD_ILL_CAP`, silently — the vow's
+   * own resultText calls it "held to the end," `vowGoodWizard`'s doc comment
+   * in `types.ts` calls it "fully disclosed... knowingly committing," and
+   * CLAUDE.md's rule-1 exception permits this route to only ever ADD an
+   * ending, never close a door. Revoking an already-disclosed commitment
+   * closes exactly that door, so the fix is to stop revoking: the cap still
+   * governs whether the vow can be TAKEN (`virtue_resolution_the_quiet_
+   * ledger`'s own `requires` enforces that), it just no longer un-takes it.
+   */
+  it('keeps the vow even once a later illAct pushes illActs past the cap', () => {
+    const run = start({ goodWizardVowed: true, illActs: 1 });
+    const draft = draftOf(run);
+    applyEffects(draft, [{ t: 'illAct', v: 1 }], () => 0.5, content);
+    expect(draft.illActs).toBe(2);
+    expect(draft.goodWizardVowed).toBe(true);
+  });
+
+  it('leaves the vow intact while a later illAct still keeps illActs within the cap', () => {
+    const run = start({ goodWizardVowed: true, illActs: 0 });
+    const draft = draftOf(run);
+    applyEffects(draft, [{ t: 'illAct', v: 1 }], () => 0.5, content);
+    expect(draft.illActs).toBe(1);
+    expect(draft.goodWizardVowed).toBe(true);
+  });
+
+  it('a vowed lich still reaches arch_lich at the age limit even after illActs exceeds the cap', () => {
+    const run = start({
+      phase: 'decline',
+      eraIndex: 16,
+      eraCount: 16,
+      isLich: true,
+      goodWizardVowed: true,
+      illActs: 1,
+    });
+    const draft = draftOf(run);
+    applyEffects(draft, [{ t: 'illAct', v: 1 }], () => 0.5, content);
+    expect(draft.goodWizardVowed).toBe(true);
+    expect(checkEndings(draft, content)).toBe('arch_lich');
+  });
+
+  it('does not touch goodWizardVowed when it was never true', () => {
+    const run = start({ goodWizardVowed: false, illActs: 1 });
+    const draft = draftOf(run);
+    applyEffects(draft, [{ t: 'illAct', v: 1 }], () => 0.5, content);
+    expect(draft.illActs).toBe(2);
+    expect(draft.goodWizardVowed).toBe(false);
+  });
+
+  it('conditionMet reads goodActs/illActs ONLY for minGoodActs/maxIllActs', () => {
+    const run = start({ goodActs: 5, illActs: 2, notoriety: 10, followers: 3, pactDebt: 1 });
+    const unrelated: Condition[] = [
+      { c: 'minNotoriety', v: 5 },
+      { c: 'maxNotoriety', v: 50 },
+      { c: 'minFollowers', v: 1 },
+      { c: 'minPactDebt', v: 1 },
+      { c: 'minEraIndex', v: 0 },
+      { c: 'holdsAnyArtifact' },
+      { c: 'minArtifacts', v: 0 },
+    ];
+    const baseline = unrelated.map((c) => conditionMet(run, c, content));
+    for (const goodActs of [0, 4, 8, 50]) {
+      for (const illActs of [0, 1, 20]) {
+        const swept = { ...run, goodActs, illActs };
+        const after = unrelated.map((c) => conditionMet(swept, c, content));
+        expect(after).toEqual(baseline);
+      }
+    }
+    // The two conditions that DO read them, reading them correctly.
+    expect(conditionMet(run, { c: 'minGoodActs', v: 5 }, content)).toBe(true);
+    expect(conditionMet(run, { c: 'minGoodActs', v: 6 }, content)).toBe(false);
+    expect(conditionMet(run, { c: 'maxIllActs', v: 2 }, content)).toBe(true);
+    expect(conditionMet(run, { c: 'maxIllActs', v: 1 }, content)).toBe(false);
+  });
+
+  /**
+   * The relic power framework's own version of this file's promise (issue
+   * #80): `RelicEffect` excludes `goodAct`/`illAct` at the type level, so no
+   * power in the catalog CAN author one — this is the runtime half, the same
+   * belt-and-suspenders shape `scripts/validate-content.ts`'s own
+   * `checkRelicEffects` uses. Holds all four origin relics at once and drives
+   * several real eras through `resolveChoice` (era-end triggers, a pact-debt
+   * choice for Ashen Signature to react to) rather than calling the power
+   * functions directly, so a future power authored via an unsafe cast would
+   * still be caught here.
+   */
+  it('holding every origin relic through several real eras never moves goodActs/illActs', () => {
+    const relicHolder = start({
+      heldArtifactIds: [
+        'footnote_that_bites',
+        'mantle_of_slow_moss',
+        'ashen_signature',
+        'unpaid_purse',
+        ...start().heldArtifactIds,
+      ],
+      followers: 3,
+    });
+    const offer = {
+      id: 'test',
+      title: 't',
+      body: 'b',
+      phase: 'any' as const,
+      options: [
+        { kind: 'certain' as const, label: 'a', effects: [{ t: 'pactDebt' as const, v: 2 }] },
+        { kind: 'certain' as const, label: 'b', effects: [{ t: 'notoriety' as const, v: 1 }] },
+      ],
+    };
+    let run = relicHolder;
+    for (let i = 0; i < 5; i++) {
+      run = resolveChoice(run, offer, i % 2, content).next;
+    }
+    expect(run.goodActs).toBe(0);
+    expect(run.illActs).toBe(0);
+  });
+});
+
+describe('the rule-1 exception: nothing on screen ever sees the counters', () => {
+  // A real virtue card's constructive option: a hidden goodAct beside a
+  // disclosed notoriety gain, so the silence can be checked against its
+  // neighbour on the same card.
+  const constructive: Effect[] = (() => {
+    for (const offer of content.offers)
+      for (const option of offer.options)
+        if (
+          option.kind === 'certain' &&
+          option.effects.some((e) => e.t === 'goodAct') &&
+          option.effects.some((e) => e.t === 'notoriety')
+        )
+          return option.effects;
+    throw new Error('no real offer pairs a goodAct with a notoriety effect');
+  })();
+
+  it('applyEffects never pushes goodAct/illAct to the applied ledger', () => {
+    const run = start();
+    const draft = draftOf(run);
+    const application = applyEffects(
+      draft,
+      constructive,
+      () => 0.5,
+      content,
+    );
+    expect(draft.goodActs).toBe(1);
+    expect(application.applied.some((e) => e.t === 'goodAct')).toBe(false);
+    // The other effect on the same card is unaffected — this is a silence on
+    // the ONE variant, not a silence on the whole option.
+    expect(application.applied.some((e) => e.t === 'notoriety')).toBe(true);
+  });
+
+  it('projectEffects drops goodAct/illAct entirely rather than passing them through raw', () => {
+    const run = start();
+    const projected = projectEffects(
+      run,
+      constructive,
+      content,
+    );
+    expect(projected.some((e) => e.t === 'goodAct')).toBe(false);
+    expect(projected.some((e) => e.t === 'notoriety')).toBe(true);
+  });
+});

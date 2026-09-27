@@ -1,0 +1,169 @@
+/* Shown at most once per build — see the changelog-ack effect in `App.tsx`.
+   It sits on top of the title screen rather than replacing it, matching
+   `FirstRunGuide`'s scrim treatment on the run screen. */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: var(--ew-space-4);
+  background: radial-gradient(120% 90% at 50% 45%, rgba(11, 10, 9, 0.78), rgba(11, 10, 9, 0.93));
+  backdrop-filter: blur(2px);
+  animation: changelogScrimIn var(--ew-base) var(--ew-ease) both;
+}
+
+.card {
+  width: min(26rem, 100%);
+  max-height: min(32rem, 80dvh);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-3);
+  padding: var(--ew-space-5);
+  background: linear-gradient(180deg, var(--ew-raised), var(--ew-panel) 60%);
+  border: 1px solid var(--ew-line-strong);
+  border-radius: var(--ew-radius-lg);
+  box-shadow: var(--ew-lip), var(--ew-shadow-overlay);
+  animation: changelogCardIn var(--ew-slow) var(--ew-ease) both;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: var(--ew-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--ew-ink-faint);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-size-xl);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--ew-ink-bright);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-3);
+  overflow-y: auto;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-1);
+  padding-bottom: var(--ew-space-3);
+  border-bottom: 1px solid var(--ew-line);
+}
+
+.item:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.version {
+  font-size: var(--ew-size-xs);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+  letter-spacing: 0.06em;
+  color: var(--ew-ink-ghost);
+}
+
+.summary {
+  font-size: var(--ew-size-base);
+  line-height: 1.5;
+  color: var(--ew-ink-dim);
+  text-wrap: pretty;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--ew-space-2);
+  margin-top: var(--ew-space-2);
+  padding-top: var(--ew-space-4);
+  border-top: 1px solid var(--ew-line);
+}
+
+.dismiss {
+  padding: var(--ew-space-2) var(--ew-space-3);
+  font-size: var(--ew-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ew-ink-faint);
+  background: none;
+  border: 0;
+  transition: color var(--ew-fast) var(--ew-ease);
+}
+
+.dismiss:hover {
+  color: var(--ew-ink);
+}
+
+.view {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ew-space-2);
+  min-height: 44px;
+  padding: var(--ew-space-2) var(--ew-space-5);
+  font-size: var(--ew-size-sm);
+  font-weight: 500;
+  color: var(--ew-ink-bright);
+  background: var(--ew-raised);
+  border: 1px solid var(--ew-line-strong);
+  border-radius: var(--ew-radius-sm);
+  box-shadow: var(--ew-lip);
+  transition:
+    background-color var(--ew-fast) var(--ew-ease),
+    transform var(--ew-fast) var(--ew-ease);
+}
+
+.view:hover {
+  background: var(--ew-hover);
+}
+
+.view:active {
+  transform: translateY(1px);
+}
+
+@keyframes changelogScrimIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes changelogCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 480px) {
+  .card {
+    padding: var(--ew-space-4);
+  }
+
+  .title {
+    font-size: var(--ew-size-lg);
+  }
+
+  .summary {
+    font-size: var(--ew-size-sm);
+  }
+}

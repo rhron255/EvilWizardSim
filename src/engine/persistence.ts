@@ -1,0 +1,384 @@
+/**
+ * `localStorage` persistence.
+ *
+ * Two rules govern this file:
+ *
+ *   1. EVERY access is wrapped. Private-mode Safari throws on `setItem`, some
+ *      embedded webviews throw on merely *reading* `window.localStorage`, and
+ *      a quota error must never be the thing that eats a fifteen-era ledger.
+ *      Storage failures degrade to in-memory play, silently.
+ *   2. There is a `version` key from day one (wiki/03: "Migrating a collection
+ *      is the one data loss players will actually be angry about"). Unknown
+ *      *older* versions are migrated field-by-field; unknown *newer* versions
+ *      are discarded rather than misread, because a newer build's collection
+ *      being partially eaten is worse than it being reset.
+ */
+
+import type { Collection, EndingId, RunState } from '../types';
+import type { ContentBundle } from './content-port';
+import { indexOf } from './content-port';
+import {
+  CHANGELOG_ACK_KEY,
+  COLLECTION_KEY,
+  COLLECTION_VERSION,
+  RUN_KEY,
+  RUN_SAVE_VERSION,
+} from './constants';
+import { peakNotoriety } from './systems';
+/**
+ * The one thing the engine reads from `src/theme/`.
+ *
+ * This is NOT the boundary that matters — "the engine never imports
+ * `src/content/`" exists so the balance harness can hold content constant, and
+ * theme data carries no balance semantics whatsoever. What is needed here is
+ * the id list, so a save naming a theme this build does not define falls back
+ * rather than rendering an unthemed page.
+ */
+import { DEFAULT_THEME_ID, isThemeId, isThemeUnlocked } from '../theme/themes';
+
+// ---------------------------------------------------------------------------
+// Storage access, defensively
+// ---------------------------------------------------------------------------
+
+function storage(): Storage | null {
+  try {
+    if (typeof globalThis === 'undefined') return null;
+    const store = (globalThis as { localStorage?: Storage }).localStorage;
+    if (!store) return null;
+    return store;
+  } catch {
+    return null;
+  }
+}
+
+function readRaw(key: string): string | null {
+  try {
+    return storage()?.getItem(key) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function writeRaw(key: string, value: string): boolean {
+  try {
+    const store = storage();
+    if (!store) return false;
+    store.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function removeRaw(key: string): void {
+  try {
+    storage()?.removeItem(key);
+  } catch {
+    /* nothing to do — the record is already unreachable */
+  }
+}
+
+function parse(raw: string | null): unknown {
+  if (raw === null) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Collection
+// ---------------------------------------------------------------------------
+
+/**
+ * `relicsResetAtBuild` is `RELICS_RESET_AT_BUILD` (`src/version.ts`), taken as
+ * a plain argument rather than imported — the same reason `pendingChangelogEntries`
+ * (`src/engine/changelog.ts`) takes `BUILD_VERSION` as a parameter instead of
+ * importing it: build/version constants are a composition-root concern the
+ * engine deliberately never imports (see the doc comment on `shownOffer` in
+ * `App.tsx`). Defaults to `''`, which never reads as "stale" against itself —
+ * see `migrateCollection` — so every existing caller that has no opinion on
+ * the relic reset keeps producing today's collection unchanged.
+ */
+export function emptyCollection(relicsResetAtBuild = ''): Collection {
+  return {
+    version: COLLECTION_VERSION,
+    discoveredArtifactIds: [],
+    endingsSeen: [],
+    runsCompleted: 0,
+    bestNotoriety: 0,
+    tutorialSeen: false,
+    lastWizardName: '',
+    selectedThemeId: DEFAULT_THEME_ID,
+    relicsResetAt: relicsResetAtBuild,
+  };
+}
+
+function stringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const out: string[] = [];
+  for (const item of value) {
+    if (typeof item === 'string' && item.length > 0 && !out.includes(item)) out.push(item);
+  }
+  return out;
+}
+
+function finiteNumber(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+/**
+ * Coerce whatever is on disk into a valid `Collection`.
+ *
+ * Returns a fresh collection for anything unreadable or from the future.
+ * Older versions are salvaged: nothing has ever been removed, so a v0 blob (a
+ * pre-versioning save) just gets its fields lifted out and stamped.
+ *
+ * v1 -> v2 added `tutorialSeen`. A returning player who has already finished a
+ * career is not a first-time player, so their save migrates to `true` — the
+ * guide explains the ledger they have already filled in once.
+ *
+ * v2 -> v3 added `selectedThemeId`. Absent means "never chose one", which is
+ * the default theme; an id this build does not define — a hand-edited save, or
+ * a theme removed since — also becomes the default, because the alternative is
+ * a `data-theme` attribute matching no CSS block, i.e. an unthemed page. Note
+ * an id whose ending has not been earned is likewise reset. Persisted data is
+ * an input boundary: accepting a locked but known id here would let a
+ * hand-edited save bypass the selector and wear a theme it has not unlocked.
+ *
+ * v3 -> v4 added `tabsHintSeen`, for a swipe-between-tabs gesture.
+ *
+ * v4 -> v5 removed `tabsHintSeen` (issue #36): the run screen dropped its
+ * tab split entirely, so there is no gesture left to teach. A v4 save
+ * carrying the field just has it dropped on the floor here, same as any
+ * other field a build no longer reads.
+ *
+ * v5 -> v6 added `relicsResetAt` (issue #80). Not a field-shape migration
+ * like the others above — it is compared against `relicsResetAtBuild`
+ * (`RELICS_RESET_AT_BUILD`, `src/version.ts`) on every load: a stored value
+ * older than it, OR ABSENT (a pre-reset save, or the default `''` an
+ * uninterested caller passes), clears `discoveredArtifactIds` and stamps the
+ * field to the constant; a current value leaves the whole collection
+ * untouched. Endings, themes, the tutorial flag and the last name are never
+ * touched either way — this is a relic-only reset, not a fresh collection.
+ */
+export function migrateCollection(raw: unknown, relicsResetAtBuild = ''): Collection {
+  if (!raw || typeof raw !== 'object') return emptyCollection(relicsResetAtBuild);
+  const data = raw as Record<string, unknown>;
+  const version = finiteNumber(data.version, 0);
+
+  // From the future: a newer build wrote this. Do not guess at its shape.
+  if (version > COLLECTION_VERSION) return emptyCollection(relicsResetAtBuild);
+
+  const endings = stringArray(data.endingsSeen) as EndingId[];
+  const runsCompleted = Math.max(0, Math.round(finiteNumber(data.runsCompleted, 0)));
+  const storedRelicsResetAt =
+    typeof data.relicsResetAt === 'string' ? data.relicsResetAt : '';
+  // A plain string comparison, the same sortable-ISO-8601 trick `BUILD_VERSION`
+  // itself relies on. `'' < ''` is false, so a caller with no opinion on the
+  // reset (the default parameter) never triggers one.
+  const relicsStale = storedRelicsResetAt < relicsResetAtBuild;
+
+  return {
+    version: COLLECTION_VERSION,
+    discoveredArtifactIds: relicsStale ? [] : stringArray(data.discoveredArtifactIds),
+    endingsSeen: endings,
+    runsCompleted,
+    bestNotoriety: Math.max(0, Math.min(99, Math.round(finiteNumber(data.bestNotoriety, 0)))),
+    tutorialSeen:
+      typeof data.tutorialSeen === 'boolean' ? data.tutorialSeen : runsCompleted > 0,
+    // Added alongside `tutorialSeen` in the same unreleased v2, so no save in
+    // the wild has ever been without it; absence just means "never named one".
+    lastWizardName: typeof data.lastWizardName === 'string' ? data.lastWizardName.slice(0, 40) : '',
+    selectedThemeId:
+      isThemeId(data.selectedThemeId) && isThemeUnlocked(data.selectedThemeId, endings)
+        ? data.selectedThemeId
+        : DEFAULT_THEME_ID,
+    relicsResetAt: relicsStale ? relicsResetAtBuild : storedRelicsResetAt,
+  };
+}
+
+/** See `migrateCollection`'s doc comment for what `relicsResetAtBuild` does. */
+export function loadCollection(relicsResetAtBuild = ''): Collection {
+  return migrateCollection(parse(readRaw(COLLECTION_KEY)), relicsResetAtBuild);
+}
+
+export function saveCollection(c: Collection): void {
+  writeRaw(COLLECTION_KEY, JSON.stringify({ ...c, version: COLLECTION_VERSION }));
+}
+
+/**
+ * Fold a finished run into the collection. Pure — safe to call from a reducer,
+ * and idempotent for `discoveredArtifactIds` / `endingsSeen` / `bestNotoriety`.
+ *
+ * Artifacts count as DISCOVERED even if the run no longer holds them: a lich
+ * forfeits everything, and a player who found the Bone Crown and then paid it
+ * to the Worm has still seen the Bone Crown. Anything else would make lichdom
+ * feel like a bug.
+ */
+export function recordRun(c: Collection, run: RunState, content: ContentBundle): Collection {
+  const index = indexOf(content);
+
+  const discovered = new Set(c.discoveredArtifactIds);
+  const consider = (id: string) => {
+    if (index.artifactById.has(id)) discovered.add(id);
+  };
+  run.heldArtifactIds.forEach(consider);
+  run.startingArtifactIds.forEach(consider);
+  run.activeGrantedArtifactIds.forEach(consider);
+  for (const era of run.eras) era.artifactsGained.forEach(consider);
+
+  const endingsSeen = c.endingsSeen.slice();
+  if (run.ending && !endingsSeen.includes(run.ending)) endingsSeen.push(run.ending);
+
+  return {
+    version: COLLECTION_VERSION,
+    discoveredArtifactIds: Array.from(discovered),
+    endingsSeen,
+    // Only a finished biography counts as a completed run.
+    runsCompleted: c.runsCompleted + (run.ending ? 1 : 0),
+    bestNotoriety: Math.max(c.bestNotoriety, peakNotoriety(run)),
+    tutorialSeen: c.tutorialSeen,
+    // A finished career re-confirms the name, so the next creation screen
+    // opens on the wizard the player actually played.
+    lastWizardName: run.wizardName || c.lastWizardName,
+    // Finishing a run never changes what the player is WEARING. The ending
+    // card offers the newly unlocked theme and the player taps to apply it —
+    // swapping it out from under them here would be the game imposing a
+    // cosmetic, which is the distinction the amended rule 3 turns on.
+    selectedThemeId: c.selectedThemeId,
+    // Finishing a run never resets the relic grid either — that is a
+    // build-boundary event `migrateCollection` handles on load, not something
+    // an ordinary finished career triggers.
+    relicsResetAt: c.relicsResetAt,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// In-progress run
+// ---------------------------------------------------------------------------
+
+/**
+ * wiki/03: "losing an accumulated ledger to a browser refresh directly attacks
+ * the sunk-cost mechanism the design depends on." Saved every era.
+ */
+export function saveInProgressRun(run: RunState): void {
+  if (run.ending) {
+    clearInProgressRun();
+    return;
+  }
+  writeRaw(RUN_KEY, JSON.stringify({ version: RUN_SAVE_VERSION, run }));
+}
+
+function looksLikeRun(value: unknown): value is RunState {
+  if (!value || typeof value !== 'object') return false;
+  const r = value as Partial<RunState>;
+  return (
+    typeof r.id === 'string' &&
+    typeof r.seed === 'number' &&
+    Number.isFinite(r.seed) &&
+    typeof r.wizardName === 'string' &&
+    typeof r.eraIndex === 'number' &&
+    typeof r.eraCount === 'number' &&
+    typeof r.prophecyEra === 'number' &&
+    typeof r.notoriety === 'number' &&
+    typeof r.lairId === 'string' &&
+    Array.isArray(r.eras) &&
+    Array.isArray(r.seenOfferIds) &&
+    Array.isArray(r.heldArtifactIds) &&
+    // Added late, and the ending card now reads it to work out what the career
+    // contributed to the collection. A save written before it existed would
+    // deserialise with `undefined` here; `RUN_SAVE_VERSION` should already
+    // reject those, but a shape check is cheaper than trusting that it was
+    // bumped at the right moment.
+    Array.isArray(r.knownArtifactIds) &&
+    !!r.factionStanding &&
+    typeof r.factionStanding === 'object' &&
+    !!r.apprentices &&
+    typeof r.apprentices === 'object' &&
+    // Added in the same bump that took RUN_SAVE_VERSION to 3 (issue #80).
+    // `RUN_SAVE_VERSION`'s own check already rejects a pre-relic save, so
+    // this is belt-and-suspenders the same way `knownArtifactIds` is above.
+    !!r.relicState &&
+    typeof r.relicState === 'object' &&
+    Array.isArray((r.relicState as { firedOnce?: unknown }).firedOnce) &&
+    Array.isArray(r.startingArtifactIds)
+  );
+}
+
+/**
+ * Returns null for anything unreadable, shape-wrong, from a different save
+ * version, or already finished. A finished run is not resumable — it belongs
+ * on the ending card, not back in the offer loop.
+ */
+export function loadInProgressRun(): RunState | null {
+  const raw = parse(readRaw(RUN_KEY));
+  if (!raw || typeof raw !== 'object') return null;
+  const wrapper = raw as { version?: unknown; run?: unknown };
+  if (finiteNumber(wrapper.version, -1) !== RUN_SAVE_VERSION) {
+    clearInProgressRun();
+    return null;
+  }
+  if (!looksLikeRun(wrapper.run)) {
+    clearInProgressRun();
+    return null;
+  }
+  // Issue #81 grows `relicState` with `spent`/`foresight`, and adds
+  // `activeGrantedArtifactIds` alongside `startingArtifactIds`, deliberately
+  // with NO `RUN_SAVE_VERSION` bump ("the shape was already reserved in
+  // slice 3" — #81's own text) — so a save written by slice 3's build (or by
+  // an earlier build of #81 itself, before `activeGrantedArtifactIds`
+  // existed) still passes `looksLikeRun` above (it never checked any of
+  // these) but arrives here missing them. Defaulted on load rather than
+  // added to the shape check, the same reasoning `emptyCollection`'s own
+  // migration defaults use: a field this additive does not deserve a
+  // save-format rejection.
+  const run: RunState = {
+    ...wrapper.run,
+    relicState: {
+      firedOnce: wrapper.run.relicState.firedOnce,
+      spent: wrapper.run.relicState.spent ?? [],
+      foresight: wrapper.run.relicState.foresight ?? false,
+    },
+    activeGrantedArtifactIds: wrapper.run.activeGrantedArtifactIds ?? [],
+  };
+  if (run.ending) {
+    clearInProgressRun();
+    return null;
+  }
+  if (run.eraIndex >= run.eraCount) {
+    clearInProgressRun();
+    return null;
+  }
+  return run;
+}
+
+export function clearInProgressRun(): void {
+  removeRaw(RUN_KEY);
+}
+
+// ---------------------------------------------------------------------------
+// Changelog acknowledgement (issue #67)
+// ---------------------------------------------------------------------------
+
+/**
+ * The build version the player last acknowledged — by dismissing the launch
+ * popup, or opening the full changelog from it or from the title screen.
+ *
+ * Returns `null` for "never" (a first-ever launch), which is also what any
+ * storage failure degrades to per this file's rule 1 — the popup then shows
+ * every entry, the same behaviour a genuinely first-time player gets. No
+ * shape or version check is needed here: the value is a bare string, and
+ * `pendingChangelogEntries` already treats anything it cannot place at or
+ * before the current build as nothing pending, so a stray or future value
+ * degrades gracefully wherever it is actually used.
+ */
+export function loadChangelogAck(): string | null {
+  const raw = readRaw(CHANGELOG_ACK_KEY);
+  return raw && raw.length > 0 ? raw : null;
+}
+
+export function saveChangelogAck(version: string): void {
+  writeRaw(CHANGELOG_ACK_KEY, version);
+}
