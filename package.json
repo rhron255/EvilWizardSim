@@ -15,7 +15,8 @@
     "validate:content": "tsx scripts/validate-content.ts",
     "sim": "tsx scripts/simulate.ts",
     "gate": "node scripts/gate.mjs",
-    "assets": "tsx scripts/build-static-assets.ts"
+    "assets": "tsx scripts/build-static-assets.ts",
+    "content-review": "tsx tools/content-review/server.ts"
   },
   "overrides": {
     "vite": "$vite"
@@ -38,6 +39,7 @@
     "globals": "^15.14.0",
     "jsdom": "^25.0.1",
     "playwright": "^1.62.1",
+    "ts-morph": "^28.0.0",
     "tsx": "^4.19.2",
     "typescript": "~5.7.2",
     "typescript-eslint": "^8.18.1",

@@ -1695,8 +1695,8 @@ export const ascentOffers: Offer[] = [
           { t: 'followers', v: -12 },
           { t: 'heroThreat', v: 8 },
         ],
-        failureText: 'The speech was longer than expected and the armour, it turns out, was borrowed from someone competent.',
-        successText: 'The speech is read at the funeral. It is long.',
+        failureText: 'The knight had a good night\'s rest. You didn\'t have a good rest of the night.',
+        successText: 'A speech is read at the funeral. It is long.',
       },
       {
         kind: 'certain',
