@@ -140,6 +140,12 @@ export function EffectList({
             {i > 0 && <span className={styles.sep} aria-hidden="true">, </span>}
             {line.num && <span className={`${styles.num} ew-num`}>{line.num}</span>}
             <span className={styles.label}>{line.text}</span>
+            {line.detail && (
+              <span className={styles.detailInline}>
+                {' '}
+                · {line.detail}
+              </span>
+            )}
           </span>
         ))}
       </span>
@@ -151,7 +157,10 @@ export function EffectList({
       {lines.map(({ key, line }) => (
         <li key={key} className={styles.row} data-tone={line.tone}>
           <span className={`${styles.num} ew-num`}>{line.num ?? ''}</span>
-          <span className={styles.label}>{line.text}</span>
+          <span className={styles.labelGroup}>
+            <span className={styles.label}>{line.text}</span>
+            {line.detail && <span className={styles.detail}>{line.detail}</span>}
+          </span>
         </li>
       ))}
     </ul>

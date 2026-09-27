@@ -173,6 +173,25 @@ text on one line has different tops. It went green only after it tested vertical
 overlap instead. Failure mode 5 applies to the thing you build to check, in the
 hour you build it.
 
+*Nor is the check itself exempt from staying wired.* `playthrough.mjs`'s own
+`shot()` helper — the one place in the repo that already names this exact
+trap in a code comment — still called `page.screenshot({ fullPage: true })`
+unconditionally, `ResolutionOverlay` included. Its `run-mid` shot (issue #82)
+showed a washed-out, doubled-looking resolution card over a faded copy of the
+decision content behind it — read at a glance as a z-index or opacity bug in
+the app, and nearly "fixed" by padding the wait before the shot instead —
+throwing more `waitForTimeout` at a rendering artifact that no wait can
+settle, because it isn't a timing bug (the "staged reveals" bullet above is
+the trap this could easily have been confused with) and, one level down in
+the app instead of its QA harness, the same shape as failure mode 2's
+roll-rail incident: the fix already existed, in a comment, and nothing had
+actually reached it. The actual fix: check for
+an open `[role="dialog"]` and drop to a viewport-only capture when one is up,
+exactly as this section already prescribed — the prose had been correct
+since it was written, the one call site just never read it. Failure mode 2's
+question applies to a written CHECK as much as to a written call site: does
+anything actually run it?
+
 ### 8. Responsive layouts diverge from their markup
 
 The ledger's empty state used `colSpan={6}`, but phones hide the Lair column and

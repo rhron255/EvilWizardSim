@@ -78,7 +78,15 @@ async function shot(name) {
   // caught a card mid-roll with no result on it.
   await page.evaluate(() => document.fonts?.ready);
   await page.waitForTimeout(1900);
-  await page.screenshot({ path: file, fullPage: true });
+  // Failure mode 7: `fullPage` stitches together several scrolled captures,
+  // and a `position: fixed` dialog (ResolutionOverlay, FirstRunGuide,
+  // ChangelogPopup) does not move with the page, so it gets pasted into EVERY
+  // strip of the stitch — a washed-out, duplicated-looking card over a faded
+  // copy of whatever sits behind it, with no such stacking in the real app.
+  // `run-mid` names its shot mid-decision, when a resolution overlay is
+  // exactly as likely to be open as not, so this checks rather than assumes.
+  const dialogOpen = await page.locator('[role="dialog"]').first().isVisible().catch(() => false);
+  await page.screenshot({ path: file, fullPage: !dialogOpen });
   shots.push(file);
   console.log(`  shot  ${file}`);
 }

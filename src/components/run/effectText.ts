@@ -51,6 +51,13 @@ export type EffectLine = {
   num?: string;
   /** The noun phrase that follows the number, or the whole line if there is none. */
   text: string;
+  /**
+   * A second, visually lighter line under `text` — currently only a double-
+   * edged relic's power (`relicPowerText`), kept separate from `text` rather
+   * than joined by " · " so the card can weight the name and its real cost
+   * differently and break them onto their own lines instead of one dense run.
+   */
+  detail?: string;
   tone: EffectTone;
 };
 
@@ -193,7 +200,8 @@ export function describeEffect(
       const artifact = artifacts.find((a) => a.id === effect.artifactId);
       if (artifact && isDoubleEdged(artifact)) {
         return {
-          text: `Gain ${name} · ${relicPowerText(artifact.power, { factions })}`,
+          text: `Gain ${name}`,
+          detail: relicPowerText(artifact.power, { factions }),
           tone: 'up',
         };
       }
