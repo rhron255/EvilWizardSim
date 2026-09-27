@@ -73,6 +73,32 @@ Code that exists and is never called. Five times:
 that exists is not a file that runs. Prefer an exhaustive `switch` with a `never`
 guard so the compiler names the unwired case.
 
+*The mirror image: a caller survives deleting its callee.* Retiring the
+pre-`src/content/` fixture bundles also retired the two manual-QA harnesses
+they fed (`qa/harness.html`/`.tsx`, `qa/run-harness.html` — themselves
+already broken, importing a screen deleted even earlier) and rewired the one
+script that commit remembered depended on them (`qa/shoot-share.mjs`). Five
+siblings it did not touch — `qa/probe-verdict.mjs`, `qa/probe-systemic.mjs`,
+`qa/probe-seal-fit.mjs`, `qa/run-shoot.mjs`, `qa/shoot.mjs` — kept `goto`ing
+the deleted `/qa/*harness*.html` routes, unnoticed because none of them run
+in CI or an npm script; only a code review going file-by-file across the
+whole diff found them, months of ordinary work later. They verified real
+things with no other coverage today (verdict-word styling, the "while you
+were elsewhere" block, whether the reprisal warning fits one line per
+faction at 393px, wide-viewport run screenshots, meta-screen variants like
+`ending-quiet`) and were deleted rather than repointed, for the same reason
+the harness itself was: no time in the session that found them to design
+five real-content-driven replacements well, and a script that fails loudly
+against a route that no longer exists is safer than one a future run trusts
+by habit. Rebuilding any of them means driving the real running app the way
+`qa/playthrough.mjs`/`qa/probe-relics.mjs` do, not a new harness page.
+
+**Check, restated for a deletion instead of an addition:** before removing a
+page, route, or fixture a manual QA script's `BASE`/`URL` constant points
+at, `rg` for that literal path across `qa/` (`grep -rn "harness\.html"`,
+here) — the reverse of "does anything call this," but the same discipline,
+and just as invisible until someone happens to run the orphaned side.
+
 *The last one has a specific cause worth naming:* work that stops partway —
 an interrupted session, a subagent that hits a limit mid-task — lands as a
 plausible, well-commented, uncalled function, and it reads like a finished

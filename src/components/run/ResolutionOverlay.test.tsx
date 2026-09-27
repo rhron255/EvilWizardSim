@@ -24,6 +24,7 @@ import { endings, lairs, offers } from '../../content';
 import { BETRAYAL_MAX_LOYALTY } from '../../engine';
 import type { Resolution, SystemicChange } from './resolution';
 import { ResolutionOverlay } from './ResolutionOverlay';
+import { endingDisplayName } from './effectText';
 
 // A real long-shot gamble paying off with a relic: the card, its odds, its
 // success narration, and the notoriety it prints all come from the catalog.
@@ -189,18 +190,15 @@ describe('ResolutionOverlay · naming an ending', () => {
     expect(screen.queryByText(/Slain by Chosen One[^,]/)).toBeNull();
   });
 
-  it('falls back to the bare id derivation when no endings list is supplied', () => {
-    // The degrade-gracefully path a caller with no content in scope (or an
-    // older test) still gets — never a crash, just the pre-fix wording.
-    render(
-      <ResolutionOverlay
-        resolution={{ ...demoResolutionSuccess, systemic: [], ending: 'slain_by_chosen_one' }}
-        artifacts={artifacts}
-        factions={factions}
-        onContinue={() => {}}
-      />,
-    );
-    expect(screen.getByText('The run ends · Slain by Chosen One')).toBeInTheDocument();
+  it('endingDisplayName itself still degrades gracefully for an id absent from the list', () => {
+    // `endings` is a REQUIRED prop on the component now (code review: an
+    // optional prop with a silent fallback was the exact shape of the bug
+    // this whole describe block exists to catch) — so there is no longer a
+    // way to render the overlay without one. The underlying function still
+    // has a legitimate degrade-gracefully path for a partial `endings` list
+    // (a content pack, a future test fixture) that just doesn't happen to
+    // carry a given id; that path is tested directly instead.
+    expect(endingDisplayName('slain_by_chosen_one', [])).toBe('Slain by Chosen One');
   });
 
   it('names the relic AND the real ending it averted in the lifeline block', () => {
@@ -387,6 +385,7 @@ describe('ResolutionOverlay · dismissing exactly once', () => {
         resolution={demoResolutionSuccess}
         artifacts={artifacts}
         factions={factions}
+        endings={endings}
         onContinue={onContinue}
       />,
     );
@@ -404,6 +403,7 @@ describe('ResolutionOverlay · dismissing exactly once', () => {
         resolution={demoResolutionSuccess}
         artifacts={artifacts}
         factions={factions}
+        endings={endings}
         onContinue={onContinue}
       />,
     );
@@ -430,6 +430,7 @@ describe('ResolutionOverlay · dismissing exactly once', () => {
         }}
         artifacts={artifacts}
         factions={factions}
+        endings={endings}
         onContinue={onContinue}
       />,
     );

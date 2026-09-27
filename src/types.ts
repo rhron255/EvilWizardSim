@@ -457,10 +457,14 @@ export type RelicPassiveModifier =
    * to `[min, max]` for as long as the relic is held — narrower on BOTH
    * ends than the ordinary `[STANDING_MIN, STANDING_MAX]` range, never
    * wider. `applyStanding` (`src/engine/effects.ts`) reads this through
-   * `standingBandFor`, the one function both the engine and the header
-   * (`src/components/run/allegiances.ts`) read so the clamp and its display
-   * never drift apart. `drawArtifact` derives "double-edged" from a
-   * narrowed `max` here, never from an authored flag — see `isDoubleEdged`.
+   * `standingBandFor`, the ONE function the engine clamps standing through —
+   * unlike `reprisalThreshold` below, the header (`allegiances.ts`) does not
+   * also read it; the band is disclosed instead where the relic is actually
+   * granted (`describeEffect`'s `artifact` case in `effectText.ts` prints
+   * the power text on the grant card itself, gated on `isDoubleEdged`,
+   * before the player commits). `drawArtifact` derives "double-edged" from
+   * a narrowed `max` here, never from an authored flag — see
+   * `isDoubleEdged`.
    */
   | { t: 'standingBand'; factionId: FactionId; min: number; max: number }
   /**

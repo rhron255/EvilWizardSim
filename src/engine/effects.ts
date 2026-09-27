@@ -23,6 +23,7 @@ import {
   STANDING_MIN,
 } from './constants';
 import { relicRules } from './relics';
+import type { StandingBand } from './relics';
 import type { Rng } from './rng';
 import { weightedPick } from './rng';
 import { clamp, clampNotoriety, clampThreat } from './systems';
@@ -349,7 +350,7 @@ export function applyEffects(
  * `applied` so the resolution card shows the whole bill.
  */
 /** `{ min: STANDING_MIN, max: STANDING_MAX }` — every faction's ordinary, unclamped band. */
-function ordinaryStandingBand(): { min: number; max: number } {
+function ordinaryStandingBand(): StandingBand {
   return { min: STANDING_MIN, max: STANDING_MAX };
 }
 
@@ -379,7 +380,7 @@ export function applyStanding(
    * not only against a direct grant. Defaults to the ordinary, unclamped
    * band for every caller that predates relic-authored bands.
    */
-  standingBandFor: (factionId: FactionId) => { min: number; max: number } = ordinaryStandingBand,
+  standingBandFor: (factionId: FactionId) => StandingBand = ordinaryStandingBand,
 ): number {
   const band = standingBandFor(factionId);
   const before = draft.factionStanding[factionId] ?? 0;
@@ -602,9 +603,15 @@ const PROJECTABLE: ReadonlySet<Effect['t']> = new Set([
   'artifact',
 ]);
 
-/** Reached only for a deterministic `loseArtifact` — see `DETERMINISTIC_LOSS_RNG`. */
-const NO_RNG: Rng = () => {
-  throw new Error('projectEffects: a projectable effect must not draw from the rng');
+/**
+ * A stub `Rng` for a call site already proven not to need real randomness —
+ * shared with `relics.ts`'s own preview functions (`projectReactions`) so
+ * this invariant lives in exactly one place, not two doc comments that could
+ * drift. Reached only for a deterministic `loseArtifact` — see
+ * `DETERMINISTIC_LOSS_RNG`.
+ */
+export const NO_RNG: Rng = () => {
+  throw new Error('a projectable effect must not draw from the rng');
 };
 
 /**
@@ -613,9 +620,10 @@ const NO_RNG: Rng = () => {
  * what this returns at that length, so it introduces no randomness), or the
  * Counterfeit Soul's `loseArtifactPriority` names the target directly and the
  * case never calls `rng` at all. Exists only to satisfy the `Rng` type at a
- * call site already proven not to need real randomness.
+ * call site already proven not to need real randomness. Shared with
+ * `relics.ts` for the same reason `NO_RNG` above is.
  */
-const DETERMINISTIC_LOSS_RNG: Rng = () => 0;
+export const DETERMINISTIC_LOSS_RNG: Rng = () => 0;
 
 /**
  * Whether THIS draft's `loseArtifact` has a knowable outcome — either too few

@@ -54,12 +54,28 @@ import type { ContentBundle, DefenseReadout } from '../../engine';
 import type { Artifact, Faction, RelicPower, RunState } from '../../types';
 import { ArtifactCard, relicPowerText } from '../meta';
 import { EffectList } from './EffectList';
+import { factionFor } from './effectText';
 import styles from './RelicPage.module.css';
 
 type TriggerPower = Extract<RelicPower, { kind: 'trigger' }>;
 
 function hasTriggerPower(artifact: Artifact): artifact is Artifact & { power: TriggerPower } {
   return artifact.power?.kind === 'trigger';
+}
+
+/**
+ * A trigger power whose whole effect is discrete `RelicEffect[]` rows
+ * `EffectList` can render — true for the common case (Mantle of Slow Moss),
+ * false for one whose effect lives entirely in `scaled` instead (The Long
+ * Appetite: `effects: []`, everything in `perUnit`/`perUnitEffect`). Getting
+ * this wrong reads as a real disclosure bug, not a blank state: `EffectList`
+ * renders an empty array as the literal string "No change," directly
+ * contradicting a relic that visibly does something every era.
+ */
+function hasDiscreteTriggerEffects(
+  artifact: Artifact,
+): artifact is Artifact & { power: TriggerPower } {
+  return hasTriggerPower(artifact) && artifact.power.effects.length > 0;
 }
 
 export type RelicPageProps = {
@@ -76,10 +92,6 @@ export type RelicPageProps = {
    */
   onUseRelic(artifactId: string): void;
 };
-
-function factionFor(factions: Faction[], id: string): Faction | undefined {
-  return factions.find((f) => f.id === id);
-}
 
 /**
  * The descriptive fallback for a relic with no discrete `Effect[]` to render
@@ -153,11 +165,12 @@ export function RelicPage({
         <div className={styles.summaryList} role="group" aria-label="Relic summary">
           {held.map((artifact) => {
             const faction = factionFor(factions, artifact.factionId);
-            const description = hasTriggerPower(artifact) ? null : descriptionFor(artifact, faction);
+            const showEffects = hasDiscreteTriggerEffects(artifact);
+            const description = showEffects ? null : descriptionFor(artifact, faction);
             return (
               <div key={artifact.id} className={styles.summaryItem}>
                 <p className={styles.summaryName}>{artifact.name}</p>
-                {hasTriggerPower(artifact) && (
+                {showEffects && (
                   <EffectList
                     effects={artifact.power.effects}
                     artifacts={artifacts}

@@ -17,12 +17,13 @@ export type EffectListProps = {
   artifacts: Artifact[];
   factions: Faction[];
   /**
-   * Only needed for a scripted `{t: 'ending'}` effect's display name — see
-   * `endingDisplayName` in `effectText.ts`. Optional and defaults to `[]`
-   * (the bare id-derived fallback) so a caller with no ending-effect content
-   * in scope, or an existing test, is not forced to thread one through.
+   * Needed for a scripted `{t: 'ending'}` effect's display name — see
+   * `endingDisplayName` in `effectText.ts`. Required, not optional: wiki/07's
+   * failure mode 17 is exactly a caller that silently fell back to the bare
+   * id-derived name because nothing forced it to be threaded through. A
+   * caller with no ending-effect content in scope passes `[]` explicitly.
    */
-  endings?: Ending[];
+  endings: Ending[];
   /** Inline, comma-flowed. Used inside a gamble's branch lines. */
   compact?: boolean;
 };
@@ -121,7 +122,7 @@ export function EffectList({
   effects,
   artifacts,
   factions,
-  endings = [],
+  endings,
   compact = false,
 }: EffectListProps) {
   const merged = coalesce(effects);

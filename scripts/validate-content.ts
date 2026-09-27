@@ -371,7 +371,24 @@ for (const artifact of artifacts) {
 
   if (power.kind === 'trigger' || power.kind === 'active') {
     checkRelicEffects(where, power.effects);
-    if (power.kind === 'active' && power.cost) checkRelicEffects(`${where} cost`, power.cost);
+    if (power.kind === 'active' && power.cost) {
+      checkRelicEffects(`${where} cost`, power.cost);
+      // `canActivateRelic` (src/engine/relics.ts) only knows how to price a
+      // `followers` cost's affordability (scaled through
+      // `followersCostMultiplier`, the same way `applyEffects` scales the
+      // real spend) — any other cost-shaped type would silently read as
+      // free to activate, granting the relic's benefit while skipping the
+      // gate that is supposed to block it. A future relic that needs to
+      // spend something else must extend that function in the same commit.
+      for (const cost of power.cost) {
+        if (cost.t !== 'followers') {
+          fail(
+            `${where} cost`,
+            `active cost uses "${cost.t}" — canActivateRelic only checks affordability for "followers"; extend it before authoring a cost of this type`,
+          );
+        }
+      }
+    }
   }
   if (power.kind === 'trigger') {
     for (const c of power.if ?? []) checkCondition(where, c);

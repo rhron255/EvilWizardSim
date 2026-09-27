@@ -109,6 +109,16 @@ export function artifactName(id: string, artifacts: Artifact[]): string {
   return a ? a.name : 'an unnamed relic';
 }
 
+/**
+ * The `Faction` object itself, not just its display name — for a caller that
+ * needs to hand it to `relicPowerText`'s `ctx.factions` (RelicPage,
+ * ResolutionOverlay), which `factionName`'s string-with-fallback shape
+ * doesn't fit. `undefined` for an id the list doesn't carry.
+ */
+export function factionFor(factions: Faction[], id: string): Faction | undefined {
+  return factions.find((f) => f.id === id);
+}
+
 export function titleCase(id: string): string {
   return id
     .split('_')

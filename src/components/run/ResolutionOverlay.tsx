@@ -15,7 +15,14 @@ import type { Artifact, Ending, Faction } from '../../types';
 import { tierColor, tierFor, tierGlow } from '../../theme/tokens';
 import type { Resolution } from './resolution';
 import { EffectList } from './EffectList';
-import { artifactName, describeSystemic, endingDisplayName, formatOdds, systemicKey } from './effectText';
+import {
+  artifactName,
+  describeSystemic,
+  endingDisplayName,
+  factionFor,
+  formatOdds,
+  systemicKey,
+} from './effectText';
 import { NotorietyBadge } from './NotorietyBadge';
 import { ArtifactCard } from '../meta';
 import styles from './ResolutionOverlay.module.css';
@@ -24,8 +31,8 @@ export type ResolutionOverlayProps = {
   resolution: Resolution;
   artifacts: Artifact[];
   factions: Faction[];
-  /** Only needed for the authored ending name — see `endingDisplayName` in `effectText.ts`. */
-  endings?: Ending[];
+  /** Needed for the authored ending name — see `endingDisplayName` in `effectText.ts`. Required, not optional: wiki/07's failure mode 17 is exactly a caller silently falling back to a bare id-derived name because nothing forced this through. */
+  endings: Ending[];
   onContinue(): void;
 };
 
@@ -47,15 +54,11 @@ const OUTCOME_WORD: Record<Resolution['outcome'], string> = {
  */
 const LONG_ODDS = 0.4;
 
-function factionFor(factions: Faction[], id: string): Faction | undefined {
-  return factions.find((f) => f.id === id);
-}
-
 export function ResolutionOverlay({
   resolution,
   artifacts,
   factions,
-  endings = [],
+  endings,
   onContinue,
 }: ResolutionOverlayProps) {
   const headingId = useId();

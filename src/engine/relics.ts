@@ -46,7 +46,15 @@ import type { ContentBundle } from './content-port';
 import { indexOf } from './content-port';
 import { conditionsMet } from './conditions';
 import { NOVELTY_BIAS, SEAL_MAX_STANDING, STANDING_MAX, STANDING_MIN } from './constants';
-import { applyEffects, draftOf, forfeitForLichdom, isDoubleEdged, lossIsDeterministic } from './effects';
+import {
+  applyEffects,
+  DETERMINISTIC_LOSS_RNG,
+  draftOf,
+  forfeitForLichdom,
+  isDoubleEdged,
+  lossIsDeterministic,
+  NO_RNG,
+} from './effects';
 import type { Rng } from './rng';
 import { streamFor, weightedPick } from './rng';
 import { clampThreat, defenseOf } from './systems';
@@ -429,20 +437,11 @@ export function applyHeroApproachTriggers(draft: RunState, content: ContentBundl
 // ---------------------------------------------------------------------------
 // Projection — what the card should print, before the commit (rule 1)
 // ---------------------------------------------------------------------------
-
-/** Reached only for a deterministic `loseArtifact` — see `DETERMINISTIC_LOSS_RNG`. */
-const NO_RNG: Rng = () => {
-  throw new Error('projectReactions: a relic reaction must not draw from the rng');
-};
-
-/**
- * Safe ONLY when `draft.heldArtifactIds.length` is 0 or 1 at the point
- * `loseArtifact` is reached: `effects.ts`'s case computes
- * `Math.floor(rng() * length)`, which is 0 regardless of what this returns
- * when `length` is 0 or 1, so it introduces no randomness — it exists only to
- * satisfy the `Rng` type at a call site already proven deterministic below.
- */
-const DETERMINISTIC_LOSS_RNG: Rng = () => 0;
+//
+// NO_RNG and DETERMINISTIC_LOSS_RNG are imported from effects.ts, not
+// re-declared here — this file already imports several real functions from
+// there, so there was no circularity reason for the stub `Rng`s to have two
+// separate copies of the same invariant doc comment.
 
 export type RelicReactionPreview =
   | { kind: 'certain'; events: RelicEvent[] }
@@ -505,7 +504,20 @@ export function projectReactions(
       // just as knowable as a 0-or-1-held one — see `lossIsDeterministic`,
       // the same call `projectEffects` (`effects.ts`) makes for the offer
       // card's own numbers.
-      if (effect.t === 'loseArtifact' && !lossIsDeterministic(draft, content)) continue;
+      if (effect.t === 'loseArtifact' && !lossIsDeterministic(draft, content)) {
+        // WHICH relic is lost is genuinely unknowable ahead of the roll, so
+        // `draft.heldArtifactIds` stays untouched here — resolving it would
+        // show a specific relic's reaction (or lack of one) as certain when
+        // it might be the very relic the roll takes. But THAT a loss happens
+        // is certain: `applyEffects`'s own `loseArtifact` case always pushes
+        // `{t:'loseArtifact'}` once any relic is held, with no gate on
+        // determinism. A `watchesEffect: 'loseArtifact'` trigger (the
+        // Appraiser's Monocle, Seed That Remembers) only checks THAT that
+        // type appears in `appliedEffects`, never which relic — so `continue`
+        // used to hide it from a preview it will actually fire in for real.
+        appliedEffects.push({ t: 'loseArtifact' });
+        continue;
+      }
       const rng = effect.t === 'loseArtifact' ? DETERMINISTIC_LOSS_RNG : NO_RNG;
       const application = applyEffects(draft, [effect], rng, content);
       appliedEffects.push(...application.applied);
@@ -551,14 +563,27 @@ export function projectReactions(
  * The relic page uses this to decide whether a Use button appears at all,
  * and `activateRelic` re-checks it so a stale click can never spend twice or
  * dip a stat below its floor.
+ *
+ * Only a `followers` cost is checked, priced through the SAME
+ * `followersCostMultiplier` `applyEffects`'s own `followers` case scales it
+ * by (the Second Stomach) — checking the raw authored magnitude used to
+ * read a genuinely affordable activation as unaffordable and hide the Use
+ * button for it. `validate-content.ts` enforces that no active relic's
+ * `cost` uses any other effect type, so this staying `followers`-only is a
+ * checked contract, not a silent gap: extend both together if a future
+ * relic's cost needs to spend something else.
  */
 export function canActivateRelic(run: RunState, artifactId: string, content: ContentBundle): boolean {
   const power = indexOf(content).artifactById.get(artifactId)?.power;
   if (!power || power.kind !== 'active') return false;
   if (!run.heldArtifactIds.includes(artifactId)) return false;
   if (run.relicState.spent.includes(artifactId)) return false;
+  const rules = relicRules(run, content);
   for (const cost of power.cost ?? []) {
-    if (cost.t === 'followers' && cost.v < 0 && run.followers < -cost.v) return false;
+    if (cost.t === 'followers' && cost.v < 0) {
+      const scaledCost = cost.v * rules.followersCostMultiplier;
+      if (run.followers < -scaledCost) return false;
+    }
   }
   return true;
 }

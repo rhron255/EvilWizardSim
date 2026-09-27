@@ -616,8 +616,11 @@ function optionScore(
   // a two-way gamble legible to a policy: at 5/7 the failure branch crosses
   // the ceiling and is scored as the ending it is, so the expected value
   // collapses exactly where a player would feel it collapse. Scored through
-  // `effectiveOdds` — a no-op today, live for #77 slice 5's odds relic.
-  const odds = effectiveOdds(run, option);
+  // `effectiveOdds`, `content` passed so Spectacles of the Third Reading's
+  // `gambleOddsBonus` (issue #82) prices a gamble the way a bot holding it
+  // would actually face — the same odds `resolveChoice`/the real offer card
+  // use, not the raw authored number a held Spectacles never touches.
+  const odds = effectiveOdds(run, option, content);
   const onSuccess = reactions.kind === 'gamble' ? reactions.onSuccess : [];
   const onFailure = reactions.kind === 'gamble' ? reactions.onFailure : [];
   return (
@@ -731,14 +734,15 @@ function standingOf(effects: readonly Effect[], factionId: FactionId): number {
 /**
  * Odds-weighted, for the same reason `wormOf` is.
  *
- * Scores through `effectiveOdds` rather than `option.odds` directly — a
- * no-op today (no relic in the catalog touches odds yet), but the call site
- * is live for #77 slice 5's odds-modifying relic, so a bot's EV scoring picks
- * that up with no change here.
+ * Scores through `effectiveOdds` rather than `option.odds` directly, `content`
+ * passed so Spectacles of the Third Reading's `gambleOddsBonus` (issue #82)
+ * moves this the same way it moves the real roll — omitting it silently
+ * priced every EV-scored gamble (worm/spite affinity) at the raw authored
+ * odds for a bot holding the one relic in the catalog that changes them.
  */
 function evOf(run: RunState, option: OfferOption, of: (effects: readonly Effect[]) => number): number {
   if (option.kind === 'certain') return of(option.effects);
-  const odds = effectiveOdds(run, option);
+  const odds = effectiveOdds(run, option, content);
   return odds * of(option.onSuccess) + (1 - odds) * of(option.onFailure);
 }
 
@@ -1154,8 +1158,13 @@ function maybeActivateActives(run: RunState, offer: Offer, relicFires: Record<st
   }
 
   if (canActivateRelic(next, 'pale_orrery', content)) {
+    // `effectiveOdds`, not the raw authored `o.odds`: a bot holding both the
+    // Orrery and Spectacles of the Third Reading (`gambleOddsBonus`) must
+    // judge "risky" by the odds it will actually face, or it can burn the
+    // Orrery's one guaranteed success on a gamble Spectacles already moved
+    // out of the risky band.
     const facesRiskyGamble = offer.options.some(
-      (o) => o.kind === 'gamble' && o.odds <= PALE_ORRERY_RISKY_ODDS,
+      (o) => o.kind === 'gamble' && effectiveOdds(next, o, content) <= PALE_ORRERY_RISKY_ODDS,
     );
     if (facesRiskyGamble) {
       const result = activateRelic(next, 'pale_orrery', content);

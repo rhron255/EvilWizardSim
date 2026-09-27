@@ -175,6 +175,23 @@ describe('RelicPage · the relic summary', () => {
     ).toBeInTheDocument();
   });
 
+  it('falls back to the descriptive sentence for a TRIGGER whose whole effect lives in `scaled`, not "No change"', () => {
+    // Bug found by code review: The Long Appetite is a trigger power with
+    // `effects: []` (everything lives in `scaled` instead), so the old
+    // `hasTriggerPower` check routed it to EffectList with an empty array —
+    // which renders the literal string "No change" for a legendary relic
+    // that visibly does something every choice. The full ArtifactCard lower
+    // on the same page already rendered this correctly via `descriptionFor`;
+    // only the quick summary had the bug.
+    const run = { ...baseRun, heldArtifactIds: [...baseRun.heldArtifactIds, 'long_appetite'] };
+    show(run);
+    const summary = screen.getByRole('group', { name: 'Relic summary' });
+    expect(
+      within(summary).getByText('At the choice you make: +1 Notoriety per 10 Followers spent.'),
+    ).toBeInTheDocument();
+    expect(within(summary).queryByText('No change')).toBeNull();
+  });
+
   it('says nothing when there is nothing held', () => {
     show({ ...baseRun, heldArtifactIds: [] } as RunState);
     expect(screen.queryByRole('group', { name: 'Relic summary' })).toBeNull();

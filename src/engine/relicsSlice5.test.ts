@@ -29,6 +29,7 @@ import {
   activateRelic,
   canActivateRelic,
   effectiveOdds,
+  projectReactions,
   relicRules,
 } from './relics';
 import { applyEffects, draftOf, forfeitForLichdom, isDoubleEdged } from './effects';
@@ -189,6 +190,26 @@ describe("Appraiser's Monocle · +15 Followers when a choice costs a relic", () 
     const { resolution } = resolveChoice(holder(), keeps, 0, content);
     expect(resolution.relicEvents.some((e) => e.artifactId === 'appraisers_monocle')).toBe(false);
   });
+
+  it('the PRE-COMMIT preview shows it firing too, even though which relic is lost is unknowable', () => {
+    // Rule 1: the card must print what resolveChoice will actually do.
+    // `holder()` holds two relics with no Counterfeit Soul, so WHICH one a
+    // random loseArtifact takes is genuinely unresolvable ahead of the roll
+    // — but the Monocle only watches THAT a loss happened, not which relic,
+    // so the preview must show it firing regardless. It used to `continue`
+    // straight past the whole effect whenever the loss wasn't deterministic,
+    // which hid this from the card even though resolveChoice (above) fires
+    // it for real every time.
+    const loses = offerOf([{ t: 'loseArtifact' }]);
+    const preview = projectReactions(holder(), loses.options[0]!, content);
+    expect(preview.kind).toBe('certain');
+    if (preview.kind !== 'certain') throw new Error('unreachable');
+    expect(preview.events).toContainEqual({
+      artifactId: 'appraisers_monocle',
+      applied: [{ t: 'followers', v: 15 }],
+    });
+  });
+
 });
 
 // ---------------------------------------------------------------------------

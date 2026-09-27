@@ -25,14 +25,19 @@ import type { Artifact } from '../types';
  * lives here any more. `flavorText` is the whole of each relic's identity
  * until a power slice of issue #77 gives it one.
  *
- * `power` (issue #80, slice 3 of #77) is `null` for every relic a power
- * slice has not reached yet — required, not optional, so the compiler names
- * every entry the moment a new slice starts filling them in. This slice
- * gives exactly the four origin relics a power: `footnote_that_bites`,
- * `mantle_of_slow_moss`, `ashen_signature`, `unpaid_purse` — see
- * `src/content/origins.ts` for the grant, and CLAUDE.md's rule 1 for why each
- * one's `effects` are plain `RelicEffect`s the offer/resolution cards can
- * always print, never prose restating what the power line already says.
+ * `power` (issue #80, slice 3 of #77) is non-null on every one of these 32
+ * entries — issue #82, slice 5, was the one that finished filling in the
+ * last 22, after slice 3 gave the four origin relics theirs and slice 4
+ * gave the six legendaries theirs. It started as `RelicPower | null`, kept
+ * required rather than optional through every slice specifically so the
+ * compiler would name each entry a new slice still needed to reach; once
+ * the last one landed, `src/types.ts` dropped the `| null` for the same
+ * reason — an always-non-null field left optional is exactly the kind of
+ * seam CLAUDE.md's failure mode 3 warns will drift. See
+ * `src/content/origins.ts` for how the four origin relics are granted, and
+ * CLAUDE.md's rule 1 for why every power's `effects` are plain
+ * `RelicEffect`s the offer/resolution cards can always print, never prose
+ * restating what the power line already says.
  */
 export const artifacts: Artifact[] = [
   // ---------------------------------------------------------------------

@@ -369,11 +369,15 @@ export function resolveChoice(
     relicEvents.push(...applyEraEndTriggers(draft, content, rng));
 
     // Chalk of the Last Lecture (issue #82): a flat, floored-at-0 reduction
-    // to the decay `decayFor` would otherwise apply.
-    const decay = decayFor(draft, relicRules(draft, content).decayReduction);
+    // to the decay `decayFor` would otherwise apply. One `relicRules` read
+    // for both this and the threat-gain multiplier below — nothing between
+    // them touches `draft.heldArtifactIds`, only `draft.notoriety`, which
+    // `relicRules` doesn't read.
+    const rules = relicRules(draft, content);
+    const decay = decayFor(draft, rules.decayReduction);
     if (decay !== 0) draft.notoriety = clampNotoriety(draft.notoriety - decay);
 
-    const threatGain = threatGainFor(draft, relicRules(draft, content).fameThreatMultiplier);
+    const threatGain = threatGainFor(draft, rules.fameThreatMultiplier);
     if (threatGain !== 0) {
       draft.heroThreat = clampThreat(draft.heroThreat + threatGain);
     }
