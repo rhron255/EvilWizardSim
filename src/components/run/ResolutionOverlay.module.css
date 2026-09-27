@@ -1,0 +1,889 @@
+/* The drama, staged. Skippable at any frame.
+
+   A certain choice resolves in about a second. A GAMBLE takes ~1.6s, on
+   purpose: the needle has to finish before the card is allowed to say what
+   happened. See `.card[data-rolling]` for the schedule and why. */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: var(--ew-space-4);
+  background: radial-gradient(120% 90% at 50% 40%, rgba(11, 10, 9, 0.82), rgba(11, 10, 9, 0.94));
+  backdrop-filter: blur(3px);
+  animation: scrimIn var(--ew-base) var(--ew-ease) both;
+  cursor: pointer;
+}
+
+/* The roll schedule, in one place.
+
+   A gamble's card used to give the answer away: the verdict word finished its
+   reveal at 320ms while the needle did not land until 720ms, so the player was
+   told Success or Failure and then watched a marker slide to a position whose
+   meaning had already been spent. These four numbers reverse that — the needle
+   runs first, and the word and the colour arrive on the settle. */
+.card[data-rolling] {
+  --roll-start: 220ms;
+  --roll-dur: 900ms;
+  /* The instant the needle stops. Everything that names the outcome keys off
+     this, so the drama cannot drift out of sync with the instrument. */
+  --settle: 1080ms;
+  --after-settle: 1260ms;
+}
+
+.card {
+  position: relative;
+  width: min(30rem, 100%);
+  max-height: calc(100vh - var(--ew-space-6));
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-4);
+  padding: var(--ew-space-5);
+  background: linear-gradient(180deg, var(--ew-raised), var(--ew-panel) 55%);
+  border: 1px solid var(--ew-line-strong);
+  border-radius: var(--ew-radius-lg);
+  box-shadow: var(--ew-lip), var(--ew-shadow-overlay);
+  cursor: default;
+  animation: cardIn var(--ew-slow) var(--ew-ease) both;
+}
+
+/* --------------------------------------------------------------------------
+   The verdict wash.
+
+   The outcome used to live in two places — the word, and `border-top-color`.
+   Everything else was grey, so a result read as a caption on a neutral card
+   rather than as the card's subject. This carries it across the whole object:
+   a ring, a ground that pools behind the verdict and fades before the
+   consequences, and an outward glow.
+
+   It is a PSEUDO-ELEMENT, not properties on `.card`, for one reason: custom
+   properties are not animatable, and the commit has to be an event. The wash
+   fades in on `--settle` so the card changes colour at the moment the needle
+   stops, which is the whole point of the reordering above.
+
+   No new hue enters the palette: `--ew-delta-up`/`--ew-delta-down` are the pair
+   every offer card already spends on `+8` and `-12`. And it stays CHROME —
+   edges, ground, glow — at low alpha, so the Notoriety badge in the middle of
+   the card is still the only saturated thing on it (rule 3).
+   -------------------------------------------------------------------------- */
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--ew-verdict, transparent) 15%, transparent),
+    transparent 58%
+  );
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--ew-verdict, transparent) 42%, transparent),
+    0 0 52px -14px color-mix(in srgb, var(--ew-verdict, transparent) 40%, transparent);
+}
+
+/* The card's own children sit above the wash. */
+.card > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* A gamble earns the wash on the settle; a certain choice has it from the
+   start, because there is no roll to wait for. */
+.card[data-rolling]::before {
+  animation: verdictIn 420ms var(--ew-ease) var(--settle) both;
+}
+
+/* Staged reveal, the base schedule — used as-is by a deterministic era, where
+   there is nothing to wait for. A gamble overrides everything from the third
+   child down so the consequences arrive AFTER the verdict. */
+.card > * {
+  animation: riseIn 260ms var(--ew-ease) both;
+}
+
+.card > *:nth-child(1) {
+  animation-delay: 60ms;
+}
+.card > *:nth-child(2) {
+  animation-delay: 150ms;
+}
+.card > *:nth-child(3) {
+  animation-delay: 260ms;
+}
+.card > *:nth-child(4) {
+  animation-delay: 360ms;
+}
+.card > *:nth-child(5) {
+  animation-delay: 450ms;
+}
+.card > *:nth-child(6) {
+  animation-delay: 520ms;
+}
+.card > *:nth-child(7) {
+  animation-delay: 580ms;
+}
+.card > *:nth-child(8) {
+  animation-delay: 630ms;
+}
+.card > *:nth-child(9) {
+  animation-delay: 670ms;
+}
+
+/* --------------------------------------------------------------------------
+   A gamble's schedule.
+
+   Child 1 is `.top` (the Notoriety badge, which is not a verdict and may
+   appear at once) and child 2 is the roll block — those keep the fast reveal,
+   because they are the instrument the player is meant to be watching. The
+   verdict WORD inside child 1 is pulled out separately below, and everything
+   from child 3 down is the consequences, which cannot precede the result that
+   caused them.
+   -------------------------------------------------------------------------- */
+.card[data-rolling] > *:nth-child(3) {
+  animation-delay: calc(var(--settle) + 140ms);
+}
+.card[data-rolling] > *:nth-child(4) {
+  animation-delay: calc(var(--settle) + 220ms);
+}
+.card[data-rolling] > *:nth-child(5) {
+  animation-delay: calc(var(--settle) + 290ms);
+}
+.card[data-rolling] > *:nth-child(6) {
+  animation-delay: calc(var(--settle) + 350ms);
+}
+.card[data-rolling] > *:nth-child(7) {
+  animation-delay: calc(var(--settle) + 400ms);
+}
+.card[data-rolling] > *:nth-child(8) {
+  animation-delay: calc(var(--settle) + 440ms);
+}
+.card[data-rolling] > *:nth-child(9) {
+  animation-delay: calc(var(--settle) + 470ms);
+}
+
+/* The word lands as the needle stops. It is still in the DOM from the first
+   frame — the dialog is `aria-labelledby` it, so withholding the ELEMENT would
+   strip the dialog's accessible name. Only the presentation waits. */
+.card[data-rolling] .outcome {
+  animation: verdictWordIn 460ms var(--ew-ease) var(--settle) both;
+}
+
+.top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ew-space-4);
+}
+
+.verdict {
+  min-width: 0;
+}
+
+/* --------------------------------------------------------------------------
+   The verdict.
+
+   Reported from play: "the failure / success indication is not clear enough."
+   It was six-point grey uppercase, one shade apart for the two cases, in the
+   corner of a card whose largest element is a number that moved for unrelated
+   reasons. The distinction now carries at arm's length: type size, weight, and
+   the SAME up/down pair the effect lines already use — no new colour enters
+   the palette, so the tier badge is still the only chromatic reward.
+   -------------------------------------------------------------------------- */
+
+.outcome {
+  margin: 0;
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-size-lg);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--ew-ink-dim);
+}
+
+/* One property, set once, driving the word, the ring, the ground, the glow and
+   the rail. Everything that says "this went well" or "this did not" reads from
+   here, so the card can never disagree with itself. */
+.card[data-outcome='success'] {
+  --ew-verdict: var(--ew-delta-up);
+}
+
+.card[data-outcome='failure'] {
+  --ew-verdict: var(--ew-delta-down);
+}
+
+.card[data-outcome='success'] .outcome,
+.card[data-outcome='failure'] .outcome {
+  color: var(--ew-verdict);
+  /* Up a step from `lg`: after the Notoriety figure this is the largest thing
+     on the card, which is what "the failure / success indication is not clear
+     enough" was asking for. */
+  font-size: var(--ew-size-xl);
+}
+
+/* A deterministic era has no verdict to give — it is the quiet case, and it
+   must not compete with the two that are. */
+.card[data-outcome='deterministic'] .outcome {
+  font-family: var(--ew-font-ui, inherit);
+  font-size: var(--ew-size-xs);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--ew-ink-faint);
+}
+
+/* The edge used to be the ONLY place besides the word that carried the result,
+   and only its top border at that. The wash on `.card::before` now covers the
+   whole object; this stays as the base state so the card is never colourless
+   even before the wash animates in. */
+.card[data-outcome='success'],
+.card[data-outcome='failure'] {
+  border-color: color-mix(in srgb, var(--ew-verdict) 30%, var(--ew-line-strong));
+}
+
+/* Getting away with it. Only ever shown on a win at long odds — the number is
+   the one printed before the commit. */
+.againstOdds {
+  margin: var(--ew-space-1) 0 0;
+  font-size: var(--ew-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--ew-delta-up);
+  animation: oddsIn 420ms var(--ew-ease) 320ms both;
+}
+
+/* It only ever appears on a win, so it always follows a roll. */
+.card[data-rolling] .againstOdds {
+  animation-delay: var(--after-settle);
+}
+
+@keyframes oddsIn {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.era {
+  display: flex;
+  gap: var(--ew-space-2);
+  margin: var(--ew-space-2) 0 0;
+  font-size: var(--ew-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ew-ink-faint);
+}
+
+.dot {
+  color: var(--ew-ink-ghost);
+}
+
+/* The roll ---------------------------------------------------------------- */
+
+.rollBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-2);
+}
+
+.rail {
+  position: relative;
+  height: 6px;
+  border-radius: var(--ew-radius-pill);
+  background: var(--ew-line);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.railSuccess {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: var(--ew-radius-pill);
+  /* The band you needed to land in, in the colour of landing in it. Neutral
+     ink made the rail a chart; this makes it the instrument that decided. */
+  background: color-mix(in srgb, var(--ew-delta-up) 42%, var(--ew-ink-faint));
+}
+
+.railTick {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 1px;
+  background: var(--ew-ink-dim);
+}
+
+/* Lands on the roll. The eye follows it to the answer. */
+.needle {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--ew-ink-bright);
+  box-shadow: 0 0 8px rgba(242, 236, 221, 0.35);
+  /* The wheel slowing.
+
+     `land` used to run 520ms on the standard ease, which reads as a bar
+     sliding to a value. The bezier below spends most of its distance in the
+     first third and then crawls, which is what a roulette wheel does and what
+     makes the last 100ms worth watching. `needleSettle` is the stop itself. */
+  animation:
+    land var(--roll-dur, 900ms) cubic-bezier(0.05, 0.72, 0.1, 1) var(--roll-start, 220ms) both,
+    needleSettle 460ms var(--ew-ease) var(--settle, 1080ms) both;
+}
+
+@keyframes needleSettle {
+  from {
+    transform: scaleY(1);
+    box-shadow: 0 0 8px rgba(242, 236, 221, 0.35);
+  }
+  30% {
+    transform: scaleY(1.35);
+    box-shadow: 0 0 16px color-mix(in srgb, var(--ew-verdict, #f2ecdd) 70%, transparent);
+  }
+  to {
+    transform: scaleY(1);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--ew-verdict, #f2ecdd) 45%, transparent);
+  }
+}
+
+@keyframes verdictIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes verdictWordIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(0) scale(1.04);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes land {
+  from {
+    left: 0;
+    opacity: 0;
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    left: calc(var(--roll) * 100%);
+    opacity: 1;
+  }
+}
+
+.rollText {
+  margin: 0;
+  font-size: var(--ew-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.13em;
+  color: var(--ew-ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.rollText strong {
+  color: var(--ew-ink);
+  font-weight: 600;
+}
+
+/* Flavor, then the record ------------------------------------------------- */
+
+.text {
+  margin: 0;
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-size-lg);
+  font-style: italic;
+  line-height: 1.35;
+  color: var(--ew-ink);
+  text-wrap: pretty;
+}
+
+.effects {
+  padding: var(--ew-space-3) 0;
+  border-top: 1px solid var(--ew-line);
+  border-bottom: 1px solid var(--ew-line);
+}
+
+.relics {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-2);
+}
+
+.relic {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ew-space-3);
+  padding: var(--ew-space-3);
+  background: var(--ew-void);
+  border: 1px solid var(--ew-line);
+  border-radius: var(--ew-radius-sm);
+}
+
+.relicMark {
+  font-size: var(--ew-size-xs);
+  color: var(--ew-ink-faint);
+  line-height: 1.6;
+}
+
+/* --------------------------------------------------------------------------
+   Rarity, on the row where the relic is actually won.
+
+   Mirrors `ArtifactCard.module.css`'s ladder: frame, ground, elevation, glyph,
+   type scale — and a tier-coloured edge for a legendary only. This card spends
+   the tier colour once, small, on the Notoriety badge, so a legendary edge is
+   the second gold object rather than the fourth; that is why it is allowed
+   here and suppressed on the ending card.
+   -------------------------------------------------------------------------- */
+
+.relic[data-rarity='rare'] {
+  border-width: 2px;
+  border-color: var(--ew-line-strong);
+  background: var(--ew-panel);
+  box-shadow: var(--ew-shadow-card);
+}
+
+.relic[data-rarity='rare'] .relicMark {
+  color: var(--ew-ink-dim);
+  font-size: var(--ew-size-sm);
+}
+
+.relic[data-rarity='rare'] .relicName {
+  color: var(--ew-ink-bright);
+}
+
+.relic[data-rarity='legendary'] {
+  border-width: 2px;
+  border-color: color-mix(in srgb, var(--ew-legendary) 55%, var(--ew-line-strong));
+  background:
+    repeating-linear-gradient(-45deg, rgba(242, 236, 221, 0.05) 0 1px, transparent 1px 7px),
+    var(--ew-panel);
+  box-shadow:
+    var(--ew-shadow-raised),
+    inset 0 0 0 1px color-mix(in srgb, var(--ew-legendary) 18%, transparent);
+}
+
+.relic[data-rarity='legendary'] .relicMark {
+  color: var(--ew-legendary);
+  font-size: var(--ew-size-md);
+}
+
+.relic[data-rarity='legendary'] .relicName {
+  font-size: var(--ew-size-md);
+  font-weight: 700;
+  color: var(--ew-ink-bright);
+}
+
+.relic[data-rarity='legendary'] .relicRarity {
+  color: color-mix(in srgb, var(--ew-legendary) 70%, var(--ew-ink-faint));
+}
+
+.relicBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.relicName {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--ew-space-2);
+  font-size: var(--ew-size-sm);
+  font-weight: 500;
+  color: var(--ew-ink-bright);
+}
+
+.relicRarity {
+  font-size: 0.5625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ew-ink-faint);
+}
+
+/* First time in this player's collection, across every career they have run.
+   The grid is mostly silhouettes; this is the moment one of them resolves. */
+.relic[data-new] {
+  /* The pill carries the news; the panel only leans toward it. A full wash put
+     three gold objects on one card — badge, relic, focus ring — and the tier
+     badge is meant to be the loudest thing in the game. */
+  border-color: color-mix(in srgb, var(--ew-tier) 26%, var(--ew-line));
+  border-left-width: 2px;
+  border-left-color: var(--ew-tier);
+  background: var(--ew-void);
+}
+
+.relicNew {
+  align-self: flex-start;
+  margin: 0.15rem 0 0.1rem;
+  padding: 0.1rem var(--ew-space-2);
+  font-size: 0.5625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--ew-tier);
+  border: 1px solid color-mix(in srgb, var(--ew-tier) 40%, transparent);
+  border-radius: var(--ew-radius-pill);
+}
+
+.relicFlavor {
+  font-size: var(--ew-size-xs);
+  font-style: italic;
+  color: var(--ew-ink-faint);
+  line-height: 1.5;
+}
+
+.relicsLost {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-2);
+}
+
+.relicsLostLabel {
+  margin: 0;
+  font-size: var(--ew-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ew-ink-faint);
+}
+
+.relicsLostList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The crossing — the only colored thing on the card. */
+
+.tier {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0;
+  padding: var(--ew-space-3) var(--ew-space-4);
+  border-radius: var(--ew-radius-sm);
+  background: linear-gradient(90deg, var(--ew-tier-glow), transparent 62%), var(--ew-void);
+  border: 1px solid var(--ew-line);
+  border-left: 2px solid var(--ew-tier);
+}
+
+.tierName {
+  font-size: var(--ew-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--ew-tier);
+}
+
+.tierLine {
+  font-family: var(--ew-font-display);
+  font-style: italic;
+  font-size: var(--ew-size-base);
+  color: var(--ew-ink-dim);
+}
+
+.ending {
+  margin: 0;
+  font-size: var(--ew-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--ew-ink-bright);
+}
+
+/* Foot -------------------------------------------------------------------- */
+
+/* Continue is the only child now: the "RECORDED IN THE LEDGER" caption that
+   used to sit opposite it narrated the record instead of being it — the row
+   arriving in the ledger is the message. `flex-end` rather than
+   `space-between`, which with one child would have parked the button left. */
+.foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: var(--ew-space-4);
+  padding-top: var(--ew-space-1);
+}
+
+.continue {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ew-space-2);
+  padding: var(--ew-space-2) var(--ew-space-4);
+  font-size: var(--ew-size-sm);
+  font-weight: 500;
+  color: var(--ew-ink-bright);
+  background: var(--ew-raised);
+  border: 1px solid var(--ew-line-strong);
+  border-radius: var(--ew-radius-sm);
+  box-shadow: var(--ew-lip);
+  transition:
+    background-color var(--ew-fast) var(--ew-ease),
+    transform var(--ew-fast) var(--ew-ease);
+}
+
+.continue:hover {
+  background: var(--ew-hover);
+}
+
+.continue:active {
+  transform: translateY(1px);
+}
+
+.key {
+  font-size: var(--ew-size-xs);
+  color: var(--ew-ink-faint);
+}
+
+@keyframes scrimIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 480px) {
+  .card {
+    padding: var(--ew-space-4);
+    gap: var(--ew-space-3);
+  }
+
+  .text {
+    font-size: var(--ew-size-md);
+  }
+
+  .foot {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--ew-space-3);
+  }
+
+  .continue {
+    justify-content: center;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   The lair move.
+
+   Playtest: "I don't notice the lair changes, despite them happening and being
+   displayed at the end." Promotion is the most visible thing a player builds
+   and it used to happen in complete silence -- the only trace was the Lair
+   column quietly reading something else next era.
+   -------------------------------------------------------------------------- */
+
+.lairMove {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  margin: var(--ew-space-4) 0 0;
+  padding: var(--ew-space-3) var(--ew-space-4);
+  border: 1px solid var(--ew-line);
+  border-left: 2px solid var(--ew-ink-ghost);
+  border-radius: var(--ew-radius-md);
+  background: var(--ew-raised);
+}
+
+.lairMove[data-up='true'] {
+  border-left-color: var(--ew-tier);
+}
+
+.lairMoveLabel {
+  font-size: var(--ew-size-xs);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ew-ink-faint);
+}
+
+.lairMoveName {
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-size-lg);
+  line-height: 1.2;
+  color: var(--ew-ink-bright);
+}
+
+.lairMoveFrom {
+  font-size: var(--ew-size-xs);
+  color: var(--ew-ink-ghost);
+}
+
+/* --------------------------------------------------------------------------
+   While you were elsewhere.
+
+   The era-end ticks that can end a run without appearing on the card that
+   reports the death. Deliberately NOT styled like the effects list above it:
+   the block is inset and labelled so it reads as the world acting, not as a
+   consequence of the option just taken. No color -- it is disclosure, not a
+   doom meter.
+   -------------------------------------------------------------------------- */
+
+.systemic {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-2);
+  padding: var(--ew-space-3) var(--ew-space-4);
+  background: var(--ew-void);
+  border: 1px solid var(--ew-line);
+  border-left: 2px solid var(--ew-ink-ghost);
+  border-radius: var(--ew-radius-sm);
+}
+
+.systemicLabel {
+  margin: 0;
+  font-size: var(--ew-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ew-ink-faint);
+}
+
+.systemicList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.systemicRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--ew-space-3);
+}
+
+.systemicNum {
+  flex: 0 0 auto;
+  min-width: 4ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  font-weight: 600;
+  font-size: var(--ew-size-sm);
+  color: var(--ew-delta-none);
+}
+
+.systemicRow[data-tone='down'] .systemicNum {
+  color: var(--ew-delta-down);
+}
+
+.systemicRow[data-tone='up'] .systemicNum {
+  color: var(--ew-delta-up);
+}
+
+.systemicBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.systemicName {
+  font-size: var(--ew-size-sm);
+  color: var(--ew-ink);
+  line-height: 1.35;
+}
+
+.systemicNote {
+  font-size: var(--ew-size-xs);
+  color: var(--ew-ink-faint);
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+/* --------------------------------------------------------------------------
+   Your relics (issue #80).
+
+   A relic's own consequence this era — an era-end tick, a once-only
+   reaction. Same inset-and-labelled treatment as `.systemic` immediately
+   above, and for the same reason: it did not come from the option the
+   player picked, so it must not look like it did.
+   -------------------------------------------------------------------------- */
+
+.relicEvents {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-2);
+  padding: var(--ew-space-3) var(--ew-space-4);
+  background: var(--ew-void);
+  border: 1px solid var(--ew-line);
+  border-left: 2px solid var(--ew-ink-ghost);
+  border-radius: var(--ew-radius-sm);
+}
+
+.relicEventsLabel {
+  margin: 0;
+  font-size: var(--ew-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ew-ink-faint);
+}
+
+.relicEventsList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.relicEventRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--ew-space-2);
+  font-size: var(--ew-size-sm);
+}
+
+.relicEventName {
+  font-style: italic;
+  color: var(--ew-ink);
+}

@@ -1,0 +1,155 @@
+/* The relic page (issue #78) — replaces `DecisionPanel` under the masthead
+   and faction standings, never above them. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-4);
+}
+
+/* Sticky rather than duplicated at the foot of the page (issue #78 review):
+   a single control satisfies "only one Back button" without stranding a
+   touch/pointer user who has scrolled past a long held/lost relic list —
+   this view is local React state, not browser history, so there is no
+   back-gesture fallback.
+   A full-width bar rather than a sticky pill on its own: the pill is
+   `align-self: flex-start` and only covers its own ~160px, so on a page
+   scrolled far enough that another row's text lines up with it, that text
+   was still visible to the pill's right — the bar's `--ew-void` spans the
+   full row so nothing scrolled-away can show beside the button, the same
+   fix `NecrolexiconScreen` uses for its own sticky head. No side margin/bleed
+   needed: `.page` has no horizontal padding of its own, so this div already
+   stretches to the same width every other child in this flex column does. */
+.backBar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: var(--ew-space-2) 0;
+  background: var(--ew-void);
+}
+
+.back {
+  margin: 0;
+  padding: var(--ew-space-1) var(--ew-space-3);
+  border: 1px solid var(--ew-line-strong);
+  border-radius: var(--ew-radius-pill);
+  font-size: var(--ew-size-xs);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--ew-ink);
+  cursor: pointer;
+  transition: border-color var(--ew-fast) var(--ew-ease), background-color var(--ew-fast) var(--ew-ease);
+}
+
+.back:hover,
+.back:focus-visible {
+  color: var(--ew-ink-bright);
+  border-color: var(--ew-ink-faint);
+  background: color-mix(in srgb, var(--ew-ink-faint) 12%, var(--ew-void));
+}
+
+/* Heading and the wards subtitle sit close together as one title block —
+   `.page`'s own gap already separates this group from what follows. */
+.titleGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-1);
+}
+
+.heading {
+  margin: 0;
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-size-lg);
+  color: var(--ew-ink-bright);
+}
+
+/* Focused programmatically, not by the pointer — no visible ring needed for
+   the mouse path, but the keyboard/AT path still gets one. */
+.heading:focus-visible {
+  outline: 1px solid var(--ew-ink-faint);
+  outline-offset: 4px;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: var(--ew-size-sm);
+  color: var(--ew-ink-dim);
+}
+
+/* The "name, then effect" block for every held relic, one below the other —
+   what used to sit on the offer card under "Whatever you choose" for an
+   era-end power alone now covers every relic here. Bordered like
+   `Masthead`'s own sections (styling convention 1) so it reads as its own
+   thing, closed off before "Artifacts" begins. The extra `margin-top` is a
+   line break of its own, beyond `.page`'s base gap, so the title block above
+   doesn't read as crowding straight into the summary. */
+.summaryList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-3);
+  margin-top: var(--ew-space-2);
+  padding: 0 0 var(--ew-space-4);
+  border-bottom: 1px solid var(--ew-line);
+}
+
+/* One relic's own name-then-effect pair. A hard line break between the two —
+   `flex-direction: column`, not the flex-wrap ROW an offer card's own
+   `RelicReactions` uses — so a short name and a short effect never land on
+   the same line the way they could there. */
+.summaryItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--ew-size-xs);
+}
+
+.summaryName {
+  margin: 0;
+  font-style: italic;
+  color: var(--ew-ink-faint);
+}
+
+/* A relic with no discrete effect to render tersely (a passive rate change,
+   or a deferred active/lifeline placeholder) falls back to this line. */
+.summaryOtherDesc {
+  margin: 0;
+  color: var(--ew-ink-dim);
+}
+
+.empty {
+  margin: 0;
+  padding: var(--ew-space-6) 0;
+  text-align: center;
+  font-family: var(--ew-font-display);
+  font-style: italic;
+  font-size: var(--ew-size-md);
+  color: var(--ew-ink-faint);
+}
+
+.grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lostSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-3);
+  padding-top: var(--ew-space-4);
+  border-top: 1px solid var(--ew-line);
+}
+
+/* Shared by "Artifacts" and "Lost this run" — a subsection label one step
+   down from the page heading, the same treatment `.lostHeading` used before
+   "Artifacts" needed the identical style. */
+.subHeading {
+  margin: 0;
+  font-size: var(--ew-size-xs);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ew-ink-faint);
+}

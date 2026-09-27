@@ -1,0 +1,378 @@
+/**
+ * When the first-run guide is owed, and when it is emphatically not.
+ *
+ * The gate is a derivation inside `useGame`'s memo, which is exactly the shape
+ * of this repo's most repeated failure — a correct mapping nobody calls
+ * (CLAUDE.md § 2). So these drive the real hook rather than asserting on the
+ * reducer alone, and they cover the persistence half too: shown twice is worse
+ * than never shown, because the second time it is an obstacle.
+ */
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { act, renderHook } from '@testing-library/react';
+import type { ContentBundle } from './index';
+import { COLLECTION_KEY } from './constants';
+import { emptyCollection, migrateCollection, recordRun } from './persistence';
+import { useGame } from './useGame';
+import { REAL_CONTENT } from '../testing/realContent';
+
+const content: ContentBundle = REAL_CONTENT;
+
+/** Straight to era one of a fresh career. */
+function beginRun() {
+  const hook = renderHook(() => useGame(content));
+  act(() => hook.result.current.begin());
+  act(() => hook.result.current.create('Malachar', 'the Unpaid', content.origins[0].id, 16));
+  return hook;
+}
+
+beforeEach(() => localStorage.clear());
+afterEach(() => localStorage.clear());
+
+describe('the first-run guide gate', () => {
+  it('is owed on a first career, before the first choice', () => {
+    const { result } = beginRun();
+    expect(result.current.showFirstRunGuide).toBe(true);
+  });
+
+  it('is not owed on the title or creation screens', () => {
+    const hook = renderHook(() => useGame(content));
+    expect(hook.result.current.showFirstRunGuide).toBe(false);
+    act(() => hook.result.current.begin());
+    expect(hook.result.current.showFirstRunGuide).toBe(false);
+  });
+
+  it('closes for good once dismissed', () => {
+    const { result } = beginRun();
+    act(() => result.current.dismissFirstRunGuide());
+    expect(result.current.showFirstRunGuide).toBe(false);
+    expect(result.current.collection.tutorialSeen).toBe(true);
+  });
+
+  it('does not come back on the next career', () => {
+    const { result } = beginRun();
+    act(() => result.current.dismissFirstRunGuide());
+    act(() => result.current.playAgain());
+    act(() => result.current.create('Second', 'the Wiser', content.origins[0].id, 16));
+    expect(result.current.showFirstRunGuide).toBe(false);
+  });
+
+  it('does not reopen mid-career after a refresh', () => {
+    // Undismissed but already playing: the guide points at an empty ledger and
+    // a career's first decision, neither of which is still true at era four.
+    const { result } = beginRun();
+    act(() => result.current.choose(0));
+    act(() => result.current.continueAfterResolution());
+    expect(result.current.run?.eras.length).toBeGreaterThan(0);
+    expect(result.current.showFirstRunGuide).toBe(false);
+  });
+
+  it('survives the reload it was dismissed on', () => {
+    const first = beginRun();
+    act(() => first.result.current.dismissFirstRunGuide());
+    first.unmount();
+
+    const second = beginRun();
+    expect(second.result.current.collection.tutorialSeen).toBe(true);
+    expect(second.result.current.showFirstRunGuide).toBe(false);
+  });
+
+  it('is owed again after a storage wipe, which is a new player by definition', () => {
+    const first = beginRun();
+    act(() => first.result.current.dismissFirstRunGuide());
+    first.unmount();
+    localStorage.clear();
+
+    const second = beginRun();
+    expect(second.result.current.showFirstRunGuide).toBe(true);
+  });
+});
+
+describe('replaying the tutorial (issue #37)', () => {
+  it('routes to the tutorial screen on request, from the title screen', () => {
+    const hook = renderHook(() => useGame(content));
+    expect(hook.result.current.screen).toBe('title');
+    act(() => hook.result.current.viewTutorial());
+    expect(hook.result.current.screen).toBe('tutorial');
+  });
+
+  it('is reachable even after the gated first showing has already been seen', () => {
+    const { result } = beginRun();
+    act(() => result.current.dismissFirstRunGuide());
+    act(() => result.current.backToTitle());
+    expect(result.current.collection.tutorialSeen).toBe(true);
+
+    act(() => result.current.viewTutorial());
+    expect(result.current.screen).toBe('tutorial');
+  });
+});
+
+describe('the remembered name', () => {
+  it('is empty for a player who has never named a wizard', () => {
+    const { result } = renderHook(() => useGame(content));
+    expect(result.current.collection.lastWizardName).toBe('');
+  });
+
+  it('is kept the moment a career is named, not when it ends', () => {
+    // An abandoned run should still spare the retyping — the name is the only
+    // typing in the game.
+    const { result } = beginRun();
+    expect(result.current.collection.lastWizardName).toBe('Malachar');
+  });
+
+  it('survives a reload', () => {
+    const first = beginRun();
+    first.unmount();
+    const second = renderHook(() => useGame(content));
+    expect(second.result.current.collection.lastWizardName).toBe('Malachar');
+  });
+
+  it('takes the sanitised name the engine actually used', () => {
+    // `createRun` trims and collapses whitespace; remembering the raw input
+    // would prefill something the last run was never called.
+    const hook = renderHook(() => useGame(content));
+    act(() => hook.result.current.begin());
+    act(() => hook.result.current.create('  Vashter   the  Long  ', '', content.origins[0].id, 16));
+    expect(hook.result.current.collection.lastWizardName).toBe('Vashter the Long');
+  });
+
+  it('is re-confirmed by a finished career', () => {
+    const c = { ...emptyCollection(), lastWizardName: 'Old Name' };
+    const run = {
+      wizardName: 'Newer Name',
+      heldArtifactIds: [],
+      startingArtifactIds: [],
+      activeGrantedArtifactIds: [],
+      eras: [],
+      ending: 'lichdom',
+      notoriety: 4,
+    };
+    expect(recordRun(c, run as never, content).lastWizardName).toBe('Newer Name');
+  });
+});
+
+describe('collection v1 -> v2', () => {
+  it('spares a returning player the guide for a game they have finished', () => {
+    const v1 = {
+      version: 1,
+      discoveredArtifactIds: [content.artifacts[0].id],
+      endingsSeen: ['lichdom'],
+      runsCompleted: 3,
+      bestNotoriety: 71,
+    };
+    const migrated = migrateCollection(v1);
+    expect(migrated.tutorialSeen).toBe(true);
+    // And nothing else was lost on the way through.
+    expect(migrated.runsCompleted).toBe(3);
+    expect(migrated.bestNotoriety).toBe(71);
+    expect(migrated.endingsSeen).toEqual(['lichdom']);
+  });
+
+  it('still owes it to a v1 save that never finished a career', () => {
+    expect(migrateCollection({ version: 1, runsCompleted: 0 }).tutorialSeen).toBe(false);
+  });
+
+  it('keeps an explicit false rather than inferring from runs', () => {
+    // A player who skipped the guide and then finished a run must not be
+    // reasoned back into having seen it, or the flag means nothing.
+    expect(migrateCollection({ version: 2, runsCompleted: 5, tutorialSeen: false }).tutorialSeen).toBe(
+      false,
+    );
+  });
+
+  it('defaults the remembered name to empty for an older save', () => {
+    expect(migrateCollection({ version: 1, runsCompleted: 2 }).lastWizardName).toBe('');
+  });
+
+  it('carries the flag through a recorded run', () => {
+    const c = { ...emptyCollection(), tutorialSeen: true };
+    const run = {
+      heldArtifactIds: [],
+      startingArtifactIds: [],
+      activeGrantedArtifactIds: [],
+      eras: [],
+      ending: 'retired_to_swamp',
+      notoriety: 10,
+    };
+    expect(recordRun(c, run as never, content).tutorialSeen).toBe(true);
+  });
+
+  it('reads a v2 save back exactly as written', () => {
+    const written = { ...emptyCollection(), tutorialSeen: true, runsCompleted: 2 };
+    localStorage.setItem(COLLECTION_KEY, JSON.stringify(written));
+    expect(migrateCollection(JSON.parse(localStorage.getItem(COLLECTION_KEY)!))).toEqual(written);
+  });
+});
+
+describe('collection v2 -> v3 · the theme pointer', () => {
+  it('dresses an older save in the default rather than nothing', () => {
+    const v2 = {
+      version: 2,
+      discoveredArtifactIds: [content.artifacts[0].id],
+      endingsSeen: ['lichdom'],
+      runsCompleted: 3,
+      bestNotoriety: 71,
+      tutorialSeen: true,
+      lastWizardName: 'Malvorn',
+    };
+    const migrated = migrateCollection(v2);
+    expect(migrated.selectedThemeId).toBe('default');
+    // And nothing else was lost on the way through.
+    expect(migrated.runsCompleted).toBe(3);
+    expect(migrated.endingsSeen).toEqual(['lichdom']);
+    expect(migrated.lastWizardName).toBe('Malvorn');
+    expect(migrated.tutorialSeen).toBe(true);
+  });
+
+  it('keeps a theme the collection has unlocked', () => {
+    expect(
+      migrateCollection({ version: 3, endingsSeen: ['ascension'], selectedThemeId: 'ascension' })
+        .selectedThemeId,
+    ).toBe('ascension');
+  });
+
+  it('falls back for a theme this build has never heard of', () => {
+    // The failure this prevents is specific: `data-theme="cold_room_v2"`
+    // matches no CSS block, so the page renders with NO theme rather than with
+    // the default one — an unstyled screen from a one-word typo in storage.
+    for (const junk of ['cold_room_v2', '', 'DEFAULT', 42, null, {}, []]) {
+      expect(migrateCollection({ version: 3, selectedThemeId: junk }).selectedThemeId).toBe(
+        'default',
+      );
+    }
+  });
+
+  it('rejects a defined theme whose ending has not been reached', () => {
+    // Migration is an input boundary too: otherwise a hand-edited save bypasses
+    // the selector's guard and applies a locked theme throughout the app.
+    const migrated = migrateCollection({
+      version: 3,
+      endingsSeen: [],
+      selectedThemeId: 'ascension',
+    });
+    expect(migrated.selectedThemeId).toBe('default');
+  });
+
+  it('leaves what the player is wearing alone when a run is recorded', () => {
+    const c = { ...emptyCollection(), selectedThemeId: 'lichdom' as const };
+    const run = {
+      heldArtifactIds: [],
+      startingArtifactIds: [],
+      activeGrantedArtifactIds: [],
+      eras: [],
+      ending: 'ascension',
+      notoriety: 10,
+    };
+    // Finishing a career unlocks a theme; it does not put it on. The ending
+    // card offers it and the player taps.
+    expect(recordRun(c, run as never, content).selectedThemeId).toBe('lichdom');
+  });
+
+  it('reads a v3 save back exactly as written', () => {
+    const written = { ...emptyCollection(), selectedThemeId: 'peat_not_a_theme' };
+    localStorage.setItem(COLLECTION_KEY, JSON.stringify(written));
+    expect(migrateCollection(JSON.parse(localStorage.getItem(COLLECTION_KEY)!))).toEqual({
+      ...written,
+      selectedThemeId: 'default',
+    });
+  });
+});
+
+describe('collection v4 -> v5 · dropping the tabs hint flag', () => {
+  it('drops a v4 save\'s tabsHintSeen without losing anything else', () => {
+    // The run screen's tab split is gone (issue #36), so there is no gesture
+    // left for that field to gate.
+    const v4 = {
+      version: 4,
+      discoveredArtifactIds: [content.artifacts[0].id],
+      endingsSeen: ['lichdom'],
+      runsCompleted: 40,
+      bestNotoriety: 71,
+      tutorialSeen: true,
+      tabsHintSeen: true,
+      lastWizardName: 'Malvorn',
+      selectedThemeId: 'default',
+    };
+    const migrated = migrateCollection(v4);
+    expect(migrated).not.toHaveProperty('tabsHintSeen');
+    expect(migrated.runsCompleted).toBe(40);
+    expect(migrated.tutorialSeen).toBe(true);
+  });
+
+  it('reads a v5 save back exactly as written', () => {
+    const written = emptyCollection();
+    localStorage.setItem(COLLECTION_KEY, JSON.stringify(written));
+    expect(migrateCollection(JSON.parse(localStorage.getItem(COLLECTION_KEY)!))).toEqual(written);
+  });
+});
+
+/**
+ * Collection v5 -> v6 · the relic-collection reset (issue #80).
+ *
+ * `relicsResetAt` is compared, as a plain sortable string, against the
+ * `relicsResetAtBuild` a caller passes to `migrateCollection` — never
+ * imported by the engine itself (see the doc comment on `emptyCollection`
+ * in `persistence.ts`). Endings, themes, the tutorial flag and the last name
+ * must survive every one of these untouched — this is a relic-only reset.
+ */
+describe('collection v5 -> v6 · the relic-collection reset', () => {
+  const BUILD = '2026-09-24T15:30:00Z';
+  const v5 = {
+    version: 5,
+    discoveredArtifactIds: [content.artifacts[0].id, content.artifacts[1].id],
+    endingsSeen: ['lichdom'],
+    runsCompleted: 12,
+    bestNotoriety: 71,
+    tutorialSeen: true,
+    lastWizardName: 'Malvorn',
+    selectedThemeId: 'lichdom',
+  };
+
+  it('clears the relic grid, and only the relic grid, when the stored reset is stale', () => {
+    const stale = { ...v5, relicsResetAt: '2020-01-01T00:00:00Z' };
+    const migrated = migrateCollection(stale, BUILD);
+    expect(migrated.discoveredArtifactIds).toEqual([]);
+    expect(migrated.relicsResetAt).toBe(BUILD);
+    // Nothing else about the player is reset.
+    expect(migrated.endingsSeen).toEqual(['lichdom']);
+    expect(migrated.runsCompleted).toBe(12);
+    expect(migrated.bestNotoriety).toBe(71);
+    expect(migrated.tutorialSeen).toBe(true);
+    expect(migrated.lastWizardName).toBe('Malvorn');
+    expect(migrated.selectedThemeId).toBe('lichdom');
+  });
+
+  it('leaves a current reset stamp untouched', () => {
+    const current = { ...v5, relicsResetAt: BUILD };
+    const migrated = migrateCollection(current, BUILD);
+    expect(migrated.discoveredArtifactIds).toEqual(v5.discoveredArtifactIds);
+    expect(migrated.relicsResetAt).toBe(BUILD);
+  });
+
+  it('leaves a NEWER reset stamp untouched too — a caller must never rewind it', () => {
+    const future = { ...v5, relicsResetAt: '2027-01-01T00:00:00Z' };
+    const migrated = migrateCollection(future, BUILD);
+    expect(migrated.discoveredArtifactIds).toEqual(v5.discoveredArtifactIds);
+    expect(migrated.relicsResetAt).toBe('2027-01-01T00:00:00Z');
+  });
+
+  it('treats a missing relicsResetAt (a genuine pre-reset v5 save) as stale', () => {
+    const migrated = migrateCollection({ ...v5 }, BUILD);
+    expect(migrated.discoveredArtifactIds).toEqual([]);
+    expect(migrated.relicsResetAt).toBe(BUILD);
+  });
+
+  it('never resets when the caller has no opinion (the default parameter)', () => {
+    // `loadCollection()`/`migrateCollection(raw)` with no second argument —
+    // every pre-existing call site in this file among them — must reproduce
+    // today's behaviour exactly, per the framework's own acceptance bar.
+    const migrated = migrateCollection({ ...v5 });
+    expect(migrated.discoveredArtifactIds).toEqual(v5.discoveredArtifactIds);
+    expect(migrated.relicsResetAt).toBe('');
+  });
+
+  it('reads a v6 save back exactly as written', () => {
+    const written = emptyCollection(BUILD);
+    localStorage.setItem(COLLECTION_KEY, JSON.stringify(written));
+    expect(migrateCollection(JSON.parse(localStorage.getItem(COLLECTION_KEY)!), BUILD)).toEqual(written);
+  });
+});

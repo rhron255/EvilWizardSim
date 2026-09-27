@@ -1,0 +1,25 @@
+.sigil {
+  display: block;
+  overflow: visible;
+  filter: drop-shadow(0 0 18px var(--ew-tier-glow));
+}
+
+.spin {
+  transform-origin: 50% 50%;
+  animation: sigil-turn 240s linear infinite;
+}
+
+@keyframes sigil-turn {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}
