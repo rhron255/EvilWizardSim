@@ -162,6 +162,7 @@ export function RelicPage({
                     effects={artifact.power.effects}
                     artifacts={artifacts}
                     factions={factions}
+                    endings={content.endings}
                     compact
                   />
                 )}

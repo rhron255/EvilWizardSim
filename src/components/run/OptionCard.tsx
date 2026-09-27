@@ -9,7 +9,7 @@
  */
 
 import type { RelicEvent, RelicReactionPreview } from '../../engine';
-import type { Artifact, Effect, Faction, OfferOption } from '../../types';
+import type { Artifact, Effect, Ending, Faction, OfferOption } from '../../types';
 import { EffectList } from './EffectList';
 import { artifactName, formatOdds } from './effectText';
 import styles from './OptionCard.module.css';
@@ -115,6 +115,8 @@ export type OptionCardProps = {
   index: number;
   artifacts: Artifact[];
   factions: Faction[];
+  /** Only needed for a scripted `{t: 'ending'}` effect's display name — see `EffectListProps.endings`. */
+  endings?: Ending[];
   disabled?: boolean;
   /**
    * Set only when `disabled` is true BECAUSE the option is currently
@@ -150,6 +152,7 @@ export function OptionCard({
   index,
   artifacts,
   factions,
+  endings = [],
   disabled = false,
   reason,
   reactions,
@@ -206,7 +209,7 @@ export function OptionCard({
 
         {priced.kind === 'certain' ? (
           <span className={styles.certain}>
-            <EffectList effects={priced.effects} artifacts={artifacts} factions={factions} />
+            <EffectList effects={priced.effects} artifacts={artifacts} factions={factions} endings={endings} />
             {reactions?.kind === 'certain' && (
               <RelicReactions events={reactions.events} artifacts={artifacts} factions={factions} />
             )}
@@ -223,6 +226,7 @@ export function OptionCard({
                   effects={priced.onSuccess}
                   artifacts={artifacts}
                   factions={factions}
+                  endings={endings}
                   compact
                 />
                 {reactions?.kind === 'gamble' && (
@@ -241,6 +245,7 @@ export function OptionCard({
                   effects={priced.onFailure}
                   artifacts={artifacts}
                   factions={factions}
+                  endings={endings}
                   compact
                 />
                 {reactions?.kind === 'gamble' && (

@@ -178,6 +178,7 @@ export function RunScreen({
           resolution={resolution}
           artifacts={artifacts}
           factions={factions}
+          endings={content.endings}
           onContinue={onContinue}
         />
       )}

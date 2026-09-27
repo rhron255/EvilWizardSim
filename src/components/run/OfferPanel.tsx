@@ -257,6 +257,7 @@ export function OfferPanel({
               index={i}
               artifacts={artifacts}
               factions={factions}
+              endings={content.endings}
               disabled={disabled || !gate?.pickable}
               reason={gate?.reason}
               reactions={cardReactions[i]}

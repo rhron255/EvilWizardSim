@@ -11,11 +11,11 @@
  */
 
 import { useEffect, useId, useRef } from 'react';
-import type { Artifact, Faction } from '../../types';
+import type { Artifact, Ending, Faction } from '../../types';
 import { tierColor, tierFor, tierGlow } from '../../theme/tokens';
 import type { Resolution } from './resolution';
 import { EffectList } from './EffectList';
-import { artifactName, describeSystemic, endingName, formatOdds, systemicKey } from './effectText';
+import { artifactName, describeSystemic, endingDisplayName, formatOdds, systemicKey } from './effectText';
 import { NotorietyBadge } from './NotorietyBadge';
 import { ArtifactCard } from '../meta';
 import styles from './ResolutionOverlay.module.css';
@@ -24,6 +24,8 @@ export type ResolutionOverlayProps = {
   resolution: Resolution;
   artifacts: Artifact[];
   factions: Faction[];
+  /** Only needed for the authored ending name — see `endingDisplayName` in `effectText.ts`. */
+  endings?: Ending[];
   onContinue(): void;
 };
 
@@ -53,6 +55,7 @@ export function ResolutionOverlay({
   resolution,
   artifacts,
   factions,
+  endings = [],
   onContinue,
 }: ResolutionOverlayProps) {
   const headingId = useId();
@@ -161,6 +164,7 @@ export function ResolutionOverlay({
             effects={resolution.appliedEffects}
             artifacts={artifacts}
             factions={factions}
+            endings={endings}
           />
         </div>
 
@@ -206,7 +210,13 @@ export function ResolutionOverlay({
               {resolution.relicEvents.map((event) => (
                 <li key={event.artifactId} className={styles.relicEventRow}>
                   <span className={styles.relicEventName}>{artifactName(event.artifactId, artifacts)}</span>
-                  <EffectList effects={event.applied} artifacts={artifacts} factions={factions} compact />
+                  <EffectList
+                    effects={event.applied}
+                    artifacts={artifacts}
+                    factions={factions}
+                    endings={endings}
+                    compact
+                  />
                 </li>
               ))}
             </ul>
@@ -295,13 +305,14 @@ export function ResolutionOverlay({
             <p className={styles.lifelineLabel}>Lifeline</p>
             <p className={styles.lifelineText}>
               {artifactName(resolution.lifeline.artifactId, artifacts)} spends itself:{' '}
-              {endingName(resolution.lifeline.endingAverted)} does not happen.
+              {endingDisplayName(resolution.lifeline.endingAverted, endings)} does not happen.
             </p>
             {resolution.lifeline.applied.length > 0 && (
               <EffectList
                 effects={resolution.lifeline.applied}
                 artifacts={artifacts}
                 factions={factions}
+                endings={endings}
                 compact
               />
             )}
@@ -316,7 +327,7 @@ export function ResolutionOverlay({
         )}
 
         {resolution.ending && (
-          <p className={styles.ending}>The run ends · {endingName(resolution.ending)}</p>
+          <p className={styles.ending}>The run ends · {endingDisplayName(resolution.ending, endings)}</p>
         )}
 
         {/* The deed line the ledger is about to receive was echoed here, which
