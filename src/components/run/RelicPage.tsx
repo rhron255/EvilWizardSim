@@ -18,8 +18,9 @@
  * presentation is not invented a second time here. "Lost this run" is
  * derived exactly the way `EndingScreen` already derives it: the union of
  * every era's `artifactsGained`, `startingArtifactIds` (an origin's own
- * grant), `activeGrantedArtifactIds` (an active's own grant, issue #81 —
- * neither ever lands in `eras`, see either field's doc comment in
+ * grant), `activeGrantedArtifactIds` (an active's own grant, issue #81),
+ * `triggerGrantedArtifactIds` (a trigger's own grant, issue #82 — none of
+ * the three ever lands in `eras`, see each field's doc comment in
  * `types.ts`), and the current `heldArtifactIds`, minus whatever is still
  * held.
  *
@@ -131,6 +132,7 @@ export function RelicPage({
     ...run.eras.flatMap((e) => e.artifactsGained),
     ...run.startingArtifactIds,
     ...run.activeGrantedArtifactIds,
+    ...run.triggerGrantedArtifactIds,
     ...run.heldArtifactIds,
   ]);
   const lost = [...everGained]

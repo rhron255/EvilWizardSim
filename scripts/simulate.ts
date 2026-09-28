@@ -1255,9 +1255,13 @@ function playRun(
     // reducer exactly — the offer is only re-sampled when the redraw itself
     // actually changed the salt, never merely because SOME active fired
     // (Final Ledger's followers spend, say, must not retroactively change
-    // the era the bot is already looking at).
+    // the era the bot is already looking at). `offer.id` excluded (code
+    // review) for the same reason `useGame.ts` excludes it: a plain re-roll
+    // through the new salted stream does not by itself guarantee a
+    // different offer, and this line is what "mirrors useGame.ts exactly"
+    // actually means now.
     if (run.relicState.offerRedrawSalt !== saltBefore) {
-      offer = nextOffer(run, content);
+      offer = nextOffer(run, content, offer.id);
     }
     const index = chooseOption(policy, run, offer, rng());
     const { next, resolution } = resolveChoice(run, offer, index, content);

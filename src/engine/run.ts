@@ -135,6 +135,7 @@ export function createRun(opts: CreateRunOptions, content: ContentBundle): RunSt
     heldArtifactIds: [],
     startingArtifactIds: [],
     activeGrantedArtifactIds: [],
+    triggerGrantedArtifactIds: [],
     knownArtifactIds: Array.from(new Set(opts.knownArtifactIds ?? [])),
     heroBandSeen: 0,
     factionStanding: emptyStanding(),

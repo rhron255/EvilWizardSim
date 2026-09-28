@@ -42,6 +42,7 @@ function finished(ending: RunState['ending'], collection: Collection): GameState
     heldArtifactIds: [],
     startingArtifactIds: [],
     activeGrantedArtifactIds: [],
+    triggerGrantedArtifactIds: [],
     knownArtifactIds: [],
     eras: [],
     notoriety: 40,

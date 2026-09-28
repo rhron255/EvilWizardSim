@@ -151,6 +151,7 @@ export function EndingScreen({
       ...run.eras.flatMap((e) => e.artifactsGained),
       ...run.startingArtifactIds,
       ...run.activeGrantedArtifactIds,
+      ...run.triggerGrantedArtifactIds,
       ...run.heldArtifactIds,
     ]);
     /**
@@ -191,6 +192,7 @@ export function EndingScreen({
     run.eras,
     run.startingArtifactIds,
     run.activeGrantedArtifactIds,
+    run.triggerGrantedArtifactIds,
     run.heldArtifactIds,
     run.knownArtifactIds,
     artifacts,

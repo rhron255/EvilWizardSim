@@ -49,6 +49,7 @@ export function draftOf(run: RunState): RunState {
     ...run,
     heldArtifactIds: run.heldArtifactIds.slice(),
     activeGrantedArtifactIds: run.activeGrantedArtifactIds.slice(),
+    triggerGrantedArtifactIds: run.triggerGrantedArtifactIds.slice(),
     factionStanding: { ...run.factionStanding },
     apprentices: { ...run.apprentices },
     eras: run.eras,

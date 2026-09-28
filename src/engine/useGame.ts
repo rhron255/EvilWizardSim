@@ -208,9 +208,16 @@ export function gameReducer(state: GameState, action: Action): GameState {
       // different `nextOffer(next, content)` for the SAME era — everything
       // else `activateRelic` can do (a cost, a grant, `armsForesight`) is
       // visible on the run's own stats already and needs no re-fetch here.
+      // `state.offer?.id` excluded (code review) so the redraw this produces
+      // can never hand back the exact card the player was already looking at
+      // — see `nextOffer`'s own `excludeOfferId` doc comment.
       const artifact = action.content.artifacts.find((a) => a.id === action.artifactId);
       const redrew = artifact?.power.kind === 'active' && artifact.power.redrawsOffer === true;
-      return { ...state, run: next, offer: redrew ? nextOffer(next, action.content) : state.offer };
+      return {
+        ...state,
+        run: next,
+        offer: redrew ? nextOffer(next, action.content, state.offer?.id) : state.offer,
+      };
     }
 
     case 'continue': {

@@ -37,6 +37,7 @@ import { decayFor, defenseOf, heroBand } from './systems';
 import { nearestReprisalFaction, reprisalEnding, REPRISAL_BY_FACTION } from './endings';
 import { PACT_LIMIT } from './constants';
 import { isOptionPickable, nextOffer } from './offers';
+import { emptyCollection, recordRun } from './persistence';
 import { streamFor } from './rng';
 import { REAL_CONTENT as content, realOfferWhere } from '../testing/realContent';
 
@@ -192,17 +193,33 @@ describe("Appraiser's Monocle · +15 Followers when a choice costs a relic", () 
     expect(resolution.relicEvents.some((e) => e.artifactId === 'appraisers_monocle')).toBe(false);
   });
 
-  it('the PRE-COMMIT preview shows it firing too, even though which relic is lost is unknowable', () => {
-    // Rule 1: the card must print what resolveChoice will actually do.
-    // `holder()` holds two relics with no Counterfeit Soul, so WHICH one a
-    // random loseArtifact takes is genuinely unresolvable ahead of the roll
-    // — but the Monocle only watches THAT a loss happened, not which relic,
-    // so the preview must show it firing regardless. It used to `continue`
-    // straight past the whole effect whenever the loss wasn't deterministic,
-    // which hid this from the card even though resolveChoice (above) fires
-    // it for real every time.
+  it('the PRE-COMMIT preview does NOT show it firing when the loss is ambiguous (code review)', () => {
+    // Rule 1, the other direction: the card must never show a reaction as
+    // certain when it might not happen. `holder()` holds two relics with no
+    // Counterfeit Soul, so WHICH one a random loseArtifact takes is
+    // genuinely unresolvable ahead of the roll — and the Monocle is ITSELF
+    // one of the two candidates. `resolveChoice`'s real call only runs
+    // triggers AFTER the real loss has already removed its target, so a
+    // Monocle that IS the one taken never reacts to its own removal; showing
+    // its reaction as certain here would print a lie on exactly that roll.
     const loses = offerOf([{ t: 'loseArtifact' }]);
     const preview = projectReactions(holder(), loses.options[0]!, content);
+    expect(preview.kind).toBe('certain');
+    if (preview.kind !== 'certain') throw new Error('unreachable');
+    expect(preview.events.some((e) => e.artifactId === 'appraisers_monocle')).toBe(false);
+  });
+
+  it('still shows it firing when the loss is DETERMINISTIC and names someone else (the Counterfeit Soul)', () => {
+    // The suppression above must not overreach: when the Soul is also held,
+    // `loseArtifact` always names the Soul first (see the Soul's own
+    // `describe` block below), so the Monocle's survival — and its reaction
+    // — is genuinely certain, in the preview exactly as for real.
+    const soulHolder = run({
+      heldArtifactIds: ['appraisers_monocle', 'counterfeit_soul'],
+      followers: 10,
+    });
+    const loses = offerOf([{ t: 'loseArtifact' }]);
+    const preview = projectReactions(soulHolder, loses.options[0]!, content);
     expect(preview.kind).toBe('certain');
     if (preview.kind !== 'certain') throw new Error('unreachable');
     expect(preview.events).toContainEqual({
@@ -210,7 +227,6 @@ describe("Appraiser's Monocle · +15 Followers when a choice costs a relic", () 
       applied: [{ t: 'followers', v: 15 }],
     });
   });
-
 });
 
 // ---------------------------------------------------------------------------
@@ -304,6 +320,19 @@ describe('The Key to No Particular Door · active: redraws this era’s offer', 
     // the very same era.
     const afterAnswer: RunState = { ...atProphecy, seenOfferIds: [...atProphecy.seenOfferIds, 'prophecy'] };
     expect(canActivateRelic(afterAnswer, 'key_to_no_particular_door', content)).toBe(true);
+  });
+
+  it('a redraw can never select the offer it is excluded from, however the RNG would have landed (code review)', () => {
+    // Outside the pinned-prophecy case, a different salted stream does not
+    // BY ITSELF guarantee a different weighted pick — the current offer
+    // stays in the pool, so the roll can coincidentally land back on it.
+    // `nextOffer`'s `excludeOfferId` (what `useGame`'s `useRelic` case now
+    // passes as the offer the player was already looking at) is what
+    // actually guarantees a different card, not the salt alone.
+    const holder = run({ eraIndex: 3 });
+    const drawn = nextOffer(holder, content);
+    const redrawn = nextOffer(holder, content, drawn.id);
+    expect(redrawn.id).not.toBe(drawn.id);
   });
 });
 
@@ -458,6 +487,29 @@ describe('The Seed That Remembers · grants the Mantle of Slow Moss when a choic
       applied: [{ t: 'artifact', artifactId: 'mantle_of_slow_moss' }],
     });
     expect(next.heldArtifactIds).toContain('mantle_of_slow_moss');
+    // Code review: a TRIGGER's own grant never passes through
+    // `resolveChoice`'s own `application.artifactsGained` fold — `applyEffects`
+    // here runs against the Seed's trigger `effects`, not the option's — so
+    // without its own record (mirroring `activeGrantedArtifactIds` for an
+    // active's grant) the Mantle would vanish from every "ever held"
+    // reconstruction the moment it is later lost.
+    expect(next.triggerGrantedArtifactIds).toEqual(['mantle_of_slow_moss']);
+  });
+
+  it('survives being lost afterward, in recordRun and in the "ever held" union RelicPage/EndingScreen both use', () => {
+    const holder = run({ heldArtifactIds: ['seed_that_remembers', 'antler_baton'] });
+    const loses = offerOf([{ t: 'loseArtifact' }]);
+    const { next: granted } = resolveChoice(holder, loses, 0, content);
+    expect(granted.triggerGrantedArtifactIds).toContain('mantle_of_slow_moss');
+
+    // Lost before any era completes — `eras` stays empty (this run's own era
+    // has already been recorded by `resolveChoice`, so simulate the loss
+    // happening on a LATER, still-untracked choice by clearing both).
+    const lost: RunState = { ...granted, heldArtifactIds: [], eras: [] };
+    expect(lost.eras.flatMap((e) => e.artifactsGained)).not.toContain('mantle_of_slow_moss');
+
+    const collection = recordRun(emptyCollection(), lost, content);
+    expect(collection.discoveredArtifactIds).toContain('mantle_of_slow_moss');
   });
 
   it('is silent (no event) when the Mantle is already held — the grant no-ops', () => {

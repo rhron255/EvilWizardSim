@@ -356,19 +356,42 @@ export function isPinnedProphecyPending(run: RunState, content: ContentBundle): 
   return pinnedProphecyOffer(run, content) !== undefined;
 }
 
+function offerWeight(run: RunState, offer: Offer, content: ContentBundle): number {
+  return (
+    standingWeight(run, offer) *
+    pactWeight(run, offer, content) *
+    affordabilityWeight(run, offer, content) *
+    (offer.scripted ? SCRIPTED_WEIGHT_BONUS : 1)
+  );
+}
+
 /**
  * ONE offer for the current era, with 2-4 options.
  *
- * Pure: the same `RunState` always yields the same offer, because the sampling
- * stream is derived from `(seed, era index)` and nothing else.
+ * Pure given `(run, content, excludeOfferId)`: the same inputs always yield
+ * the same offer, because the sampling stream is derived from `(seed, era
+ * index)` and nothing else — every existing caller, which omits the third
+ * argument, gets the exact same result as before it existed.
+ *
+ * `excludeOfferId` (code review, the Key to No Particular Door): a plain
+ * re-roll through a different salted stream does not GUARANTEE a different
+ * result — the current offer stays in `pool`, so both the original and
+ * salted draws can land in its own weight interval by pure chance, and the
+ * Key would be marked spent for a redraw indistinguishable from no redraw at
+ * all. Passed by `useGame`'s `useRelic` case alone, with the offer the
+ * player was already looking at, so the redraw this produces can never be
+ * that exact card again. Falls to the same `QUIET_ERA_OFFER` an ordinary
+ * empty pool already falls to when excluding it leaves nothing else to draw
+ * — genuinely the only "different" offer left to show.
  */
-export function nextOffer(run: RunState, content: ContentBundle): Offer {
+export function nextOffer(run: RunState, content: ContentBundle, excludeOfferId?: string): Offer {
   // The prophecy is pinned to its era. The full-screen interstitial announces
   // the birth; this card is where the player answers it.
   const prophecy = pinnedProphecyOffer(run, content);
   if (prophecy) return prophecy;
 
   const { pool } = buildOfferPool(run, content);
+  const candidates = excludeOfferId ? pool.filter((o) => o.id !== excludeOfferId) : pool;
   // The Key to No Particular Door (issue #82): once `relicState.offerRedrawSalt`
   // has been bumped by a use of the active (`activateRelic`,
   // `src/engine/relics.ts`), it becomes an extra label mixed into the same
@@ -382,15 +405,5 @@ export function nextOffer(run: RunState, content: ContentBundle): Offer {
     run.relicState.offerRedrawSalt > 0
       ? streamFor(run.seed, 'offer', run.eraIndex, run.relicState.offerRedrawSalt)
       : streamFor(run.seed, 'offer', run.eraIndex);
-  return (
-    weightedPick(
-      rng,
-      pool,
-      (offer) =>
-        standingWeight(run, offer) *
-        pactWeight(run, offer, content) *
-        affordabilityWeight(run, offer, content) *
-        (offer.scripted ? SCRIPTED_WEIGHT_BONUS : 1),
-    ) ?? QUIET_ERA_OFFER
-  );
+  return weightedPick(rng, candidates, (offer) => offerWeight(run, offer, content)) ?? QUIET_ERA_OFFER;
 }

@@ -854,6 +854,22 @@ export type RunState = {
    */
   activeGrantedArtifactIds: string[];
   /**
+   * Relics granted by a relic TRIGGER's own `effects` (issue #82 — the Seed
+   * That Remembers grants the Mantle of Slow Moss), the same shape of gap
+   * `activeGrantedArtifactIds` closes for an active's own grant:
+   * `applyChoiceTriggers`/`applyEraEndTriggers` (`src/engine/relics.ts`) apply
+   * a trigger's effects directly, never through `resolveChoice`'s own
+   * `application.artifactsGained` fold, so the grant never lands in any
+   * `EraRecord.artifactsGained` either (code review). Without a record of its
+   * own, a trigger-granted relic that was later lost — `loseArtifact`, the
+   * lich rite — would vanish from every "ever held" reconstruction exactly
+   * the way an active-granted one used to before `activeGrantedArtifactIds`
+   * existed. `recordRun`, `RelicPage`'s "Lost this run", and `EndingScreen`'s
+   * relic grid all read this alongside `startingArtifactIds`,
+   * `activeGrantedArtifactIds`, and `eras[].artifactsGained` for that reason.
+   */
+  triggerGrantedArtifactIds: string[];
+  /**
    * Relics this PLAYER has discovered in earlier careers, from the persisted
    * collection. Read-only within a run: it never changes, and it exists so a
    * random draw can prefer something new (see `NOVELTY_BIAS`).

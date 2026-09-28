@@ -366,6 +366,20 @@ function fireTriggers(
   choiceEffects?: readonly Effect[],
   offerFactionId?: FactionId,
   outcome?: Outcome,
+  /**
+   * Preview-only (code review): true while `choiceEffects` contains a
+   * `loseArtifact` whose target relic was left unresolved (`projectReactions`,
+   * 2+ relics held, no Counterfeit Soul). A `watchesEffect: 'loseArtifact'`
+   * relic (the Appraiser's Monocle, Seed That Remembers) is itself one of the
+   * candidates that ambiguous roll could take — `resolveChoice`'s real call
+   * only ever runs after the real removal has already happened, so a relic
+   * that IS the one taken is already gone from `heldArtifactIds` by the time
+   * triggers fire for real and never reacts to its own loss. Previewing it as
+   * certain would show a reaction that might not happen, so it is excluded
+   * here rather than resolved — the same "stay abstract" call the loss itself
+   * already makes, not a new one.
+   */
+  suppressSelfLossWatchers?: boolean,
 ): RelicEvent[] {
   const events: RelicEvent[] = [];
   // Frozen once, before any relic in this pass fires. `heldTriggers` below
@@ -382,6 +396,7 @@ function fireTriggers(
   // pass, matching what `heldTriggers` already guarantees for `heldArtifactIds`.
   const snapshot = draftOf(draft);
   for (const { artifact, power } of heldTriggers(draft, content, when)) {
+    if (suppressSelfLossWatchers && power.watchesEffect === 'loseArtifact') continue;
     if (power.once && draft.relicState.firedOnce.includes(artifact.id)) continue;
     const scaledEffects = scaledEffectsFor(power.scaled, choiceEffects);
     // A `scaled` trigger fires on whatever produced a non-empty
@@ -396,6 +411,16 @@ function fireTriggers(
     if (effectsToApply.length === 0) continue;
     const application = applyEffects(draft, effectsToApply, rng, content);
     if (power.once) draft.relicState.firedOnce.push(artifact.id);
+    if (application.artifactsGained.length > 0) {
+      // Code review: a trigger's own grant (the Seed That Remembers → Mantle
+      // of Slow Moss) never passes through `resolveChoice`'s own
+      // `application.artifactsGained` fold — `applyEffects` here runs
+      // directly against the TRIGGER's `effects`, not the option's — the
+      // same gap `activeGrantedArtifactIds` already closed for an active's
+      // own grant. Recorded even for a preview's throwaway `draft`: harmless
+      // there since nothing reads it back off a discarded draft.
+      draft.triggerGrantedArtifactIds.push(...application.artifactsGained.map((a) => a.id));
+    }
     if (application.applied.length > 0) {
       events.push({ artifactId: artifact.id, applied: application.applied });
     }
@@ -411,6 +436,12 @@ function fireTriggers(
  * things "the choice you made" can mean (issue #82): which CARD it was, and
  * how a gamble on it resolved — see `watchesOfferFaction`/
  * `watchesGambleFailure` on `RelicPower` in `types.ts`.
+ *
+ * `suppressSelfLossWatchers` — see `fireTriggers`'s own doc comment. Always
+ * `undefined`/`false` from `resolveChoice`'s real call: by the time it runs,
+ * a real `loseArtifact` has already removed its target for real, so
+ * `heldArtifactIds` is already accurate and there is nothing left to
+ * suppress. Only `projectReactions`'s preview ever passes `true`.
  */
 export function applyChoiceTriggers(
   draft: RunState,
@@ -419,8 +450,9 @@ export function applyChoiceTriggers(
   choiceEffects: readonly Effect[],
   offerFactionId?: FactionId,
   outcome?: Outcome,
+  suppressSelfLossWatchers?: boolean,
 ): RelicEvent[] {
-  return fireTriggers(draft, content, rng, 'onChoice', choiceEffects, offerFactionId, outcome);
+  return fireTriggers(draft, content, rng, 'onChoice', choiceEffects, offerFactionId, outcome, suppressSelfLossWatchers);
 }
 
 /** Called from `resolveChoice`'s era-end block — skipped, like decay, when the era ended the run. */
@@ -503,6 +535,13 @@ export function projectReactions(
     const appliedEffects: Effect[] = [];
     let endingRequested: EndingId | undefined;
     let lichRequested = false;
+    // Code review: whether THIS branch's loss was left unresolved — the
+    // Appraiser's Monocle/Seed That Remembers are themselves among the
+    // candidates an ambiguous roll could take (every held relic is, with no
+    // exemption — see `effects.ts`'s `loseArtifact` case), so their own
+    // reaction to it cannot be shown as certain. See `fireTriggers`'s
+    // `suppressSelfLossWatchers` doc comment for the full reasoning.
+    let lossIsAmbiguous = false;
     for (const effect of effects) {
       if (effect.t === 'artifactFrom') continue;
       // The Counterfeit Soul (issue #82) can make a 2+-held `loseArtifact`
@@ -521,6 +560,7 @@ export function projectReactions(
         // type appears in `appliedEffects`, never which relic — so `continue`
         // used to hide it from a preview it will actually fire in for real.
         appliedEffects.push({ t: 'loseArtifact' });
+        lossIsAmbiguous = true;
         continue;
       }
       const rng = effect.t === 'loseArtifact' ? DETERMINISTIC_LOSS_RNG : NO_RNG;
@@ -529,7 +569,15 @@ export function projectReactions(
       if (!endingRequested) endingRequested = application.endingRequested;
       if (application.lichRequested) lichRequested = true;
     }
-    const choiceEvents = applyChoiceTriggers(draft, content, NO_RNG, appliedEffects, offerFactionId, outcome);
+    const choiceEvents = applyChoiceTriggers(
+      draft,
+      content,
+      NO_RNG,
+      appliedEffects,
+      offerFactionId,
+      outcome,
+      lossIsAmbiguous,
+    );
 
     const riteTaken = lichRequested || endingRequested === 'lichdom';
     if (riteTaken && !run.isLich) {

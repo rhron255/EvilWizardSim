@@ -28,6 +28,7 @@ const run = (heldArtifactIds: string[]): RunState =>
     heldArtifactIds,
     startingArtifactIds: [],
     activeGrantedArtifactIds: [],
+    triggerGrantedArtifactIds: [],
     knownArtifactIds: [],
     heroBandSeen: 0,
     factionStanding: {

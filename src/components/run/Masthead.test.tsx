@@ -41,6 +41,7 @@ const demoRun: RunState = {
   heldArtifactIds: [],
   startingArtifactIds: [],
   activeGrantedArtifactIds: [],
+  triggerGrantedArtifactIds: [],
   heroBandSeen: 0,
   factionStanding: {
     ashen_covenant: 46,
