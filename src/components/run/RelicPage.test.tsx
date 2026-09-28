@@ -50,9 +50,14 @@ const baseRun: RunState = {
   notoriety: 81,
   followers: 1284,
   lairId: 'sunless_cathedral',
-  knownArtifactIds: ['ninth_clause_brazier', 'antler_baton'],
+  // `censer_of_small_regrets`, not `ninth_clause_brazier` (issue #82 gave
+  // the Brazier an active power, which would put an unwanted Use button on
+  // every fixture built from this run — the "the Use button" describe block
+  // below needs a run with none among its held relics until it adds one of
+  // its own).
+  knownArtifactIds: ['censer_of_small_regrets', 'antler_baton'],
   heldArtifactIds: [
-    'ninth_clause_brazier',
+    'censer_of_small_regrets',
     'antler_baton',
     'cinder_testament',
     'bone_crown',
@@ -60,6 +65,7 @@ const baseRun: RunState = {
   ],
   startingArtifactIds: [],
   activeGrantedArtifactIds: [],
+  triggerGrantedArtifactIds: [],
   heroBandSeen: 0,
   factionStanding: {
     ashen_covenant: 46,
@@ -76,7 +82,7 @@ const baseRun: RunState = {
   goodActs: 0,
   illActs: 0,
   goodWizardVowed: false,
-  relicState: { firedOnce: [], spent: [], foresight: false },
+  relicState: { firedOnce: [], spent: [], foresight: false, offerRedrawSalt: 0 },
   eras,
   seenOfferIds: eras.map((e) => e.offerId),
 };
@@ -170,6 +176,23 @@ describe('RelicPage · the relic summary', () => {
     ).toBeInTheDocument();
   });
 
+  it('falls back to the descriptive sentence for a TRIGGER whose whole effect lives in `scaled`, not "No change"', () => {
+    // Bug found by code review: The Long Appetite is a trigger power with
+    // `effects: []` (everything lives in `scaled` instead), so the old
+    // `hasTriggerPower` check routed it to EffectList with an empty array —
+    // which renders the literal string "No change" for a legendary relic
+    // that visibly does something every choice. The full ArtifactCard lower
+    // on the same page already rendered this correctly via `descriptionFor`;
+    // only the quick summary had the bug.
+    const run = { ...baseRun, heldArtifactIds: [...baseRun.heldArtifactIds, 'long_appetite'] };
+    show(run);
+    const summary = screen.getByRole('group', { name: 'Relic summary' });
+    expect(
+      within(summary).getByText('At the choice you make: +1 Notoriety per 10 Followers spent.'),
+    ).toBeInTheDocument();
+    expect(within(summary).queryByText('No change')).toBeNull();
+  });
+
   it('says nothing when there is nothing held', () => {
     show({ ...baseRun, heldArtifactIds: [] } as RunState);
     expect(screen.queryByRole('group', { name: 'Relic summary' })).toBeNull();
@@ -259,7 +282,7 @@ describe('RelicPage · the Use button (issue #81)', () => {
       ...baseRun,
       followers: 100,
       heldArtifactIds: [...baseRun.heldArtifactIds, 'final_ledger'],
-      relicState: { firedOnce: [], spent: ['final_ledger'], foresight: false },
+      relicState: { firedOnce: [], spent: ['final_ledger'], foresight: false, offerRedrawSalt: 0 },
     } as RunState;
     show(holder);
     expect(screen.queryByRole('button', { name: /^Use /i })).toBeNull();

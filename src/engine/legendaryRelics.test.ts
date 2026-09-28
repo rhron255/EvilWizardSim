@@ -200,6 +200,33 @@ describe('activateRelic / canActivateRelic · the catalog\'s first actives', () 
       expect(next).toBe(poor);
     });
 
+    it('prices its cost through the Second Stomach\'s discount, not the raw authored magnitude', () => {
+      // Bug found by code review: canActivateRelic checked `run.followers <
+      // -cost.v` against the raw -25, but activateRelic (via applyEffects's
+      // `followers` case) actually spends `-25 * followersCostMultiplier`.
+      // A holder of both relics can genuinely afford -25*0.75 = -18.75 -> 19
+      // with 22 Followers, but the unscaled check reads 22 < 25 and refuses
+      // — the Use button would never appear for an affordable activation.
+      const discounted = run({
+        heldArtifactIds: ['final_ledger', 'second_stomach'],
+        followers: 22,
+      });
+      expect(relicRules(discounted, content).followersCostMultiplier).toBe(0.75);
+      expect(canActivateRelic(discounted, 'final_ledger', content)).toBe(true);
+      const { next, event } = activateRelic(discounted, 'final_ledger', content);
+      expect(event).not.toBeNull();
+      expect(event!.applied.some((e) => e.t === 'followers' && e.v === -19)).toBe(true);
+      expect(next.followers).toBe(3);
+
+      // The same discount must still refuse a genuinely unaffordable spend —
+      // this isn't "the discount makes it free," just correctly priced.
+      const stillPoor = run({
+        heldArtifactIds: ['final_ledger', 'second_stomach'],
+        followers: 10,
+      });
+      expect(canActivateRelic(stillPoor, 'final_ledger', content)).toBe(false);
+    });
+
     it('spends the cost and grants a rare relic from the best-standing faction', () => {
       const flush = run({
         heldArtifactIds: ['final_ledger'],

@@ -134,8 +134,8 @@ describe('effectiveOdds · the seam for a future odds relic', () => {
       successText: 's',
       failureText: 'f',
     };
-    expect(effectiveOdds(state, certain)).toBe(1);
-    expect(effectiveOdds(state, gamble)).toBe(0.35);
+    expect(effectiveOdds(state, certain, content)).toBe(1);
+    expect(effectiveOdds(state, gamble, content)).toBe(0.35);
   });
 });
 

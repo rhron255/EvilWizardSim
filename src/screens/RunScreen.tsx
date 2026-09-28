@@ -144,7 +144,7 @@ export function RunScreen({
       <main className={styles.column}>
         <Masthead run={run} lairs={lairs} hasAscensionTrophy={run.ending === 'ascension'} />
 
-        <FactionStandings run={run} factions={factions} />
+        <FactionStandings run={run} factions={factions} content={content} />
 
         {view === 'relics' ? (
           <RelicPage
@@ -178,6 +178,7 @@ export function RunScreen({
           resolution={resolution}
           artifacts={artifacts}
           factions={factions}
+          endings={content.endings}
           onContinue={onContinue}
         />
       )}

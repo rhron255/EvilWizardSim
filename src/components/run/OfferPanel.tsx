@@ -9,7 +9,14 @@
 import { useCallback, useEffect, useId, useMemo, useRef } from 'react';
 import type { Artifact, Effect, Faction, Offer, OfferOption, RunState } from '../../types';
 import type { ContentBundle, RelicEvent, RelicReactionPreview } from '../../engine';
-import { conditionMet, effectiveOdds, impliedGatesOf, isOptionPickable, projectReactions } from '../../engine';
+import {
+  conditionMet,
+  effectiveOdds,
+  impliedGatesOf,
+  isOptionPickable,
+  projectReactions,
+  relicRules,
+} from '../../engine';
 import { describeGate } from './effectText';
 import { OptionCard } from './OptionCard';
 import styles from './OfferPanel.module.css';
@@ -59,7 +66,8 @@ function gateFor(
   content: ContentBundle,
 ): OptionGate {
   if (isOptionPickable(run, option, content)) return { pickable: true };
-  const failing = impliedGatesOf(option).find((c) => !conditionMet(run, c, content));
+  const followersCostMultiplier = relicRules(run, content).followersCostMultiplier;
+  const failing = impliedGatesOf(option, followersCostMultiplier).find((c) => !conditionMet(run, c, content));
   return {
     pickable: false,
     reason: failing ? describeGate(failing, run, content) : undefined,
@@ -152,17 +160,20 @@ export function OfferPanel({
   // same as `gateFor` above) so the preview matches what `resolveChoice` will
   // actually apply, never a copy already rewritten by `projectEffects`.
   const optionReactions = useMemo(
-    () => gateOptions.map((option) => projectReactions(run, option, content)),
-    [gateOptions, run, content],
+    () => gateOptions.map((option) => projectReactions(run, option, content, offer.factionId)),
+    [gateOptions, run, content, offer.factionId],
   );
 
   // Same reasoning as `optionReactions`: computed from `gateOptions` (the
   // AUTHORED option) so the odds printed on the card are the odds
   // `resolveChoice` actually rolls against, via the same `effectiveOdds` seam
-  // — never `option.odds` read straight off a UI-projected copy.
+  // — never `option.odds` read straight off a UI-projected copy. `content`
+  // is what lets it see the Spectacles of the Third Reading's own bonus
+  // (issue #82) — omitting it here would silently under-print the odds the
+  // engine will actually roll against.
   const optionOdds = useMemo(
-    () => gateOptions.map((option) => effectiveOdds(run, option)),
-    [gateOptions, run],
+    () => gateOptions.map((option) => effectiveOdds(run, option, content)),
+    [gateOptions, run, content],
   );
 
   // Styling convention 3: a reaction every branch of every option produces
@@ -254,6 +265,7 @@ export function OfferPanel({
               index={i}
               artifacts={artifacts}
               factions={factions}
+              endings={content.endings}
               disabled={disabled || !gate?.pickable}
               reason={gate?.reason}
               reactions={cardReactions[i]}

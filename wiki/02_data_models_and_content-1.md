@@ -70,9 +70,10 @@ type Faction = {
   id: FactionId;
   name: string;
   blurb: string;
-  offersArtifactIds: string[];
   demands: string;            // what they take, in player-facing terms
   hostileTo: FactionId[];
+  adjective: string;           // used in ledger deed lines
+  reliquary: string;           // this faction's relic THEME, one line, issue #80
 };
 
 type Artifact = {
@@ -80,8 +81,8 @@ type Artifact = {
   name: string;
   factionId: FactionId;       // every artifact belongs to a faction
   rarity: 'common' | 'rare' | 'legendary';
-  effect: string;
   flavorText: string;
+  power: RelicPower;           // what it does, once held — issue #77, completed by slice 5 (#82)
 };
 
 type Offer = {

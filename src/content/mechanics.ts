@@ -77,7 +77,19 @@ export const mechanics: Mechanic[] = [
     id: 'relic_actives',
     name: 'Relic actives',
     blurb:
-      "A few relics carry a Use button on the relic page instead of acting on their own. Press it once, whenever you like — never in the middle of a decision — and it is spent for the rest of the career.",
+      "A few relics carry a Use button on the relic page instead of acting on their own. Press it once, whenever you like — never in the middle of a decision — and it is spent for the rest of the career. Some hand you something outright; others trade one stat for another, or swap the very offer in front of you.",
+  },
+  {
+    id: 'relic_lifelines',
+    name: 'Lifelines',
+    blurb:
+      'A few relics keep a one-time rescue in reserve. The first time it would apply, it spends itself instead of you: the ending it covers does not happen, and your career carries on.',
+  },
+  {
+    id: 'double_edged_relics',
+    name: 'Double-edged relics',
+    blurb:
+      'A few relics cut both ways. You will never find one by chance — they are always offered by name, and the card shows what it costs you before you accept it.',
   },
   {
     id: 'origins',
@@ -101,15 +113,16 @@ export const mechanics: Mechanic[] = [
 
 /**
  * Which Necrolexicon entry explains a given kind of relic power (issue #80's
- * acceptance item, extended by #81). `passive`, `trigger`, and `lifeline` map
- * to the one `relic_powers` entry above — a relic that acts on its own needs
+ * acceptance item, extended by #81 and #82). `passive` and `trigger` map to
+ * the one `relic_powers` entry above — a relic that acts on its own needs
  * only one mechanic explaining the whole automatic framework — but `active`
- * gets its own (`relic_actives`), since a Use button is precisely the one
- * kind that is NOT automatic. The `Record` stays exhaustive over
- * `RelicPower['kind']` so a new kind (a `lifeline` power actually shipping,
- * or a fifth kind added later) cannot silently go unmapped:
- * `scripts/validate-content.ts` looks up every AUTHORED power's kind here and
- * fails if the mechanic it names does
+ * and `lifeline` each get their own, for the same reason: an active is the
+ * one kind that is NOT automatic (`relic_actives`), and a lifeline is a
+ * ONE-TIME rescue rather than an ongoing rule change, distinct enough from
+ * an era-to-era `trigger` to earn its own explanation (`relic_lifelines`).
+ * The `Record` stays exhaustive over `RelicPower['kind']` so a future fifth
+ * kind cannot silently go unmapped: `scripts/validate-content.ts` looks up
+ * every AUTHORED power's kind here and fails if the mechanic it names does
  * not exist, which only means anything because this object cannot omit one.
  */
 export const MECHANIC_FOR_POWER_KIND: Record<RelicPower['kind'], string> = {
@@ -120,5 +133,8 @@ export const MECHANIC_FOR_POWER_KIND: Record<RelicPower['kind'], string> = {
   // button exists at all, which the generic "acts on its own" blurb above
   // would directly contradict.
   active: 'relic_actives',
-  lifeline: 'relic_powers',
+  // Its own entry too (issue #82): "acts on its own" fits a lifeline no
+  // better than it fits an active — it fires once, ever, and only at the
+  // one moment it is needed, never a rate or a rule the run lives under.
+  lifeline: 'relic_lifelines',
 };

@@ -7,7 +7,7 @@
  * other half of that contract, forbidding undisclosed *outcome*.
  */
 
-import type { Artifact, EndingId, EraRecord, Effect, Lair, Outcome, Tier } from '../types';
+import type { Artifact, EndingId, EraRecord, Effect, Lair, LifelineRecovery, Outcome, Tier } from '../types';
 import type { RelicEvent } from './relics';
 
 /**
@@ -107,4 +107,15 @@ export type Resolution = {
    */
   roll?: number;
   odds?: number;
+
+  /**
+   * Set when a held lifeline (issue #82) cancelled this era's ending — the
+   * resolution card's one dedicated place to say so, distinct from
+   * `relicEvents`: a lifeline just saved the run from ENDING, which is a
+   * bigger deal than an ordinary era-tick relic reaction and reads oddly
+   * folded into the same quiet list. `endingAverted` names what it saved the
+   * wizard FROM (never rendered as if it happened); `applied` is the
+   * recovery's own real delta, printable the same way any other effect is.
+   */
+  lifeline?: { artifactId: string; endingAverted: EndingId; recovery: LifelineRecovery; applied: Effect[] };
 };

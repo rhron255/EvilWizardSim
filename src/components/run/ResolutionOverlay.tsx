@@ -11,11 +11,18 @@
  */
 
 import { useEffect, useId, useRef } from 'react';
-import type { Artifact, Faction } from '../../types';
+import type { Artifact, Ending, Faction } from '../../types';
 import { tierColor, tierFor, tierGlow } from '../../theme/tokens';
 import type { Resolution } from './resolution';
 import { EffectList } from './EffectList';
-import { artifactName, describeSystemic, endingName, formatOdds, systemicKey } from './effectText';
+import {
+  artifactName,
+  describeSystemic,
+  endingDisplayName,
+  factionFor,
+  formatOdds,
+  systemicKey,
+} from './effectText';
 import { NotorietyBadge } from './NotorietyBadge';
 import { ArtifactCard } from '../meta';
 import styles from './ResolutionOverlay.module.css';
@@ -24,6 +31,8 @@ export type ResolutionOverlayProps = {
   resolution: Resolution;
   artifacts: Artifact[];
   factions: Faction[];
+  /** Needed for the authored ending name — see `endingDisplayName` in `effectText.ts`. Required, not optional: wiki/07's failure mode 17 is exactly a caller silently falling back to a bare id-derived name because nothing forced this through. */
+  endings: Ending[];
   onContinue(): void;
 };
 
@@ -45,14 +54,11 @@ const OUTCOME_WORD: Record<Resolution['outcome'], string> = {
  */
 const LONG_ODDS = 0.4;
 
-function factionFor(factions: Faction[], id: string): Faction | undefined {
-  return factions.find((f) => f.id === id);
-}
-
 export function ResolutionOverlay({
   resolution,
   artifacts,
   factions,
+  endings,
   onContinue,
 }: ResolutionOverlayProps) {
   const headingId = useId();
@@ -161,6 +167,7 @@ export function ResolutionOverlay({
             effects={resolution.appliedEffects}
             artifacts={artifacts}
             factions={factions}
+            endings={endings}
           />
         </div>
 
@@ -206,7 +213,13 @@ export function ResolutionOverlay({
               {resolution.relicEvents.map((event) => (
                 <li key={event.artifactId} className={styles.relicEventRow}>
                   <span className={styles.relicEventName}>{artifactName(event.artifactId, artifacts)}</span>
-                  <EffectList effects={event.applied} artifacts={artifacts} factions={factions} compact />
+                  <EffectList
+                    effects={event.applied}
+                    artifacts={artifacts}
+                    factions={factions}
+                    endings={endings}
+                    compact
+                  />
                 </li>
               ))}
             </ul>
@@ -282,6 +295,33 @@ export function ResolutionOverlay({
           </p>
         )}
 
+        {/* A lifeline (issue #82): the run was about to end, and a held relic
+            spent itself instead. Its own block, not folded into `relicEvents`
+            above — that section is for a routine era-tick reaction, and this
+            is the one thing bigger than the ending line below it: the run
+            NOT ending. Styled for weight (a brighter border, like the
+            controls styling convention 2 asks for) rather than a new color —
+            `--ew-tier` stays the one chromatic reward the run pays out
+            (CLAUDE.md rule 3). */}
+        {resolution.lifeline && (
+          <div className={styles.lifeline}>
+            <p className={styles.lifelineLabel}>Lifeline</p>
+            <p className={styles.lifelineText}>
+              {artifactName(resolution.lifeline.artifactId, artifacts)} spends itself:{' '}
+              {endingDisplayName(resolution.lifeline.endingAverted, endings)} does not happen.
+            </p>
+            {resolution.lifeline.applied.length > 0 && (
+              <EffectList
+                effects={resolution.lifeline.applied}
+                artifacts={artifacts}
+                factions={factions}
+                endings={endings}
+                compact
+              />
+            )}
+          </div>
+        )}
+
         {tierCrossed && (
           <p className={styles.tier} data-celebrate={tierCrossed.celebrate ? 'true' : undefined}>
             <span className={styles.tierName}>{tierCrossed.name}</span>
@@ -290,7 +330,7 @@ export function ResolutionOverlay({
         )}
 
         {resolution.ending && (
-          <p className={styles.ending}>The run ends · {endingName(resolution.ending)}</p>
+          <p className={styles.ending}>The run ends · {endingDisplayName(resolution.ending, endings)}</p>
         )}
 
         {/* The deed line the ledger is about to receive was echoed here, which

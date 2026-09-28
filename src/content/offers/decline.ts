@@ -20,9 +20,11 @@ export const declineOffers: Offer[] = [
       {
         kind: 'certain',
         label: 'Send riders to the north road',
+        // Issue #82: see the note on `decline_account_review`.
         effects: [
           { t: 'followers', v: -10 },
           { t: 'heroThreat', v: -6 },
+          { t: 'artifactFrom', factionId: 'crownlands', rarity: 'common' },
         ],
       },
       {
@@ -119,8 +121,13 @@ export const declineOffers: Offer[] = [
       {
         kind: 'certain',
         label: 'Settle in full',
+        // Issue #82: one of a handful of common-rarity grants added across
+        // the catalog to raise the mean relics held per run — see the
+        // constant's own doc comment in `src/engine/constants.ts` for the
+        // measured before/after.
         effects: [
           { t: 'standing', factionId: 'gilded_hand', v: 8 },
+          { t: 'artifactFrom', factionId: 'gilded_hand', rarity: 'common' },
         ],
         resultText: "You pay it in full. Quill's letter of thanks is, if anything, shorter than the bill.",
       },
@@ -181,11 +188,13 @@ export const declineOffers: Offer[] = [
       {
         kind: 'certain',
         label: 'Ask for shelter anyway',
+        // Issue #82: see the note on `decline_account_review`.
         effects: [
           { t: 'standing', factionId: 'pale_academy', v: 18 },
           { t: 'heroThreat', v: -7 },
           { t: 'notoriety', v: -8 },
           { t: 'followers', v: -10 },
+          { t: 'artifactFrom', factionId: 'pale_academy', rarity: 'common' },
         ],
       },
     ],
@@ -880,10 +889,12 @@ export const declineOffers: Offer[] = [
       {
         kind: 'certain',
         label: 'Feed it and hope it stops',
+        // Issue #82: see the note on `decline_account_review`.
         effects: [
           { t: 'followers', v: -20 },
           { t: 'standing', factionId: 'worm_below', v: 18 },
           { t: 'notoriety', v: 2 },
+          { t: 'artifactFrom', factionId: 'worm_below', rarity: 'common' },
         ],
         resultText: 'It stops. It also, unmistakably, wants feeding again.',
       },
@@ -1569,7 +1580,18 @@ export const declineOffers: Offer[] = [
     phase: 'decline',
     factionId: 'verdant_choir',
     requires: [{ c: 'minStanding', factionId: 'verdant_choir', v: 25 }],
-    weight: 1,
+    // Issue #82's retuning clause. The Weather Leash's only route into a
+    // career is this offer's own gamble, and at weight 1 / odds 0.35 the
+    // card was rarely even DRAWN once standing cleared the gate, let alone
+    // won — `npm run sim`'s "Full completion" target regressed from a
+    // passing 547 median runs (main) to over 2000 the moment the Leash
+    // stopped being randomly drawable (see `isDoubleEdged`, `src/engine/
+    // effects.ts`), because a career now needs to both SEE this specific
+    // card and WIN its gamble. Weight 1 -> 4 alone (odds untouched) only
+    // brought it to 1482; raising the odds 0.35 -> 0.55 too is what a
+    // second measurement showed was actually needed — see the constant's
+    // own doc comment for the full before/after table.
+    weight: 4,
     options: [
       {
         kind: 'certain',
@@ -1592,9 +1614,16 @@ export const declineOffers: Offer[] = [
       {
         kind: 'gamble',
         label: 'Ask for the deep grove instead',
-        odds: 0.35,
+        odds: 0.55,
+        // The Weather Leash's only route into a career (issue #82,
+        // double-edged — never drawn at random, see `isDoubleEdged` in
+        // `src/engine/effects.ts`). A named grant, not `artifactFrom`: this
+        // used to draw a random rare Verdant Choir relic. Still gated behind
+        // the gamble, same as before — the card discloses it before the
+        // commit either way (a fixed `{ t: 'artifact', … }` grant is
+        // projectable, per `PROJECTABLE` in `src/engine/effects.ts`).
         onSuccess: [
-          { t: 'artifactFrom', factionId: 'verdant_choir', rarity: 'rare' },
+          { t: 'artifact', artifactId: 'weather_leash' },
           { t: 'notoriety', v: 12 },
           { t: 'standing', factionId: 'verdant_choir', v: 10 },
         ],

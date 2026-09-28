@@ -23,7 +23,10 @@ import {
 } from '../../engine';
 import type { FactionId, Phase, RunState } from '../../types';
 import { factions } from '../../content';
+import { REAL_CONTENT } from '../../testing/realContent';
 import { allegiancesFor, extremeAllegiances, nextThreatFor, patronFor, reprisalSentence } from './allegiances';
+
+const content = REAL_CONTENT;
 
 const run = (
   standing: number | Partial<Record<FactionId, number>>,
@@ -43,10 +46,14 @@ const run = (
       ...(typeof standing === 'number' ? { pale_academy: standing } : standing),
     },
     notoriety,
-  }) as RunState;
+    // Read by `relicRules` (issue #82's Writ/Tenure Ring seam), via
+    // `nearestReprisalFaction`/`allegiancesFor` — every other field this
+    // fixture omits stays undefined and untouched by the functions under test.
+    heldArtifactIds: [],
+  }) as unknown as RunState;
 
 const sentence = (standing: number, notoriety: number, phase: Phase = 'decline') =>
-  reprisalSentence(nextThreatFor(run(standing, notoriety, phase))!);
+  reprisalSentence(nextThreatFor(run(standing, notoriety, phase), content)!);
 
 describe('the next-threat sentence', () => {
   it('names the fame that arms it, when fame is the half still missing', () => {
@@ -89,7 +96,7 @@ describe('the next-threat sentence · all six factions', () => {
 
   it('names whichever faction is closest, not only the Academy', () => {
     for (const id of factions) {
-      const threat = nextThreatFor(run({ [id]: SEAL_MAX_STANDING + 6 }, SEAL_MIN_NOTORIETY));
+      const threat = nextThreatFor(run({ [id]: SEAL_MAX_STANDING + 6 }, SEAL_MIN_NOTORIETY), content);
       expect(threat, `no threat for ${id}`).not.toBeNull();
       expect(threat!.factionId).toBe(id);
     }
@@ -97,7 +104,7 @@ describe('the next-threat sentence · all six factions', () => {
 
   it('gives each faction its own noun, so no two reprisals read alike', () => {
     const lines = factions.map((id) =>
-      reprisalSentence(nextThreatFor(run({ [id]: SEAL_MAX_STANDING + 6 }, SEAL_MIN_NOTORIETY))!),
+      reprisalSentence(nextThreatFor(run({ [id]: SEAL_MAX_STANDING + 6 }, SEAL_MIN_NOTORIETY), content)!),
     );
     expect(new Set(lines).size).toBe(factions.length);
     // The Academy's own wording is the one that must not have moved: it is the
@@ -111,7 +118,7 @@ describe('the next-threat sentence · all six factions', () => {
     for (const id of factions) {
       for (const standing of [SEAL_MAX_STANDING + 6, SEAL_MAX_STANDING - 1]) {
         for (const notoriety of [SEAL_MIN_NOTORIETY, SEAL_MIN_NOTORIETY - 6]) {
-          const line = reprisalSentence(nextThreatFor(run({ [id]: standing }, notoriety))!);
+          const line = reprisalSentence(nextThreatFor(run({ [id]: standing }, notoriety), content)!);
           expect(line.length, line).toBeLessThanOrEqual(60);
         }
       }
@@ -126,17 +133,17 @@ describe('the next-threat sentence · all six factions', () => {
       { verdant_choir: SEAL_MAX_STANDING - 20, crownlands: SEAL_MAX_STANDING - 4 },
       SEAL_MIN_NOTORIETY,
     );
-    expect(nextThreatFor(both)!.factionId).toBe('verdant_choir');
+    expect(nextThreatFor(both, content)!.factionId).toBe('verdant_choir');
     expect(REPRISAL_BY_FACTION.verdant_choir).toBe('turned_to_fertilizer');
   });
 
   it('names a non-Academy faction in the ascent too, now that every reprisal is live in every phase', () => {
     const ascent = run({ verdant_choir: SEAL_MAX_STANDING + 6 }, SEAL_MIN_NOTORIETY, 'ascent');
-    expect(nextThreatFor(ascent)!.factionId).toBe('verdant_choir');
+    expect(nextThreatFor(ascent, content)!.factionId).toBe('verdant_choir');
 
     // ...same as the Academy always could, unchanged.
     const academy = run({ pale_academy: SEAL_MAX_STANDING + 6 }, SEAL_MIN_NOTORIETY, 'ascent');
-    expect(nextThreatFor(academy)!.factionId).toBe('pale_academy');
+    expect(nextThreatFor(academy, content)!.factionId).toBe('pale_academy');
   });
 });
 
@@ -158,7 +165,7 @@ describe('the reprisal tick', () => {
   ] as unknown as Parameters<typeof allegiancesFor>[1];
 
   it('marks the threshold on every bar, because every bar can now end the run', () => {
-    const rows = allegiancesFor(run(0, 10), factions);
+    const rows = allegiancesFor(run(0, 10), factions, content);
     expect(rows).toHaveLength(6);
     for (const row of rows) {
       expect(row.sealAt, `no tick on ${row.id}`).toBeCloseTo(SEAL_MAX_STANDING / 100);
@@ -166,7 +173,7 @@ describe('the reprisal tick', () => {
   });
 
   it('reads as lethal for any faction whose reprisal is live and close', () => {
-    const rows = allegiancesFor(run({ worm_below: SEAL_MAX_STANDING + 4 }, 60), factions);
+    const rows = allegiancesFor(run({ worm_below: SEAL_MAX_STANDING + 4 }, 60), factions, content);
     expect(rows.find((r) => r.id === 'worm_below')!.tone).toBe('lethal');
     expect(rows.find((r) => r.id === 'worm_below')!.note).toContain('appointment');
   });
@@ -175,6 +182,7 @@ describe('the reprisal tick', () => {
     const rows = allegiancesFor(
       run({ worm_below: SEAL_MAX_STANDING + 4, pale_academy: SEAL_MAX_STANDING + 4 }, 60, 'ascent'),
       factions,
+      content,
     );
     expect(rows.find((r) => r.id === 'worm_below')!.tone).toBe('lethal');
     expect(rows.find((r) => r.id === 'pale_academy')!.tone).toBe('lethal');
@@ -184,7 +192,7 @@ describe('the reprisal tick', () => {
     // The fill read `ratio * 100%` under `overflow: hidden`, so every value
     // past ±50 drew an identical full bar — including the difference between
     // "the Academy dislikes you" and "the Academy is sealing you in a gem".
-    const rows = allegiancesFor(run(-100, 10), factions);
+    const rows = allegiancesFor(run(-100, 10), factions, content);
     const academy = rows.find((r) => r.id === 'pale_academy')!;
     expect(Math.abs(academy.ratio)).toBe(1);
     expect(Math.abs(academy.ratio) * 50).toBe(50);
@@ -200,8 +208,8 @@ describe('the reprisal tick', () => {
 describe('the next-threat line', () => {
   it('speaks even when nobody is anywhere near acting', () => {
     // All six tied at 0: the tie resolves to FACTION_ORDER's first entry.
-    expect(nextThreatFor(run(0, 90))).not.toBeNull();
-    expect(nextThreatFor(run(0, 90))!.factionId).toBe('ashen_covenant');
+    expect(nextThreatFor(run(0, 90), content)).not.toBeNull();
+    expect(nextThreatFor(run(0, 90), content)!.factionId).toBe('ashen_covenant');
   });
 
   /**
@@ -218,7 +226,7 @@ describe('the next-threat line', () => {
       SEAL_MIN_NOTORIETY,
       'ascent',
     );
-    const threat = nextThreatFor(ascent);
+    const threat = nextThreatFor(ascent, content);
     expect(threat!.factionId).toBe('verdant_choir');
     expect(threat!.margin).toBe(5);
   });
@@ -229,7 +237,7 @@ describe('the next-threat line', () => {
       SEAL_MIN_NOTORIETY,
       'ascent',
     );
-    expect(reprisalSentence(nextThreatFor(ascent)!)).toBe(
+    expect(reprisalSentence(nextThreatFor(ascent, content)!)).toBe(
       'The Choir is 5 from the loam · your fame qualifies.',
     );
   });
@@ -240,7 +248,7 @@ describe('the next-threat line', () => {
       SEAL_MIN_NOTORIETY,
       'decline',
     );
-    const threat = nextThreatFor(bothClose);
+    const threat = nextThreatFor(bothClose, content);
     expect(threat!.factionId).toBe('pale_academy');
   });
 });
@@ -295,6 +303,7 @@ describe('the two most extreme standings', () => {
     const rows = allegiancesFor(
       run({ ashen_covenant: 46, gilded_hand: 12, pale_academy: -38, crownlands: -61, worm_below: 4 }, 10),
       factions,
+      content,
     );
     const extremes = extremeAllegiances(rows);
     expect(extremes.map((r) => r.id)).toEqual(['ashen_covenant', 'crownlands']);
@@ -303,13 +312,13 @@ describe('the two most extreme standings', () => {
   it('re-sorts the pair back into FACTION_ORDER, regardless of which is higher', () => {
     // Crownlands (max) sits AFTER Ashen Covenant (min) in FACTION_ORDER —
     // the returned pair must still read in that order, not max-then-min.
-    const rows = allegiancesFor(run({ ashen_covenant: -70, crownlands: 70 }, 10), factions);
+    const rows = allegiancesFor(run({ ashen_covenant: -70, crownlands: 70 }, 10), factions, content);
     const extremes = extremeAllegiances(rows);
     expect(extremes.map((r) => r.id)).toEqual(['ashen_covenant', 'crownlands']);
   });
 
   it('never returns the same faction twice when every standing is tied', () => {
-    const rows = allegiancesFor(run(0, 10), factions);
+    const rows = allegiancesFor(run(0, 10), factions, content);
     const extremes = extremeAllegiances(rows);
     expect(extremes).toHaveLength(2);
     expect(extremes[0]!.id).not.toBe(extremes[1]!.id);
@@ -318,7 +327,7 @@ describe('the two most extreme standings', () => {
   });
 
   it('is a no-op for two factions or fewer', () => {
-    const rows = allegiancesFor(run({ ashen_covenant: 10 }, 10), factions.slice(0, 2));
+    const rows = allegiancesFor(run({ ashen_covenant: 10 }, 10), factions.slice(0, 2), content);
     expect(extremeAllegiances(rows)).toEqual(rows);
   });
 });

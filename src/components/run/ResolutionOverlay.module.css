@@ -577,6 +577,36 @@
   list-style: none;
 }
 
+/* A lifeline (issue #82) — weight via a brighter border, never a new color;
+   `--ew-tier` below stays the run's one chromatic reward. */
+
+.lifeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-2);
+  padding: var(--ew-space-3) var(--ew-space-4);
+  background: var(--ew-void);
+  border: 1px solid var(--ew-line);
+  border-left: 2px solid var(--ew-ink-bright);
+  border-radius: var(--ew-radius-sm);
+}
+
+.lifelineLabel {
+  margin: 0;
+  font-size: var(--ew-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ew-ink-bright);
+}
+
+.lifelineText {
+  margin: 0;
+  font-family: var(--ew-font-display);
+  font-style: italic;
+  font-size: var(--ew-size-base);
+  color: var(--ew-ink-dim);
+}
+
 /* The crossing — the only colored thing on the card. */
 
 .tier {

@@ -34,11 +34,18 @@ import {
 } from './constants';
 import type { EffectApplication } from './effects';
 import { applyEffects, draftOf, forfeitForLichdom } from './effects';
-import type { RelicEvent } from './relics';
-import { applyChoiceTriggers, applyEraEndTriggers, effectiveOdds, relicRules } from './relics';
+import type { LifelineOutcome, RelicEvent } from './relics';
+import {
+  applyChoiceTriggers,
+  applyEraEndTriggers,
+  applyHeroApproachTriggers,
+  applyLifeline,
+  effectiveOdds,
+  relicRules,
+} from './relics';
 import { projectedEpithet } from './epithets';
 import { deedLineFor } from './deeds';
-import { checkEndings } from './endings';
+import { checkEndings, nearestReprisalFaction, reprisalEnding, REPRISAL_ENDING_IDS } from './endings';
 import { isOptionPickable, QUIET_ERA_OFFER } from './offers';
 import { hashString, randomSeed, streamFor } from './rng';
 import {
@@ -128,6 +135,7 @@ export function createRun(opts: CreateRunOptions, content: ContentBundle): RunSt
     heldArtifactIds: [],
     startingArtifactIds: [],
     activeGrantedArtifactIds: [],
+    triggerGrantedArtifactIds: [],
     knownArtifactIds: Array.from(new Set(opts.knownArtifactIds ?? [])),
     heroBandSeen: 0,
     factionStanding: emptyStanding(),
@@ -138,7 +146,7 @@ export function createRun(opts: CreateRunOptions, content: ContentBundle): RunSt
     goodActs: 0,
     illActs: 0,
     goodWizardVowed: false,
-    relicState: { firedOnce: [], spent: [], foresight: false },
+    relicState: { firedOnce: [], spent: [], foresight: false, offerRedrawSalt: 0 },
     eras: [],
     seenOfferIds: [],
   };
@@ -222,8 +230,13 @@ function inertResolution(run: RunState): Resolution {
  */
 function becomeLich(draft: RunState, application: EffectApplication, content: ContentBundle): void {
   const index = indexOf(content);
+  // The Patient Lantern (issue #82): "survives the lich rite, so you keep it
+  // and its wards." Excluded from both the report below and the forfeiture
+  // itself (`forfeitForLichdom`) — see `RelicRules.survivesLichRite`.
+  const survives = relicRules(draft, content).survivesLichRite;
 
   for (const id of draft.heldArtifactIds) {
+    if (survives(id)) continue;
     const artifact = index.artifactById.get(id);
     if (artifact) application.artifactsLost.push(artifact);
     application.applied.push({ t: 'loseArtifact' });
@@ -233,7 +246,7 @@ function becomeLich(draft: RunState, application: EffectApplication, content: Co
     application.applied.push({ t: 'followers', v: -draft.followers });
   }
 
-  forfeitForLichdom(draft);
+  forfeitForLichdom(draft, content);
   draft.isLich = true;
 }
 
@@ -285,7 +298,7 @@ export function resolveChoice(
     // player actually faces, the number the card prints, and what a bot in
     // `scripts/simulate.ts` scores a gamble at can never drift apart onto
     // three different odds for the same option.
-    odds = clamp(effectiveOdds(run, option), 0, 1);
+    odds = clamp(effectiveOdds(run, option, content), 0, 1);
     roll = rng();
     const succeeded = roll < odds;
     outcome = succeeded ? 'success' : 'failure';
@@ -314,8 +327,17 @@ export function resolveChoice(
   // Relics react to what was just chosen — read against the run AFTER the
   // option's own effects landed, per `RelicTriggerTiming`'s doc comment in
   // `types.ts` — before anything else (the lich rite, era-end) can change
-  // what "the chosen option's landed effects" means.
-  const relicEvents: RelicEvent[] = applyChoiceTriggers(draft, content, rng, application.applied);
+  // what "the chosen option's landed effects" means. `offer.factionId` and
+  // `outcome` are the other two things "the choice you made" can mean (issue
+  // #82) — which CARD it was, and how a gamble on it resolved.
+  const relicEvents: RelicEvent[] = applyChoiceTriggers(
+    draft,
+    content,
+    rng,
+    application.applied,
+    offer.factionId,
+    outcome,
+  );
 
   let endingFromEffect: EndingId | undefined = application.endingRequested;
 
@@ -347,10 +369,16 @@ export function resolveChoice(
     // option just ended the run) has no "end of it" for a relic to fire at.
     relicEvents.push(...applyEraEndTriggers(draft, content, rng));
 
-    const decay = decayFor(draft);
+    // Chalk of the Last Lecture (issue #82): a flat, floored-at-0 reduction
+    // to the decay `decayFor` would otherwise apply. One `relicRules` read
+    // for both this and the threat-gain multiplier below — nothing between
+    // them touches `draft.heldArtifactIds`, only `draft.notoriety`, which
+    // `relicRules` doesn't read.
+    const rules = relicRules(draft, content);
+    const decay = decayFor(draft, rules.decayReduction);
     if (decay !== 0) draft.notoriety = clampNotoriety(draft.notoriety - decay);
 
-    const threatGain = threatGainFor(draft, relicRules(draft, content).fameThreatMultiplier);
+    const threatGain = threatGainFor(draft, rules.fameThreatMultiplier);
     if (threatGain !== 0) {
       draft.heroThreat = clampThreat(draft.heroThreat + threatGain);
     }
@@ -378,6 +406,10 @@ export function resolveChoice(
     if (rank > draft.heroBandSeen) {
       draft.heroBandSeen = rank;
       if (band !== 'calm') {
+        // Pocketful of Dark (issue #82): fires at the exact same crossing
+        // this narrated beat marks — see `'heroApproach'` on
+        // `RelicTriggerTiming` in `types.ts`.
+        relicEvents.push(...applyHeroApproachTriggers(draft, content, rng));
         systemic.push({
           t: 'heroApproach',
           band,
@@ -436,10 +468,15 @@ export function resolveChoice(
   // run the moment it becomes affordable. Evaluated against `run`, the state
   // BEFORE this choice, since that is what the player actually saw the offer
   // pool with.
+  const followersCostMultiplier = relicRules(run, content).followersCostMultiplier;
   const hadUnaffordableInterestingOption = offer.options.some(
-    (o) => o !== option && impliedGatesOf(o).length > 0 && !isOptionPickable(run, o, content),
+    (o) =>
+      o !== option &&
+      impliedGatesOf(o, followersCostMultiplier).length > 0 &&
+      !isOptionPickable(run, o, content),
   );
-  const choiceWasForced = impliedGatesOf(option).length === 0 && hadUnaffordableInterestingOption;
+  const choiceWasForced =
+    impliedGatesOf(option, followersCostMultiplier).length === 0 && hadUnaffordableInterestingOption;
   // Move the offer to the end of the seen list so recency ordering stays
   // meaningful when the pool has to recycle.
   draft.seenOfferIds = choiceWasForced
@@ -471,6 +508,58 @@ export function resolveChoice(
 
   // ---- ending check, after EVERY era -----------------------------------
   draft.ending = endingFromEffect ?? checkEndings(draft, content);
+
+  // Lifelines (issue #82): spends the FIRST unspent lifeline that covers
+  // this ending, applies its recovery, and clears `draft.ending` so the run
+  // continues.
+  //
+  // Two review findings fixed here (both real, both reachable):
+  //
+  // 1. A scripted ending can share an id with a reprisal without BEING one.
+  //    `scripted_the_reliquary`'s "Consent to the gem" authors
+  //    `sealed_in_gem` directly (`endingFromEffect`) at 30+ Pale Academy
+  //    standing — nowhere near an actual reprisal — but the Root of the
+  //    Standing Vote's `covers` lists all six reprisal ids by ID alone, so
+  //    it would wrongly "avert" the player's own deliberate choice and reset
+  //    whichever unrelated faction `nearestReprisalFaction` happens to name.
+  //    `isConfirmedReprisal` re-checks against `reprisalEnding` itself — the
+  //    same function `checkEndings` calls — rather than inferring from
+  //    whether `endingFromEffect` was set, because `endingFromEffect` always
+  //    wins even when it coincidentally agrees with what `reprisalEnding`
+  //    would also say; the question is "is this true right now," not "how
+  //    did we get here." Only a CONFIRMED reprisal is eligible for a
+  //    reprisal-covering lifeline; every other ending is unaffected by this
+  //    check, `REPRISAL_ENDING_IDS` not containing it at all.
+  //
+  // 2. A lifeline cancels only the ONE ending it covers — an unrelated
+  //    condition that happened to be true at the same moment (pact debt
+  //    already at its limit when the Portcullis Tooth saves the wizard from
+  //    the hero, say) is not this lifeline's to fix, and `checkEndings`
+  //    returning only the highest-priority match meant it was previously
+  //    left unevaluated for the rest of this era. Re-running it after a
+  //    successful save lets that other ending stand, rather than silently
+  //    deferring it to whichever era next happens to reach it — the
+  //    lifeline's own recovery already cleared ITS OWN covered condition
+  //    (Portcullis Tooth drops threat below wards; the Root resets the one
+  //    faction below its own reprisal threshold), so this can never
+  //    re-select the ending that was just averted.
+  let lifeline: LifelineOutcome | undefined;
+  if (draft.ending) {
+    const isConfirmedReprisal = reprisalEnding(draft, content) === draft.ending;
+    const eligibleEnding =
+      REPRISAL_ENDING_IDS.has(draft.ending) && !isConfirmedReprisal ? undefined : draft.ending;
+    if (eligibleEnding) {
+      lifeline = applyLifeline(draft, content, eligibleEnding, nearestReprisalFaction(draft, content));
+      if (lifeline) {
+        // `checkEndings`'s own first line is `if (run.ending) return
+        // run.ending` — cleared first, or the re-check below would just
+        // echo the stale ending straight back out instead of evaluating
+        // anything.
+        draft.ending = undefined;
+        draft.ending = checkEndings(draft, content);
+      }
+    }
+  }
 
   draft.epithet = projectedEpithet(draft, content);
 
@@ -506,6 +595,7 @@ export function resolveChoice(
     notorietyDelta: draft.notoriety - startNotoriety,
     eraRecord,
     ...(roll !== undefined && odds !== undefined ? { roll, odds } : {}),
+    ...(lifeline ? { lifeline } : {}),
   };
 
   const crossed = tierCrossing(startNotoriety, draft.notoriety);

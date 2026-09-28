@@ -28,6 +28,7 @@ const run = (heldArtifactIds: string[]): RunState =>
     heldArtifactIds,
     startingArtifactIds: [],
     activeGrantedArtifactIds: [],
+    triggerGrantedArtifactIds: [],
     knownArtifactIds: [],
     heroBandSeen: 0,
     factionStanding: {
@@ -45,7 +46,7 @@ const run = (heldArtifactIds: string[]): RunState =>
     goodActs: 0,
     illActs: 0,
     goodWizardVowed: false,
-    relicState: { firedOnce: [], spent: [], foresight: false },
+    relicState: { firedOnce: [], spent: [], foresight: false, offerRedrawSalt: 0 },
     eras: [],
     seenOfferIds: [],
   }) as RunState;

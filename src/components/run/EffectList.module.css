@@ -54,6 +54,35 @@
   line-height: 1.45;
 }
 
+/* Wraps `.label` and an optional `.detail` so a double-edged relic's power
+   (issue #82) breaks onto its own line under the name, instead of running
+   into it on one dense line. */
+.labelGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+/* A relic's real power, under its name (`.label`) — deliberately lighter and
+   smaller than the name it qualifies, never inheriting the tone color a gain
+   turns `.label` bright with, so the card reads "name, then what it costs"
+   rather than two lines of equal weight. */
+.detail {
+  font-size: var(--ew-size-xs);
+  font-weight: 400;
+  color: var(--ew-ink-dim);
+  line-height: 1.4;
+}
+
+/* Same content, inline for a gamble branch's comma-flowed row (Weather
+   Leash's own grant lives on a gamble) — no line break available there, so
+   only the weight softens. */
+.detailInline {
+  font-weight: 400;
+  color: var(--ew-ink-dim);
+}
+
 .nothing {
   font-size: var(--ew-size-sm);
   color: var(--ew-ink-faint);

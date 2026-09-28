@@ -9,7 +9,7 @@
  */
 
 import type { RelicEvent, RelicReactionPreview } from '../../engine';
-import type { Artifact, Effect, Faction, OfferOption } from '../../types';
+import type { Artifact, Effect, Ending, Faction, OfferOption } from '../../types';
 import { EffectList } from './EffectList';
 import { artifactName, formatOdds } from './effectText';
 import styles from './OptionCard.module.css';
@@ -27,10 +27,12 @@ export function RelicReactions({
   events,
   artifacts,
   factions,
+  endings,
 }: {
   events: RelicEvent[];
   artifacts: Artifact[];
   factions: Faction[];
+  endings: Ending[];
 }) {
   if (events.length === 0) return null;
   return (
@@ -38,7 +40,13 @@ export function RelicReactions({
       {events.map((event) => (
         <li key={event.artifactId} className={styles.reactionRow}>
           <span className={styles.reactionName}>{artifactName(event.artifactId, artifacts)}</span>
-          <EffectList effects={event.applied} artifacts={artifacts} factions={factions} compact />
+          <EffectList
+            effects={event.applied}
+            artifacts={artifacts}
+            factions={factions}
+            endings={endings}
+            compact
+          />
         </li>
       ))}
     </ul>
@@ -72,8 +80,18 @@ const GATED_STOCK_TYPES: ReadonlySet<Effect['t']> = new Set(['followers', 'appre
  * the exact undisclosed-consequence shapes CLAUDE.md's rule 1 bans. Only the
  * types the affordability gate itself cares about (`GATED_STOCK_TYPES`) are
  * ever swapped, matched by type and by the order they occur in — safe
- * because none of them fan out the way `standing` does, so the authored and
- * projected lists always carry the same count of each.
+ * because none of them fan out the way `standing` does.
+ *
+ * The authored and projected lists do NOT always carry the same COUNT of
+ * each gated type, though: `projectEffects`/`applyEffects`'s `followers`
+ * case only pushes a row when the clamped delta is non-zero, so a cost that
+ * floor-clamps to exactly nothing (already at 0) drops out of `projected`
+ * entirely — not a zero row, no row at all. Matching by `.map()` over
+ * `projected` alone would then have nowhere to splice that authored cost
+ * back in, silently losing the one line a review of PR #85 was written to
+ * keep on screen. Any authored gated effect left unconsumed after the map
+ * is appended, so the itemised cost always accounts for every authored row,
+ * not just the ones the clamp left behind.
  */
 function withAuthoredStockCosts(projected: readonly Effect[], authored: readonly Effect[]): Effect[] {
   const pending = new Map<Effect['t'], Effect[]>();
@@ -83,10 +101,12 @@ function withAuthoredStockCosts(projected: readonly Effect[], authored: readonly
     queue.push(effect);
     pending.set(effect.t, queue);
   }
-  return projected.map((effect) => {
+  const result = projected.map((effect) => {
     if (!GATED_STOCK_TYPES.has(effect.t)) return effect;
     return pending.get(effect.t)?.shift() ?? effect;
   });
+  for (const queue of pending.values()) result.push(...queue);
+  return result;
 }
 
 export type OptionCardProps = {
@@ -115,6 +135,8 @@ export type OptionCardProps = {
   index: number;
   artifacts: Artifact[];
   factions: Faction[];
+  /** Needed for a scripted `{t: 'ending'}` effect's display name — see `EffectListProps.endings`. Required for the same reason. */
+  endings: Ending[];
   disabled?: boolean;
   /**
    * Set only when `disabled` is true BECAUSE the option is currently
@@ -150,6 +172,7 @@ export function OptionCard({
   index,
   artifacts,
   factions,
+  endings,
   disabled = false,
   reason,
   reactions,
@@ -206,9 +229,9 @@ export function OptionCard({
 
         {priced.kind === 'certain' ? (
           <span className={styles.certain}>
-            <EffectList effects={priced.effects} artifacts={artifacts} factions={factions} />
+            <EffectList effects={priced.effects} artifacts={artifacts} factions={factions} endings={endings} />
             {reactions?.kind === 'certain' && (
-              <RelicReactions events={reactions.events} artifacts={artifacts} factions={factions} />
+              <RelicReactions events={reactions.events} artifacts={artifacts} factions={factions} endings={endings} />
             )}
           </span>
         ) : (
@@ -223,10 +246,11 @@ export function OptionCard({
                   effects={priced.onSuccess}
                   artifacts={artifacts}
                   factions={factions}
+                  endings={endings}
                   compact
                 />
                 {reactions?.kind === 'gamble' && (
-                  <RelicReactions events={reactions.onSuccess} artifacts={artifacts} factions={factions} />
+                  <RelicReactions events={reactions.onSuccess} artifacts={artifacts} factions={factions} endings={endings} />
                 )}
               </span>
             </span>
@@ -241,10 +265,11 @@ export function OptionCard({
                   effects={priced.onFailure}
                   artifacts={artifacts}
                   factions={factions}
+                  endings={endings}
                   compact
                 />
                 {reactions?.kind === 'gamble' && (
-                  <RelicReactions events={reactions.onFailure} artifacts={artifacts} factions={factions} />
+                  <RelicReactions events={reactions.onFailure} artifacts={artifacts} factions={factions} endings={endings} />
                 )}
               </span>
             </span>

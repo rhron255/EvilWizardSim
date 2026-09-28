@@ -227,6 +227,7 @@ export function recordRun(c: Collection, run: RunState, content: ContentBundle):
   run.heldArtifactIds.forEach(consider);
   run.startingArtifactIds.forEach(consider);
   run.activeGrantedArtifactIds.forEach(consider);
+  run.triggerGrantedArtifactIds.forEach(consider);
   for (const era of run.eras) era.artifactsGained.forEach(consider);
 
   const endingsSeen = c.endingsSeen.slice();
@@ -333,15 +334,19 @@ export function loadInProgressRun(): RunState | null {
   // these) but arrives here missing them. Defaulted on load rather than
   // added to the shape check, the same reasoning `emptyCollection`'s own
   // migration defaults use: a field this additive does not deserve a
-  // save-format rejection.
+  // save-format rejection. Issue #82 grows it again with `offerRedrawSalt`
+  // and `triggerGrantedArtifactIds` (code review), the same way and for the
+  // same reason.
   const run: RunState = {
     ...wrapper.run,
     relicState: {
       firedOnce: wrapper.run.relicState.firedOnce,
       spent: wrapper.run.relicState.spent ?? [],
       foresight: wrapper.run.relicState.foresight ?? false,
+      offerRedrawSalt: wrapper.run.relicState.offerRedrawSalt ?? 0,
     },
     activeGrantedArtifactIds: wrapper.run.activeGrantedArtifactIds ?? [],
+    triggerGrantedArtifactIds: wrapper.run.triggerGrantedArtifactIds ?? [],
   };
   if (run.ending) {
     clearInProgressRun();

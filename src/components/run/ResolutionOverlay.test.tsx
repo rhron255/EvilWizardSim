@@ -20,10 +20,11 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { artifacts } from '../../content/artifacts';
 import { factions } from '../../content/factions';
-import { lairs, offers } from '../../content';
+import { endings, lairs, offers } from '../../content';
 import { BETRAYAL_MAX_LOYALTY } from '../../engine';
 import type { Resolution, SystemicChange } from './resolution';
 import { ResolutionOverlay } from './ResolutionOverlay';
+import { endingDisplayName } from './effectText';
 
 // A real long-shot gamble paying off with a relic: the card, its odds, its
 // success narration, and the notoriety it prints all come from the catalog.
@@ -83,6 +84,7 @@ const show = (systemic: SystemicChange[], over: Partial<Resolution> = {}) =>
       resolution={{ ...demoResolutionSuccess, systemic, ...over }}
       artifacts={artifacts}
       factions={factions}
+      endings={endings}
       onContinue={() => {}}
     />,
   );
@@ -169,6 +171,52 @@ describe('ResolutionOverlay · a relic the era took', () => {
     expect(screen.getByText(artifacts[1].name)).toBeInTheDocument();
     expect(screen.getByText(artifacts[0].name)).toBeInTheDocument();
     expect(screen.getByText('Lost this era')).toBeInTheDocument();
+  });
+});
+
+describe('ResolutionOverlay · naming an ending', () => {
+  /**
+   * `endingName` (`effectText.ts`) is a bare id-derived FALLBACK — its own
+   * doc comment says the authored `Ending.name` should win wherever content
+   * is in hand. This card used the fallback unconditionally, which happened
+   * to be invisible for most endings but not `slain_by_chosen_one`: the id
+   * has no "the" in it to derive, so the run-ends line read "Slain by Chosen
+   * One" instead of the catalog's own "Slain by the Chosen One" — found via
+   * `qa/probe-relics.mjs`'s lifeline probe, not by inspection.
+   */
+  it('prints the catalog’s own ending name, not a bare id-derived guess', () => {
+    show([], { ending: 'slain_by_chosen_one' });
+    expect(screen.getByText('The run ends · Slain by the Chosen One')).toBeInTheDocument();
+    expect(screen.queryByText(/Slain by Chosen One[^,]/)).toBeNull();
+  });
+
+  it('endingDisplayName itself still degrades gracefully for an id absent from the list', () => {
+    // `endings` is a REQUIRED prop on the component now (code review: an
+    // optional prop with a silent fallback was the exact shape of the bug
+    // this whole describe block exists to catch) — so there is no longer a
+    // way to render the overlay without one. The underlying function still
+    // has a legitimate degrade-gracefully path for a partial `endings` list
+    // (a content pack, a future test fixture) that just doesn't happen to
+    // carry a given id; that path is tested directly instead.
+    expect(endingDisplayName('slain_by_chosen_one', [])).toBe('Slain by Chosen One');
+  });
+
+  it('names the relic AND the real ending it averted in the lifeline block', () => {
+    show([], {
+      ending: undefined,
+      lifeline: {
+        artifactId: 'portcullis_tooth',
+        endingAverted: 'slain_by_chosen_one',
+        recovery: { t: 'threatToWardsFraction', fraction: 0.8 },
+        applied: [{ t: 'heroThreat', v: -120 }],
+      },
+    });
+    expect(screen.getByText('Lifeline')).toBeInTheDocument();
+    expect(
+      screen.getByText('The Portcullis Tooth spends itself: Slain by the Chosen One does not happen.'),
+    ).toBeInTheDocument();
+    // The whole point of a lifeline: no ending line alongside it.
+    expect(screen.queryByText(/^The run ends/)).toBeNull();
   });
 });
 
@@ -337,6 +385,7 @@ describe('ResolutionOverlay · dismissing exactly once', () => {
         resolution={demoResolutionSuccess}
         artifacts={artifacts}
         factions={factions}
+        endings={endings}
         onContinue={onContinue}
       />,
     );
@@ -354,6 +403,7 @@ describe('ResolutionOverlay · dismissing exactly once', () => {
         resolution={demoResolutionSuccess}
         artifacts={artifacts}
         factions={factions}
+        endings={endings}
         onContinue={onContinue}
       />,
     );
@@ -380,6 +430,7 @@ describe('ResolutionOverlay · dismissing exactly once', () => {
         }}
         artifacts={artifacts}
         factions={factions}
+        endings={endings}
         onContinue={onContinue}
       />,
     );

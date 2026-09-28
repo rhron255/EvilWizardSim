@@ -17,6 +17,7 @@ import { OptionCard } from './OptionCard';
 
 const artifacts = C.artifacts;
 const factions = C.factions;
+const endings = C.endings;
 
 const followerCost = (effects: readonly Effect[]) =>
   -effects.reduce((sum, e) => (e.t === 'followers' && e.v < 0 ? sum + e.v : sum), 0);
@@ -68,6 +69,7 @@ describe('OptionCard · unaffordable (reason prop)', () => {
         index={1}
         artifacts={artifacts}
         factions={factions}
+        endings={endings}
         disabled
         reason={REASON}
         onChoose={() => {}}
@@ -88,6 +90,7 @@ describe('OptionCard · unaffordable (reason prop)', () => {
         index={0}
         artifacts={artifacts}
         factions={factions}
+        endings={endings}
         disabled
         reason={REASON}
         onChoose={() => {}}
@@ -121,6 +124,7 @@ describe('OptionCard · unaffordable (reason prop)', () => {
         index={1}
         artifacts={artifacts}
         factions={factions}
+        endings={endings}
         disabled
         reason={REASON}
         onChoose={() => {}}
@@ -140,6 +144,33 @@ describe('OptionCard · unaffordable (reason prop)', () => {
     }
   });
 
+  it('still shows the authored cost line at the floor, where the clamp drops the projected row entirely', () => {
+    // Bug found by code review: withAuthoredStockCosts matched authored to
+    // projected by walking `projected.map(...)` alone. At followers=0 the
+    // clamped delta is exactly 0, and `projectEffects`'s `followers` case
+    // pushes NO row at all in that case (not even a zero row) — so there was
+    // nothing in `projected` for the authored −cost Followers effect to
+    // splice into, and the whole line silently vanished from the card.
+    const projectedAtZero = { ...certainOption, effects: projectedFor(0) };
+    expect(projectedAtZero.effects.some((e) => e.t === 'followers')).toBe(false);
+    render(
+      <OptionCard
+        option={projectedAtZero}
+        rawOption={certainOption}
+        index={1}
+        artifacts={artifacts}
+        factions={factions}
+        endings={endings}
+        disabled
+        reason={`Requires ${cost} Followers · you have 0`}
+        onChoose={() => {}}
+      />,
+    );
+    const card = screen.getByRole('button');
+    expect(within(card).getByText(`−${cost}`)).toBeInTheDocument();
+    expect(within(card).getByText('Followers')).toBeInTheDocument();
+  });
+
   it('shows a lock mark for an unaffordable card, and none for an affordable one', () => {
     const { container, rerender } = render(
       <OptionCard
@@ -147,6 +178,7 @@ describe('OptionCard · unaffordable (reason prop)', () => {
         index={1}
         artifacts={artifacts}
         factions={factions}
+        endings={endings}
         disabled
         reason={REASON}
         onChoose={() => {}}
@@ -160,6 +192,7 @@ describe('OptionCard · unaffordable (reason prop)', () => {
         index={1}
         artifacts={artifacts}
         factions={factions}
+        endings={endings}
         onChoose={() => {}}
       />,
     );
@@ -173,6 +206,7 @@ describe('OptionCard · unaffordable (reason prop)', () => {
         index={1}
         artifacts={artifacts}
         factions={factions}
+        endings={endings}
         disabled
         reason={REASON}
         onChoose={() => {}}
@@ -190,6 +224,7 @@ describe('OptionCard · unaffordable (reason prop)', () => {
         index={1}
         artifacts={artifacts}
         factions={factions}
+        endings={endings}
         disabled
         reason={REASON}
         onChoose={() => {}}
@@ -207,6 +242,7 @@ describe('OptionCard · unaffordable (reason prop)', () => {
         index={1}
         artifacts={artifacts}
         factions={factions}
+        endings={endings}
         disabled
         reason={REASON}
         onChoose={onChoose}
@@ -244,6 +280,7 @@ describe('OptionCard · the odds prop (effectiveOdds seam, issue #80 review)', (
         index={0}
         artifacts={artifacts}
         factions={factions}
+        endings={endings}
         onChoose={() => {}}
       />,
     );
@@ -255,7 +292,7 @@ describe('OptionCard · the odds prop (effectiveOdds seam, issue #80 review)', (
 
   it('falls back to option.odds when the prop is not wired', () => {
     render(
-      <OptionCard option={gambleOption} index={0} artifacts={artifacts} factions={factions} onChoose={() => {}} />,
+      <OptionCard option={gambleOption} index={0} artifacts={artifacts} factions={factions} endings={endings} onChoose={() => {}} />,
     );
     const card = screen.getByRole('button');
     const win = Math.round(gambleOption.odds * 100);
@@ -277,6 +314,7 @@ describe('OptionCard · relic reactions (issue #80)', () => {
         index={0}
         artifacts={artifacts}
         factions={factions}
+        endings={endings}
         reactions={reactions}
         onChoose={() => {}}
       />,
@@ -289,7 +327,7 @@ describe('OptionCard · relic reactions (issue #80)', () => {
 
   it('renders nothing extra when no relic reacts to this option', () => {
     render(
-      <OptionCard option={option} index={0} artifacts={artifacts} factions={factions} onChoose={() => {}} />,
+      <OptionCard option={option} index={0} artifacts={artifacts} factions={factions} endings={endings} onChoose={() => {}} />,
     );
     const card = screen.getByRole('button');
     expect(within(card).queryByText('The Ashen Signature')).not.toBeInTheDocument();
@@ -316,6 +354,7 @@ describe('OptionCard · relic reactions (issue #80)', () => {
         index={0}
         artifacts={artifacts}
         factions={factions}
+        endings={endings}
         reactions={gambleReactions}
         onChoose={() => {}}
       />,
@@ -336,6 +375,7 @@ describe('OptionCard · disabled for a reason OTHER than affordability', () => {
         index={1}
         artifacts={artifacts}
         factions={factions}
+        endings={endings}
         disabled
         onChoose={() => {}}
       />,

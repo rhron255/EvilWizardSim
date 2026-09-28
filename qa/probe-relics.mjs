@@ -202,7 +202,17 @@ const seededRun = {
   notoriety: 30,
   followers: 100,
   lairId: 'rented_cellar',
-  heldArtifactIds: ['final_ledger', 'pale_orrery'],
+  // Issue #82: three more actives join the two issue #81 already seeded here
+  // (Final Ledger, Pale Orrery) — Brazier of the Ninth Clause, the Key to No
+  // Particular Door, and the Sword That Was Returned all activate with no
+  // `cost` gate, so holding them unspent is the whole setup.
+  heldArtifactIds: [
+    'final_ledger',
+    'pale_orrery',
+    'ninth_clause_brazier',
+    'key_to_no_particular_door',
+    'sword_that_was_returned',
+  ],
   startingArtifactIds: [],
   knownArtifactIds: [],
   heroBandSeen: 0,
@@ -221,7 +231,7 @@ const seededRun = {
   goodActs: 0,
   illActs: 0,
   goodWizardVowed: false,
-  relicState: { firedOnce: [], spent: [], foresight: false },
+  relicState: { firedOnce: [], spent: [], foresight: false, offerRedrawSalt: 0 },
   eras: [],
   seenOfferIds: [],
 };
@@ -236,8 +246,8 @@ await page.waitForTimeout(400);
 
 const entryButton = page.getByRole('button', { name: /Relics/ }).first();
 const entryLabel = (await entryButton.textContent().catch(() => '')) ?? '';
-if (!/2 ready/.test(entryLabel)) {
-  problems.push(`entry button: expected "· 2 ready" for two unspent actives, got "${entryLabel}"`);
+if (!/5 ready/.test(entryLabel)) {
+  problems.push(`entry button: expected "· 5 ready" for five unspent actives, got "${entryLabel}"`);
 }
 
 await entryButton.click();
@@ -245,8 +255,10 @@ await page.waitForTimeout(300);
 
 const useButtons = page.getByRole('button', { name: 'Use' });
 const useCount = await useButtons.count().catch(() => 0);
-if (useCount !== 2) {
-  problems.push(`relic page: expected 2 Use buttons (Final Ledger, Pale Orrery), found ${useCount}`);
+if (useCount !== 5) {
+  problems.push(
+    `relic page: expected 5 Use buttons (Final Ledger, Pale Orrery, Brazier, Key, Sword), found ${useCount}`,
+  );
 }
 
 // Keyboard path on the first Use button (failure mode 15).
@@ -275,13 +287,161 @@ if (await secondUse.isVisible().catch(() => false)) {
   await secondUse.focus();
   await page.keyboard.press(' ');
   await page.waitForTimeout(300);
-  const noneLeft = await page.getByRole('button', { name: 'Use' }).count().catch(() => 0);
-  if (noneLeft !== 0) problems.push(`keyboard: Space on the last Use button left ${noneLeft} remaining`);
-  const bothSpentNotes = await page.getByText('Used').count().catch(() => 0);
-  if (bothSpentNotes !== 2) problems.push(`relic page: expected 2 "Used" notes, found ${bothSpentNotes}`);
 }
 
+// The remaining Use buttons (Brazier, Key, Sword — three of the five, since
+// one was spent by Enter and one by Space above), clicked through by mouse:
+// the keyboard path is already proven by the two above, this just needs
+// every new active to actually spend and narrate, not just the first two.
+for (let i = 0; i < 3; i++) {
+  const remainingUse = page.getByRole('button', { name: 'Use' }).first();
+  if (await remainingUse.isVisible().catch(() => false)) {
+    await remainingUse.click();
+    await page.waitForTimeout(300);
+  }
+}
+
+const noneLeft = await page.getByRole('button', { name: 'Use' }).count().catch(() => 0);
+if (noneLeft !== 0) problems.push(`relic page: expected 0 Use buttons left after spending all 5, found ${noneLeft}`);
+const allSpentNotes = await page.getByText('Used').count().catch(() => 0);
+if (allSpentNotes !== 5) problems.push(`relic page: expected 5 "Used" notes, found ${allSpentNotes}`);
+
 await page.screenshot({ path: 'qa/screenshots/probe-relics-actives.png', fullPage: true });
+
+// ---- Issue #82: the Key to No Particular Door redraws the era's offer -----
+// Verified separately from the generic Use-button loop above, because its
+// whole effect is invisible on the relic page itself (see the doc comment on
+// `redrawsOffer` in `src/types.ts`) — the only place it shows is the offer
+// underneath actually changing the moment the player returns to the
+// decision. A fresh seeded run holding ONLY the Key isolates that.
+{
+  const keyRun = {
+    ...seededRun,
+    id: 'w-probe-key',
+    heldArtifactIds: ['key_to_no_particular_door'],
+    relicState: { firedOnce: [], spent: [], foresight: false, offerRedrawSalt: 0 },
+  };
+  await page.evaluate((run) => {
+    localStorage.setItem('evil-wizard-sim:run', JSON.stringify({ version: 3, run }));
+  }, keyRun);
+  await page.reload({ waitUntil: 'networkidle' });
+  await dismissChangelogPopup(page).catch(() => {});
+  await page.getByRole('button', { name: /Resume run/i }).click();
+  await page.waitForTimeout(400);
+  const offerTitleBefore = await page.locator('h2, h3').first().textContent().catch(() => '');
+  await page.getByRole('button', { name: /Relics/ }).first().click();
+  await page.waitForTimeout(300);
+  const keyUse = page.getByRole('button', { name: 'Use' }).first();
+  if (!(await keyUse.isVisible().catch(() => false))) {
+    problems.push('Key to No Particular Door: no Use button on a run holding only the Key');
+  } else {
+    await keyUse.click();
+    await page.waitForTimeout(300);
+    await page.getByRole('button', { name: /Back to the decision/ }).first().click();
+    await page.waitForTimeout(300);
+    const offerTitleAfter = await page.locator('h2, h3').first().textContent().catch(() => '');
+    if (offerTitleAfter === offerTitleBefore) {
+      // Not necessarily a bug — the redraw is seeded and CAN land on the same
+      // offer — but is worth a note since silent redraw failure would look
+      // identical, and this run's seed was picked to make that collision
+      // unlikely, not impossible.
+      console.log(
+        `  note: Key redraw kept the same offer title ("${offerTitleBefore}") — seeded draw, not necessarily a bug`,
+      );
+    }
+  }
+}
+
+// ---- Issue #82: a lifeline saves the run, and the resolution card says so --
+// Portcullis Tooth covers `slain_by_chosen_one` alone, which makes it the
+// cheaper of the two lifelines to stage: a heroThreat far past wards, one
+// choice, and the run should survive with the relic spent and the overlay's
+// dedicated Lifeline block naming what it averted (mirrors the exact setup
+// `relicsSlice5.test.ts`'s own lifeline test uses at the engine layer).
+{
+  const lifelineRun = {
+    ...seededRun,
+    id: 'w-probe-lifeline',
+    heldArtifactIds: ['portcullis_tooth'],
+    phase: 'decline',
+    erasSinceProphecy: 5,
+    heroThreat: 200,
+    relicState: { firedOnce: [], spent: [], foresight: false, offerRedrawSalt: 0 },
+  };
+  await page.evaluate((run) => {
+    localStorage.setItem('evil-wizard-sim:run', JSON.stringify({ version: 3, run }));
+  }, lifelineRun);
+  await page.reload({ waitUntil: 'networkidle' });
+  await dismissChangelogPopup(page).catch(() => {});
+  await page.getByRole('button', { name: /Resume run/i }).click();
+  await page.waitForTimeout(400);
+
+  const anyOption = page.locator(OPTIONS).first();
+  if (!(await anyOption.isVisible().catch(() => false))) {
+    problems.push('lifeline probe: no pickable option found on the seeded run');
+  } else {
+    await anyOption.click();
+    await page.waitForTimeout(500);
+    const dialog = page.getByRole('dialog').first();
+    if (!(await dialog.isVisible({ timeout: 1000 }).catch(() => false))) {
+      problems.push('lifeline probe: no resolution overlay appeared');
+    } else {
+      const lifelineLabel = await dialog.getByText('Lifeline').isVisible().catch(() => false);
+      if (!lifelineLabel) {
+        problems.push('lifeline probe: no "Lifeline" block in the resolution overlay');
+      }
+      const named = await dialog.getByText(/Portcullis Tooth/).isVisible().catch(() => false);
+      if (!named) problems.push('lifeline probe: the lifeline block does not name the Portcullis Tooth');
+      const averted = await dialog.getByText(/Slain by the Chosen One/i).isVisible().catch(() => false);
+      if (!averted) problems.push('lifeline probe: the lifeline block does not name the averted ending');
+      // The whole point: the run must NOT have ended.
+      const endingLine = await dialog.getByText(/^The run ends/).isVisible().catch(() => false);
+      if (endingLine) problems.push('lifeline probe: the resolution shows an ending line — the lifeline should have averted it');
+      await page.screenshot({ path: 'qa/screenshots/probe-relics-lifeline.png', fullPage: true });
+    }
+  }
+}
+
+// ---- Issue #82: a double-edged relic's power prints on the card, pre-commit
+// Rule 1 ("no undisclosed downside"): Tenure Ring is reachable only via
+// `ascent_pale_academy_loan`'s named grant, and its power is a real cost (a
+// capped standing band) that "Gain The Tenure Ring" alone would hide until
+// after commit. Seed 18 at era 3 with 40 Pale Academy standing draws that
+// exact offer first (found by walking `nextOffer` directly — see
+// `scripts/_find-seed.mts` if this ever needs re-deriving after an offer
+// pool change), so this checks the real card the player sees, not a
+// synthetic one — `EffectList.test.tsx` already pins `describeEffect`'s own
+// output; this proves the option card actually reaches the player with it.
+{
+  const loanRun = {
+    ...seededRun,
+    id: 'w-probe-double-edged',
+    seed: 18,
+    heldArtifactIds: [],
+    phase: 'ascent',
+    factionStanding: { ...seededRun.factionStanding, pale_academy: 40 },
+    relicState: { firedOnce: [], spent: [], foresight: false, offerRedrawSalt: 0 },
+    seenOfferIds: [],
+  };
+  await page.evaluate((run) => {
+    localStorage.setItem('evil-wizard-sim:run', JSON.stringify({ version: 3, run }));
+  }, loanRun);
+  await page.reload({ waitUntil: 'networkidle' });
+  await dismissChangelogPopup(page).catch(() => {});
+  await page.getByRole('button', { name: /Resume run/i }).click();
+  await page.waitForTimeout(400);
+  const cardText = await page.locator('body').innerText().catch(() => '');
+  if (!/Interlibrary Loan/.test(cardText)) {
+    problems.push(`double-edged probe: expected the "Interlibrary Loan" offer at seed 18/era 3, screen shows something else`);
+  } else if (!/Tenure Ring/.test(cardText)) {
+    problems.push('double-edged probe: "Interlibrary Loan" is on screen but does not mention The Tenure Ring');
+  } else if (!/held between/i.test(cardText)) {
+    problems.push('double-edged probe: "Gain The Tenure Ring" is on screen without its power text');
+  } else {
+    console.log('  double-edged: The Tenure Ring grant card found and disclosed pre-commit');
+  }
+  await page.screenshot({ path: 'qa/screenshots/probe-relics-double-edged.png', fullPage: true });
+}
 
 await browser.close();
 

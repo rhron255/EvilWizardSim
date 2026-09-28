@@ -22,6 +22,7 @@ import type { Offer, OfferOption, RunState } from '../types';
 import type { ContentBundle } from './content-port';
 import { indexOf } from './content-port';
 import { conditionMet, conditionsMet, impliedGatesOf } from './conditions';
+import { relicRules } from './relics';
 import {
   FACTION_OFFER_GAP,
   PACT_RELIEF_COEF,
@@ -76,9 +77,16 @@ function isStructurallyPlayable(offer: Offer): boolean {
  * mode 14) evaluated through the same `conditionMet` every `requires` gate
  * already uses. No second cost walker: the derivation lives in
  * `conditions.ts`, this just asks it.
+ *
+ * `followersCostMultiplier` threaded through so a discounted option (the
+ * Second Stomach) gates on the price it will actually charge, not the raw
+ * authored one — code review: this is the AUTHORITATIVE affordability check
+ * every UI reason line and `resolveChoice` itself defer to, so the discount
+ * has to live here, not just in the number `applyEffects` later deducts.
  */
 export function isOptionPickable(run: RunState, option: OfferOption, content: ContentBundle): boolean {
-  return impliedGatesOf(option).every((c) => conditionMet(run, c, content));
+  const followersCostMultiplier = relicRules(run, content).followersCostMultiplier;
+  return impliedGatesOf(option, followersCostMultiplier).every((c) => conditionMet(run, c, content));
 }
 
 /**
@@ -322,30 +330,80 @@ export function buildOfferPool(
 }
 
 /**
+ * The prophecy card `nextOffer` below is pinned to, for the one era it is
+ * pinned to — or `undefined` everywhere else, including once it has been
+ * answered. The single source of truth for "is the pinned prophecy the offer
+ * right now," so a caller outside `nextOffer` (`canActivateRelic`'s Key to No
+ * Particular Door check, code review) asks this instead of re-deriving the
+ * same condition and risking it drift out of sync with the one `nextOffer`
+ * actually acts on.
+ */
+function pinnedProphecyOffer(run: RunState, content: ContentBundle): Offer | undefined {
+  if (run.eraIndex !== run.prophecyEra || run.seenOfferIds.includes('prophecy')) return undefined;
+  const prophecy = content.offers.find((o) => o.id === 'prophecy');
+  return prophecy && isStructurallyPlayable(prophecy) ? prophecy : undefined;
+}
+
+/**
+ * True while the prophecy is pinned and `nextOffer` will return it no matter
+ * what stream it is asked to draw from. The Key to No Particular Door's
+ * redraw (`canActivateRelic`, `src/engine/relics.ts`) checks this before
+ * spending the relic: a redraw during this window would silently hand back
+ * the exact same card the player is already looking at, marking the Key
+ * spent for no visible effect (code review).
+ */
+export function isPinnedProphecyPending(run: RunState, content: ContentBundle): boolean {
+  return pinnedProphecyOffer(run, content) !== undefined;
+}
+
+function offerWeight(run: RunState, offer: Offer, content: ContentBundle): number {
+  return (
+    standingWeight(run, offer) *
+    pactWeight(run, offer, content) *
+    affordabilityWeight(run, offer, content) *
+    (offer.scripted ? SCRIPTED_WEIGHT_BONUS : 1)
+  );
+}
+
+/**
  * ONE offer for the current era, with 2-4 options.
  *
- * Pure: the same `RunState` always yields the same offer, because the sampling
- * stream is derived from `(seed, era index)` and nothing else.
+ * Pure given `(run, content, excludeOfferId)`: the same inputs always yield
+ * the same offer, because the sampling stream is derived from `(seed, era
+ * index)` and nothing else — every existing caller, which omits the third
+ * argument, gets the exact same result as before it existed.
+ *
+ * `excludeOfferId` (code review, the Key to No Particular Door): a plain
+ * re-roll through a different salted stream does not GUARANTEE a different
+ * result — the current offer stays in `pool`, so both the original and
+ * salted draws can land in its own weight interval by pure chance, and the
+ * Key would be marked spent for a redraw indistinguishable from no redraw at
+ * all. Passed by `useGame`'s `useRelic` case alone, with the offer the
+ * player was already looking at, so the redraw this produces can never be
+ * that exact card again. Falls to the same `QUIET_ERA_OFFER` an ordinary
+ * empty pool already falls to when excluding it leaves nothing else to draw
+ * — genuinely the only "different" offer left to show.
  */
-export function nextOffer(run: RunState, content: ContentBundle): Offer {
+export function nextOffer(run: RunState, content: ContentBundle, excludeOfferId?: string): Offer {
   // The prophecy is pinned to its era. The full-screen interstitial announces
   // the birth; this card is where the player answers it.
-  if (run.eraIndex === run.prophecyEra && !run.seenOfferIds.includes('prophecy')) {
-    const prophecy = content.offers.find((o) => o.id === 'prophecy');
-    if (prophecy && isStructurallyPlayable(prophecy)) return prophecy;
-  }
+  const prophecy = pinnedProphecyOffer(run, content);
+  if (prophecy) return prophecy;
 
   const { pool } = buildOfferPool(run, content);
-  const rng = streamFor(run.seed, 'offer', run.eraIndex);
-  return (
-    weightedPick(
-      rng,
-      pool,
-      (offer) =>
-        standingWeight(run, offer) *
-        pactWeight(run, offer, content) *
-        affordabilityWeight(run, offer, content) *
-        (offer.scripted ? SCRIPTED_WEIGHT_BONUS : 1),
-    ) ?? QUIET_ERA_OFFER
-  );
+  const candidates = excludeOfferId ? pool.filter((o) => o.id !== excludeOfferId) : pool;
+  // The Key to No Particular Door (issue #82): once `relicState.offerRedrawSalt`
+  // has been bumped by a use of the active (`activateRelic`,
+  // `src/engine/relics.ts`), it becomes an extra label mixed into the same
+  // seeded stream. The salt-free call is kept as its own branch, not merely
+  // "salt 0", because `streamFor(seed, 'offer', eraIndex)` and
+  // `streamFor(seed, 'offer', eraIndex, 0)` mix a different number of parts
+  // and so derive DIFFERENT streams (see `deriveSeed`) — every run that has
+  // never used the Key must keep drawing from the exact stream every save
+  // and every test made before this relic existed.
+  const rng =
+    run.relicState.offerRedrawSalt > 0
+      ? streamFor(run.seed, 'offer', run.eraIndex, run.relicState.offerRedrawSalt)
+      : streamFor(run.seed, 'offer', run.eraIndex);
+  return weightedPick(rng, candidates, (offer) => offerWeight(run, offer, content)) ?? QUIET_ERA_OFFER;
 }

@@ -220,6 +220,7 @@ then open the file for the story and the exact check.
 | 14 | A cost the engine clamps to nothing | Ask what happens at zero whenever an effect spends a countable balance for a fixed benefit. |
 | 15 | Verified at one width, with no hand on the keyboard | Shoot the 393px reference AND 320px; tab to and activate every new focusable control. |
 | 16 | An engine's own name for itself leaks onto the card | `rg` the shipped string for any internal identifier (a mechanic's own name, a constant, a field) before calling player-facing text done. |
+| 17 | A fallback strings a name together while the real one sits unused | `rg` a "display fallback only" helper's call sites; confirm each one actually lacks the real content, or has simply never been given it. |
 
 ## Working on this
 

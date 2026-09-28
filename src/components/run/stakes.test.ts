@@ -49,7 +49,7 @@ const run = (over: Partial<RunState> = {}): RunState =>
     goodActs: 0,
     illActs: 0,
     goodWizardVowed: false,
-    relicState: { firedOnce: [], spent: [], foresight: false },
+    relicState: { firedOnce: [], spent: [], foresight: false, offerRedrawSalt: 0 },
     eras: [],
     seenOfferIds: [],
     ...over,
@@ -73,7 +73,7 @@ describe('the Relics stake · "· N ready" (issue #81)', () => {
     const holder = run({
       heldArtifactIds: ['final_ledger'],
       followers: 100,
-      relicState: { firedOnce: [], spent: ['final_ledger'], foresight: false },
+      relicState: { firedOnce: [], spent: ['final_ledger'], foresight: false, offerRedrawSalt: 0 },
     });
     expect(relics(holder, REAL_CONTENT).value).toBe('1');
   });

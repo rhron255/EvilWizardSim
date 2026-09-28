@@ -20,6 +20,10 @@ export const anyOffers: Offer[] = [
         label: 'Pay for the pipes',
         effects: [
           { t: 'notoriety', v: -4 },
+          // Issue #82: one of a handful of common-rarity grants added across
+          // existing offers to raise mean relics held per run — the plumber
+          // finds it wedged in the pipes and invoices for the retrieval too.
+          { t: 'artifactFrom', factionId: 'gilded_hand', rarity: 'common' },
         ],
       },
       {

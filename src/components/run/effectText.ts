@@ -24,11 +24,21 @@
  * which makes the second one look like a different class of thing.
  */
 
-import { BETRAYAL_MAX_LOYALTY, DEF_LICH, indexOf } from '../../engine';
+import { BETRAYAL_MAX_LOYALTY, DEF_LICH, indexOf, isDoubleEdged } from '../../engine';
 import type { ContentBundle } from '../../engine';
-import type { Artifact, Condition, Effect, EndingId, Faction, FactionId, RunState } from '../../types';
+import type {
+  Artifact,
+  Condition,
+  Effect,
+  Ending,
+  EndingId,
+  Faction,
+  FactionId,
+  RunState,
+} from '../../types';
 import type { SystemicChange } from './resolution';
 import { heroApproachLine } from '../../content/heroes';
+import { relicPowerText } from '../meta/relicPower';
 
 /**
  * How a line should be *colored*, which is not the same as its sign.
@@ -41,6 +51,13 @@ export type EffectLine = {
   num?: string;
   /** The noun phrase that follows the number, or the whole line if there is none. */
   text: string;
+  /**
+   * A second, visually lighter line under `text` — currently only a double-
+   * edged relic's power (`relicPowerText`), kept separate from `text` rather
+   * than joined by " · " so the card can weight the name and its real cost
+   * differently and break them onto their own lines instead of one dense run.
+   */
+  detail?: string;
   tone: EffectTone;
 };
 
@@ -92,6 +109,16 @@ export function artifactName(id: string, artifacts: Artifact[]): string {
   return a ? a.name : 'an unnamed relic';
 }
 
+/**
+ * The `Faction` object itself, not just its display name — for a caller that
+ * needs to hand it to `relicPowerText`'s `ctx.factions` (RelicPage,
+ * ResolutionOverlay), which `factionName`'s string-with-fallback shape
+ * doesn't fit. `undefined` for an id the list doesn't carry.
+ */
+export function factionFor(factions: Faction[], id: string): Faction | undefined {
+  return factions.find((f) => f.id === id);
+}
+
 export function titleCase(id: string): string {
   return id
     .split('_')
@@ -112,6 +139,21 @@ export function endingName(id: EndingId): string {
     .split('_')
     .map((w, i) => (i > 0 && MINOR_WORDS.has(w) ? w : w.charAt(0).toUpperCase() + w.slice(1)))
     .join(' ');
+}
+
+/**
+ * The authored `Ending.name`, which should win over `endingName`'s bare id
+ * derivation wherever the real content catalog is in hand — that fallback is
+ * "display fallback only" by its own doc comment, and the two genuinely
+ * diverge: `slain_by_chosen_one` derives "Slain by Chosen One" (no "the" —
+ * the word isn't in the id to derive), and `contract_writer`/
+ * `overthrown_the_kingdom` derive names that aren't even close to their
+ * authored "Pact Master"/"King". Falls back to the bare derivation only if
+ * `endings` doesn't carry the id (a partial list, a content pack) — the
+ * same degrade-gracefully shape `factionName` already uses for factions.
+ */
+export function endingDisplayName(id: EndingId, endings: Ending[]): string {
+  return endings.find((e) => e.id === id)?.name ?? endingName(id);
 }
 
 /**
@@ -136,6 +178,7 @@ export function describeEffect(
   effect: Effect,
   artifacts: Artifact[],
   factions: Faction[],
+  endings: Ending[] = [],
 ): EffectLine {
   switch (effect.t) {
     case 'notoriety':
@@ -155,8 +198,25 @@ export function describeEffect(
         tone: good(effect.v),
       };
 
-    case 'artifact':
-      return { text: `Gain ${artifactName(effect.artifactId, artifacts)}`, tone: 'up' };
+    case 'artifact': {
+      const name = artifactName(effect.artifactId, artifacts);
+      // Rule 1: "no undisclosed downside." A named grant is ordinarily just a
+      // bonus, and the name alone is enough — but a double-edged relic (issue
+      // #82) is reachable ONLY through a grant like this one, and its power
+      // IS a real cost (a capped standing band, an ongoing era-end tax). The
+      // name alone would hide it until after commit, so the power text rides
+      // along here for exactly the relics `isDoubleEdged` flags — the same
+      // structural check that keeps them out of `drawArtifact`.
+      const artifact = artifacts.find((a) => a.id === effect.artifactId);
+      if (artifact && isDoubleEdged(artifact)) {
+        return {
+          text: `Gain ${name}`,
+          detail: relicPowerText(artifact.power, { factions }),
+          tone: 'up',
+        };
+      }
+      return { text: `Gain ${name}`, tone: 'up' };
+    }
 
     case 'artifactFrom':
       // A specified rarity prints itself ("a legendary Gilded Hand relic"). An
@@ -229,7 +289,7 @@ export function describeEffect(
       };
 
     case 'ending':
-      return { text: `The run ends · ${endingName(effect.endingId)}`, tone: 'grave' };
+      return { text: `The run ends · ${endingDisplayName(effect.endingId, endings)}`, tone: 'grave' };
 
     default: {
       // If this line stops compiling, a member was added to `Effect` and an
@@ -412,6 +472,7 @@ export function describeGate(condition: Condition, run: RunState, content: Conte
     case 'minGoodActs':
     case 'maxIllActs':
     case 'maxFollowers':
+    case 'declinePhase':
       return 'Requirements not currently met.';
 
     default: {

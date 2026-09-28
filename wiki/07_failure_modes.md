@@ -73,6 +73,32 @@ Code that exists and is never called. Five times:
 that exists is not a file that runs. Prefer an exhaustive `switch` with a `never`
 guard so the compiler names the unwired case.
 
+*The mirror image: a caller survives deleting its callee.* Retiring the
+pre-`src/content/` fixture bundles also retired the two manual-QA harnesses
+they fed (`qa/harness.html`/`.tsx`, `qa/run-harness.html` — themselves
+already broken, importing a screen deleted even earlier) and rewired the one
+script that commit remembered depended on them (`qa/shoot-share.mjs`). Five
+siblings it did not touch — `qa/probe-verdict.mjs`, `qa/probe-systemic.mjs`,
+`qa/probe-seal-fit.mjs`, `qa/run-shoot.mjs`, `qa/shoot.mjs` — kept `goto`ing
+the deleted `/qa/*harness*.html` routes, unnoticed because none of them run
+in CI or an npm script; only a code review going file-by-file across the
+whole diff found them, months of ordinary work later. They verified real
+things with no other coverage today (verdict-word styling, the "while you
+were elsewhere" block, whether the reprisal warning fits one line per
+faction at 393px, wide-viewport run screenshots, meta-screen variants like
+`ending-quiet`) and were deleted rather than repointed, for the same reason
+the harness itself was: no time in the session that found them to design
+five real-content-driven replacements well, and a script that fails loudly
+against a route that no longer exists is safer than one a future run trusts
+by habit. Rebuilding any of them means driving the real running app the way
+`qa/playthrough.mjs`/`qa/probe-relics.mjs` do, not a new harness page.
+
+**Check, restated for a deletion instead of an addition:** before removing a
+page, route, or fixture a manual QA script's `BASE`/`URL` constant points
+at, `rg` for that literal path across `qa/` (`grep -rn "harness\.html"`,
+here) — the reverse of "does anything call this," but the same discipline,
+and just as invisible until someone happens to run the orphaned side.
+
 *The last one has a specific cause worth naming:* work that stops partway —
 an interrupted session, a subagent that hits a limit mid-task — lands as a
 plausible, well-commented, uncalled function, and it reads like a finished
@@ -172,6 +198,25 @@ and reported every case as broken, including a single-line one — baseline-alig
 text on one line has different tops. It went green only after it tested vertical
 overlap instead. Failure mode 5 applies to the thing you build to check, in the
 hour you build it.
+
+*Nor is the check itself exempt from staying wired.* `playthrough.mjs`'s own
+`shot()` helper — the one place in the repo that already names this exact
+trap in a code comment — still called `page.screenshot({ fullPage: true })`
+unconditionally, `ResolutionOverlay` included. Its `run-mid` shot (issue #82)
+showed a washed-out, doubled-looking resolution card over a faded copy of the
+decision content behind it — read at a glance as a z-index or opacity bug in
+the app, and nearly "fixed" by padding the wait before the shot instead —
+throwing more `waitForTimeout` at a rendering artifact that no wait can
+settle, because it isn't a timing bug (the "staged reveals" bullet above is
+the trap this could easily have been confused with) and, one level down in
+the app instead of its QA harness, the same shape as failure mode 2's
+roll-rail incident: the fix already existed, in a comment, and nothing had
+actually reached it. The actual fix: check for
+an open `[role="dialog"]` and drop to a viewport-only capture when one is up,
+exactly as this section already prescribed — the prose had been correct
+since it was written, the one call site just never read it. Failure mode 2's
+question applies to a written CHECK as much as to a written call site: does
+anything actually run it?
 
 ### 8. Responsive layouts diverge from their markup
 
@@ -330,3 +375,41 @@ it in terms of an effect the player already sees elsewhere (a stat, a
 faction, a threshold). `rg` the shipped string for the mechanic's identifier
 name (here, `contagion`) to confirm the rewrite actually dropped it, the same
 way failure mode 2's check is a grep for the call site.
+
+### 17. A fallback strings a name together while the real one sits unused
+
+`effectText.ts`'s `endingName(id)` splits an `EndingId` on `_` and title-cases
+what falls out — its own doc comment calls it "display fallback only," since
+`Ending.name` in the content catalog is the actual authored string and should
+win whenever the catalog is in hand. Two live call sites never had it in
+hand: `ResolutionOverlay`'s "run ends" line and (issue #82) its new lifeline
+line took only `artifacts`/`factions`, never `endings`, so both silently fell
+back to the derived string on every render — not a rare branch, the ONLY
+branch, since no caller ever threaded the real list through. It typechecked
+because the fallback has the same return type as the real thing.
+
+Most ids survived the trip — `lichdom` derives to `Lichdom`, matching the
+catalog exactly, so nothing looked wrong in the common case. But an id can
+only title-case the WORDS IT CONTAINS: `slain_by_chosen_one` has no `the` in
+it, so the fallback printed "Slain by Chosen One" against the catalog's own
+"Slain by the Chosen One" — a small, easy-to-miss wrongness that a diff
+against real content (not a snapshot of the derivation) catches immediately.
+Two ids drift far worse: `contract_writer` derives to "Contract Writer"
+against the authored "Pact Master", and `overthrown_the_kingdom` derives to
+"Overthrown the Kingdom" against "King" — neither reachable through the one
+scripted path (`{t: 'ending'}` effects in `scripted.ts`) that puts a direct
+ending name on a pre-commit card today, but both one new offer away from a
+card that lies outright. Found by a browser probe built for an unrelated
+feature (issue #82's lifeline), which happened to stage the one scenario —
+`slain_by_chosen_one`, averted by a lifeline — that made the missing "the"
+visible on screen; nothing in review or the type system would have caught it.
+
+**Check:** when a component derives a player-facing string from an id instead
+of reading it off the content catalog it was handed (or was NOT handed), ask
+whether the catalog was actually threaded down to that component. A "display
+fallback only" helper existing at all is a sign some call site is missing its
+real data — `rg` for the fallback's call sites and confirm each one either
+has no other choice (truly no content in scope) or is a bug like this one.
+Do not trust that a derivation "looks right" from reading a few ids — check
+it against the authored strings for every id the union actually has, the
+same discipline failure mode 13 asks for at a scale's extremes.
