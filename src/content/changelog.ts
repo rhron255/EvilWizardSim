@@ -21,6 +21,12 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-09-28T19:05:46Z': {
+    summary: 'Fixed a display glitch on long result cards on phones.',
+    details: [
+      "Fixed a bug where a long result card's coloured outline stopped partway down when you scrolled, leaving a stray edge above Continue.",
+    ],
+  },
   '2026-09-25T16:00:00Z': {
     summary: 'Every relic in the game does something now, and careers hold more of them.',
     details: [
