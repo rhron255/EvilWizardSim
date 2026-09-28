@@ -109,6 +109,13 @@
   color: var(--ew-ink-faint);
 }
 
+/* When a trigger relic's effect fires — without it the effect line below
+   reads as a flat bonus paid every era. Same tone as the fallback prose. */
+.summaryWhen {
+  margin: 0;
+  color: var(--ew-ink-dim);
+}
+
 /* A relic with no discrete effect to render tersely (a passive rate change,
    or a deferred active/lifeline placeholder) falls back to this line. */
 .summaryOtherDesc {

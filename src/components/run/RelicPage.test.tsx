@@ -164,7 +164,27 @@ describe('RelicPage · the relic summary', () => {
     // colour-coded markup), so check each rather than one combined string.
     expect(within(summary).getByText('+2', { exact: true })).toBeInTheDocument();
     expect(within(summary).getByText('Standing · The Verdant Choir')).toBeInTheDocument();
+    expect(within(summary).getByText("Every era's end:")).toBeInTheDocument();
     expect(within(summary).queryByText(/At every era's end/)).toBeNull();
+  });
+
+  it("states a conditional trigger's condition, so it never reads as a flat bonus", () => {
+    // Reported from play: the Censer, the Antler Baton and the Ashen
+    // Signature all printed a bare effect ("+3 Notoriety") as if paid every
+    // era, when each only fires on a specific event.
+    const run = {
+      ...baseRun,
+      heldArtifactIds: ['censer_of_small_regrets', 'antler_baton', 'ashen_signature'],
+    };
+    show(run);
+    const summary = screen.getByRole('group', { name: 'Relic summary' });
+    expect(within(summary).getByText('When you lose a gamble:')).toBeInTheDocument();
+    expect(
+      within(summary).getByText('When you answer an offer from The Verdant Choir:'),
+    ).toBeInTheDocument();
+    expect(
+      within(summary).getByText('Once, the first choice that raises your Pact Debt:'),
+    ).toBeInTheDocument();
   });
 
   it('falls back to the descriptive sentence for a passive with no discrete effect', () => {

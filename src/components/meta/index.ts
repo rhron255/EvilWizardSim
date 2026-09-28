@@ -31,7 +31,7 @@ export type { LairTenure } from './tenure';
 export { formatEffect, formatEffects, isNegative, signed } from './effectText';
 export type { EffectContext } from './effectText';
 
-export { relicPowerText, RELIC_POWER_TEXT_MAX } from './relicPower';
+export { relicPowerText, relicTriggerWhen, RELIC_POWER_TEXT_MAX } from './relicPower';
 export type { RelicPowerContext } from './relicPower';
 
 export { attributionFor, attributionLabelFor, ATTRIBUTION_LABEL } from './attribution';
