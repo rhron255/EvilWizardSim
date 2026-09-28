@@ -35,7 +35,8 @@ import {
 import { applyEffects, draftOf, forfeitForLichdom, isDoubleEdged } from './effects';
 import { decayFor, defenseOf, heroBand } from './systems';
 import { nearestReprisalFaction, reprisalEnding, REPRISAL_BY_FACTION } from './endings';
-import { nextOffer } from './offers';
+import { PACT_LIMIT } from './constants';
+import { isOptionPickable, nextOffer } from './offers';
 import { streamFor } from './rng';
 import { REAL_CONTENT as content, realOfferWhere } from '../testing/realContent';
 
@@ -281,6 +282,29 @@ describe('The Key to No Particular Door · active: redraws this era’s offer', 
     // their very first draw, or the redraw would be pure decoration.
     expect(a()).not.toBe(b());
   });
+
+  it('is not activatable while the pinned, unseen prophecy IS the current offer (code review)', () => {
+    // `nextOffer`'s prophecy pin runs before the salted stream it would
+    // otherwise draw from, so a redraw here would silently hand back the
+    // exact same card and burn the Key for nothing.
+    const base = run({ heldArtifactIds: ['key_to_no_particular_door', 'ninth_clause_brazier'] });
+    const atProphecy: RunState = { ...base, eraIndex: base.prophecyEra };
+    expect(nextOffer(atProphecy, content).id).toBe('prophecy');
+    expect(canActivateRelic(atProphecy, 'key_to_no_particular_door', content)).toBe(false);
+
+    const { next, event } = activateRelic(atProphecy, 'key_to_no_particular_door', content);
+    expect(event).toBeNull();
+    expect(next.relicState.offerRedrawSalt).toBe(0); // untouched — never spent
+
+    // Scoped to the redraw power alone: another active is unaffected by the
+    // same pinned prophecy.
+    expect(canActivateRelic(atProphecy, 'ninth_clause_brazier', content)).toBe(true);
+
+    // And once the prophecy has been answered, the Key is usable again in
+    // the very same era.
+    const afterAnswer: RunState = { ...atProphecy, seenOfferIds: [...atProphecy.seenOfferIds, 'prophecy'] };
+    expect(canActivateRelic(afterAnswer, 'key_to_no_particular_door', content)).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -387,20 +411,6 @@ describe('Spectacles of the Third Reading · +10% odds on every gamble', () => {
 
     const risky: OfferOption = { ...option, odds: 0.95 };
     expect(effectiveOdds(holder, risky, content)).toBe(1);
-  });
-
-  it('does nothing without content passed (pre-#82 call sites keep their old numbers)', () => {
-    const holder = run({ heldArtifactIds: ['spectacles_of_the_third_reading'] });
-    const option: OfferOption = {
-      kind: 'gamble',
-      label: 'g',
-      odds: 0.5,
-      onSuccess: [],
-      onFailure: [],
-      successText: 'y',
-      failureText: 'n',
-    };
-    expect(effectiveOdds(holder, option)).toBe(0.5);
   });
 });
 
@@ -637,6 +647,104 @@ describe('The Portcullis Tooth · lifeline: stops the hero’s killing blow once
     const { next: after2 } = resolveChoice(dead, offer, 0, content);
     expect(after2.ending).toBe('slain_by_chosen_one');
   });
+
+  it('averts its own covered ending but lets an INDEPENDENT one still apply the same era', () => {
+    // Code review finding: checkEndings returns only the highest-priority
+    // match (slain_by_chosen_one, checked before consumed_by_pact), and the
+    // engine used to never re-check after a lifeline cleared it — so a
+    // wizard already over PACT_LIMIT when the Portcullis Tooth saved them
+    // from the hero got a silent, undeserved extra era before the pact
+    // ending was ever noticed. The lifeline still does its one job (the
+    // hero does NOT kill this era, and the card still discloses the save);
+    // it just cannot suppress a second, unrelated killing condition that
+    // happens to be true at the exact same moment.
+    const state = run({
+      heldArtifactIds: ['portcullis_tooth'],
+      phase: 'decline',
+      erasSinceProphecy: 5,
+      heroThreat: 200,
+      pactDebt: PACT_LIMIT,
+    });
+    expect(state.heroThreat).toBeGreaterThan(defenseOf(state, content));
+    const offer = offerOf([{ t: 'notoriety', v: 0 }]);
+    const { next, resolution } = resolveChoice(state, offer, 0, content);
+
+    expect(resolution.lifeline?.artifactId).toBe('portcullis_tooth');
+    expect(resolution.lifeline?.endingAverted).toBe('slain_by_chosen_one');
+    // The hero's own condition is genuinely cleared by the recovery...
+    expect(next.heroThreat).toBeLessThan(defenseOf(next, content));
+    // ...but the pact debt condition was never this lifeline's to fix.
+    expect(next.ending).toBe('consumed_by_pact');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The Root of the Standing Vote — must not fire for a same-ID scripted ending
+// ---------------------------------------------------------------------------
+
+describe('The Root of the Standing Vote · does not mistake a scripted ending for a reprisal', () => {
+  it('lets a deliberately CHOSEN ending stand, even when it shares an id with a reprisal the Root covers', () => {
+    // Code review finding: scripted_the_reliquary's "Consent to the gem" is
+    // a certain, player-chosen option that authors `sealed_in_gem` directly
+    // — reachable only at 30+ Pale Academy standing, nowhere near an actual
+    // reprisal (SEAL_MAX_STANDING is deeply negative). `sealed_in_gem` is
+    // ALSO one of the six ids the Root's `covers` lists, because that id IS
+    // the Pale Academy reprisal's own name — an ID match alone used to be
+    // enough to make the Root "avert" this, spending itself for nothing,
+    // overriding the player's own deliberate choice, and resetting whatever
+    // UNRELATED faction `nearestReprisalFaction` happened to name to -40.
+    const reliquary = realOfferWhere('grants sealed_in_gem through a player-chosen option, not a reprisal', (o) =>
+      o.options.some(
+        (opt) => opt.kind === 'certain' && opt.effects.some((e) => e.t === 'ending' && e.endingId === 'sealed_in_gem'),
+      ),
+    );
+    expect(reliquary.id).toBe('scripted_the_reliquary');
+    const consentIndex = reliquary.options.findIndex(
+      (opt) => opt.kind === 'certain' && opt.effects.some((e) => e.t === 'ending' && e.endingId === 'sealed_in_gem'),
+    );
+
+    const state = run({
+      heldArtifactIds: ['root_of_the_standing_vote'],
+      factionStanding: { ...run().factionStanding, pale_academy: 40 },
+    });
+    // Nowhere near an actual reprisal — reprisalEnding must agree.
+    expect(reprisalEnding(state, content)).toBeUndefined();
+
+    const { next, resolution } = resolveChoice(state, reliquary, consentIndex, content);
+
+    // The player's own choice stands, unaverted.
+    expect(next.ending).toBe('sealed_in_gem');
+    expect(resolution.lifeline).toBeUndefined();
+    // The Root is untouched — still held, still unspent — not wasted on a
+    // scripted ending it was never meant to cover.
+    expect(next.heldArtifactIds).toContain('root_of_the_standing_vote');
+    expect(next.relicState.firedOnce).not.toContain('root_of_the_standing_vote');
+    // No unrelated faction's standing was silently reset to -40.
+    for (const factionId of Object.keys(next.factionStanding) as (keyof typeof next.factionStanding)[]) {
+      if (factionId === 'pale_academy') continue;
+      expect(next.factionStanding[factionId]).toBe(state.factionStanding[factionId]);
+    }
+  });
+
+  it('still fires for a GENUINE reprisal sharing the exact same ending id', () => {
+    // The flip side: the fix above must not make the Root inert for the
+    // real thing. Pale Academy's own reprisal is ALSO `sealed_in_gem` —
+    // reached the ordinary way this time (checkEndings' own reprisalEnding
+    // branch, not a scripted effect), and the Root must still avert it.
+    const state = run({
+      heldArtifactIds: ['root_of_the_standing_vote'],
+      notoriety: 90,
+      factionStanding: { ...run().factionStanding, pale_academy: -60 },
+    });
+    expect(reprisalEnding(state, content)).toBe('sealed_in_gem');
+    const offer = offerOf([{ t: 'notoriety', v: 0 }]);
+    const { next, resolution } = resolveChoice(state, offer, 0, content);
+
+    expect(resolution.lifeline?.artifactId).toBe('root_of_the_standing_vote');
+    expect(resolution.lifeline?.endingAverted).toBe('sealed_in_gem');
+    expect(next.ending).toBeUndefined();
+    expect(next.factionStanding.pale_academy).toBe(-40);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -785,6 +893,20 @@ describe('The Second Stomach · choices cost a quarter fewer Followers', () => {
     applyEffects(draft, [{ t: 'followers', v: -8 }, { t: 'followers', v: 4 }], () => 0, content);
     // 20 - round(6) = 14, then + round(4*1.5) = 6 -> 20
     expect(draft.followers).toBe(20);
+  });
+
+  it('gates affordability on the DISCOUNTED cost, not the authored one (code review)', () => {
+    // A benefit-granting option costing 20 Followers: the raw gate needs 20,
+    // the Second Stomach's 0.75 multiplier needs only round(20*0.75) = 15.
+    const option = certainOption([
+      { t: 'followers', v: -20 },
+      { t: 'artifact', artifactId: 'some_artifact_id' },
+    ]);
+    const poor = run({ followers: 15 });
+    expect(isOptionPickable(poor, option, content)).toBe(false);
+
+    const discounted = run({ followers: 15, heldArtifactIds: ['second_stomach'] });
+    expect(isOptionPickable(discounted, option, content)).toBe(true);
   });
 });
 

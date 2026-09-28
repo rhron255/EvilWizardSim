@@ -22,6 +22,7 @@ import type { Offer, OfferOption, RunState } from '../types';
 import type { ContentBundle } from './content-port';
 import { indexOf } from './content-port';
 import { conditionMet, conditionsMet, impliedGatesOf } from './conditions';
+import { relicRules } from './relics';
 import {
   FACTION_OFFER_GAP,
   PACT_RELIEF_COEF,
@@ -76,9 +77,16 @@ function isStructurallyPlayable(offer: Offer): boolean {
  * mode 14) evaluated through the same `conditionMet` every `requires` gate
  * already uses. No second cost walker: the derivation lives in
  * `conditions.ts`, this just asks it.
+ *
+ * `followersCostMultiplier` threaded through so a discounted option (the
+ * Second Stomach) gates on the price it will actually charge, not the raw
+ * authored one — code review: this is the AUTHORITATIVE affordability check
+ * every UI reason line and `resolveChoice` itself defer to, so the discount
+ * has to live here, not just in the number `applyEffects` later deducts.
  */
 export function isOptionPickable(run: RunState, option: OfferOption, content: ContentBundle): boolean {
-  return impliedGatesOf(option).every((c) => conditionMet(run, c, content));
+  const followersCostMultiplier = relicRules(run, content).followersCostMultiplier;
+  return impliedGatesOf(option, followersCostMultiplier).every((c) => conditionMet(run, c, content));
 }
 
 /**
@@ -322,6 +330,33 @@ export function buildOfferPool(
 }
 
 /**
+ * The prophecy card `nextOffer` below is pinned to, for the one era it is
+ * pinned to — or `undefined` everywhere else, including once it has been
+ * answered. The single source of truth for "is the pinned prophecy the offer
+ * right now," so a caller outside `nextOffer` (`canActivateRelic`'s Key to No
+ * Particular Door check, code review) asks this instead of re-deriving the
+ * same condition and risking it drift out of sync with the one `nextOffer`
+ * actually acts on.
+ */
+function pinnedProphecyOffer(run: RunState, content: ContentBundle): Offer | undefined {
+  if (run.eraIndex !== run.prophecyEra || run.seenOfferIds.includes('prophecy')) return undefined;
+  const prophecy = content.offers.find((o) => o.id === 'prophecy');
+  return prophecy && isStructurallyPlayable(prophecy) ? prophecy : undefined;
+}
+
+/**
+ * True while the prophecy is pinned and `nextOffer` will return it no matter
+ * what stream it is asked to draw from. The Key to No Particular Door's
+ * redraw (`canActivateRelic`, `src/engine/relics.ts`) checks this before
+ * spending the relic: a redraw during this window would silently hand back
+ * the exact same card the player is already looking at, marking the Key
+ * spent for no visible effect (code review).
+ */
+export function isPinnedProphecyPending(run: RunState, content: ContentBundle): boolean {
+  return pinnedProphecyOffer(run, content) !== undefined;
+}
+
+/**
  * ONE offer for the current era, with 2-4 options.
  *
  * Pure: the same `RunState` always yields the same offer, because the sampling
@@ -330,10 +365,8 @@ export function buildOfferPool(
 export function nextOffer(run: RunState, content: ContentBundle): Offer {
   // The prophecy is pinned to its era. The full-screen interstitial announces
   // the birth; this card is where the player answers it.
-  if (run.eraIndex === run.prophecyEra && !run.seenOfferIds.includes('prophecy')) {
-    const prophecy = content.offers.find((o) => o.id === 'prophecy');
-    if (prophecy && isStructurallyPlayable(prophecy)) return prophecy;
-  }
+  const prophecy = pinnedProphecyOffer(run, content);
+  if (prophecy) return prophecy;
 
   const { pool } = buildOfferPool(run, content);
   // The Key to No Particular Door (issue #82): once `relicState.offerRedrawSalt`

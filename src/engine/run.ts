@@ -45,7 +45,7 @@ import {
 } from './relics';
 import { projectedEpithet } from './epithets';
 import { deedLineFor } from './deeds';
-import { checkEndings, nearestReprisalFaction } from './endings';
+import { checkEndings, nearestReprisalFaction, reprisalEnding, REPRISAL_ENDING_IDS } from './endings';
 import { isOptionPickable, QUIET_ERA_OFFER } from './offers';
 import { hashString, randomSeed, streamFor } from './rng';
 import {
@@ -467,10 +467,15 @@ export function resolveChoice(
   // run the moment it becomes affordable. Evaluated against `run`, the state
   // BEFORE this choice, since that is what the player actually saw the offer
   // pool with.
+  const followersCostMultiplier = relicRules(run, content).followersCostMultiplier;
   const hadUnaffordableInterestingOption = offer.options.some(
-    (o) => o !== option && impliedGatesOf(o).length > 0 && !isOptionPickable(run, o, content),
+    (o) =>
+      o !== option &&
+      impliedGatesOf(o, followersCostMultiplier).length > 0 &&
+      !isOptionPickable(run, o, content),
   );
-  const choiceWasForced = impliedGatesOf(option).length === 0 && hadUnaffordableInterestingOption;
+  const choiceWasForced =
+    impliedGatesOf(option, followersCostMultiplier).length === 0 && hadUnaffordableInterestingOption;
   // Move the offer to the end of the seen list so recency ordering stays
   // meaningful when the pool has to recycle.
   draft.seenOfferIds = choiceWasForced
@@ -503,17 +508,56 @@ export function resolveChoice(
   // ---- ending check, after EVERY era -----------------------------------
   draft.ending = endingFromEffect ?? checkEndings(draft, content);
 
-  // Lifelines (issue #82): checked once, immediately after an ending is
-  // found — never before, and never re-run afterward. Spends the FIRST
-  // unspent lifeline that covers this ending, applies its recovery, and
-  // clears `draft.ending` so the run continues. `nearestReprisalFaction` is
-  // only meaningful for a reprisal ending, but it is cheap and
-  // `applyLifeline` ignores it for every other kind — see `standingReset`'s
-  // own doc comment in `relics.ts`.
+  // Lifelines (issue #82): spends the FIRST unspent lifeline that covers
+  // this ending, applies its recovery, and clears `draft.ending` so the run
+  // continues.
+  //
+  // Two review findings fixed here (both real, both reachable):
+  //
+  // 1. A scripted ending can share an id with a reprisal without BEING one.
+  //    `scripted_the_reliquary`'s "Consent to the gem" authors
+  //    `sealed_in_gem` directly (`endingFromEffect`) at 30+ Pale Academy
+  //    standing — nowhere near an actual reprisal — but the Root of the
+  //    Standing Vote's `covers` lists all six reprisal ids by ID alone, so
+  //    it would wrongly "avert" the player's own deliberate choice and reset
+  //    whichever unrelated faction `nearestReprisalFaction` happens to name.
+  //    `isConfirmedReprisal` re-checks against `reprisalEnding` itself — the
+  //    same function `checkEndings` calls — rather than inferring from
+  //    whether `endingFromEffect` was set, because `endingFromEffect` always
+  //    wins even when it coincidentally agrees with what `reprisalEnding`
+  //    would also say; the question is "is this true right now," not "how
+  //    did we get here." Only a CONFIRMED reprisal is eligible for a
+  //    reprisal-covering lifeline; every other ending is unaffected by this
+  //    check, `REPRISAL_ENDING_IDS` not containing it at all.
+  //
+  // 2. A lifeline cancels only the ONE ending it covers — an unrelated
+  //    condition that happened to be true at the same moment (pact debt
+  //    already at its limit when the Portcullis Tooth saves the wizard from
+  //    the hero, say) is not this lifeline's to fix, and `checkEndings`
+  //    returning only the highest-priority match meant it was previously
+  //    left unevaluated for the rest of this era. Re-running it after a
+  //    successful save lets that other ending stand, rather than silently
+  //    deferring it to whichever era next happens to reach it — the
+  //    lifeline's own recovery already cleared ITS OWN covered condition
+  //    (Portcullis Tooth drops threat below wards; the Root resets the one
+  //    faction below its own reprisal threshold), so this can never
+  //    re-select the ending that was just averted.
   let lifeline: LifelineOutcome | undefined;
   if (draft.ending) {
-    lifeline = applyLifeline(draft, content, draft.ending, nearestReprisalFaction(draft, content));
-    if (lifeline) draft.ending = undefined;
+    const isConfirmedReprisal = reprisalEnding(draft, content) === draft.ending;
+    const eligibleEnding =
+      REPRISAL_ENDING_IDS.has(draft.ending) && !isConfirmedReprisal ? undefined : draft.ending;
+    if (eligibleEnding) {
+      lifeline = applyLifeline(draft, content, eligibleEnding, nearestReprisalFaction(draft, content));
+      if (lifeline) {
+        // `checkEndings`'s own first line is `if (run.ending) return
+        // run.ending` — cleared first, or the re-check below would just
+        // echo the stale ending straight back out instead of evaluating
+        // anything.
+        draft.ending = undefined;
+        draft.ending = checkEndings(draft, content);
+      }
+    }
   }
 
   draft.epithet = projectedEpithet(draft, content);

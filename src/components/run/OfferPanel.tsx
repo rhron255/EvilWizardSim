@@ -9,7 +9,14 @@
 import { useCallback, useEffect, useId, useMemo, useRef } from 'react';
 import type { Artifact, Effect, Faction, Offer, OfferOption, RunState } from '../../types';
 import type { ContentBundle, RelicEvent, RelicReactionPreview } from '../../engine';
-import { conditionMet, effectiveOdds, impliedGatesOf, isOptionPickable, projectReactions } from '../../engine';
+import {
+  conditionMet,
+  effectiveOdds,
+  impliedGatesOf,
+  isOptionPickable,
+  projectReactions,
+  relicRules,
+} from '../../engine';
 import { describeGate } from './effectText';
 import { OptionCard } from './OptionCard';
 import styles from './OfferPanel.module.css';
@@ -59,7 +66,8 @@ function gateFor(
   content: ContentBundle,
 ): OptionGate {
   if (isOptionPickable(run, option, content)) return { pickable: true };
-  const failing = impliedGatesOf(option).find((c) => !conditionMet(run, c, content));
+  const followersCostMultiplier = relicRules(run, content).followersCostMultiplier;
+  const failing = impliedGatesOf(option, followersCostMultiplier).find((c) => !conditionMet(run, c, content));
   return {
     pickable: false,
     reason: failing ? describeGate(failing, run, content) : undefined,

@@ -46,6 +46,7 @@ import type { ContentBundle } from './content-port';
 import { indexOf } from './content-port';
 import { conditionsMet } from './conditions';
 import { NOVELTY_BIAS, SEAL_MAX_STANDING, STANDING_MAX, STANDING_MIN } from './constants';
+import { isPinnedProphecyPending } from './offers';
 import {
   applyEffects,
   DETERMINISTIC_LOSS_RNG,
@@ -216,14 +217,18 @@ export function relicRules(run: RunState, content: ContentBundle): RelicRules {
  * while `run.relicState.foresight` is armed, every gamble reads as certain.
  * `resolveChoice` is what clears the flag once a gamble genuinely resolves —
  * this function only reads it, never mutates.
+ *
+ * `content` is REQUIRED (code review, issue #82): an optional `content` let a
+ * caller silently compute the wrong odds — the pre-Spectacles-of-the-Third-
+ * Reading number — the moment it forgot to pass it, with nothing at compile
+ * time to catch a stale or future call site that did. Every real caller
+ * already has a `ContentBundle` in scope; there was never a case where
+ * omitting it was the correct choice rather than an oversight.
  */
-export function effectiveOdds(run: RunState, option: OfferOption, content?: ContentBundle): number {
+export function effectiveOdds(run: RunState, option: OfferOption, content: ContentBundle): number {
   if (option.kind !== 'gamble') return 1;
   if (run.relicState.foresight) return 1;
-  // `content` optional: every caller that predates the Spectacles of the
-  // Third Reading (issue #82) — and every existing test — omits it and gets
-  // `option.odds` back unmodified, same as before this relic existed.
-  const bonus = content ? relicRules(run, content).gambleOddsBonus : 0;
+  const bonus = relicRules(run, content).gambleOddsBonus;
   return bonus > 0 ? Math.min(1, option.odds + bonus) : option.odds;
 }
 
@@ -578,6 +583,12 @@ export function canActivateRelic(run: RunState, artifactId: string, content: Con
   if (!power || power.kind !== 'active') return false;
   if (!run.heldArtifactIds.includes(artifactId)) return false;
   if (run.relicState.spent.includes(artifactId)) return false;
+  // The Key to No Particular Door (code review): while the prophecy is
+  // pinned, `nextOffer` returns it no matter what stream a redraw asks for —
+  // spending the Key here would mark it spent for a redraw the player would
+  // never see. `isPinnedProphecyPending` is the exact condition `nextOffer`
+  // itself acts on, so this can never drift out of sync with it.
+  if (power.redrawsOffer && isPinnedProphecyPending(run, content)) return false;
   const rules = relicRules(run, content);
   for (const cost of power.cost ?? []) {
     if (cost.t === 'followers' && cost.v < 0) {

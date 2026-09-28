@@ -82,6 +82,18 @@ export const REPRISAL_BY_FACTION: Record<FactionId, EndingId> = {
 };
 
 /**
+ * The six ids `REPRISAL_BY_FACTION` maps to, as a set — for a caller that
+ * needs to ask "is this id SHAPED like a reprisal" without knowing which
+ * faction. Answering that alone is not the same as "IS this a reprisal
+ * right now": `scripted_the_reliquary`'s "Consent to the gem" authors
+ * `sealed_in_gem` directly at 30+ Pale Academy standing, nowhere near an
+ * actual reprisal, so a caller distinguishing a genuine reprisal from a
+ * same-id scripted ending still needs to re-check against `reprisalEnding`
+ * (see `applyLifeline`'s own caller in `run.ts` for exactly this).
+ */
+export const REPRISAL_ENDING_IDS: ReadonlySet<EndingId> = new Set(Object.values(REPRISAL_BY_FACTION));
+
+/**
  * What each faction makes of you, once you have spent a career at the top of
  * its standing and lived to the age limit.
  *

@@ -592,6 +592,13 @@ function reactionEffectsOf(events: readonly RelicEvent[]): Effect[] {
  * threads through `scoreEffects`'s running clamp against the debt the
  * option's own effects already produced, not against the pre-choice `debt`
  * a second time.
+ *
+ * `offerFactionId` (code review): threaded through to `projectReactions` so
+ * a `watchesOfferFaction` relic (the Antler Baton) is priced the same way
+ * for a bot as for the real card — omitting it silently read every offer as
+ * faction-less, so a bot holding the Baton never saw the reaction its own
+ * choice was about to trigger and could rank an option the engine would
+ * actually score higher below one it wouldn't.
  */
 function optionScore(
   run: RunState,
@@ -600,8 +607,9 @@ function optionScore(
   takesLichdom: boolean,
   debt: number,
   takesGoodWizard: boolean,
+  offerFactionId?: FactionId,
 ): number {
-  const reactions = projectReactions(run, option, content);
+  const reactions = projectReactions(run, option, content, offerFactionId);
   if (option.kind === 'certain') {
     const events = reactions.kind === 'certain' ? reactions.events : [];
     return scoreEffects(
@@ -906,7 +914,7 @@ function chooseOption(policy: Policy, run: RunState, offer: Offer, roll: number)
     // pickable certain option per offer, so this can never empty the field
     // for a policy that (unlike `safe`) also considers gambles.
     if (!isOptionPickable(run, option, content)) return;
-    let score = optionScore(run, option, w, takesLichdom, run.pactDebt, takesGoodWizard);
+    let score = optionScore(run, option, w, takesLichdom, run.pactDebt, takesGoodWizard, offer.factionId);
     // A lich-seeker courts ONE faction, hard, because only the Worm Below
     // offers the rite and its gate is `minStanding worm_below 20`. Generic
     // standing-chasing spread the gain across all six and never opened it,
