@@ -59,7 +59,7 @@ export const mechanics: Mechanic[] = [
     id: 'lair',
     name: 'Lair',
     blurb:
-      'A wizard is only as powerful as their lair is cool. Your seat of power, from hovel to stronghold. A grander lair contributes more to your defense against the hero. Sometimes you have to move because of annoying ghosts or insistent vines.',
+      'A wizard is only as powerful as their lair is cool. Your seat of power, from hovel to stronghold. A grander lair contributes more to your defence against the hero. Sometimes you have to move because of annoying ghosts or insistent vines.',
   },
   {
     id: 'relics',

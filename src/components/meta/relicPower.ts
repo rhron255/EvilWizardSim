@@ -182,9 +182,9 @@ export function relicPowerText(power: RelicPower, ctx: RelicPowerContext = {}): 
           const pct = Math.round((1 - modifier.v) * 100);
           if (modifier.factionId) {
             const scope = pct >= 100 ? 'nothing' : `${pct}% less standing than usual`;
-            return `Passive: favoring ${factionName(modifier.factionId, ctx)} costs its rivals ${scope}.`;
+            return `Passive: favouring ${factionName(modifier.factionId, ctx)} costs its rivals ${scope}.`;
           }
-          return `Passive: favoring a faction costs its rivals ${pct}% less standing than usual.`;
+          return `Passive: favouring a faction costs its rivals ${pct}% less standing than usual.`;
         }
         case 'fameThreatMultiplier': {
           const pct = Math.round(modifier.v * 100);

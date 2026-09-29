@@ -173,9 +173,11 @@ ever been rendered in desktop Chromium.
 4. **The rarity-ordering FAIL** — see Balance.
 5. **Measure the ending distribution on real players**, not policies.
 6. Vocabulary drift still open from the old editorial pass: `Faction.adjective`
-   is authored for all six factions and read by nothing, and content is en-GB
-   except ~34 strings (the 30 artifact `Defense +N.` lines against
-   `stakes.ts`'s `defence`).
+   is authored for all six factions and read by nothing. (The other half of that
+   item — content being en-GB except ~34 strings — is closed: the artifact
+   `Defense +N.` lines are gone with the wards rework, the last few American
+   spellings are fixed, and `src/content/spelling.test.ts` now fails on any that
+   returns.)
 
 ## Two traps this build actually fell into
 

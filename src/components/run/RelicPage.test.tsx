@@ -192,7 +192,7 @@ describe('RelicPage · the relic summary', () => {
     show(run);
     const summary = screen.getByRole('group', { name: 'Relic summary' });
     expect(
-      within(summary).getByText('Passive: favoring a faction costs its rivals 50% less standing than usual.'),
+      within(summary).getByText('Passive: favouring a faction costs its rivals 50% less standing than usual.'),
     ).toBeInTheDocument();
   });
 

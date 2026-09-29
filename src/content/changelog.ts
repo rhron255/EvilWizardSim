@@ -76,7 +76,7 @@ export const CHANGELOG: Changelog = {
     summary: 'The Footnote That Bites now describes its power in plain terms.',
     details: [
       "Fixed a bug where this relic's passive described itself using a term the game never explains anywhere else.",
-      'It now reads: favoring a faction costs its rivals less standing than usual.',
+      'It now reads: favouring a faction costs its rivals less standing than usual.',
     ],
   },
   '2026-09-24T15:30:00Z': {
