@@ -237,6 +237,7 @@ then open the file for the story and the exact check.
 | 17 | A fallback strings a name together while the real one sits unused | `rg` a "display fallback only" helper's call sites; confirm each one actually lacks the real content, or has simply never been given it. |
 | 18 | State that outlives the screen that set it | Anything shared across screens (scroll, focus, storage) needs an owner that resets it on the transition. Drive the game the way a thumb does — scroll to the last card, tap, continue, read `scrollY` (`qa/probe-era-scroll.mjs`). |
 | 19 | Probes that rotted while the game was fine | Every probe enters through `openApp` (`qa/first-run.mjs`); assert structure not counts; when something every player meets first changes, run every probe once. |
+| 20 | The card is exact until a random draw lands mid-list | A `loseArtifact` before an effect a relic can rescale lets the roll strip the passive after the card printed it. `disclosure.property.test.ts` fuzzes 2,500 careers; `validate:content` refuses the ordering. Re-run the property test whenever a mechanic starts rescaling printed numbers. |
 
 ## Working on this
 
@@ -271,6 +272,13 @@ then open the file for the story and the exact check.
 7. New `Effect` variant that is deterministic? Add it to `PROJECTABLE` in
    `src/engine/effects.ts`, or the offer card goes back to printing the
    authored number instead of the real one.
+   Changed how a relic, passive or clamp rescales a number a card prints, or
+   added an `Effect` that can land after a random one? `npm run test` includes
+   `src/engine/disclosure.property.test.ts` (2,500 seeded careers: nothing changes
+   that the resolution did not report, and the card equals the outcome) — read a
+   failure as a rule-1 defect, not a flaky test. `resume.property.test.ts` and
+   `gameReducer.property.test.ts` do the same for a saved career and the state
+   machine.
 8. New content field the UI reads? Make it **required** on the type and let the
    compiler name every fixture. `Ending.hint` found all fourteen call sites
    that way; an optional field would have rendered blank in two of them.
