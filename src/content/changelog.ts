@@ -21,6 +21,13 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-09-29T12:41:25Z': {
+    summary: 'Cards that cost you a relic now print the Followers and Standing you actually get.',
+    details: [
+      'Fixed a bug where a card that made you sell or lose a relic could show a better Followers or Standing figure than you got, if the relic you lost was the one changing it.',
+      'Eight choices were affected, including Settle in relics, Sell one piece and Sell her a relic for what you need.',
+    ],
+  },
   '2026-09-29T09:56:29Z': {
     summary: 'Each era now opens at the top of the screen, with small-phone fixes and a little haptic feedback.',
     details: [

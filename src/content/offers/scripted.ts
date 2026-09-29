@@ -193,11 +193,12 @@ export const scriptedOffers: Offer[] = [
         label: 'Pay everything you have',
         effects: [
           { t: 'followers', v: -80 },
-          { t: 'loseArtifact' },
-          { t: 'loseArtifact' },
           { t: 'pactDebt', v: -6 },
           { t: 'notoriety', v: -10 },
           { t: 'standing', factionId: 'ashen_covenant', v: 20 },
+          // Last: the loss must follow every effect a relic can rescale (validate-content.ts).
+          { t: 'loseArtifact' },
+          { t: 'loseArtifact' },
         ],
       },
       {
