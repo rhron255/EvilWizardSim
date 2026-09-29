@@ -96,6 +96,61 @@ The remaining lever for 375×667 is the run-ending counters (Loyalty, Pact Debt,
 Apprentices, Followers), disclosed by `CLAUDE.md` rule 1 — any change to how they
 are presented needs the owner to look at it first.
 
+## Rule 1 across the whole catalogue (second pass)
+
+`src/engine/disclosure.property.test.ts` plays 2,500 seeded careers against the
+REAL content, and after every resolution asserts that no stat and no relic changed
+by more than the resolution reported, that the card's printed effects are what the
+engine applied, that something is always pickable, and that nothing goes
+non-finite or out of range. Over 35,000 resolutions the engine held on every count
+but one, and that one was a real defect in eight effect lists (see failure mode
+20): a `loseArtifact` listed before a `followers` or `standing` effect let the
+random loss strip the relic that was rescaling it, so the card understated the
+cost (Choir standing printed −4, landed −8; Gilded Thumb followers printed +30,
+landed +20). Fixed by listing the loss last; `validate:content` now refuses the
+ordering. The test was red on the old catalogue and green on the new, and goes
+red if the engine changes a stat without reporting it or the card omits an effect.
+
+One difference is deliberate and one-directional and is excluded from the test: an
+`artifactFrom` in the same list is left unresolved on the card (resolving it would
+spoil the reveal), and a drawn relic can only help — no double-edged relic is ever
+drawn — so there the card is the worst case, not the exact case.
+
+Two more property tests sit beside it, each mutation-checked:
+
+- `resume.property.test.ts` saves a career at a random era, loads it back, and plays
+  the original and the resumed copy forward with the same choices to the ending,
+  asserting they never diverge (300 careers). The relic rework grew the saved run by
+  several fields, some defaulted on load; a lossy loader would not crash, it would
+  quietly make a resumed career play differently. It went red when the loader was
+  made to drop `firedOnce`.
+- `gameReducer.property.test.ts` throws 200,000 random action sequences — including
+  double-taps, stale clicks and out-of-range indices — at the real reducer and asserts
+  it never throws, never strands the player (no run screen without an offer or a
+  resolution, no ended run without a way to continue, no ending screen without an
+  ending) and never counts a career twice. Its first oracle counted "Continues sent
+  on an ended run", which a double-counting reducer satisfies by construction, so it
+  passed against the very bug it was written for; it now counts DISTINCT runs
+  finished (failure mode 11) and goes red, with the repro sequence, if that bug comes
+  back. It also asserts it reached 100+ finished careers, prophecies and endings, so
+  a pass cannot mean "it never left the title screen" — the first version finished
+  only 65 careers.
+
+**Content reach:** a purely random player draws 153 of the 155 offers over 6,000
+careers. The two never drawn (`oath_pale_academy`, `oath_crownlands`) need +50
+standing with one faction, which the sim's dedicated cohort probes reach (3.0% and
+1.0% of their cohorts), so that is a random policy failing to court, not dead
+content.
+
+**Choice quality**, measured with a spill-aware dominance scan (an option is
+dominated only if another beats it on expected value AND worst case, on every
+printed dimension, after `projectEffects`): 8 of 128 non-scripted cards (6%)
+contain a strictly dominated option, and none is a non-decision. A first version of
+that scan reported 21% and three no-decision cards; it was wrong because it counted
+only the authored standing line and ignored the spill a favour leaves on a
+faction's rivals — the printed card shows that spill and it IS the trade-off. The
+eight left are mostly deliberate stubborn/joke options ("Insist on the original").
+
 ## Release readiness
 
 `npm run assets` generates the favicon, touch and install icons, the manifest and
