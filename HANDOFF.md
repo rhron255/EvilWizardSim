@@ -220,7 +220,10 @@ live in `src/engine/constants.ts` and nowhere else. `qa/*.mjs` are Playwright
 probes — `playthrough.mjs` plays a real run and fails on console errors,
 `sweep-layout.mjs` audits every state across many careers, `probe-late-game.mjs`
 judges the header where the longest lair name meets the decline readout,
-`probe-era-scroll.mjs` plays like a thumb, and `first-run.mjs` is the shared
+`probe-era-scroll.mjs` plays like a thumb, `probe-keyboard.mjs` plays a whole career
+with no mouse (title to ending, focus and focus ring recorded at every transition;
+it found the launch popup dropping focus to `<body>` on close, now fixed), and
+`first-run.mjs` is the shared
 entry (`openApp`) that knows the launch popup and the tutorial are modal.
 
 ## The one habit that mattered

@@ -50,7 +50,7 @@ constraints below exist, and is the thing to read before relaxing any of them.
 | `src/screens/` | Screen composition. |
 | `scripts/` | `validate-content.ts`, `simulate.ts` (balance harness), `balance-report.ts` (renders the PR comment), `build-static-assets.ts` (`npm run assets`). |
 | `public/` | Favicon, touch/install icons, manifest and the link-preview image — generated from the game's own sigil by `npm run assets` and committed. |
-| `qa/` | Playwright probes. `sweep-layout.mjs` plays many careers and audits every state; `probe-late-game.mjs` and `probe-era-scroll.mjs` cover the worst-case header and the scroll reset. Screenshots are gitignored. |
+| `qa/` | Playwright probes. `sweep-layout.mjs` plays many careers and audits every state; `probe-late-game.mjs` and `probe-era-scroll.mjs` cover the worst-case header and the scroll reset; `probe-keyboard.mjs` plays a whole career with no mouse. Screenshots are gitignored. |
 | `wiki/` | Design intent and rationale. |
 
 ## Commands
@@ -262,7 +262,8 @@ then open the file for the story and the exact check.
    gets the screenshot that shows the new copy in place.
 4. New focusable control (button, link, anything a player can Tab to)? Tab to
    it and press Enter/Space before calling it done — a screenshot cannot show
-   a keypress (failure mode 15).
+   a keypress (failure mode 15). `node qa/probe-keyboard.mjs` plays a whole career
+   with no mouse and reports where focus lands at every transition.
 5. New test? Break the behaviour it pins and watch it go red — and check that
    the assertion is anchored to something the code under test does not also
    supply (failure mode 11).

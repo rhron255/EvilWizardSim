@@ -42,7 +42,16 @@ export function ChangelogPopup({ entries, themeId, onViewChangelog, onDismiss }:
   const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // A modal that takes focus must give it back. The title screen autofocuses
+    // "Begin a career" and this popup opens over it, so without this a keyboard
+    // player who dismisses it lands on <body> and has to Tab in from the top.
+    // `isConnected` covers "View changelog", which replaces the whole screen and
+    // takes the old control with it.
+    const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     viewRef.current?.focus({ preventScroll: true });
+    return () => {
+      if (before?.isConnected) before.focus({ preventScroll: true });
+    };
   }, []);
 
   useEffect(() => {

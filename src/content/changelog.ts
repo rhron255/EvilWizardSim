@@ -21,6 +21,12 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-09-29T13:06:47Z': {
+    summary: 'Closing the update popup now returns keyboard focus to Begin a Career.',
+    details: [
+      'Fixed a bug where dismissing this popup with the keyboard dropped focus to the top of the page instead of back onto Begin a Career.',
+    ],
+  },
   '2026-09-29T12:41:25Z': {
     summary: 'Cards that cost you a relic now print the Followers and Standing you actually get.',
     details: [
