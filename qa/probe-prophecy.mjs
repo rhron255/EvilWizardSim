@@ -1,13 +1,13 @@
 /** Land on the prophecy interstitial and hold there long enough to look at it. */
 import { chromium } from 'playwright';
-import { dismissFirstRunGuide } from './first-run.mjs';
+import { dismissFirstRunGuide, openApp } from './first-run.mjs';
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 2 });
 page.on('pageerror', (e) => console.log('PAGEERROR:', e.message));
 page.on('console', (m) => m.type() === 'error' && console.log('CONSOLE.ERR:', m.text()));
 
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle' });
+await openApp(page, 'http://localhost:5173/');
 await page.getByRole('button', { name: /begin a career/i }).click();
 await page.waitForTimeout(400);
 await page.getByRole('textbox').first().fill('Malachar the Unpaid');
@@ -41,9 +41,13 @@ for (let i = 0; i < 120 && !found; i++) {
     await page.waitForTimeout(220);
     continue;
   }
-  const cont = page.getByRole('button', { name: /continue|onward|proceed|go on|accept/i }).first();
-  if (!(await cont.isVisible().catch(() => false))) break;
-  await cont.click();
+  // The forward control is the last enabled non-option button. (This used to be
+  // a name regex containing `accept`, which matched the option card "Accept the
+  // duel" — disabled while the resolution animates — and hung for 30s.)
+  const flow = page.locator('button:not([data-option-index]):not([disabled])');
+  const flowCount = await flow.count().catch(() => 0);
+  if (!flowCount) break;
+  await flow.nth(flowCount - 1).click();
   await page.waitForTimeout(260);
 }
 

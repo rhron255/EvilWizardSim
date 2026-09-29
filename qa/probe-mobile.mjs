@@ -1,12 +1,12 @@
 /** Inspect the 400px layout: clipped stat captions and the overlay footer. */
 import { chromium } from 'playwright';
-import { dismissFirstRunGuide } from './first-run.mjs';
+import { dismissFirstRunGuide, openApp } from './first-run.mjs';
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 400, height: 900 }, deviceScaleFactor: 2 });
 page.on('pageerror', (e) => console.log('PAGEERROR:', e.message));
 
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle' });
+await openApp(page, 'http://localhost:5173/');
 await page.getByRole('button', { name: /begin a career/i }).click();
 await page.waitForTimeout(400);
 await page.getByRole('textbox').first().fill('Malachar the Unpaid');

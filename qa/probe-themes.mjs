@@ -16,6 +16,7 @@
  *   node qa/probe-themes.mjs [--url http://localhost:5173] [--width 393]
  */
 import { chromium } from 'playwright';
+import { openApp } from './first-run.mjs';
 import { mkdir } from 'node:fs/promises';
 
 const arg = (flag, fallback) => {
@@ -86,7 +87,7 @@ await page.addInitScript(() => {
   );
 });
 
-await page.goto(URL, { waitUntil: 'networkidle' });
+await openApp(page, URL);
 
 // --- reach the selector ------------------------------------------------------
 await page.getByRole('button', { name: /^Themes/ }).click();
@@ -112,7 +113,10 @@ const layout = await page.evaluate(() => {
 
 note(layout.horizontalOverflow <= 0, 'no horizontal overflow', `${layout.horizontalOverflow}px`);
 note(layout.columns === 2, 'two-column grid at 393px', `${layout.columns} columns`);
-note(layout.cardCount === 8, 'all eight themes present', `${layout.cardCount} cards`);
+// One theme per ending plus the default. The EXACT set is pinned by
+// `themes.test.ts`; hard-coding today's count here is what left this probe
+// asserting "eight" against twenty themes. Only check that the grid is populated.
+note(layout.cardCount >= 8, 'a swatch for every theme', `${layout.cardCount} cards`);
 note(
   layout.minCardHeight >= 44,
   'every swatch clears the 44px touch floor',
@@ -232,7 +236,7 @@ await page.evaluate(() => {
     }),
   );
 });
-await page.goto(URL, { waitUntil: 'networkidle' });
+await openApp(page, URL);
 await page.getByRole('button', { name: /^Themes/ }).click();
 await page.waitForTimeout(150);
 
@@ -251,7 +255,13 @@ const locked = await page.evaluate(() => {
   };
 });
 
-note(locked.disabled === 6, 'six themes locked for a one-ending player', `${locked.disabled}`);
+// A one-ending player has the default and that ending's theme; the rest are
+// locked. Structural, not a count, for the reason above.
+note(
+  locked.disabled === locked.total - 2,
+  'every theme but the default and the earned one is locked',
+  `${locked.disabled} of ${locked.total}`,
+);
 note(
   locked.withHintText === locked.disabled,
   'every locked swatch still shows its ending hint',

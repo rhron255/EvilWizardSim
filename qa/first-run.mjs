@@ -54,3 +54,18 @@ export async function skipFirstRunGuide(page) {
     localStorage.setItem(KEY, JSON.stringify({ ...c, version: 2, tutorialSeen: true }));
   });
 }
+
+/**
+ * Open the app the way a first-time visitor sees it, then clear the launch
+ * popup — the ONE place a probe should call `page.goto`.
+ *
+ * Issue #67's changelog popup is modal and shows on every fresh profile, and it
+ * intercepts pointer events over the whole title screen. Seven of eleven probes
+ * called a bare `page.goto` and timed out clicking "Begin a career" behind it:
+ * the check had rotted while the game was fine. Routing every probe through
+ * here means the next modal that greets a fresh profile is fixed once.
+ */
+export async function openApp(page, url = 'http://localhost:5173/') {
+  await page.goto(url, { waitUntil: 'networkidle' });
+  await dismissChangelogPopup(page).catch(() => {});
+}
