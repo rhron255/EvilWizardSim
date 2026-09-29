@@ -26,7 +26,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RunState, ThemeId } from '../types';
-import { Sigil, themeAttr, tierVars } from '../components/meta';
+import { beat, Sigil, themeAttr, tierVars } from '../components/meta';
 import styles from './ProphecyInterstitial.module.css';
 
 export type ProphecyInterstitialProps = {
@@ -52,6 +52,8 @@ export type ProphecyInterstitialProps = {
  */
 const CUES = [120, 520, 1000, 1620, 2160, 2900] as const;
 const FINAL = CUES.length;
+/** The stage at which the headline appears (`at(3)` below). */
+const HEADLINE_STAGE = 3;
 
 function prefersReducedMotion(): boolean {
   return (
@@ -104,6 +106,14 @@ export function ProphecyInterstitial({
     if (stage >= FINAL) continueRef.current?.focus({ preventScroll: true });
   }, [stage]);
 
+  // The headline — "A child is born" — is the moment the run flips. Marked when
+  // the reveal actually reaches it, so a player who skips the staging (or asks
+  // for reduced motion, where the stages are not played) is not buzzed for a
+  // beat they did not watch.
+  useEffect(() => {
+    if (stage === HEADLINE_STAGE) beat('prophecy');
+  }, [stage]);
+
   const at = (n: number) => (stage >= n ? styles.in : styles.out);
 
   return (
@@ -135,7 +145,7 @@ export function ProphecyInterstitial({
           {run.wizardName} is <span className={styles.num}>{run.age}</span> years old
         </p>
 
-        <h1 className={`${styles.headline} ${at(3)}`}>
+        <h1 className={`${styles.headline} ${at(HEADLINE_STAGE)}`}>
           <span className={styles.headlineLine}>A child</span>
           <span className={styles.headlineLine}>is born</span>
         </h1>

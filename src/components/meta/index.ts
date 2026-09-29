@@ -63,3 +63,6 @@ export { ChangelogPopup } from './ChangelogPopup';
 export type { ChangelogPopupProps } from './ChangelogPopup';
 
 export { formatChangelogVersion } from './changelogFormat';
+
+export { beat, BEATS } from './haptics';
+export type { Beat } from './haptics';
