@@ -44,12 +44,13 @@ constraints below exist, and is the thing to read before relaxing any of them.
 | `src/version.ts` | `BUILD_VERSION` — bump it and add a `src/content/changelog.ts` entry on every player-visible change (issue #67). |
 | `src/theme/` | Design tokens (`tokens.ts` for JS, `tokens.css` for `--ew-*`). |
 | `src/engine/` | Run state, offer sampling, resolution, endings, persistence. |
-| `src/content/` | Factions, artifacts, lairs, origins, endings, epithets, ~130 offers, the changelog. |
-| `src/components/run/` | The run loop: ledger, offer panel, notoriety badge. |
+| `src/content/` | Factions, artifacts, lairs, origins, endings, epithets, 155 offers, the changelog. |
+| `src/components/run/` | The run loop: masthead, faction standings, decision and offer panels, resolution overlay, relic page, notoriety badge. |
 | `src/components/meta/` | Set-piece parts: lair grid, artifact grid, sigil. |
 | `src/screens/` | Screen composition. |
-| `scripts/` | `validate-content.ts`, `simulate.ts` (balance harness), `balance-report.ts` (renders the PR comment). |
-| `qa/` | Playwright probes. Screenshots are gitignored. |
+| `scripts/` | `validate-content.ts`, `simulate.ts` (balance harness), `balance-report.ts` (renders the PR comment), `build-static-assets.ts` (`npm run assets`). |
+| `public/` | Favicon, touch/install icons, manifest and the link-preview image — generated from the game's own sigil by `npm run assets` and committed. |
+| `qa/` | Playwright probes. `sweep-layout.mjs` plays many careers and audits every state; `probe-late-game.mjs` and `probe-era-scroll.mjs` cover the worst-case header and the scroll reset. Screenshots are gitignored. |
 | `wiki/` | Design intent and rationale. |
 
 ## Commands
@@ -150,8 +151,10 @@ These come from a game that worked at scale. They look arbitrary in isolation.
    works because a number quietly goes the wrong way. Note this bans *announcing
    a losing phase* — it does not ban explaining what a mechanic does.
 6. **Every ending must be reachable.** The collection shows a slot for each of
-   the twelve — the original seven plus the five faction reprisals of issue
-   #14 — and the header shows an empty Ascension trophy from era one.
+   the nineteen — the original seven, the five faction reprisals of issue #14,
+   the five faction leaderships of its second slice, the Good Wizard (#23) and
+   the Arch-Lich (#25) — and the header shows an empty Ascension trophy from
+   era one.
    `npm run sim` checks this; three endings were once unreachable and the run
    felt hollow, and three of the reprisals arrived unreachable for exactly the
    same reason (the catalog let you court a faction on purpose and only offend
@@ -194,6 +197,17 @@ that followed it.
    expanded, where reading all six is the point and nothing above is deputizing
    for it any more.)
 
+4. **Feel is a garnish, never a channel.** The game has haptics and no audio, on
+   purpose: its voice is text and its one earned colour is the tier badge, so a
+   sound would be a second, louder voice. A haptic beat rides a visual event that
+   is already on screen (the verdict word's own `animationstart`, never a
+   `setTimeout` that could drift from the stylesheet), carries nothing the card
+   does not already print, is silent for a certain choice, and is inert under
+   reduced motion and on platforms without `navigator.vibrate`. It needs no
+   setting and no disclosure *because* it carries no information — the moment a
+   beat means something a player could miss, it is a disclosure and rule 1
+   applies. See `src/components/meta/haptics.ts`.
+
 ## Failure modes this repo has actually produced
 
 Every one of these shipped, typechecked cleanly, and was found by a player or by
@@ -221,6 +235,8 @@ then open the file for the story and the exact check.
 | 15 | Verified at one width, with no hand on the keyboard | Shoot the 393px reference AND 320px; tab to and activate every new focusable control. |
 | 16 | An engine's own name for itself leaks onto the card | `rg` the shipped string for any internal identifier (a mechanic's own name, a constant, a field) before calling player-facing text done. |
 | 17 | A fallback strings a name together while the real one sits unused | `rg` a "display fallback only" helper's call sites; confirm each one actually lacks the real content, or has simply never been given it. |
+| 18 | State that outlives the screen that set it | Anything shared across screens (scroll, focus, storage) needs an owner that resets it on the transition. Drive the game the way a thumb does — scroll to the last card, tap, continue, read `scrollY` (`qa/probe-era-scroll.mjs`). |
+| 19 | Probes that rotted while the game was fine | Every probe enters through `openApp` (`qa/first-run.mjs`); assert structure not counts; when something every player meets first changes, run every probe once. |
 
 ## Working on this
 
@@ -233,6 +249,9 @@ then open the file for the story and the exact check.
    PNGs back**, then repeat at `--width 320 --height 568` for anything with a
    row of controls (failure mode 15). 393px is the target device, not an
    afterthought; 320px is where a row that fit there runs out of room.
+   A layout change also gets `node qa/sweep-layout.mjs` at both widths — a
+   random playthrough almost never reaches the longest lair name or the
+   tallest card, and the sweep does.
    **Opening or updating a PR for a visual change always attaches the
    screenshot(s) that prove it** — the same PNGs this step already produces,
    not a fresh round taken just for the PR. A reviewer approving a UI change

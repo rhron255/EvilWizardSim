@@ -13,7 +13,7 @@ CREATION → ASCENT → [the prophecy] → DECLINE → ENDING → COLLECTION
 ```
 
 You name a wizard, pick an origin, and then make roughly fifteen decisions.
-Each one appends a row to a ledger that never resets. Partway through, a
+Each one adds to a career record that never resets. Partway through, a
 prophecy fires: a chosen one is born, and the run flips from chasing upside to
 defending what you built.
 
@@ -38,8 +38,11 @@ they come from analysis of a game that worked at scale, recorded in
   prints its threshold and its distance. Pact debt has no such tick: it moves
   only on cards you accepted, and the pressure comes from the Covenant's
   offers surfacing more often the more you owe.
-- **The ledger appends, never resets.** By the late run you are looking at a
-  table with fifteen eras in it, and that is what makes quitting expensive.
+- **The record appends, never resets.** Every era writes a permanent line to
+  the career, and by the late run there are fifteen of them behind you — that
+  is what makes quitting expensive. (The table itself no longer sits on the run
+  screen, to leave the choice cards room on a phone; the ending card is where
+  the record is read. See `CLAUDE.md` rule 2.)
 - **One scarce color.** The palette is a near-monochrome warm dark. The only
   chromatic *reward a run pays out* is the Notoriety tier badge. Two semantic
   accents exist and are spent nowhere else: the red/green pair an offer card
@@ -66,11 +69,14 @@ npm run test             # vitest, single pass
 npm run lint             # eslint, zero warnings tolerated
 npm run validate:content # faction refs, option counts, disclosed effects
 npm run sim              # headless balance harness over N runs
+npm run assets           # regenerate favicon, install icons and the link preview
 ```
 
-The correctness gate for a change is **`npm run typecheck`, `npm run test` and
-`npm run lint`**, all three. Content changes additionally need
-`npm run validate:content`. Balance changes need `npm run sim`.
+The correctness gate for a change is **`npm run typecheck`, `npm run test`,
+`npm run lint` and `npm run validate:content`**, all four. Balance changes
+need `npm run sim`. Visual changes need a real browser: `node
+qa/playthrough.mjs` at 393×852 and 320×568, and `node qa/sweep-layout.mjs`
+(see `CLAUDE.md` § Before calling a change done).
 
 ### Deployment
 
@@ -96,7 +102,9 @@ workflow cannot turn that on for itself.
 | `src/content/` | Factions, artifacts, lairs, origins, endings, offers. |
 | `src/components/` | Presentational only. No game state. |
 | `src/screens/` | Screen-level composition. |
-| `scripts/` | Content validation and the balance simulator. |
+| `scripts/` | Content validation, the balance simulator and the static-asset generator. |
+| `public/` | Favicon, install icons, manifest and the link-preview image. |
+| `qa/` | Playwright probes — the browser half of the gate. |
 | `wiki/` | The design wiki. Intent and rationale, not API docs. |
 
 ## Attribution

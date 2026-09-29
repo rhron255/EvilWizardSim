@@ -9,11 +9,11 @@ description: Schemas for run state, eras, factions, artifacts and offers, plus b
 
 | Area | Status | Notes |
 |------|--------|-------|
-| Schemas | Planned | Drafted below; not implemented or reviewed. |
+| Schemas | Built | The drafts below are the **original** shapes. The frozen contract is `src/types.ts` and is much larger (relic powers, run counters, resolutions); where they disagree, the code is right. |
 | Notoriety tiers | Measured | Thresholds held against 2000 real runs; see the tuning task below. |
-| Faction catalog | Missing | Six proposed, none written. |
-| Artifact catalog | Missing | Target 30; none written. |
-| Offer/event catalog | Missing | Target 80–120; none written. |
+| Faction catalog | Built | Six factions, each with blurb, demand, `hostileTo` and a relic theme (`reliquary`). |
+| Artifact catalog | Built | **32 relics** (16 common / 10 rare / 6 legendary). Every one carries a power: 14 triggers, 11 passives, 5 actives, 2 lifelines (issue #77). |
+| Offer/event catalog | Built | **155 offers** — 49 ascent, 60 decline, 46 either. Target was 80–120. |
 
 ## Design Intent
 
@@ -31,7 +31,12 @@ currency. See `01_core_loop.md`.
 
 ## Schemas
 
-Draft TypeScript shapes. Not final.
+The **original draft** shapes, kept because they show what the design
+needed before the code existed. They are not the contract — `src/types.ts`
+is. Missing here, for instance: `RelicPower` and its trigger/passive/active/
+lifeline variants, `relicState`, `startingArtifactIds`, the hidden
+`goodActs`/`illActs` counters, `Resolution`, and everything a saved run
+carries.
 
 ```ts
 type RunState = {
@@ -150,12 +155,12 @@ the behavior that produces hundred-run players.
 
 ## Artifacts
 
-- Target **30** at launch.
-- The collection grid shows all 30 slots from run one; undiscovered ones
+- **32** in the catalogue (the launch target was 30).
+- The collection grid shows every slot from run one; undiscovered ones
   render as **silhouettes with the name hidden**. The visible gap is the
   point.
-- Rarity mix proposal: 16 common, 10 rare, 4 legendary. (Now 6 legendary / 32
-  total — see the #22 update below.)
+- Rarity mix: 16 common, 10 rare, 6 legendary (the original proposal was 4
+  legendary; see the #22 update below).
 - Legendary artifacts gate the Ascension ending.
 
 ### How fast the grid actually fills — measured
@@ -226,8 +231,8 @@ seeds 1–7 then landed at 1.15–1.85%.
 
 ## Offers & Events
 
-- Target **80–120** authored offers for launch; below ~60 repetition
-  becomes obvious within a session.
+- 155 authored offers (the launch target was **80–120**; below ~60
+  repetition becomes obvious within a session).
 - Every probabilistic option **must** display its odds and both outcomes
   before the player commits. This is non-negotiable — it is the primary
   agency mechanism.
@@ -246,16 +251,18 @@ seeds 1–7 then landed at 1.15–1.85%.
 
 ## Naming Rules
 
-- Wizard names: player-supplied, unvalidated except for length. Needs a
-  profanity screen before any public sharing feature ships.
+- Wizard names: player-supplied, unvalidated except for length. There is
+  deliberately no profanity screen (`index-1.md` § Decisions): nothing is
+  published, the share image is the player's own. Void if the game ever hosts
+  names.
 - Epithets: generated from the highest-magnitude deed of the run.
 - Lairs: fixed authored list, tiered. Names carry the progression.
 
 ## Open Tasks
 
-- [ ] Confirm the three-currency split survives prototype.
-- [ ] Write the six faction blurbs and demand rules.
-- [ ] Author 30 artifacts with faction assignment and flavor.
-- [ ] Author a first 20 offers spanning both phases for the vertical slice.
+- [x] Confirm the three-currency split survives prototype.
+- [x] Write the six faction blurbs and demand rules.
+- [x] Author the artifacts with faction assignment and flavor (32).
+- [x] Author the offers, spanning both phases (155).
 - [x] Tune Notoriety tier thresholds against real run distributions. Measured 2026-08-23 against 2000 runs of the real catalog: the 0-39 / 40-59 / 60-74 / 75-89 / 90-99 bands survive measurement unchanged, and `npm run sim` now carries a target for the 40+ crossing (70-95%, currently 87.70%) alongside the 60+/75+/90+ ones it already had. The first tier crossing — the first time the rationed colour does anything — had never been measured.
-- [ ] Add profanity screening before sharing ships.
+- [x] Profanity screening — decided against; see `index-1.md` § Decisions.
