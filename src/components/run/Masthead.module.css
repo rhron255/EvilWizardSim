@@ -27,7 +27,7 @@
      fifteen eras earning, and they were the ones cut short with an ellipsis. */
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0 var(--ew-space-2);
+  gap: 0 var(--ew-space-3);
   margin: 0 0 var(--ew-space-2);
   font-size: var(--ew-size-xs);
   text-transform: uppercase;

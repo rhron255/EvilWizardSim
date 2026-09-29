@@ -124,6 +124,15 @@ describe('Masthead · identity', () => {
     expect(screen.getByText('The Sunless Cathedral')).toBeInTheDocument();
   });
 
+  it('puts no separator glyph between the era and the lair, so a wrap cannot strand one', () => {
+    // The lair wraps onto its own line whenever it will not fit beside the era
+    // (always at 320px, and for the crown lairs at 393). A "·" between them then
+    // hung at the end of line one. The gap and the ink do the separating instead.
+    show(demoRun);
+    const eyebrow = screen.getByText('Era 12 of 18').parentElement!;
+    expect(eyebrow.textContent).toBe('Era 12 of 18The Sunless Cathedral');
+  });
+
   it('shows the Ascension slot from era one, unearned', () => {
     // wiki/04 § Near-Miss Tuning: the empty trophy is the promise. It is never
     // explained and it is never hidden.

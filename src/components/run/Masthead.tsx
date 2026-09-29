@@ -47,9 +47,13 @@ export function Masthead({ run, lairs, hasAscensionTrophy }: MastheadProps) {
           <span className="ew-num">
             Era {Math.min(run.eraIndex + 1, run.eraCount)} of {run.eraCount}
           </span>
-          <span className={styles.dot} aria-hidden="true">
-            ·
-          </span>
+          {/* No separator glyph between the era and the lair. The lair wraps onto
+              its own line when it will not fit beside the era (always, at 320px,
+              and for the crown lairs at 393), and a "·" between them then hangs
+              at the end of the first line — the same stranded separator the
+              ending card had. A wider gap and the era's fainter ink do the
+              separating without a glyph that can end up on the wrong side of a
+              line break. */}
           <span className={styles.lair} title="A better lair wards off the hero">
             {lair?.name ?? run.lairId}
           </span>
