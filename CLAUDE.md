@@ -67,8 +67,13 @@ npm run sim              # 2000-run balance report, always against real content
 
 CI posts the balance numbers on every PR as one comment that updates in place
 (`.github/workflows/ci.yml` → `balance`). It runs `simulate.ts --report-json`
-over five seeds on the branch and on its merge base, and
-`scripts/balance-report.ts` renders the diff. Two things it deliberately does
+over five seeds on the branch and compares against the base commit's numbers,
+and `scripts/balance-report.ts` renders the diff. The base's numbers are not
+re-measured every time: the sim is deterministic per seed, so they are cached
+by commit (`scripts/balance-cache-key.ts` builds the key), seeded by the
+`balance-baseline` job on every push to main, and measured for real only on a
+miss (a PR opened before its base finished seeding, or a stacked PR whose base
+is another PR branch). The step summary says which happened. Two things it deliberately does
 NOT do: gate the merge (the sim has disclosed standing FAILs, so blocking on it
 would invite someone to relax a band to get green), and report a movement
 smaller than the spread the seeds themselves show (a two-career swing on a

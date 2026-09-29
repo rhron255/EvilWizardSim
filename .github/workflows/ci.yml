@@ -9,6 +9,16 @@ on:
 permissions:
   contents: read
 
+# The balance measurement, defined once so the two jobs that share a cache cannot
+# disagree about what they measured. `scripts/balance-cache-key.ts` refuses to
+# build a key if any of these (or the two COMPLETION_ settings each job sets) is
+# missing, and puts every one of them in the key.
+env:
+  BALANCE_SEEDS: "1 2 3 4 5"
+  # Bump to discard every cached base measurement — do it when the way the sim is
+  # invoked below changes in a way the key does not already capture.
+  BALANCE_CACHE_VERSION: v1
+
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -60,14 +70,18 @@ jobs:
     runs-on: ubuntu-latest
     # Measured, not guessed: five seeds on one ref take ~7 minutes on a good
     # runner and ~14 on a slow one (2026-09-29: 7m19s and 13m56s for the same
-    # step on two runs), and the job measures TWO refs one after the other. At 15
-    # minutes it sat just under the limit on a good day and was cancelled on a
-    # slow one — most recent pull-request runs were cancelled mid-way through the
-    # merge-base measurement, so the report never posted. 40 leaves room for the
-    # slow case; this is measurement, not a gate, so a generous limit costs
-    # nothing but runner minutes.
+    # step on two runs). The base ref's numbers are cached by commit (below), so
+    # most runs now measure ONE ref; but a cache miss still measures two, one
+    # after the other, and at the old 15-minute limit a slow runner was cancelled
+    # mid-way through the second — most recent pull-request runs were, and the
+    # report never posted. 40 leaves room for the slow, cold case; this is
+    # measurement, not a gate, so a generous limit costs nothing but runner
+    # minutes.
     timeout-minutes: 40
     if: github.event_name == 'pull_request'
+    env:
+      COMPLETION_PLAYERS: 1
+      COMPLETION_CAP: 1
 
     permissions:
       contents: read
@@ -89,20 +103,46 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Which commit the comparison is against, and the key its numbers are cached
+      # under. For a pull_request event HEAD is the synthetic merge commit, so
+      # `merge-base HEAD origin/<base>` resolves to the base branch's tip — a real
+      # commit, and for a PR into main exactly the commit the baseline job below
+      # measured when it landed there.
+      - name: Find the base commit
+        id: base
+        run: |
+          base="$(git merge-base HEAD "origin/${{ github.base_ref }}")"
+          echo "sha=$base" >> "$GITHUB_OUTPUT"
+          echo "key=$(npx tsx scripts/balance-cache-key.ts "$base")" >> "$GITHUB_OUTPUT"
+          echo "Base commit: $base"
+
+      # The sim is deterministic per seed, so the base commit's numbers are a pure
+      # function of the commit: measuring them again on every pull request is
+      # wasted runner time. Exact key only — no `restore-keys`: a prefix match
+      # would serve some OTHER commit's numbers, which is worse than a miss.
+      #
+      # GitHub scopes caches: one saved during a pull-request run is visible only to
+      # that pull request (which still helps every re-run and new push to it), while
+      # one saved on the default branch is visible to all of them. The
+      # `balance-baseline` job below is what saves them on main.
+      - name: Restore the base numbers, if this commit has been measured before
+        id: base-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/balance/base
+          key: ${{ steps.base.outputs.key }}
+
       # The completion probe is the biggest single cost of a default sim run and
       # is independently seeded, so dropping it leaves every other number
       # bit-identical while making five seeds on two refs affordable. It is no
       # longer "~10s a seed" — the cohort probes added since (the 10,000-run
       # Arch-Lich cohort among them) keep a seed at ~85-170s on a runner, which
-      # is why the job's limit below is what it is. `balance-report.ts`
+      # is why the job's limit above is what it is. `balance-report.ts`
       # omits the checks that depend on it rather than reporting them red.
       - name: Measure this branch
-        env:
-          COMPLETION_PLAYERS: 1
-          COMPLETION_CAP: 1
         run: |
           mkdir -p /tmp/balance/head
-          for seed in 1 2 3 4 5; do
+          for seed in $BALANCE_SEEDS; do
             npx tsx scripts/simulate.ts --seed "$seed" \
               --report-json "/tmp/balance/head/seed$seed.json" > /dev/null
           done
@@ -112,24 +152,55 @@ jobs:
       # therefore expected and non-fatal: the report degrades to head-only and
       # says on the comment that it did.
       - name: Measure the merge base
+        if: steps.base-cache.outputs.cache-hit != 'true'
         continue-on-error: true
-        env:
-          COMPLETION_PLAYERS: 1
-          COMPLETION_CAP: 1
         run: |
           mkdir -p /tmp/balance/base
           # Explicit SHA rather than `checkout -`: for a pull_request event the
           # action has already left us on a detached merge commit, and coming
           # back via @{-1} is a worse thing to depend on than a variable.
           head_sha="$(git rev-parse HEAD)"
-          base="$(git merge-base HEAD "origin/${{ github.base_ref }}")"
+          base="${{ steps.base.outputs.sha }}"
           echo "Merge base: $base"
           git checkout --quiet --detach "$base"
-          for seed in 1 2 3 4 5; do
+          for seed in $BALANCE_SEEDS; do
             npx tsx scripts/simulate.ts --seed "$seed" \
               --report-json "/tmp/balance/base/seed$seed.json" > /dev/null || true
           done
           git checkout --quiet --force "$head_sha"
+
+      # Only a COMPLETE set is worth keeping. The step above tolerates every seed
+      # failing (an older base has no `--report-json`), and caching that empty
+      # result under the commit's key would hand every later pull request "no
+      # base numbers" without ever re-trying.
+      - name: Check the base numbers are complete
+        id: base-complete
+        if: steps.base-cache.outputs.cache-hit != 'true'
+        run: |
+          complete=true
+          for seed in $BALANCE_SEEDS; do
+            f="/tmp/balance/base/seed$seed.json"
+            if ! { [ -s "$f" ] && node -e 'JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))' "$f" 2>/dev/null; }; then
+              complete=false
+            fi
+          done
+          echo "complete=$complete" >> "$GITHUB_OUTPUT"
+
+      - name: Save the base numbers for the next run
+        if: steps.base-cache.outputs.cache-hit != 'true' && steps.base-complete.outputs.complete == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: /tmp/balance/base
+          key: ${{ steps.base.outputs.key }}
+
+      - name: Say where the base numbers came from
+        run: |
+          if [ "${{ steps.base-cache.outputs.cache-hit }}" = "true" ]; then
+            echo "Base numbers for ${{ steps.base.outputs.sha }} were restored from the cache, not re-measured." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Base numbers for ${{ steps.base.outputs.sha }} were measured in this run." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo >> "$GITHUB_STEP_SUMMARY"
 
       - name: Render the comment
         run: |
@@ -173,3 +244,78 @@ jobs:
                 owner, repo, issue_number, body,
               });
             }
+
+  # Seeds the cache the pull-request job above reads. Every push to main measures
+  # that commit's numbers once and saves them under its key, so the next pull
+  # request based on it restores them instead of re-measuring (the sim is
+  # deterministic, so the result is identical either way).
+  #
+  # It has to run on main because of how GitHub scopes caches: one saved during a
+  # pull-request run is visible only to that pull request, one saved on the default
+  # branch to all of them. A pull request opened before this job finishes simply
+  # misses and measures for itself — slower, never wrong. The workflow's
+  # concurrency group cancels an in-progress run when main is pushed again, so a
+  # burst of merges leaves only the newest commit seeded.
+  balance-baseline:
+    name: Balance baseline (main)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    if: github.event_name == 'push'
+    env:
+      COMPLETION_PLAYERS: 1
+      COMPLETION_CAP: 1
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Work out the cache key for this commit
+        id: base
+        run: echo "key=$(npx tsx scripts/balance-cache-key.ts "$GITHUB_SHA")" >> "$GITHUB_OUTPUT"
+
+      # A re-run of the same commit finds it already saved and skips the work.
+      - name: Is this commit already measured?
+        id: have
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/balance/base
+          key: ${{ steps.base.outputs.key }}
+          lookup-only: true
+
+      - name: Measure this commit
+        if: steps.have.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p /tmp/balance/base
+          for seed in $BALANCE_SEEDS; do
+            npx tsx scripts/simulate.ts --seed "$seed" \
+              --report-json "/tmp/balance/base/seed$seed.json" > /dev/null
+          done
+
+      - name: Check the numbers are complete
+        id: complete
+        if: steps.have.outputs.cache-hit != 'true'
+        run: |
+          complete=true
+          for seed in $BALANCE_SEEDS; do
+            f="/tmp/balance/base/seed$seed.json"
+            if ! { [ -s "$f" ] && node -e 'JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))' "$f" 2>/dev/null; }; then
+              complete=false
+            fi
+          done
+          echo "complete=$complete" >> "$GITHUB_OUTPUT"
+
+      - name: Save them for the pull requests that build on this commit
+        if: steps.have.outputs.cache-hit != 'true' && steps.complete.outputs.complete == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: /tmp/balance/base
+          key: ${{ steps.base.outputs.key }}
