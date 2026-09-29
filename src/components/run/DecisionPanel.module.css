@@ -10,9 +10,10 @@
 }
 
 /* --------------------------------------------------------------------------
-   Status: the next-threat line and the patron line. Both ambient, both
-   unconditional (patron's "None yet" state is the honest rendering of a
-   career nobody has courted yet, not an omission).
+   Status: the next-threat line and the patron line. Both ambient. The threat
+   line is unconditional; the patron line appears only once there is a patron
+   (it used to render "None yet" for a career nobody had courted — ~30px of a
+   screen with none to spare, on every era).
    -------------------------------------------------------------------------- */
 
 .status {

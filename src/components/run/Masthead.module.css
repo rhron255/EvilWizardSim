@@ -21,8 +21,13 @@
 
 .eyebrow {
   display: flex;
+  /* The lair name wraps under the era count when it will not fit beside it,
+     instead of being clipped: the crown lairs ("Citadel of Nine Winters", "The
+     Mouth of the World") are the longest names and the ones a career spent
+     fifteen eras earning, and they were the ones cut short with an ellipsis. */
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: var(--ew-space-2);
+  gap: 0 var(--ew-space-2);
   margin: 0 0 var(--ew-space-2);
   font-size: var(--ew-size-xs);
   text-transform: uppercase;
@@ -31,9 +36,8 @@
 }
 
 .lair {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  /* Shrinkable, so a name wider than the whole column still wraps inside it. */
+  min-width: 0;
   color: var(--ew-ink-dim);
 }
 
@@ -49,8 +53,9 @@
   text-wrap: pretty;
 }
 
-.ageLine {
-  margin: var(--ew-space-2) 0 0;
+/* The separator and the age wrap as one unit — see the note in Masthead.tsx. */
+.ageTag {
+  white-space: nowrap;
 }
 
 .name {

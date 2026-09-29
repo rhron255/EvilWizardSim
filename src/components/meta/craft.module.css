@@ -175,7 +175,12 @@
   composes: btn;
   min-height: 52px;
   padding: 0 var(--ew-space-6);
-  color: var(--ew-tier);
+  /* The tier hue, lifted toward the ink. Plain `--ew-tier` on the Unknown tier
+     (#7A7365, which is what a first-time player has) is ~3.8:1 against the
+     button's own panel — under the 4.5:1 a 16px label needs, and on the very
+     first button anyone sees it read as disabled. The border, tint and glow
+     still carry the pure tier colour; only the letters are lifted. */
+  color: color-mix(in srgb, var(--ew-tier) 55%, var(--ew-ink-bright));
   border-color: color-mix(in srgb, var(--ew-tier) 55%, transparent);
   background: color-mix(in srgb, var(--ew-tier) 7%, var(--ew-panel));
   box-shadow: var(--ew-lip);

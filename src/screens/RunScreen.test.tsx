@@ -12,7 +12,7 @@
  * the switch is thrown, and a switch that stops being thrown is exactly the
  * kind of silent regression this repo keeps producing.
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ContentBundle } from '../engine';
@@ -103,28 +103,34 @@ const demoOffer = realOfferWhere('a card that names no faction', (o) =>
   ),
 );
 
+const screenFor = (
+  run: RunState,
+  themeId: ThemeId = 'default',
+  resolution: Resolution | null = null,
+  onContinue: () => void = () => {},
+) => (
+  <RunScreen
+    run={run}
+    offer={demoOffer}
+    resolution={resolution}
+    lairs={lairs}
+    artifacts={artifacts}
+    factions={factions}
+    content={content}
+    onChoose={() => {}}
+    onContinue={onContinue}
+    onUseRelic={() => {}}
+    defense={null}
+    themeId={themeId}
+  />
+);
+
 const show = (
   run: RunState,
   themeId: ThemeId = 'default',
   resolution: Resolution | null = null,
   onContinue: () => void = () => {},
-) =>
-  render(
-    <RunScreen
-      run={run}
-      offer={demoOffer}
-      resolution={resolution}
-      lairs={lairs}
-      artifacts={artifacts}
-      factions={factions}
-      content={content}
-      onChoose={() => {}}
-      onContinue={onContinue}
-      onUseRelic={() => {}}
-      defense={null}
-      themeId={themeId}
-    />,
-  );
+) => render(screenFor(run, themeId, resolution, onContinue));
 
 describe('RunScreen · the lich tint', () => {
   it('leaves a living wizard warm', () => {
@@ -245,5 +251,60 @@ describe('RunScreen · the relic page', () => {
     await userEvent.keyboard('{Enter}');
 
     expect(screen.getByRole('button', { name: /Relics · 5/ })).toHaveFocus();
+  });
+});
+
+describe('RunScreen · a new era starts at the top', () => {
+  // The page scrolls as one column, and on a phone the choice cards run past
+  // the fold — so a player who scrolled down to reach option 3 tapped it,
+  // read the result, and came back to the NEXT era still scrolled 100–370px
+  // down: the wizard's name and standings off the top, the new offer's own
+  // heading sometimes with them. Nothing reset it once the tab split (which
+  // did) was removed. Measured in a real browser: at 320px every era after
+  // the first opened 275–372px down the page.
+  const resolution: Resolution = {
+    outcome: 'deterministic',
+    appliedEffects: [],
+    text: 'Done.',
+    artifactsGained: [],
+    newToCollection: [],
+    artifactsLost: [],
+    relicEvents: [],
+    notorietyDelta: 0,
+    systemic: [],
+    eraRecord: eras[eras.length - 1],
+  };
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('scrolls to the top when the resolution is dismissed', () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    const { rerender } = show(demoRun, 'default', resolution);
+    scrollTo.mockClear();
+
+    rerender(screenFor(demoRun, 'default', null));
+
+    expect(scrollTo).toHaveBeenCalledWith(0, 0);
+  });
+
+  it('does not move the page while the resolution is opening over it', () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    const { rerender } = show(demoRun);
+    scrollTo.mockClear();
+
+    rerender(screenFor(demoRun, 'default', resolution));
+
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+
+  it('leaves the page where it is when the relic page is opened and closed', async () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    show(demoRun);
+    scrollTo.mockClear();
+
+    await userEvent.click(screen.getByRole('button', { name: /Relics · 5/ }));
+    await userEvent.click(screen.getAllByRole('button', { name: /Back to the decision/ })[0]);
+
+    expect(scrollTo).not.toHaveBeenCalled();
   });
 });

@@ -94,14 +94,28 @@ describe('Masthead · identity', () => {
   it('reads as one sentence: name, epithet, full stop', () => {
     show(demoRun);
     const line = screen.getByRole('heading', { name: 'Malvorn Ashgrave' }).parentElement!;
-    expect(line.textContent).toBe('Malvorn Ashgrave, the Unpaid Debt.');
+    // The age follows the sentence as a tag; it is not part of it.
+    expect(line.textContent).toMatch(/^Malvorn Ashgrave, the Unpaid Debt\./);
+    expect(screen.getByText(/, the Unpaid Debt\./).textContent).toBe(', the Unpaid Debt.');
   });
 
-  it('keeps the age out of that sentence, on its own line', () => {
+  it('sets the age after that sentence, in the same run of text — not on a line of its own', () => {
+    // The age used to be a paragraph under the name: 25px of the one screen with
+    // none to spare, on every era, for a number that changes once each era. It
+    // rides the tail of the epithet line instead, which is usually half empty.
     show(demoRun);
     const line = screen.getByRole('heading', { name: 'Malvorn Ashgrave' }).parentElement!;
-    expect(line.textContent).not.toMatch(/Age/);
-    expect(screen.getByText('Age 75')).toBeInTheDocument();
+    expect((line.textContent ?? '').replace(/\s+/g, ' ').trim()).toBe(
+      'Malvorn Ashgrave, the Unpaid Debt. · Age 75',
+    );
+    expect(screen.getByText('Age 75').closest('p')).toBeNull();
+  });
+
+  it('keeps the age with its separator when the line wraps, so a dot never dangles', () => {
+    show(demoRun);
+    const tag = screen.getByText('Age 75').parentElement!;
+    // The dot and the age are one unit that wraps together (CSS: nowrap).
+    expect(tag.textContent).toMatch(/·\s*Age 75/);
   });
 
   it('names the era out of the total, and the lair', () => {
@@ -144,6 +158,8 @@ describe('Masthead · the lich says so', () => {
     // and this renders "the Unpaid Debt.·Undying".
     show(lich());
     const line = screen.getByRole('heading', { name: 'Malvorn Ashgrave' }).parentElement!;
-    expect(line.textContent).toBe('Malvorn Ashgrave, the Unpaid Debt. · Undying');
+    // The age follows as its own tag, after Undying; the sentence and Undying
+    // are still joined by real spaces around a real separator.
+    expect(line.textContent).toBe('Malvorn Ashgrave, the Unpaid Debt. · Undying · Age 75');
   });
 });

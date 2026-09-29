@@ -9,6 +9,13 @@
     radial-gradient(90% 55% at 50% -10%, rgba(255, 246, 224, 0.045), transparent 68%),
     var(--ew-void);
   isolation: isolate;
+  /* The notoriety badge's celebration glow is absolutely positioned 22% past its
+     own right edge, and the badge sits flush to the right margin — so the glow's
+     box left the viewport by ~5px on EVERY run-screen state (measured: scrollWidth
+     398 in a 393 viewport), and the whole page could be panned sideways. `clip`
+     rather than `hidden`: it does not make this a scroll container, so nothing
+     inside loses its sticky positioning or its own vertical flow. */
+  overflow-x: clip;
 }
 
 /* Paper tooth. Barely there — it stops the flats from reading as flat. */

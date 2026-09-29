@@ -150,9 +150,13 @@
 
 .head {
   display: flex;
+  /* The name, the "Never seen before" badge and the rarity pips do not fit one
+     row on a 320px phone (the badge alone is ~130px and does not shrink), so the
+     badge ran 5px off the right edge of the ending card. It wraps instead. */
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: var(--ew-space-3);
+  gap: var(--ew-space-1) var(--ew-space-3);
 }
 
 .name {

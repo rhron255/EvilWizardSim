@@ -84,3 +84,16 @@
     font-size: var(--ew-size-xl);
   }
 }
+
+/* A 320px phone: a two-column cell is ~108px wide and "PEAK NOTORIETY" at this
+   tracking is ~127px, so the label was ellipsised. Let it wrap onto a second
+   line rather than cut a word off a stat the ending card exists to show. */
+@media (max-width: 359px) {
+  .label {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    line-height: 1.25;
+    letter-spacing: 0.14em;
+  }
+}

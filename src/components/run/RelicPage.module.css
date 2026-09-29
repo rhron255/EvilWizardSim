@@ -30,6 +30,10 @@
 
 .back {
   margin: 0;
+  /* 27px tall before — the only way off this page, and a thumb-sized target
+     matters more here than the few pixels of height on a page that is not the
+     decision screen. */
+  min-height: 44px;
   padding: var(--ew-space-1) var(--ew-space-3);
   border: 1px solid var(--ew-line-strong);
   border-radius: var(--ew-radius-pill);

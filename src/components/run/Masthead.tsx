@@ -84,11 +84,21 @@ export function Masthead({ run, lairs, hasAscensionTrophy }: MastheadProps) {
               <span className={styles.undying}>Undying</span>
             </>
           )}
-        </div>
 
-        <p className={styles.ageLine}>
-          <span className={`${styles.age} ew-num`}>Age {run.age}</span>
-        </p>
+          {/* The age used to be a paragraph of its own under the name — 25px of
+              the one screen with none to spare, on every era, for a number that
+              moves once per era. It rides the tail of the epithet line instead,
+              which is usually half empty (the name takes the first line and the
+              epithet wraps under it). Dot and age are one nowrap unit so they wrap
+              TOGETHER: a separator stranded at the end of a line is the flaw the
+              ending card had, and the one this avoids. */}{' '}
+          <span className={styles.ageTag}>
+            <span className={styles.dot} aria-hidden="true">
+              ·
+            </span>{' '}
+            <span className={`${styles.age} ew-num`}>Age {run.age}</span>
+          </span>
+        </div>
       </div>
 
       <div className={styles.right}>
