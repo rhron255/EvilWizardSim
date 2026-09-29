@@ -181,7 +181,7 @@ describe('RunScreen · a single continuous screen', () => {
     expect(screen.queryByRole('tablist')).toBeNull();
     // Collapsed to the two most extreme rows by default — see
     // FactionStandings.test.tsx for the full expand/collapse behavior.
-    const strip = screen.getByRole('list', { name: 'Faction standing' });
+    const strip = screen.getByRole('list', { name: 'Faction standings' });
     expect(within(strip).getAllByRole('listitem').length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: demoOffer.title })).toBeInTheDocument();
   });
@@ -216,7 +216,7 @@ describe('RunScreen · the relic page', () => {
   it('keeps the faction standings on screen while the relic page is open', async () => {
     show(demoRun);
     await userEvent.click(screen.getByRole('button', { name: /Relics · 5/ }));
-    expect(screen.getByRole('list', { name: 'Faction standing' })).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'Faction standings' })).toBeInTheDocument();
   });
 
   it('moves focus to the relic page heading on open, and back to the Relics button on close', async () => {

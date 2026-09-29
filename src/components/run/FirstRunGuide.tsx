@@ -65,7 +65,7 @@ const CARDS: Card[] = [
     // only one: all six carry the same condition and each has its own idea of
     // what to do about you. Teaching the gem specifically would leave five
     // reprisals as the surprise this card exists to prevent.
-    body: 'Six factions, each with different goals, ideals and rivals. Favor one and face the wrath of its enemies. Sink far enough with any of them, once your name is big enough to matter, and they deal with you permanently, each in their own way.',
+    body: 'Six factions, each with different goals, ideals and rivals. Favour one and face the wrath of its enemies. Sink far enough with any of them, once your name is big enough to matter, and they deal with you permanently, each in their own way.',
   },
   {
     eyebrow: 'The numbers',

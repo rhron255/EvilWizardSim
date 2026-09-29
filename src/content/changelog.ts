@@ -57,7 +57,7 @@ export const CHANGELOG: Changelog = {
     summary: 'The Footnote That Bites now describes its power in plain terms.',
     details: [
       "Fixed a bug where this relic's passive described itself using a term the game never explains anywhere else.",
-      'It now reads: favoring a faction costs its rivals less standing than usual.',
+      'It now reads: favouring a faction costs its rivals less standing than usual.',
     ],
   },
   '2026-09-24T15:30:00Z': {
@@ -110,7 +110,7 @@ export const CHANGELOG: Changelog = {
     ],
   },
   '2026-09-22T18:40:00Z': {
-    summary: 'Added the Necrolexicon — the one stop shop for all manner of evil explanations.',
+    summary: 'Added the Necrolexicon — the one-stop shop for all manner of evil explanations.',
     details: [
       'Replaced the main screen\'s Collection with the Necrolexicon: relics, endings and mechanics are explained there (what notoriety, standing, followers, apprentices, pact debt, hero threat, lairs, relics, offers, and endings actually mean).',
     ],
