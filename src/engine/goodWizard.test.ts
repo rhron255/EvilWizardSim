@@ -12,14 +12,14 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { checkEndings, createRun, decayFor, defenseOf, threatGainFor } from './index';
+import { checkEndings, createRun, decayFor, defenseOf, resolveChoice, threatGainFor } from './index';
 import type { ContentBundle } from './index';
 import { applyEffects, draftOf, projectEffects } from './effects';
 import { conditionMet } from './conditions';
-import { fixtureContent } from './__fixtures__/content';
-import type { Condition, Offer, RunState } from '../types';
+import { REAL_CONTENT } from '../testing/realContent';
+import type { Condition, Effect, RunState } from '../types';
 
-const content: ContentBundle = fixtureContent;
+const content: ContentBundle = REAL_CONTENT;
 
 const start = (over: Partial<RunState> = {}): RunState => ({
   ...createRun({ wizardName: 'Test', originId: content.origins[0].id, eraCount: 16, seed: 7 }, content),
@@ -174,40 +174,70 @@ describe('the rule-1 exception: nothing but good_wizard reads the counters', () 
     expect(conditionMet(run, { c: 'maxIllActs', v: 2 }, content)).toBe(true);
     expect(conditionMet(run, { c: 'maxIllActs', v: 1 }, content)).toBe(false);
   });
+
+  /**
+   * The relic power framework's own version of this file's promise (issue
+   * #80): `RelicEffect` excludes `goodAct`/`illAct` at the type level, so no
+   * power in the catalog CAN author one — this is the runtime half, the same
+   * belt-and-suspenders shape `scripts/validate-content.ts`'s own
+   * `checkRelicEffects` uses. Holds all four origin relics at once and drives
+   * several real eras through `resolveChoice` (era-end triggers, a pact-debt
+   * choice for Ashen Signature to react to) rather than calling the power
+   * functions directly, so a future power authored via an unsafe cast would
+   * still be caught here.
+   */
+  it('holding every origin relic through several real eras never moves goodActs/illActs', () => {
+    const relicHolder = start({
+      heldArtifactIds: [
+        'footnote_that_bites',
+        'mantle_of_slow_moss',
+        'ashen_signature',
+        'unpaid_purse',
+        ...start().heldArtifactIds,
+      ],
+      followers: 3,
+    });
+    const offer = {
+      id: 'test',
+      title: 't',
+      body: 'b',
+      phase: 'any' as const,
+      options: [
+        { kind: 'certain' as const, label: 'a', effects: [{ t: 'pactDebt' as const, v: 2 }] },
+        { kind: 'certain' as const, label: 'b', effects: [{ t: 'notoriety' as const, v: 1 }] },
+      ],
+    };
+    let run = relicHolder;
+    for (let i = 0; i < 5; i++) {
+      run = resolveChoice(run, offer, i % 2, content).next;
+    }
+    expect(run.goodActs).toBe(0);
+    expect(run.illActs).toBe(0);
+  });
 });
 
 describe('the rule-1 exception: nothing on screen ever sees the counters', () => {
-  const goodActOffer: Offer = {
-    id: 'test_virtue_offer',
-    title: 'Test',
-    body: 'Test.',
-    phase: 'any',
-    options: [
-      {
-        kind: 'certain',
-        label: 'Do the constructive thing',
-        effects: [
-          { t: 'goodAct', v: 1 },
-          { t: 'notoriety', v: 2 },
-        ],
-      },
-      {
-        kind: 'certain',
-        label: 'Do the harmful thing',
-        effects: [
-          { t: 'illAct', v: 1 },
-          { t: 'notoriety', v: 2 },
-        ],
-      },
-    ],
-  };
+  // A real virtue card's constructive option: a hidden goodAct beside a
+  // disclosed notoriety gain, so the silence can be checked against its
+  // neighbour on the same card.
+  const constructive: Effect[] = (() => {
+    for (const offer of content.offers)
+      for (const option of offer.options)
+        if (
+          option.kind === 'certain' &&
+          option.effects.some((e) => e.t === 'goodAct') &&
+          option.effects.some((e) => e.t === 'notoriety')
+        )
+          return option.effects;
+    throw new Error('no real offer pairs a goodAct with a notoriety effect');
+  })();
 
   it('applyEffects never pushes goodAct/illAct to the applied ledger', () => {
     const run = start();
     const draft = draftOf(run);
     const application = applyEffects(
       draft,
-      goodActOffer.options[0].kind === 'certain' ? goodActOffer.options[0].effects : [],
+      constructive,
       () => 0.5,
       content,
     );
@@ -222,7 +252,7 @@ describe('the rule-1 exception: nothing on screen ever sees the counters', () =>
     const run = start();
     const projected = projectEffects(
       run,
-      goodActOffer.options[0].kind === 'certain' ? goodActOffer.options[0].effects : [],
+      constructive,
       content,
     );
     expect(projected.some((e) => e.t === 'goodAct')).toBe(false);

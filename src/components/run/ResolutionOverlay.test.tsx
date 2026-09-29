@@ -20,10 +20,63 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { artifacts } from '../../content/artifacts';
 import { factions } from '../../content/factions';
+import { endings, lairs, offers } from '../../content';
 import { BETRAYAL_MAX_LOYALTY } from '../../engine';
 import type { Resolution, SystemicChange } from './resolution';
-import { demoResolutionSuccess } from './__fixtures__/demo';
 import { ResolutionOverlay } from './ResolutionOverlay';
+import { endingDisplayName } from './effectText';
+
+// A real long-shot gamble paying off with a relic: the card, its odds, its
+// success narration, and the notoriety it prints all come from the catalog.
+const won = (() => {
+  for (const offer of offers)
+    for (const option of offer.options)
+      if (
+        option.kind === 'gamble' &&
+        option.onSuccess.some((e) => e.t === 'artifactFrom') &&
+        option.onSuccess.some((e) => e.t === 'notoriety' && e.v > 0)
+      )
+        return { offer, option };
+  throw new Error('no real gamble wins a relic and fame together');
+})();
+const fame = won.option.onSuccess.reduce((sum, e) => (e.t === 'notoriety' ? sum + e.v : sum), 0);
+const draw = won.option.onSuccess.find((e) => e.t === 'artifactFrom')!;
+if (draw.t !== 'artifactFrom') throw new Error('unreachable');
+/** A relic that draw could actually have handed over. */
+const prize = artifacts.find(
+  (a) => a.factionId === draw.factionId && (!draw.rarity || a.rarity === draw.rarity),
+)!;
+
+const demoResolutionSuccess: Resolution = {
+  outcome: 'success',
+  odds: won.option.odds,
+  roll: won.option.odds / 2,
+  appliedEffects: [
+    { t: 'notoriety', v: fame },
+    { t: 'artifact', artifactId: prize.id },
+  ],
+  text: won.option.successText,
+  artifactsGained: [prize],
+  newToCollection: [prize],
+  artifactsLost: [],
+  relicEvents: [],
+  notorietyDelta: fame,
+  systemic: [],
+  eraRecord: {
+    eraIndex: 11,
+    age: 75,
+    lairId: lairs[lairs.length - 1].id,
+    notoriety: 93,
+    notorietyDelta: fame,
+    followers: 1284,
+    artifactsGained: [prize.id],
+    deedSummary: won.option.successText,
+    offerId: won.offer.id,
+    optionLabel: won.option.label,
+    outcome: 'success',
+    phase: 'decline',
+  },
+};
 
 const show = (systemic: SystemicChange[], over: Partial<Resolution> = {}) =>
   render(
@@ -31,6 +84,7 @@ const show = (systemic: SystemicChange[], over: Partial<Resolution> = {}) =>
       resolution={{ ...demoResolutionSuccess, systemic, ...over }}
       artifacts={artifacts}
       factions={factions}
+      endings={endings}
       onContinue={() => {}}
     />,
   );
@@ -94,6 +148,78 @@ describe('ResolutionOverlay · a relic the collection has never held', () => {
   });
 });
 
+describe('ResolutionOverlay · a relic the era took', () => {
+  /**
+   * `Resolution.artifactsLost` used to land here unread — the card said only
+   * the generic pre-commit "Lose a held relic," even though the roll had
+   * already named exactly which one (issue #80 review). This pins that the
+   * name actually reaches the screen.
+   */
+  it('names the relic the roll actually took', () => {
+    show([], { artifactsGained: [], artifactsLost: [artifacts[0]] });
+    expect(screen.getByText('Lost this era')).toBeInTheDocument();
+    expect(screen.getByText(artifacts[0].name)).toBeInTheDocument();
+  });
+
+  it('says nothing when nothing was lost', () => {
+    show([], { artifactsLost: [] });
+    expect(screen.queryByText('Lost this era')).toBeNull();
+  });
+
+  it('shows a gain and a loss on the same card without conflating them', () => {
+    show([], { artifactsGained: [artifacts[1]], artifactsLost: [artifacts[0]] });
+    expect(screen.getByText(artifacts[1].name)).toBeInTheDocument();
+    expect(screen.getByText(artifacts[0].name)).toBeInTheDocument();
+    expect(screen.getByText('Lost this era')).toBeInTheDocument();
+  });
+});
+
+describe('ResolutionOverlay · naming an ending', () => {
+  /**
+   * `endingName` (`effectText.ts`) is a bare id-derived FALLBACK — its own
+   * doc comment says the authored `Ending.name` should win wherever content
+   * is in hand. This card used the fallback unconditionally, which happened
+   * to be invisible for most endings but not `slain_by_chosen_one`: the id
+   * has no "the" in it to derive, so the run-ends line read "Slain by Chosen
+   * One" instead of the catalog's own "Slain by the Chosen One" — found via
+   * `qa/probe-relics.mjs`'s lifeline probe, not by inspection.
+   */
+  it('prints the catalog’s own ending name, not a bare id-derived guess', () => {
+    show([], { ending: 'slain_by_chosen_one' });
+    expect(screen.getByText('The run ends · Slain by the Chosen One')).toBeInTheDocument();
+    expect(screen.queryByText(/Slain by Chosen One[^,]/)).toBeNull();
+  });
+
+  it('endingDisplayName itself still degrades gracefully for an id absent from the list', () => {
+    // `endings` is a REQUIRED prop on the component now (code review: an
+    // optional prop with a silent fallback was the exact shape of the bug
+    // this whole describe block exists to catch) — so there is no longer a
+    // way to render the overlay without one. The underlying function still
+    // has a legitimate degrade-gracefully path for a partial `endings` list
+    // (a content pack, a future test fixture) that just doesn't happen to
+    // carry a given id; that path is tested directly instead.
+    expect(endingDisplayName('slain_by_chosen_one', [])).toBe('Slain by Chosen One');
+  });
+
+  it('names the relic AND the real ending it averted in the lifeline block', () => {
+    show([], {
+      ending: undefined,
+      lifeline: {
+        artifactId: 'portcullis_tooth',
+        endingAverted: 'slain_by_chosen_one',
+        recovery: { t: 'threatToWardsFraction', fraction: 0.8 },
+        applied: [{ t: 'heroThreat', v: -120 }],
+      },
+    });
+    expect(screen.getByText('Lifeline')).toBeInTheDocument();
+    expect(
+      screen.getByText('The Portcullis Tooth spends itself: Slain by the Chosen One does not happen.'),
+    ).toBeInTheDocument();
+    // The whole point of a lifeline: no ending line alongside it.
+    expect(screen.queryByText(/^The run ends/)).toBeNull();
+  });
+});
+
 describe('ResolutionOverlay · while you were elsewhere', () => {
   it('prints the loyalty drift against the threshold it is walking toward', () => {
     show([{ t: 'loyaltyDrift', v: -5, loyalty: 22 }]);
@@ -118,8 +244,8 @@ describe('ResolutionOverlay · while you were elsewhere', () => {
   });
 
   it('keeps the systemic ticks out of the option consequence list', () => {
-    // The separation this whole file exists for. The fixture's own effects are
-    // +12 Notoriety and a relic; the tick must not have joined them.
+    // The separation this whole file exists for. The option's own effects are
+    // a notoriety gain and a relic; the tick must not have joined them.
     show([{ t: 'loyaltyDrift', v: -5, loyalty: 22 }]);
     expect(screen.getAllByText('Loyalty')).toHaveLength(1);
   });
@@ -135,6 +261,53 @@ describe('ResolutionOverlay · while you were elsewhere', () => {
   it('never reports pact debt as something that happened on its own', () => {
     show([{ t: 'loyaltyDrift', v: -5, loyalty: 22 }]);
     expect(within(section()).queryByText(/Pact Debt/)).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * "Your relics" (issue #80) — a relic's own consequence this era, kept
+ * separate from `appliedEffects` for the exact reason "while you were
+ * elsewhere" is: attributing it to the option the player just picked would
+ * misname its cause. Same pattern this file already holds `systemic` to.
+ */
+describe('ResolutionOverlay · your relics', () => {
+  const relicsSection = () => screen.getByText('Your relics').closest('div')!;
+
+  it('shows nothing at all when no relic fired', () => {
+    show([], { relicEvents: [] });
+    expect(screen.queryByText('Your relics')).not.toBeInTheDocument();
+  });
+
+  it('names the relic and what it did', () => {
+    show([], {
+      relicEvents: [{ artifactId: artifacts[0].id, applied: [{ t: 'notoriety', v: 2 }] }],
+    });
+    const block = within(relicsSection());
+    expect(block.getByText(artifacts[0].name)).toBeInTheDocument();
+    expect(block.getByText('+2')).toBeInTheDocument();
+    expect(block.getByText('Notoriety')).toBeInTheDocument();
+  });
+
+  it('keeps a relic event out of the option consequence list', () => {
+    // The option's own ledger already carries a notoriety gain
+    // (`demoResolutionSuccess.appliedEffects`); the relic's own is a SECOND,
+    // separately attributed one and must not fold into that count.
+    show([], {
+      relicEvents: [{ artifactId: artifacts[0].id, applied: [{ t: 'notoriety', v: 2 }] }],
+    });
+    expect(screen.getAllByText('Notoriety').length).toBeGreaterThan(1);
+  });
+
+  it('lists one row per relic that reacted', () => {
+    show([], {
+      relicEvents: [
+        { artifactId: artifacts[0].id, applied: [{ t: 'notoriety', v: 2 }] },
+        { artifactId: artifacts[1].id, applied: [{ t: 'followers', v: 10 }] },
+      ],
+    });
+    const block = within(relicsSection());
+    expect(block.getByText(artifacts[0].name)).toBeInTheDocument();
+    expect(block.getByText(artifacts[1].name)).toBeInTheDocument();
   });
 });
 
@@ -212,6 +385,7 @@ describe('ResolutionOverlay · dismissing exactly once', () => {
         resolution={demoResolutionSuccess}
         artifacts={artifacts}
         factions={factions}
+        endings={endings}
         onContinue={onContinue}
       />,
     );
@@ -229,6 +403,7 @@ describe('ResolutionOverlay · dismissing exactly once', () => {
         resolution={demoResolutionSuccess}
         artifacts={artifacts}
         factions={factions}
+        endings={endings}
         onContinue={onContinue}
       />,
     );
@@ -255,6 +430,7 @@ describe('ResolutionOverlay · dismissing exactly once', () => {
         }}
         artifacts={artifacts}
         factions={factions}
+        endings={endings}
         onContinue={onContinue}
       />,
     );

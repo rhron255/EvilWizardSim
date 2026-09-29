@@ -5,13 +5,20 @@
  * Ambient status first (who is nearest to acting against you, who you have
  * courted), then the compact resources, then the decline-only wards-vs-hero
  * comparison, then the offer itself. It renders directly below
- * `FactionStandings` on `RunScreen` now — there is no second screen for any
- * of this to live on instead, so this stays short on its own merits: the
- * choice cards are the point and everything above them is screen budget
+ * `FactionStandings` on `RunScreen`, so this stays short on its own merits:
+ * the choice cards are the point and everything above them is screen budget
  * borrowed from that.
+ *
+ * *Amended for the relic page (issue #78).* The Relics stat is the one
+ * exception: it does not toggle a caption like its four neighbours, it opens
+ * `RelicPage` — a view `RunScreen` swaps in for this whole panel, one tap
+ * away and never persisted. See `RelicPage`'s and `RunScreen`'s doc comments
+ * for why that is not the "no second screen" pillar breaking.
  */
 
 import { useId, useState } from 'react';
+import type { Ref } from 'react';
+import { relicRules } from '../../engine';
 import type { ContentBundle, DefenseReadout } from '../../engine';
 import type { Artifact, Faction, Offer, RunState } from '../../types';
 import { nextThreatFor, patronFor, reprisalSentence } from './allegiances';
@@ -23,33 +30,59 @@ export type DecisionPanelProps = {
   run: RunState;
   factions: Faction[];
   offer: Offer | null;
+  /**
+   * The unprojected counterpart of `offer`, for `OfferPanel`'s affordability
+   * gating — see `RunScreen`'s doc comment on the same prop. Defaults to
+   * `offer` when omitted, which is correct whenever the caller already
+   * passes a raw (unprojected) offer as `offer` itself, as every existing
+   * test does.
+   */
+  rawOffer?: Offer | null;
   artifacts: Artifact[];
   content: ContentBundle;
   disabled: boolean;
   onChoose(index: number): void;
   defense?: DefenseReadout | null;
+  /**
+   * Opens the relic page (issue #78). The Relics stat is a navigation button
+   * rather than a caption toggle whenever this is supplied — omitting it
+   * (as every existing test that does not care about the relic page does)
+   * keeps the old tap-to-reveal behaviour for that stat too.
+   */
+  onOpenRelics?(): void;
+  /**
+   * Attached to the Relics button's DOM node so `RunScreen` can return focus
+   * to it when the player comes back from the relic page — the button is
+   * re-created on every render, so a ref is the only way its identity
+   * survives that round trip.
+   */
+  relicsButtonRef?: Ref<HTMLButtonElement>;
 };
 
 export function DecisionPanel({
   run,
   factions,
   offer,
+  rawOffer,
   artifacts,
   content,
   disabled,
   onChoose,
   defense,
+  onOpenRelics,
+  relicsButtonRef,
 }: DecisionPanelProps) {
   // Captions are tap-to-reveal on a phone (they cost ~200px) and always shown
   // from 720px up — same trade the header made, carried over unchanged.
   const [openStat, setOpenStat] = useState<string | null>(null);
   const captionId = useId();
 
-  const threat = nextThreatFor(run);
+  const threat = nextThreatFor(run, content);
   const patron = patronFor(run, factions);
-  const stakes = stakesFor(run);
+  const stakes = stakesFor(run, content);
   const lich = lichSentence(run);
-  const siege = defense == null ? null : siegeFor(run, defense);
+  const siege =
+    defense == null ? null : siegeFor(run, defense, relicRules(run, content).fameThreatMultiplier);
 
   return (
     <div className={styles.panel}>
@@ -71,6 +104,31 @@ export function DecisionPanel({
 
       <dl className={styles.stats}>
         {stakes.map((stake) => {
+          // The Relics stat is a navigation control (issue #78: a relic page
+          // to read what you carry), not one more tap-to-reveal caption — it
+          // gets its own styled variant per CLAUDE.md styling rule 2 ("a
+          // control the player must find at a glance needs visual weight of
+          // its own"), the same pattern `FactionStandings`'s toggle uses.
+          if (stake.label === 'Relics' && onOpenRelics) {
+            return (
+              <div className={styles.stat} key={stake.label}>
+                <dt className={styles.srOnly}>{stake.label}</dt>
+                <dd className={styles.statCaption}>{stake.caption}</dd>
+                <button
+                  type="button"
+                  className={styles.relicsButton}
+                  onClick={onOpenRelics}
+                  ref={relicsButtonRef}
+                >
+                  {stake.label} · {stake.value}
+                  <span className={styles.relicsArrow} aria-hidden="true">
+                    ›
+                  </span>
+                </button>
+              </div>
+            );
+          }
+
           const open = openStat === stake.label;
           return (
             <div
@@ -129,6 +187,7 @@ export function DecisionPanel({
         {offer ? (
           <OfferPanel
             offer={offer}
+            rawOffer={rawOffer ?? offer}
             run={run}
             content={content}
             artifacts={artifacts}

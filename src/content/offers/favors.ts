@@ -79,9 +79,11 @@ export const favorOffers: Offer[] = [
       {
         kind: 'certain',
         label: 'Take the vacancy',
+        // Issue #82: see the note on `ascent_ashen_advance`.
         effects: [
           { t: 'notoriety', v: 9 },
           { t: 'pactDebt', v: 1 },
+          { t: 'artifactFrom', factionId: 'ashen_covenant', rarity: 'common' },
         ],
         resultText: 'Your name is now said in three cellars nightly. You feel each mention as a small draught.',
       },
@@ -124,9 +126,11 @@ export const favorOffers: Offer[] = [
       {
         kind: 'certain',
         label: 'Accept the protection',
+        // Issue #82: see the note on `ascent_ashen_advance`.
         effects: [
           { t: 'heroThreat', v: -10 },
           { t: 'notoriety', v: -6 },
+          { t: 'artifactFrom', factionId: 'pale_academy', rarity: 'common' },
         ],
         resultText: 'You are added to a register of people the Academy would rather were not killed on the record.',
       },
@@ -150,10 +154,12 @@ export const favorOffers: Offer[] = [
       {
         kind: 'certain',
         label: 'Let the land provide',
+        // Issue #82: see the note on `ascent_ashen_advance`.
         effects: [
           { t: 'followers', v: 12 },
           { t: 'standing', factionId: 'verdant_choir', v: 4 },
           { t: 'notoriety', v: -3 },
+          { t: 'artifactFrom', factionId: 'verdant_choir', rarity: 'common' },
         ],
         resultText: 'Twelve people arrive to tend the new growth and stay because the growth is tending them back.',
       },

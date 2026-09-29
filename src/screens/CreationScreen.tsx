@@ -13,7 +13,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { Artifact, Faction, Origin, ThemeId } from '../types';
 import { MAX_NAME_LENGTH } from '../engine';
-import { formatEffect, isNegative, Sigil, themeAttr, tierVars } from '../components/meta';
+import { formatEffect, isNegative, relicPowerText, Sigil, themeAttr, tierVars } from '../components/meta';
 import styles from './CreationScreen.module.css';
 
 export type CreationScreenProps = {
@@ -220,6 +220,23 @@ export function CreationScreen({
                       </span>
                     ))}
                   </span>
+
+                  {/* The origin relic's power, named separately from the plain
+                      "Gain <relic>" grant line above (issue #80) — a player
+                      choosing between origins is choosing between powers as
+                      much as between standing swings, and the grant line alone
+                      cannot say what the relic actually DOES. `null` (every
+                      relic a later slice has not reached yet) prints nothing. */}
+                  {origin.effects.map((effect, i) => {
+                    if (effect.t !== 'artifact') return null;
+                    const relic = artifacts.find((a) => a.id === effect.artifactId);
+                    if (!relic?.power) return null;
+                    return (
+                      <span key={`power-${i}`} className={styles.relicPower}>
+                        {relicPowerText(relic.power, { factions })}
+                      </span>
+                    );
+                  })}
                 </span>
               </label>
             ))}

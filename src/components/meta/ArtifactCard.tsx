@@ -19,8 +19,10 @@
  * `.card[data-rarity='legendary']` in the stylesheet.
  */
 
+import { RELIC_WARDS } from '../../engine';
 import type { Artifact, Faction } from '../../types';
 import { ArtifactGlyph, CornerMarks, FactionGlyph } from './glyphs';
+import { relicPowerText } from './relicPower';
 import styles from './ArtifactCard.module.css';
 
 export type ArtifactCardProps = {
@@ -37,6 +39,30 @@ export type ArtifactCardProps = {
   faction?: Faction;
   /** Drops the effect line and tightens the box. Used on the ending card. */
   compact?: boolean;
+  /**
+   * Prints `artifact.flavorText` below the effect line. Opt-in and ignored
+   * under `compact` — the run screen's relic page (issue #78) is the one
+   * place flavour earns its space; every other caller's snapshot stays
+   * unchanged with this left off.
+   */
+  showFlavour?: boolean;
+  /**
+   * An active power's Use button (issue #81), rendered under the glyph in
+   * the icon column rather than as a caption line — the button acts ON the
+   * relic, so it lives in the same column as the relic's own portrait, not
+   * beside the prose describing it. Omitted (the default) renders no button
+   * at all, which is every caller except the relic page. The relic page
+   * itself only ever passes it once `canActivateRelic` is already true —
+   * this component has no opinion on affordability, it just renders what
+   * it's given.
+   */
+  onUseActive?(): void;
+  /**
+   * True once this relic's active has already been spent this career.
+   * Swaps the button for a static "Used" mark instead of hiding it outright
+   * — meaningless (and ignored) without `onUseActive` or on a `locked` card.
+   */
+  activeSpent?: boolean;
 };
 
 const RARITY_PIPS = { common: 1, rare: 2, legendary: 3 } as const;
@@ -44,7 +70,17 @@ const RARITY_PIPS = { common: 1, rare: 2, legendary: 3 } as const;
 /** The glyph grows with rank. Geometry the eye reads before any word. */
 const RARITY_GLYPH = { common: 0, rare: 4, legendary: 9 } as const;
 
-export function ArtifactCard({ artifact, locked, lost, isNew, faction, compact }: ArtifactCardProps) {
+export function ArtifactCard({
+  artifact,
+  locked,
+  lost,
+  isNew,
+  faction,
+  compact,
+  showFlavour,
+  onUseActive,
+  activeSpent,
+}: ArtifactCardProps) {
   const classes = [
     styles.card,
     locked ? styles.locked : '',
@@ -74,14 +110,33 @@ export function ArtifactCard({ artifact, locked, lost, isNew, faction, compact }
         <CornerMarks className={styles.corner} inset={6} length={11} />
       )}
 
-      <div className={styles.well}>
-        <ArtifactGlyph
-          id={artifact.id}
-          name={artifact.name}
-          size={glyphSize}
-          locked={locked}
-          className={styles.glyph}
-        />
+      <div className={styles.iconColumn}>
+        <div className={styles.well}>
+          <ArtifactGlyph
+            id={artifact.id}
+            name={artifact.name}
+            size={glyphSize}
+            locked={locked}
+            className={styles.glyph}
+          />
+        </div>
+        {!locked && activeSpent && <span className={styles.usedMark}>Used</span>}
+        {!locked && !activeSpent && onUseActive && (
+          // PR #89 review: the visible glyph is the single word "Use" on
+          // every card, and a button's accessible name does not inherit the
+          // card's own `<h4>` heading — with two actives held at once, both
+          // buttons would announce identically to a screen reader or voice
+          // control. `aria-label` names which relic without lengthening the
+          // one word sighted players actually read.
+          <button
+            type="button"
+            className={styles.useButton}
+            onClick={onUseActive}
+            aria-label={`Use ${artifact.name}`}
+          >
+            Use
+          </button>
+        )}
       </div>
 
       <div className={styles.body}>
@@ -125,8 +180,26 @@ export function ArtifactCard({ artifact, locked, lost, isNew, faction, compact }
 
         {!compact && (
           <p className={styles.effect}>
-            {locked ? <span className={styles.redactionLine} aria-hidden /> : artifact.effect}
+            {locked ? (
+              <span className={styles.redactionLine} aria-hidden />
+            ) : (
+              `Wards +${RELIC_WARDS[artifact.rarity]}.`
+            )}
           </p>
+        )}
+
+        {/* A relic with no power yet (`null`, issue #80 slices 3-5 fill these
+            in one at a time) prints nothing extra — this is not a second
+            "no power" line, it is silence, the same way a stat with nothing
+            to disclose stays silent elsewhere. Locked relics stay redacted:
+            the power line names how the relic HELPS, which is exactly the
+            gap a locked slot is withholding. */}
+        {!compact && !locked && artifact.power && (
+          <p className={styles.power}>{relicPowerText(artifact.power, { factions: faction && [faction] })}</p>
+        )}
+
+        {!compact && showFlavour && !locked && (
+          <p className={styles.flavour}>{artifact.flavorText}</p>
         )}
       </div>
     </article>

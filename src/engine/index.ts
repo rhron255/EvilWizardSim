@@ -19,6 +19,7 @@ export {
   buildOfferPool,
   standingWeight,
   pactWeight,
+  affordabilityWeight,
   isOptionPickable,
   QUIET_ERA_OFFER,
 } from './offers';
@@ -47,7 +48,23 @@ export {
   leadershipEnding,
 } from './endings';
 export { conditionMet, conditionsMet, impliedGatesOf } from './conditions';
-export { projectEffects } from './effects';
+export { projectEffects, isDoubleEdged } from './effects';
+export type {
+  ActivateRelicResult,
+  LifelineOutcome,
+  RelicEvent,
+  RelicReactionPreview,
+  RelicRules,
+  StandingBand,
+} from './relics';
+export {
+  activateRelic,
+  canActivateRelic,
+  relicRules,
+  effectiveOdds,
+  projectReactions,
+  applyLifeline,
+} from './relics';
 
 export {
   loadCollection,
@@ -96,6 +113,7 @@ export {
   PATRON_MARGIN,
   ASCENSION_LEGENDARIES,
   ASCENSION_MIN_NOTORIETY,
+  RELIC_WARDS,
 } from './constants';
 
 export type { Game } from './useGame';

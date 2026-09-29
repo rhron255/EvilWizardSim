@@ -26,6 +26,7 @@ import { isThemeUnlocked } from '../theme/themes';
 import type { ContentBundle } from './content-port';
 import type { Resolution } from './resolution';
 import { createRun, resolveChoice } from './run';
+import { activateRelic } from './relics';
 import { nextOffer } from './offers';
 import { randomSeed } from './rng';
 import {
@@ -47,10 +48,12 @@ export type Game = {
   begin(): void;
   create(name: string, epithet: string, originId: string, eraCount: number): void;
   choose(optionIndex: number): void;
+  /** Spends a held relic's `active` power (issue #81). A no-op if it cannot be used right now. */
+  useRelic(artifactId: string): void;
   continueAfterResolution(): void;
   acknowledgeProphecy(): void;
   playAgain(): void;
-  viewCollection(): void;
+  viewNecrolexicon(): void;
   viewThemes(): void;
   viewChangelog(): void;
   backToTitle(): void;
@@ -72,6 +75,12 @@ export type Game = {
    */
   showFirstRunGuide: boolean;
   dismissFirstRunGuide(): void;
+  /**
+   * Replays the three-card guide on demand (issue #37), independent of
+   * `tutorialSeen` — a returning player asking to see it again is not the
+   * first-run gate this flag exists to satisfy.
+   */
+  viewTutorial(): void;
 };
 
 type GameState = {
@@ -109,24 +118,26 @@ type Action =
       content: ContentBundle;
     }
   | { type: 'choose'; optionIndex: number; content: ContentBundle }
+  | { type: 'useRelic'; artifactId: string; content: ContentBundle }
   | { type: 'continue'; content: ContentBundle }
   | { type: 'acknowledgeProphecy'; content: ContentBundle }
   | { type: 'playAgain' }
-  | { type: 'viewCollection' }
+  | { type: 'viewNecrolexicon' }
   | { type: 'viewThemes' }
   | { type: 'viewChangelog' }
   | { type: 'selectTheme'; id: ThemeId }
   | { type: 'backToTitle' }
   | { type: 'resume'; content: ContentBundle }
-  | { type: 'dismissGuide' };
+  | { type: 'dismissGuide' }
+  | { type: 'viewTutorial' };
 
-function initialState(): GameState {
+function initialState(relicsResetAtBuild: string): GameState {
   return {
     screen: 'title',
     run: null,
     offer: null,
     resolution: null,
-    collection: loadCollection(),
+    collection: loadCollection(relicsResetAtBuild),
     prophecyPending: false,
     resumable: loadInProgressRun(),
     unlockedTheme: null,
@@ -184,6 +195,28 @@ export function gameReducer(state: GameState, action: Action): GameState {
         run: next,
         resolution,
         prophecyPending: crossedIntoProphecy,
+      };
+    }
+
+    case 'useRelic': {
+      // Same double-tap guard `choose` uses: a relic is spent during a live
+      // decision, never mid-resolution or after the run has ended.
+      if (!state.run || state.resolution || state.run.ending) return state;
+      const { next, event } = activateRelic(state.run, action.artifactId, action.content);
+      if (!event) return { ...state, run: next };
+      // The Key to No Particular Door (issue #82): its whole effect is a
+      // different `nextOffer(next, content)` for the SAME era — everything
+      // else `activateRelic` can do (a cost, a grant, `armsForesight`) is
+      // visible on the run's own stats already and needs no re-fetch here.
+      // `state.offer?.id` excluded (code review) so the redraw this produces
+      // can never hand back the exact card the player was already looking at
+      // — see `nextOffer`'s own `excludeOfferId` doc comment.
+      const artifact = action.content.artifacts.find((a) => a.id === action.artifactId);
+      const redrew = artifact?.power.kind === 'active' && artifact.power.redrawsOffer === true;
+      return {
+        ...state,
+        run: next,
+        offer: redrew ? nextOffer(next, action.content, state.offer?.id) : state.offer,
       };
     }
 
@@ -255,14 +288,17 @@ export function gameReducer(state: GameState, action: Action): GameState {
         unlockedTheme: null,
       };
 
-    case 'viewCollection':
-      return { ...state, screen: 'collection', unlockedTheme: null };
+    case 'viewNecrolexicon':
+      return { ...state, screen: 'necrolexicon', unlockedTheme: null };
 
     case 'viewThemes':
       return { ...state, screen: 'themes', unlockedTheme: null };
 
     case 'viewChangelog':
       return { ...state, screen: 'changelog', unlockedTheme: null };
+
+    case 'viewTutorial':
+      return { ...state, screen: 'tutorial', unlockedTheme: null };
 
     case 'selectTheme': {
       // Re-checked here even though the selector never offers a locked card.
@@ -316,8 +352,13 @@ export function gameReducer(state: GameState, action: Action): GameState {
   }
 }
 
-export function useGame(content: ContentBundle): Game {
-  const [state, dispatch] = useReducer(gameReducer, undefined, initialState);
+export function useGame(content: ContentBundle, relicsResetAtBuild = ''): Game {
+  // `relicsResetAtBuild` is `RELICS_RESET_AT_BUILD` (`src/version.ts`), passed
+  // in rather than imported — see the doc comment on `emptyCollection` in
+  // `persistence.ts` for why a build/version constant stays out of the
+  // engine's own imports. Read once, into the lazy initializer, the same way
+  // `useReducer`'s own `initialArg` works.
+  const [state, dispatch] = useReducer(gameReducer, relicsResetAtBuild, initialState);
 
   const { run, collection } = state;
 
@@ -351,6 +392,11 @@ export function useGame(content: ContentBundle): Game {
     [content],
   );
 
+  const useRelic = useCallback(
+    (artifactId: string) => dispatch({ type: 'useRelic', artifactId, content }),
+    [content],
+  );
+
   const continueAfterResolution = useCallback(
     () => dispatch({ type: 'continue', content }),
     [content],
@@ -362,13 +408,14 @@ export function useGame(content: ContentBundle): Game {
   );
 
   const playAgain = useCallback(() => dispatch({ type: 'playAgain' }), []);
-  const viewCollection = useCallback(() => dispatch({ type: 'viewCollection' }), []);
+  const viewNecrolexicon = useCallback(() => dispatch({ type: 'viewNecrolexicon' }), []);
   const viewThemes = useCallback(() => dispatch({ type: 'viewThemes' }), []);
   const viewChangelog = useCallback(() => dispatch({ type: 'viewChangelog' }), []);
   const selectTheme = useCallback((id: ThemeId) => dispatch({ type: 'selectTheme', id }), []);
   const backToTitle = useCallback(() => dispatch({ type: 'backToTitle' }), []);
   const resume = useCallback(() => dispatch({ type: 'resume', content }), [content]);
   const dismissFirstRunGuide = useCallback(() => dispatch({ type: 'dismissGuide' }), []);
+  const viewTutorial = useCallback(() => dispatch({ type: 'viewTutorial' }), []);
 
   return useMemo(
     () => ({
@@ -381,10 +428,11 @@ export function useGame(content: ContentBundle): Game {
       begin,
       create,
       choose,
+      useRelic,
       continueAfterResolution,
       acknowledgeProphecy,
       playAgain,
-      viewCollection,
+      viewNecrolexicon,
       viewThemes,
       viewChangelog,
       backToTitle,
@@ -405,6 +453,7 @@ export function useGame(content: ContentBundle): Game {
         state.run !== null &&
         state.run.eras.length === 0,
       dismissFirstRunGuide,
+      viewTutorial,
     }),
     [
       state.screen,
@@ -418,16 +467,18 @@ export function useGame(content: ContentBundle): Game {
       begin,
       create,
       choose,
+      useRelic,
       continueAfterResolution,
       acknowledgeProphecy,
       playAgain,
-      viewCollection,
+      viewNecrolexicon,
       viewThemes,
       viewChangelog,
       selectTheme,
       backToTitle,
       resume,
       dismissFirstRunGuide,
+      viewTutorial,
     ],
   );
 }

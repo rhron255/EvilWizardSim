@@ -15,7 +15,7 @@
 import { chromium } from 'playwright';
 import { mkdir, readdir, unlink } from 'node:fs/promises';
 import path from 'node:path';
-import { dismissFirstRunGuide } from './first-run.mjs';
+import { dismissChangelogPopup, dismissFirstRunGuide } from './first-run.mjs';
 
 const arg = (flag, fallback) => {
   const i = process.argv.indexOf(flag);
@@ -49,7 +49,11 @@ await Promise.all(stale.map((f) => unlink(path.join(OUT, f))));
 const problems = [];
 const shots = [];
 
-const browser = await chromium.launch({ headless: !has('--headed'), slowMo: SLOW });
+const browser = await chromium.launch({
+  headless: !has('--headed'),
+  slowMo: SLOW,
+  executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined,
+});
 const page = await browser.newPage({
   viewport: { width: WIDTH, height: HEIGHT },
   deviceScaleFactor: 2,
@@ -74,7 +78,15 @@ async function shot(name) {
   // caught a card mid-roll with no result on it.
   await page.evaluate(() => document.fonts?.ready);
   await page.waitForTimeout(1900);
-  await page.screenshot({ path: file, fullPage: true });
+  // Failure mode 7: `fullPage` stitches together several scrolled captures,
+  // and a `position: fixed` dialog (ResolutionOverlay, FirstRunGuide,
+  // ChangelogPopup) does not move with the page, so it gets pasted into EVERY
+  // strip of the stitch — a washed-out, duplicated-looking card over a faded
+  // copy of whatever sits behind it, with no such stacking in the real app.
+  // `run-mid` names its shot mid-decision, when a resolution overlay is
+  // exactly as likely to be open as not, so this checks rather than assumes.
+  const dialogOpen = await page.locator('[role="dialog"]').first().isVisible().catch(() => false);
+  await page.screenshot({ path: file, fullPage: !dialogOpen });
   shots.push(file);
   console.log(`  shot  ${file}`);
 }
@@ -94,6 +106,11 @@ async function clickByName(re, { timeout = 4000, optional = false } = {}) {
 
 console.log(`\n▸ ${URL}  @${WIDTH}×${HEIGHT}\n`);
 await page.goto(URL, { waitUntil: 'networkidle' });
+
+// A fresh profile has acknowledged no changelog version at all, so every
+// entry is pending on first launch — dismiss the modal popup before it can
+// intercept the title screen's own controls.
+await dismissChangelogPopup(page).catch(() => {});
 
 // ---- Title ---------------------------------------------------------------
 await shot('title');

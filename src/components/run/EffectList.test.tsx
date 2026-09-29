@@ -9,11 +9,12 @@ import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { factions } from '../../content/factions';
 import { artifacts } from '../../content/artifacts';
-import type { Effect } from '../../types';
+import { endings } from '../../content/endings';
+import type { Effect, Ending } from '../../types';
 import { EffectList } from './EffectList';
 
-const show = (effects: Effect[]) =>
-  render(<EffectList effects={effects} artifacts={artifacts} factions={factions} />);
+const show = (effects: Effect[], withEndings: Ending[] = []) =>
+  render(<EffectList effects={effects} artifacts={artifacts} factions={factions} endings={withEndings} />);
 
 describe('EffectList', () => {
   it('merges repeat hits on the same faction into one net line', () => {
@@ -97,5 +98,40 @@ describe('EffectList', () => {
     show([{ t: 'artifactFrom', factionId: 'gilded_hand', rarity: 'rare' }]);
     expect(screen.getByText(/rare .*relic/i)).toBeInTheDocument();
     expect(screen.queryByText(/random rarity/i)).not.toBeInTheDocument();
+  });
+
+  it('discloses a double-edged relic’s power on a named grant, before commit', () => {
+    // Issue #82, rule 1 ("no undisclosed downside"): Tenure Ring and Weather
+    // Leash are reachable ONLY through a named `artifact` grant, and their
+    // power is a real cost, not a pure bonus. "Gain The Tenure Ring" alone
+    // would hide the standing cap until after the player has already
+    // committed to the choice.
+    show([{ t: 'artifact', artifactId: 'tenure_ring' }]);
+    expect(screen.getByText(/Gain The Tenure Ring/)).toBeInTheDocument();
+    expect(screen.getByText(/standing.*held between/i)).toBeInTheDocument();
+  });
+
+  it('does not append power text to an ordinary named grant', () => {
+    // A named grant that is NOT double-edged (the origin relics, and this
+    // issue's own common-rarity grants) is a plain bonus — the name is
+    // already the whole disclosure, same as it was before double-edged
+    // relics existed.
+    show([{ t: 'artifact', artifactId: 'mantle_of_slow_moss' }]);
+    expect(screen.getByText('Gain Mantle of Slow Moss')).toBeInTheDocument();
+  });
+
+  it('names a scripted ending effect with the catalog’s own name, not a bare id guess', () => {
+    // `slain_by_chosen_one`'s authored name has "the" in it; the id does
+    // not, so `endingName`'s bare derivation used to drop it on the pre-
+    // commit card too — the same bug the lifeline probe found in
+    // `ResolutionOverlay`, reachable through `scripted.ts`'s own
+    // `{t: 'ending'}` effects (e.g. `scripted_the_reckoning`'s gamble).
+    show([{ t: 'ending', endingId: 'slain_by_chosen_one' }], endings);
+    expect(screen.getByText('The run ends · Slain by the Chosen One')).toBeInTheDocument();
+  });
+
+  it('falls back to the bare id derivation when no endings list is supplied', () => {
+    show([{ t: 'ending', endingId: 'slain_by_chosen_one' }]);
+    expect(screen.getByText('The run ends · Slain by Chosen One')).toBeInTheDocument();
   });
 });

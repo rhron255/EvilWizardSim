@@ -7,9 +7,8 @@
  * is specified as prefilled AND SELECTED (HANDOFF § the name persists), which
  * is the difference between one tap to replay and a field you have to clear.
  *
- * Real content, not the meta fixtures: `demoOrigins` there has three origins
- * with ids that do not match the four real ones, so a test asserting on origins
- * would be measuring a catalog nobody plays (CLAUDE.md § 5).
+ * Real content throughout: a test asserting on origins against anything but
+ * the real catalog would be measuring a catalog nobody plays (CLAUDE.md § 5).
  */
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';

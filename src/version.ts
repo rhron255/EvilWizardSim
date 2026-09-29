@@ -17,4 +17,26 @@
  * not there to be read precisely by a player, which is why the UI shows only
  * the date part (`formatChangelogVersion` in `src/engine/changelog.ts`).
  */
-export const BUILD_VERSION = '2026-09-22T09:15:00Z';
+export const BUILD_VERSION = '2026-09-28T19:05:46Z';
+
+/**
+ * The relic-collection reset marker (issue #80, slice 3 of #77).
+ *
+ * Compared, as a plain sortable string — the same trick `BUILD_VERSION`
+ * itself relies on — against a player's persisted `Collection.relicsResetAt`
+ * in `migrateCollection` (`src/engine/persistence.ts`): a stored value older
+ * than this, or absent, clears `discoveredArtifactIds` on load and re-stamps
+ * it to this constant. Endings, themes, the tutorial flag and the last name
+ * are untouched — this wipes only the relic grid.
+ *
+ * Bumped by slice 3 (#80) because origin relics changed what a "discovered"
+ * relic even means (every new career now starts with one, fully powered,
+ * rather than ever being found). Bumped again by slice 4 (#81), for the
+ * identical reason on the other end of the catalog: the six legendaries a
+ * returning player already discovered were powerless finds when they saw
+ * them — now that they carry real powers, that "discovered" checkmark is
+ * stale in the same way an origin relic's used to be. Bumped once more HERE
+ * by slice 5 (#82), which finishes the catalog: every remaining relic a
+ * player already found — all 22 of them — was a powerless find too.
+ */
+export const RELICS_RESET_AT_BUILD = '2026-09-25T16:00:00Z';

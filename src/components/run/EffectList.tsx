@@ -7,7 +7,7 @@
  * (wiki/02_data_models_and_content-1.md, Tone rule).
  */
 
-import type { Artifact, Effect, Faction, FactionId } from '../../types';
+import type { Artifact, Effect, Ending, Faction, FactionId } from '../../types';
 import type { EffectLine } from './effectText';
 import { describeEffect, describeStandingGroup, effectKey } from './effectText';
 import styles from './EffectList.module.css';
@@ -16,6 +16,14 @@ export type EffectListProps = {
   effects: Effect[];
   artifacts: Artifact[];
   factions: Faction[];
+  /**
+   * Needed for a scripted `{t: 'ending'}` effect's display name — see
+   * `endingDisplayName` in `effectText.ts`. Required, not optional: wiki/07's
+   * failure mode 17 is exactly a caller that silently fell back to the bare
+   * id-derived name because nothing forced it to be threaded through. A
+   * caller with no ending-effect content in scope passes `[]` explicitly.
+   */
+  endings: Ending[];
   /** Inline, comma-flowed. Used inside a gamble's branch lines. */
   compact?: boolean;
 };
@@ -83,6 +91,7 @@ function toLines(
   effects: Effect[],
   artifacts: Artifact[],
   factions: Faction[],
+  endings: Ending[],
 ): { key: string; line: EffectLine }[] {
   const out: { key: string; line: EffectLine }[] = [];
   const rowFor = new Map<number, number>();
@@ -98,7 +107,7 @@ function toLines(
       rowFor.set(effect.v, out.length);
       idsFor.set(effect.v, [effect.factionId]);
     }
-    out.push({ key: effectKey(effect, i), line: describeEffect(effect, artifacts, factions) });
+    out.push({ key: effectKey(effect, i), line: describeEffect(effect, artifacts, factions, endings) });
   });
 
   for (const [v, row] of rowFor) {
@@ -109,14 +118,20 @@ function toLines(
   return out;
 }
 
-export function EffectList({ effects, artifacts, factions, compact = false }: EffectListProps) {
+export function EffectList({
+  effects,
+  artifacts,
+  factions,
+  endings,
+  compact = false,
+}: EffectListProps) {
   const merged = coalesce(effects);
 
   if (merged.length === 0) {
     return <span className={styles.nothing}>No change</span>;
   }
 
-  const lines = toLines(merged, artifacts, factions);
+  const lines = toLines(merged, artifacts, factions, endings);
 
   if (compact) {
     return (
@@ -126,6 +141,12 @@ export function EffectList({ effects, artifacts, factions, compact = false }: Ef
             {i > 0 && <span className={styles.sep} aria-hidden="true">, </span>}
             {line.num && <span className={`${styles.num} ew-num`}>{line.num}</span>}
             <span className={styles.label}>{line.text}</span>
+            {line.detail && (
+              <span className={styles.detailInline}>
+                {' '}
+                · {line.detail}
+              </span>
+            )}
           </span>
         ))}
       </span>
@@ -137,7 +158,10 @@ export function EffectList({ effects, artifacts, factions, compact = false }: Ef
       {lines.map(({ key, line }) => (
         <li key={key} className={styles.row} data-tone={line.tone}>
           <span className={`${styles.num} ew-num`}>{line.num ?? ''}</span>
-          <span className={styles.label}>{line.text}</span>
+          <span className={styles.labelGroup}>
+            <span className={styles.label}>{line.text}</span>
+            {line.detail && <span className={styles.detail}>{line.detail}</span>}
+          </span>
         </li>
       ))}
     </ul>

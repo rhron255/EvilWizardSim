@@ -30,12 +30,12 @@ import type { Collection } from '../types';
 import { createRun, resolveChoice } from '../engine/run';
 import { nextOffer } from '../engine/offers';
 import { recordRun } from '../engine/persistence';
-import { fixtureContent } from '../engine/__fixtures__/content';
+import { REAL_CONTENT } from '../testing/realContent';
 import { THEMES } from './themes';
 
 const ENGINE_DIR = resolve(process.cwd(), 'src/engine');
 
-/** Every engine source file, tests and fixtures excluded. */
+/** Every engine source file, tests excluded. */
 function engineSources(): { name: string; text: string }[] {
   return readdirSync(ENGINE_DIR)
     .filter((f) => f.endsWith('.ts') && !f.includes('.test.'))
@@ -99,7 +99,7 @@ describe('themes are structurally invisible to the engine', () => {
 });
 
 describe('a seed plays the same under any theme', () => {
-  const content = fixtureContent;
+  const content = REAL_CONTENT;
 
   /**
    * Play a whole career deterministically.
@@ -143,6 +143,7 @@ describe('a seed plays the same under any theme', () => {
       tutorialSeen: true,
       lastWizardName: 'Malvorn',
       selectedThemeId: 'default',
+      relicsResetAt: '',
     };
 
     const reference = play(seed, base);
@@ -165,6 +166,7 @@ describe('a seed plays the same under any theme', () => {
       tutorialSeen: true,
       lastWizardName: '',
       selectedThemeId: 'default',
+      relicsResetAt: '',
     };
     const run = play(20_260_830, base);
     expect(run.ending).toBeTruthy();
@@ -181,6 +183,7 @@ describe('a seed plays the same under any theme', () => {
       tutorialSeen: true,
       lastWizardName: '',
       selectedThemeId: 'default',
+      relicsResetAt: '',
     };
 
     const under = (id: Collection['selectedThemeId']) => {

@@ -48,7 +48,7 @@ export type EndingScreenProps = {
   artifacts: Artifact[];
   factions: Faction[];
   onPlayAgain(): void;
-  onViewCollection(): void;
+  onViewNecrolexicon(): void;
   /**
    * Notification hook for the host app (routing, analytics). The image itself
    * is produced here, because only this screen can react to a failed export by
@@ -116,7 +116,7 @@ export function EndingScreen({
   artifacts,
   factions,
   onPlayAgain,
-  onViewCollection,
+  onViewNecrolexicon,
   onShare,
   themeId,
   unlockedTheme,
@@ -149,6 +149,9 @@ export function EndingScreen({
   const relics: ArtifactGridEntry[] = useMemo(() => {
     const recovered = new Set<string>([
       ...run.eras.flatMap((e) => e.artifactsGained),
+      ...run.startingArtifactIds,
+      ...run.activeGrantedArtifactIds,
+      ...run.triggerGrantedArtifactIds,
       ...run.heldArtifactIds,
     ]);
     /**
@@ -185,7 +188,15 @@ export function EndingScreen({
           RARITY_ORDER[a.artifact.rarity] - RARITY_ORDER[b.artifact.rarity] ||
           a.artifact.name.localeCompare(b.artifact.name),
       );
-  }, [run.eras, run.heldArtifactIds, run.knownArtifactIds, artifacts]);
+  }, [
+    run.eras,
+    run.startingArtifactIds,
+    run.activeGrantedArtifactIds,
+    run.triggerGrantedArtifactIds,
+    run.heldArtifactIds,
+    run.knownArtifactIds,
+    artifacts,
+  ]);
 
   const newToCollection = relics.filter((r) => r.isNew).length;
 
@@ -463,8 +474,8 @@ export function EndingScreen({
         >
           {shareLabel}
         </button>
-        <button type="button" className={styles.secondary} onClick={onViewCollection}>
-          View collection
+        <button type="button" className={styles.secondary} onClick={onViewNecrolexicon}>
+          View Necrolexicon
         </button>
       </nav>
 

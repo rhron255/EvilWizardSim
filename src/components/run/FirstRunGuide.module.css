@@ -91,7 +91,8 @@
   gap: var(--ew-space-2);
 }
 
-.skip {
+.skip,
+.back {
   padding: var(--ew-space-2) var(--ew-space-3);
   font-size: var(--ew-size-xs);
   text-transform: uppercase;
@@ -102,7 +103,8 @@
   transition: color var(--ew-fast) var(--ew-ease);
 }
 
-.skip:hover {
+.skip:hover,
+.back:hover {
   color: var(--ew-ink);
 }
 
@@ -179,5 +181,25 @@
 
   .body {
     font-size: var(--ew-size-sm);
+  }
+
+  /* The middle card's Back + Skip + Next, beside the dots, is the widest the
+     footer ever gets — narrow enough (~320px) and it no longer fits one row.
+     Stack instead of overflowing: dots on their own centred row, actions on
+     their own full-width row below. */
+  .foot {
+    flex-wrap: wrap;
+    row-gap: var(--ew-space-3);
+  }
+
+  .dots {
+    order: -1;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .actions {
+    width: 100%;
+    justify-content: space-between;
   }
 }

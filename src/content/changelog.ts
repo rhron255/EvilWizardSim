@@ -21,6 +21,100 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-09-28T19:05:46Z': {
+    summary: 'The Relics page now says when each relic takes effect, and long result cards display properly on phones.',
+    details: [
+      "The Relics page summary now names each relic's condition (\"When you lose a gamble: +3 Notoriety\"), so a conditional relic no longer looks like a bonus paid every era.",
+      "Fixed a bug where a long result card's coloured outline stopped partway down when you scrolled, leaving a stray edge above Continue.",
+    ],
+  },
+  '2026-09-25T16:00:00Z': {
+    summary: 'Every relic in the game does something now, and careers hold more of them.',
+    details: [
+      'The last 22 relics all have powers of their own, some good, some double-edged — the Tenure Ring and the Weather Leash are only ever offered by name, never found at random.',
+      'The Brazier of the Ninth Clause, the Key to No Particular Door, and the Sword That Was Returned each carry a one-time Use button on the relic page.',
+      'The Root of the Standing Vote and the Portcullis Tooth can each save a career from an ending once, automatically — the resolution card says so when it happens.',
+      'Careers now tend to hold a few more relics than before.',
+      'Your relic collection has been reset once more for this update, since every relic you already found was a powerless find when you saw it.',
+    ],
+  },
+  '2026-09-25T13:00:00Z': {
+    summary: 'The six legendary relics do something now, and two of them you can trigger yourself.',
+    details: [
+      'The Cinder Testament, Final Ledger, Pale Orrery, Old-Growth Charter, Unbroken Line, and Long Appetite all have powers of their own.',
+      'The Final Ledger and the Pale Orrery each carry a one-time Use button on the relic page.',
+      'Your relic collection has been reset once more for this update, since the legendaries you already found were powerless finds when you saw them.',
+    ],
+  },
+  '2026-09-25T10:00:00Z': {
+    summary: 'The Relics page now opens with what every relic you hold actually does.',
+    details: [
+      'A relic that does something every era no matter what you pick used to repeat that line under every single offer.',
+      'The Relics page now opens with your total wards and a plain summary of every held relic and its effect, with the full cards below.',
+    ],
+  },
+  '2026-09-25T09:00:00Z': {
+    summary: 'The Footnote That Bites now describes its power in plain terms.',
+    details: [
+      "Fixed a bug where this relic's passive described itself using a term the game never explains anywhere else.",
+      'It now reads: favouring a faction costs its rivals less standing than usual.',
+    ],
+  },
+  '2026-09-24T15:30:00Z': {
+    summary: 'Every background now starts with its own relic, fully powered.',
+    details: [
+      'Each of the four origins grants a named relic with a power of its own, shown on the creation screen and on the relic page.',
+      'Your relic collection has been reset once for this update, since starting relics change what counts as familiar.',
+      'Signing a pact now caps one point sooner, since a background relic can already shave a point off it for you.',
+      'A career already in progress when this update lands will need to start over, since how a run saves has changed too.',
+    ],
+  },
+  '2026-09-24T14:00:00Z': {
+    summary: "A relic's wards now come from its rarity, not a number written on the relic.",
+    details: [
+      'Every relic still adds to your wards — common, rare, and legendary now each carry a fixed amount rather than their own individual number.',
+    ],
+  },
+  '2026-09-24T13:15:00Z': {
+    summary: 'A card you truly cannot afford now looks and acts like it.',
+    details: [
+      'Fixed a bug where a greyed-out card could still print a price matching exactly what you had, and could still be pressed — tapping it silently did nothing.',
+      'An unaffordable card now shows its real price, cannot be tapped or picked, and carries a lock mark so it reads as locked at a glance.',
+    ],
+  },
+  '2026-09-24T12:00:00Z': {
+    summary: 'You can now see which relics you actually hold mid-run.',
+    details: [
+      'Tap the Relics stat during a career to open a page listing every relic you hold, what each one does, and how much they add to your wards.',
+      'Relics you picked up and later lost this run are now named in a Lost this run section instead of just vanishing from the count.',
+    ],
+  },
+  '2026-09-23T08:30:00Z': {
+    summary: 'A card you cannot yet afford now stays around instead of vanishing for the run.',
+    details: [
+      'A card offering something interesting but currently too expensive can now show up — with the unaffordable option greyed out — instead of being silently kept out of the pool.',
+      'Declining because you could not pay no longer costs you the card for the rest of the run: it comes back around once you can.',
+    ],
+  },
+  '2026-09-23T08:13:20Z': {
+    summary: 'The Crown pays better for loyalty than it used to.',
+    details: [
+      'Balancing fixes for the Crownlands — added more positive standing offers and made them more accessible.',
+    ],
+  },
+  '2026-09-23T07:41:55Z': {
+    summary: 'The tutorial can go back, and can be replayed any time from the title screen.',
+    details: [
+      'Added a Back button (and the left arrow key) to the tutorial.',
+      'Added a Tutorial button.',
+    ],
+  },
+  '2026-09-22T18:40:00Z': {
+    summary: 'Added the Necrolexicon — the one-stop shop for all manner of evil explanations.',
+    details: [
+      'Replaced the main screen\'s Collection with the Necrolexicon: relics, endings and mechanics are explained there (what notoriety, standing, followers, apprentices, pact debt, hero threat, lairs, relics, offers, and endings actually mean).',
+    ],
+  },
   '2026-09-22T09:15:00Z': {
     summary: 'A changelog, so updates stop arriving as a surprise.',
     details: [

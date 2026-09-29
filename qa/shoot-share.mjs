@@ -21,23 +21,53 @@ await page.goto('http://localhost:5173/', { waitUntil: 'networkidle' });
 await page.evaluate(() => document.fonts.ready);
 
 const dataUrl = await page.evaluate(async (endingId) => {
-  const [share, content, fixtures] = await Promise.all([
+  const [share, content] = await Promise.all([
     import('/src/components/meta/shareImage.ts'),
     import('/src/content/index.ts'),
-    import('/src/components/run/__fixtures__/demo.ts'),
   ]);
   await share.preloadShareFonts();
 
   const ending = content.endings.find((e) => e.id === endingId) ?? content.endings[0];
-  const run = { ...fixtures.demoRun, ending: ending.id };
-  // The fixture run's lair and relic ids belong to the FIXTURE catalogs. Hand
-  // the renderer the real ones and every lookup misses, which reads on the
-  // card as empty sections and looks exactly like a bug in the card.
+  // A run's lair/relic ids must come from the SAME catalog handed to the
+  // renderer below, or every lookup misses and the card reads as empty
+  // sections — which looks exactly like a bug in the card.
+  const lair = content.lairs[Math.min(3, content.lairs.length - 1)];
+  const heldArtifacts = content.artifacts.slice(0, 3);
+  const run = {
+    id: 'qa-share-shot',
+    seed: 1,
+    wizardName: 'Malachar',
+    epithet: 'the Unpaid',
+    originId: content.origins[0].id,
+    age: 65,
+    eraIndex: 10,
+    eraCount: 16,
+    phase: 'decline',
+    prophecyEra: 9,
+    erasSinceProphecy: 1,
+    notoriety: 62,
+    followers: 40,
+    lairId: lair.id,
+    heldArtifactIds: heldArtifacts.map((a) => a.id),
+    knownArtifactIds: [],
+    heroBandSeen: 0,
+    factionStanding: Object.fromEntries(content.factions.map((f) => [f.id, 0])),
+    apprentices: { count: 1, loyalty: 50 },
+    pactDebt: 0,
+    heroThreat: 40,
+    isLich: false,
+    goodActs: 0,
+    illActs: 0,
+    goodWizardVowed: false,
+    eras: [],
+    seenOfferIds: [],
+    ending: ending.id,
+  };
   const blob = await share.renderEndingImage({
     run,
     ending,
-    lairs: fixtures.demoLairs,
-    artifacts: fixtures.demoArtifacts,
+    lairs: content.lairs,
+    artifacts: content.artifacts,
   });
   if (!blob) return null;
   return await new Promise((resolve) => {

@@ -23,13 +23,14 @@ import {
   epithets,
   factions,
   lairs,
+  mechanics,
   offers,
   origins,
   CREATION_EPITHETS,
 } from './content';
 import { heroNameFor, prophecyTextFor } from './content/heroes';
 import { CHANGELOG } from './content/changelog';
-import { BUILD_VERSION } from './version';
+import { BUILD_VERSION, RELICS_RESET_AT_BUILD } from './version';
 import { TitleScreen } from './screens/TitleScreen';
 import { CreationScreen } from './screens/CreationScreen';
 import { RunScreen } from './screens/RunScreen';
@@ -37,7 +38,7 @@ import { FirstRunGuide } from './components/run';
 import { ChangelogPopup } from './components/meta';
 import { ProphecyInterstitial } from './screens/ProphecyInterstitial';
 import { EndingScreen } from './screens/EndingScreen';
-import { CollectionScreen } from './screens/CollectionScreen';
+import { NecrolexiconScreen } from './screens/NecrolexiconScreen';
 import { ThemeScreen } from './screens/ThemeScreen';
 import { ChangelogScreen } from './screens/ChangelogScreen';
 
@@ -57,7 +58,7 @@ const CONTENT: ContentBundle = {
 };
 
 export default function App() {
-  const game = useGame(CONTENT);
+  const game = useGame(CONTENT, RELICS_RESET_AT_BUILD);
   const { run, screen } = game;
 
   /**
@@ -109,6 +110,14 @@ export default function App() {
    * engine will produce from this run state, which is the only way the card
    * can honour the odds rule once contagion and floor clamps are in play.
    * See `projectEffects` for the two ways they came apart.
+   *
+   * `RunScreen` also gets `game.offer` itself, unprojected, as `rawOffer`.
+   * Affordability gating (`OfferPanel`'s `isOptionPickable`) has to run
+   * against the AUTHORED magnitudes, not these projected ones: a follower
+   * cost that floor-clamps from -15 to a real -8 is exactly the shape
+   * `impliedGatesOf` exists to catch (CLAUDE.md failure mode 14), and gating
+   * it against the already-clamped -8 silently reintroduces the same hole —
+   * a card reading "you have exactly enough" that the engine still refuses.
    */
   const shownOffer = useMemo(() => {
     const offer = game.offer;
@@ -149,6 +158,7 @@ export default function App() {
           <RunScreen
             run={run}
             offer={shownOffer}
+            rawOffer={game.offer}
             resolution={game.resolution}
             lairs={lairs}
             artifacts={artifacts}
@@ -156,6 +166,7 @@ export default function App() {
             content={CONTENT}
             onChoose={game.choose}
             onContinue={game.continueAfterResolution}
+            onUseRelic={game.useRelic}
             defense={defense}
             themeId={themeId}
           />
@@ -193,7 +204,7 @@ export default function App() {
           artifacts={artifacts}
           factions={factions}
           onPlayAgain={game.playAgain}
-          onViewCollection={game.viewCollection}
+          onViewNecrolexicon={game.viewNecrolexicon}
           onShare={() => {}}
           themeId={themeId}
           unlockedTheme={game.unlockedTheme}
@@ -202,13 +213,14 @@ export default function App() {
       );
     }
 
-    case 'collection':
+    case 'necrolexicon':
       return (
-        <CollectionScreen
+        <NecrolexiconScreen
           collection={game.collection}
           artifacts={artifacts}
           factions={factions}
           endings={endings}
+          mechanics={mechanics}
           onBack={game.backToTitle}
           onViewThemes={game.viewThemes}
         />
@@ -229,7 +241,12 @@ export default function App() {
         <ChangelogScreen changelog={CHANGELOG} collection={game.collection} onBack={game.backToTitle} />
       );
 
+    // A replayed guide (issue #37) is a modal over the title screen, the same
+    // way the gated first showing is a modal over the run screen — so
+    // 'tutorial' falls through to the same render below rather than getting a
+    // case of its own.
     case 'title':
+    case 'tutorial':
       break;
   }
 
@@ -241,10 +258,22 @@ export default function App() {
         hasResumableRun={game.hasResumableRun}
         onBegin={game.begin}
         onResume={game.resume}
-        onViewCollection={game.viewCollection}
+        onViewNecrolexicon={game.viewNecrolexicon}
         onViewThemes={game.viewThemes}
         onViewChangelog={game.viewChangelog}
+        onViewTutorial={game.viewTutorial}
       />
+      {screen === 'tutorial' && (
+        // `dismissFirstRunGuide` is a no-op here — `tutorialSeen` is already
+        // true on any run that can reach the title screen's Tutorial door —
+        // so the screen change back to the title is what actually closes it.
+        <FirstRunGuide
+          onDismiss={() => {
+            game.dismissFirstRunGuide();
+            game.backToTitle();
+          }}
+        />
+      )}
       {/* On launch only — the title screen is where every session starts,
           whether or not there is a run to resume. Acknowledging saves the
           build version so a reload of the same build never shows it again;

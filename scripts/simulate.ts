@@ -7,7 +7,7 @@
  *
  *   npx tsx scripts/simulate.ts [--runs 2000] [--seed 1] [--eras <RUN_LENGTHS>]
  *                               [--policy random|safe|greedy|adaptive|courtier|lich]
- *                               [--fixtures] [--json] [--report-json <path>]
+ *                               [--json] [--report-json <path>]
  *
  * `--json` prints the population distribution and stops, for cheap slice-to-
  * slice diffing. `--report-json <path>` is the other one: it writes the WHOLE
@@ -16,12 +16,13 @@
  * turns a set of those into the PR comment. Both columns travel together on
  * purpose; see the comment on the writer at the bottom of this file.
  *
- * IT PLAYS THE REAL CATALOG BY DEFAULT. A harness that reports on
- * `src/engine/__fixtures__/content.ts` while the player plays `src/content/`
- * is not a measurement, it is a second opinion from a different game — and a
- * previous tuning pass shipped "All balance targets met" on numbers no real
- * run could reproduce. `--fixtures` still selects the synthetic bundle, but
- * only for engine-only regression work where content must be held constant.
+ * IT ONLY EVER PLAYS THE REAL CATALOG. A harness that could report on a
+ * synthetic fixture bundle while the player plays `src/content/` is not a
+ * measurement, it is a second opinion from a different game — a previous
+ * tuning pass once shipped "All balance targets met" on numbers no real run
+ * could reproduce. There is no engine-only fixture bundle any more (deleted
+ * project-wide); every test that used to hold content constant against it
+ * now plays the real catalog too, same as this harness always has by default.
  *
  * Targets (wiki/04):
  *   - Ascension 1-4% of runs
@@ -39,14 +40,19 @@ import type {
   TierId,
 } from '../src/types';
 import { writeFileSync } from 'node:fs';
-import type { ContentBundle } from '../src/engine';
+import type { ContentBundle, RelicEvent } from '../src/engine';
 import { TIERS, tierFor } from '../src/theme/tokens';
 import {
+  activateRelic,
   ascensionReady,
+  canActivateRelic,
   createRun,
   defenseOf,
+  effectiveOdds,
   isOptionPickable,
   nextOffer,
+  projectReactions,
+  relicRules,
   resolveChoice,
 } from '../src/engine';
 import {
@@ -65,7 +71,6 @@ import {
   SEAL_MIN_NOTORIETY,
 } from '../src/engine/constants';
 import { LEADERSHIP_BY_FACTION, REPRISAL_BY_FACTION } from '../src/engine/endings';
-import { fixtureContent } from '../src/engine/__fixtures__/content';
 import {
   artifacts,
   endings,
@@ -77,7 +82,8 @@ import {
 } from '../src/content';
 import { mulberry32 } from '../src/engine/rng';
 
-const realContent: ContentBundle = {
+/** The bundle every function below plays against. Always the real catalog. */
+const content: ContentBundle = {
   factions,
   artifacts,
   lairs,
@@ -86,12 +92,7 @@ const realContent: ContentBundle = {
   offers,
   epithets,
 };
-
-const USE_FIXTURES = process.argv.includes('--fixtures');
-
-/** The bundle every function below plays against. Real content unless asked. */
-const content: ContentBundle = USE_FIXTURES ? fixtureContent : realContent;
-const contentLabel = USE_FIXTURES ? 'FIXTURE content bundle' : 'real content bundle (src/content)';
+const contentLabel = 'real content bundle (src/content)';
 
 // ---------------------------------------------------------------------------
 // Player policies
@@ -570,23 +571,83 @@ function scoreEffects(
   return total;
 }
 
+/** The effects a held relic's reaction actually adds, in trigger order — `RelicEvent.applied` flattened across every relic that fired. */
+function reactionEffectsOf(events: readonly RelicEvent[]): Effect[] {
+  return events.flatMap((e) => e.applied);
+}
+
+/**
+ * A held relic's reaction is priced right alongside the option's own effects,
+ * not left out the way a review on this issue caught: the Ashen Signature's
+ * first debt-raising choice is scored at the FULL debt every policy prices,
+ * while `resolveChoice` actually applies the Signature's `-1 pactDebt` on top
+ * of it, and the Unpaid Purse's eraEnd payout depends on which branch a
+ * gamble lands on, exactly the kind of branch-dependent consequence
+ * `scoreEffects` needs to see to rank options the way the engine will
+ * actually resolve them. `projectReactions` is the same function the offer
+ * card previews reactions through (`OfferPanel`), so a bot sees exactly what
+ * the player is shown before committing — never a copy that can drift from
+ * it. Appended AFTER the option's own effects, matching the order
+ * `resolveChoice` actually runs them in, so a reaction's `pactDebt` delta
+ * threads through `scoreEffects`'s running clamp against the debt the
+ * option's own effects already produced, not against the pre-choice `debt`
+ * a second time.
+ *
+ * `offerFactionId` (code review): threaded through to `projectReactions` so
+ * a `watchesOfferFaction` relic (the Antler Baton) is priced the same way
+ * for a bot as for the real card — omitting it silently read every offer as
+ * faction-less, so a bot holding the Baton never saw the reaction its own
+ * choice was about to trigger and could rank an option the engine would
+ * actually score higher below one it wouldn't.
+ */
 function optionScore(
+  run: RunState,
   option: OfferOption,
   w: Weights,
   takesLichdom: boolean,
   debt: number,
   takesGoodWizard: boolean,
+  offerFactionId?: FactionId,
 ): number {
+  const reactions = projectReactions(run, option, content, offerFactionId);
   if (option.kind === 'certain') {
-    return scoreEffects(option.effects, w, takesLichdom, debt, takesGoodWizard);
+    const events = reactions.kind === 'certain' ? reactions.events : [];
+    return scoreEffects(
+      [...option.effects, ...reactionEffectsOf(events)],
+      w,
+      takesLichdom,
+      debt,
+      takesGoodWizard,
+    );
   }
   // Both branches are priced from the SAME starting debt, which is what makes
   // a two-way gamble legible to a policy: at 5/7 the failure branch crosses
   // the ceiling and is scored as the ending it is, so the expected value
-  // collapses exactly where a player would feel it collapse.
+  // collapses exactly where a player would feel it collapse. Scored through
+  // `effectiveOdds`, `content` passed so Spectacles of the Third Reading's
+  // `gambleOddsBonus` (issue #82) prices a gamble the way a bot holding it
+  // would actually face — the same odds `resolveChoice`/the real offer card
+  // use, not the raw authored number a held Spectacles never touches.
+  const odds = effectiveOdds(run, option, content);
+  const onSuccess = reactions.kind === 'gamble' ? reactions.onSuccess : [];
+  const onFailure = reactions.kind === 'gamble' ? reactions.onFailure : [];
   return (
-    option.odds * scoreEffects(option.onSuccess, w, takesLichdom, debt, takesGoodWizard) +
-    (1 - option.odds) * scoreEffects(option.onFailure, w, takesLichdom, debt, takesGoodWizard)
+    odds *
+      scoreEffects(
+        [...option.onSuccess, ...reactionEffectsOf(onSuccess)],
+        w,
+        takesLichdom,
+        debt,
+        takesGoodWizard,
+      ) +
+    (1 - odds) *
+      scoreEffects(
+        [...option.onFailure, ...reactionEffectsOf(onFailure)],
+        w,
+        takesLichdom,
+        debt,
+        takesGoodWizard,
+      )
   );
 }
 
@@ -678,14 +739,23 @@ function standingOf(effects: readonly Effect[], factionId: FactionId): number {
     .reduce((a, e) => a + e.v, 0);
 }
 
-/** Odds-weighted, for the same reason `wormOf` is. */
-function evOf(option: OfferOption, of: (effects: readonly Effect[]) => number): number {
+/**
+ * Odds-weighted, for the same reason `wormOf` is.
+ *
+ * Scores through `effectiveOdds` rather than `option.odds` directly, `content`
+ * passed so Spectacles of the Third Reading's `gambleOddsBonus` (issue #82)
+ * moves this the same way it moves the real roll — omitting it silently
+ * priced every EV-scored gamble (worm/spite affinity) at the raw authored
+ * odds for a bot holding the one relic in the catalog that changes them.
+ */
+function evOf(run: RunState, option: OfferOption, of: (effects: readonly Effect[]) => number): number {
   if (option.kind === 'certain') return of(option.effects);
-  return option.odds * of(option.onSuccess) + (1 - option.odds) * of(option.onFailure);
+  const odds = effectiveOdds(run, option, content);
+  return odds * of(option.onSuccess) + (1 - odds) * of(option.onFailure);
 }
 
-function wormAffinity(option: OfferOption): number {
-  return evOf(option, (fx) => standingOf(fx, 'worm_below'));
+function wormAffinity(run: RunState, option: OfferOption): number {
+  return evOf(run, option, (fx) => standingOf(fx, 'worm_below'));
 }
 
 /**
@@ -710,16 +780,34 @@ const HOSTILE_TOWARD = new Map<FactionId, FactionId[]>(
  * `wormAffinity`, with the contagion route added.
  *
  * A gain for a faction hostile to the target costs the target
- * `CONTAGION_GAIN` of it; a LOSS for that faction hands the target
- * `CONTAGION_LOSS` back. Both rates come from `constants.ts`, so a change to
- * the contagion model moves the policy with it instead of leaving a bot
- * playing the old game.
+ * `CONTAGION_GAIN` of it (scaled by `relicRules(run, content)
+ * .contagionLossMultiplierFor(enemy)` — `enemy` is the faction whose OWN
+ * gain is spilling, exactly what `applyStanding` itself keys the multiplier
+ * by, never `target`, which only ever receives the spillover. Footnote That
+ * Bites halves this route for EVERY faction courted while held, not only
+ * Pale Academy, so a bot that skipped it would price a pariah/courtier
+ * route at twice the damage the engine actually deals for the ~25% of
+ * careers holding it; Old-Growth Charter, issue #81, zeroes the same route
+ * but only when the faction being courted is the Verdant Choir); a LOSS for that faction hands the target
+ * `CONTAGION_LOSS` back, untouched by the multiplier for the same reason
+ * `applyStanding` leaves it untouched. Both rates come from `constants.ts`,
+ * so a change to the contagion model moves the policy with it instead of
+ * leaving a bot playing the old game.
  */
-function spiteOf(effects: readonly Effect[], target: FactionId): number {
+function spiteOf(run: RunState, effects: readonly Effect[], target: FactionId): number {
+  const { contagionLossMultiplierFor } = relicRules(run, content);
   let total = -standingOf(effects, target);
   for (const enemy of HOSTILE_TOWARD.get(target) ?? []) {
     const v = standingOf(effects, enemy);
-    total += v * (v > 0 ? CONTAGION_GAIN : CONTAGION_LOSS);
+    // PR #89 review (Codex): `applyStanding` keys the multiplier by the
+    // faction whose OWN gain is spilling — `enemy`, the one actually being
+    // courted directly in this branch — never by `target`, who only
+    // receives the spillover. Old-Growth Charter scopes to Verdant Choir;
+    // reading `target` here would zero contagion whenever a WORM courtier
+    // spills onto the Choir, instead of when a Choir courtier spills onto
+    // its own enemies, which is the exact reversal the relic's own wording
+    // ("gaining CHOIR standing costs its enemies nothing") rules out.
+    total += v * (v > 0 ? CONTAGION_GAIN * contagionLossMultiplierFor(enemy) : CONTAGION_LOSS);
   }
   return total;
 }
@@ -741,10 +829,10 @@ function spiteOf(effects: readonly Effect[], target: FactionId): number {
  * And a card that would overshoot is priced only for the part that counts, so
  * the policy prefers the cheap route to the line over the spectacular one.
  */
-function spiteAffinity(option: OfferOption, target: FactionId, standing: number): number {
+function spiteAffinity(run: RunState, option: OfferOption, target: FactionId, standing: number): number {
   const remaining = Math.max(0, standing - SEAL_MAX_STANDING);
   if (remaining === 0) return 0;
-  const damage = evOf(option, (fx) => spiteOf(fx, target));
+  const damage = evOf(run, option, (fx) => spiteOf(run, fx, target));
   return Math.min(damage, remaining);
 }
 
@@ -778,11 +866,11 @@ const PARIAH_SPITE = Number(process.env.PARIAH_SPITE ?? 5);
  * courtier spends its remaining eras on notoriety, the other half of a career
  * the standing chase would otherwise crowd out entirely.
  */
-function devotionAffinity(option: OfferOption, target: FactionId, standing: number): number {
+function devotionAffinity(run: RunState, option: OfferOption, target: FactionId, standing: number): number {
   const ceiling = DEVOTION_STANDING + PATRON_MARGIN + 15;
   const remaining = Math.max(0, ceiling - standing);
   if (remaining === 0) return 0;
-  const gain = evOf(option, (fx) => -spiteOf(fx, target));
+  const gain = evOf(run, option, (fx) => -spiteOf(run, fx, target));
   return Math.min(gain, remaining);
 }
 
@@ -826,7 +914,7 @@ function chooseOption(policy: Policy, run: RunState, offer: Offer, roll: number)
     // pickable certain option per offer, so this can never empty the field
     // for a policy that (unlike `safe`) also considers gambles.
     if (!isOptionPickable(run, option, content)) return;
-    let score = optionScore(option, w, takesLichdom, run.pactDebt, takesGoodWizard);
+    let score = optionScore(run, option, w, takesLichdom, run.pactDebt, takesGoodWizard, offer.factionId);
     // A lich-seeker courts ONE faction, hard, because only the Worm Below
     // offers the rite and its gate is `minStanding worm_below 20`. Generic
     // standing-chasing spread the gain across all six and never opened it,
@@ -860,17 +948,17 @@ function chooseOption(policy: Policy, run: RunState, offer: Offer, roll: number)
         !run.isLich &&
         (run.factionStanding.worm_below ?? 0) < DEVOTION_STANDING)
     ) {
-      score += wormAffinity(option) * LICH_DEVOTION;
+      score += wormAffinity(run, option) * LICH_DEVOTION;
     }
     // The mirror of the line above: one faction, hard, in the other direction.
     if (isPariah(policy)) {
       const target = pariahTarget(policy);
-      score += spiteAffinity(option, target, run.factionStanding[target] ?? 0) * PARIAH_SPITE;
+      score += spiteAffinity(run, option, target, run.factionStanding[target] ?? 0) * PARIAH_SPITE;
     }
     // The mirror of the pariah branch above, courting instead of ruining.
     if (isCourtier(policy)) {
       const target = courtierTarget(policy);
-      score += devotionAffinity(option, target, run.factionStanding[target] ?? 0) * COURTIER_DEVOTION;
+      score += devotionAffinity(run, option, target, run.factionStanding[target] ?? 0) * COURTIER_DEVOTION;
     }
     if (score > best) {
       best = score;
@@ -936,6 +1024,14 @@ type RunResult = {
    * it, so this is held-at-end UNION everything gained along the way.
    */
   discoveredIds: string[];
+  /**
+   * How many times each held relic's power fired this run, by artifact id
+   * (issue #80's per-relic fire-rate instrument). Only relics with a `power`
+   * ever appear as a key; a relic that fired zero times (held but its `if`
+   * never matched) is simply absent, same as `Resolution.relicEvents` being
+   * empty for an era where nothing fired.
+   */
+  relicFires: Record<string, number>;
   /**
    * The lowest each faction's standing ever went.
    *
@@ -1015,6 +1111,107 @@ const LEGENDARY_IDS = new Set(
 
 const LAIR_TIER = new Map(content.lairs.map((l) => [l.id, l.tier]));
 
+/**
+ * Bot heuristics for the catalog's five actives (issue #81's two, extended by
+ * issue #82's three), run once per era before the offer is scored — so an
+ * armed Pale Orrery is already reflected in `effectiveOdds` when
+ * `chooseOption` reads it, and a Key redraw is already reflected in the
+ * offer `chooseOption` actually scores. All five are deliberately simple: a
+ * real player would weigh the same trade-offs more legibly, and the harness
+ * only needs a policy that actually uses an active sometimes, not the
+ * optimal one.
+ *
+ *   - Final Ledger: followers are "ledger filler" (wiki/02) with no defense
+ *     value of their own, so a bot converts a comfortable surplus into a
+ *     relic rather than let it sit — "below some Followers floor" reads as
+ *     "once there is a floor's worth to spare".
+ *   - Pale Orrery: armed the moment ANY reachable option this era is a
+ *     gamble at 50% or worse — the highest-stakes gamble "in reach" a bot
+ *     this simple can recognise is just the first bad one it meets, since it
+ *     only fires once a career anyway.
+ *   - Brazier of the Ninth Clause: spends its Hero Threat spike as soon as
+ *     debt is uncomfortable, but only if that spike would not itself put the
+ *     wizard through — a bot that traded one death for another would never
+ *     be seen doing so in the fire-rate instrument, only in a defenseOf
+ *     comparison this same heuristic already makes.
+ *   - Key to No Particular Door: redraws a DULL era — one with no faction
+ *     behind it at all — rather than trying to score every option and
+ *     compare, which is the harder problem `chooseOption` already exists to
+ *     solve for the offer it settles on.
+ *   - Sword That Was Returned: armed once the hero has closed to three
+ *     quarters of the wizard's wards, the same "ratio of the ceiling" shape
+ *     `heroBand`'s own thresholds already use.
+ */
+// LOWERED 50 -> 35 -> 20 (issue #82's "every relic power fires" check):
+// Final Ledger is a legendary, rare to hold at all, and at 50 (then 35) the
+// bot almost never held it AND had a follower surplus that large at the
+// same time — it fired zero times across the whole population AND every
+// probe this file runs, including a `courtier_gilded_hand` cohort forced to
+// the longest run length (`relicHoarderProbe`) that reliably devotes to
+// gilded_hand but still rarely sits on 35+ Followers, since no scoring mode
+// particularly values holding onto them. 20 is still twice `START_FOLLOWERS`
+// (10), so it is still "a real surplus", not a hair-trigger.
+const FINAL_LEDGER_FOLLOWER_FLOOR = 20;
+const PALE_ORRERY_RISKY_ODDS = 0.5;
+const BRAZIER_DEBT_FLOOR = 5;
+const SWORD_THREAT_RATIO = 0.75;
+
+function maybeActivateActives(run: RunState, offer: Offer, relicFires: Record<string, number>): RunState {
+  let next = run;
+
+  if (canActivateRelic(next, 'final_ledger', content) && next.followers >= FINAL_LEDGER_FOLLOWER_FLOOR) {
+    const result = activateRelic(next, 'final_ledger', content);
+    next = result.next;
+    if (result.event) relicFires['final_ledger'] = (relicFires['final_ledger'] ?? 0) + 1;
+  }
+
+  if (canActivateRelic(next, 'pale_orrery', content)) {
+    // `effectiveOdds`, not the raw authored `o.odds`: a bot holding both the
+    // Orrery and Spectacles of the Third Reading (`gambleOddsBonus`) must
+    // judge "risky" by the odds it will actually face, or it can burn the
+    // Orrery's one guaranteed success on a gamble Spectacles already moved
+    // out of the risky band.
+    const facesRiskyGamble = offer.options.some(
+      (o) => o.kind === 'gamble' && effectiveOdds(next, o, content) <= PALE_ORRERY_RISKY_ODDS,
+    );
+    if (facesRiskyGamble) {
+      const result = activateRelic(next, 'pale_orrery', content);
+      next = result.next;
+      if (result.event) relicFires['pale_orrery'] = (relicFires['pale_orrery'] ?? 0) + 1;
+    }
+  }
+
+  if (canActivateRelic(next, 'ninth_clause_brazier', content) && next.pactDebt >= BRAZIER_DEBT_FLOOR) {
+    const wards = defenseOf(next, content);
+    if (next.heroThreat + 15 < wards) {
+      const result = activateRelic(next, 'ninth_clause_brazier', content);
+      next = result.next;
+      if (result.event) relicFires['ninth_clause_brazier'] = (relicFires['ninth_clause_brazier'] ?? 0) + 1;
+    }
+  }
+
+  if (canActivateRelic(next, 'key_to_no_particular_door', content) && !offer.factionId) {
+    const result = activateRelic(next, 'key_to_no_particular_door', content);
+    next = result.next;
+    if (result.event) {
+      relicFires['key_to_no_particular_door'] = (relicFires['key_to_no_particular_door'] ?? 0) + 1;
+    }
+  }
+
+  if (canActivateRelic(next, 'sword_that_was_returned', content)) {
+    const wards = defenseOf(next, content);
+    if (wards > 0 && next.heroThreat / wards >= SWORD_THREAT_RATIO) {
+      const result = activateRelic(next, 'sword_that_was_returned', content);
+      next = result.next;
+      if (result.event) {
+        relicFires['sword_that_was_returned'] = (relicFires['sword_that_was_returned'] ?? 0) + 1;
+      }
+    }
+  }
+
+  return next;
+}
+
 function playRun(
   seed: number,
   eraCount: number,
@@ -1044,17 +1241,43 @@ function playRun(
   const declineDeltas: number[] = [];
   const minStanding = { ...run.factionStanding };
   const peakStanding = { ...run.factionStanding };
+  const relicFires: Record<string, number> = {};
 
   // Hard stop: a run can never legally exceed its era count, but a harness
   // that can hang is a harness nobody runs.
   let guard = eraCount + 8;
   while (!run.ending && guard-- > 0) {
     if (run.eraIndex === run.prophecyEra) notorietyAtProphecy = run.notoriety;
-    const offer = nextOffer(run, content);
+    let offer = nextOffer(run, content);
+    const saltBefore = run.relicState.offerRedrawSalt;
+    run = maybeActivateActives(run, offer, relicFires);
+    // The Key to No Particular Door (issue #82): mirrors `useGame.ts`'s own
+    // reducer exactly — the offer is only re-sampled when the redraw itself
+    // actually changed the salt, never merely because SOME active fired
+    // (Final Ledger's followers spend, say, must not retroactively change
+    // the era the bot is already looking at). `offer.id` excluded (code
+    // review) for the same reason `useGame.ts` excludes it: a plain re-roll
+    // through the new salted stream does not by itself guarantee a
+    // different offer, and this line is what "mirrors useGame.ts exactly"
+    // actually means now.
+    if (run.relicState.offerRedrawSalt !== saltBefore) {
+      offer = nextOffer(run, content, offer.id);
+    }
     const index = chooseOption(policy, run, offer, rng());
     const { next, resolution } = resolveChoice(run, offer, index, content);
     if (next.eras[next.eras.length - 1].phase === 'decline') {
       declineDeltas.push(resolution.eraRecord.notorietyDelta);
+    }
+    for (const event of resolution.relicEvents) {
+      relicFires[event.artifactId] = (relicFires[event.artifactId] ?? 0) + 1;
+    }
+    // A lifeline save is deliberately kept out of `relicEvents` (see the doc
+    // comment on `Resolution.lifeline`) so the resolution card doesn't fold a
+    // run-saving event into its quiet per-era list. The harness still needs
+    // to count it as a fire, or every lifeline reads permanently unreachable.
+    if (resolution.lifeline) {
+      relicFires[resolution.lifeline.artifactId] =
+        (relicFires[resolution.lifeline.artifactId] ?? 0) + 1;
     }
     run = next;
     if (run.isLich) becameLich = true;
@@ -1094,7 +1317,12 @@ function playRun(
 
   // Mirrors `recordRun` in src/engine/persistence.ts. If that ever stops
   // agreeing with this, the harness is measuring a collection nobody owns.
-  const discovered = new Set(run.heldArtifactIds);
+  // `startingArtifactIds` (issue #80 review) is the one `recordRun` folds in
+  // that this dropped: an origin's own relic grant lands before `run.eras`
+  // has a single entry, so it is otherwise invisible here the moment it is
+  // lost before an era completes — the same gap Codex found in `recordRun`
+  // itself, reproduced by a harness that had drifted out of step with the fix.
+  const discovered = new Set([...run.heldArtifactIds, ...run.startingArtifactIds]);
   for (const era of run.eras) for (const id of era.artifactsGained) discovered.add(id);
 
   const lairIds = new Set(run.eras.map((e) => e.lairId));
@@ -1133,6 +1361,7 @@ function playRun(
     everAscensionReady,
     declineDeltas,
     discoveredIds: Array.from(discovered),
+    relicFires,
     grievancesSeen: run.seenOfferIds.filter((id) => id.startsWith('grievance_')),
     grievancesTaken: run.eras
       .filter((e) => {
@@ -1378,6 +1607,54 @@ function redeemedProbe(baseSeed: number): RunResult[] {
   const runs: RunResult[] = [];
   for (let i = 0; i < REDEEMED_PROBE_RUNS; i++) {
     runs.push(playRun(baseSeed + 428_951 + i * 3877, RUN_LENGTHS[RUN_LENGTHS.length - 1], 'redeemed'));
+  }
+  return runs;
+}
+
+/**
+ * A dedicated reachability probe for relic POWERS (issue #82's own
+ * acceptance item: "every relic power fires... more than zero in the
+ * population or a probe", the same small-expected-count reasoning
+ * `reprisalProbe`/`leadershipProbe` already document — just for HOLDING a
+ * specific relic and having its condition trip, rather than reaching a
+ * specific ending. A rare or legendary relic, or one behind a single named
+ * grant, can sit at an expected count near zero across the 2000-run
+ * population alone (MEASURED: Final Ledger fired zero times across the
+ * population plus every OTHER probe this file already runs, including
+ * `leadershipProbe`'s own 200-run `courtier_gilded_hand` cohort — that
+ * already devotes hard enough to reach the faction, but `pickEraCount`
+ * gives most of those careers a Standard or even Brief length, and Final
+ * Ledger's OWN gate is a Followers surplus no scoring mode particularly
+ * values holding onto).
+ *
+ * (The Portcullis Tooth's own zero, measured alongside Final Ledger's, was
+ * failure mode 5 — the harness lying, not the game: a lifeline save is
+ * deliberately kept out of `resolution.relicEvents` (see the doc comment on
+ * `Resolution.lifeline`), and `playRun`'s fire-counting loop wasn't reading
+ * `resolution.lifeline` at all, so BOTH lifelines read as never firing no
+ * matter how often they actually did. Fixed at the counting site, not here
+ * — this probe still exists for Final Ledger's real reachability gap, and
+ * happens to give both lifelines more chances too.)
+ *
+ * Three policies, each forced to the longest run length (more eras is
+ * strictly more draws, the same "a real seeker would not leave this to
+ * `pickEraCount`" reasoning `redeemedProbe`'s own comment gives):
+ * `'greedy'` for general relic velocity, and `courtier_gilded_hand`/
+ * `courtier_crownlands` specifically for Final Ledger's and the Portcullis
+ * Tooth's own factions — devotion upgrades a `rarity: 'rare'` REQUEST to
+ * that faction's legendary (`drawArtifact`, `src/engine/effects.ts`), which
+ * `favor_gilded_terms`'s own rare-tier branch can reach for Final Ledger.
+ */
+const RELIC_HOARDER_RUNS = 300;
+const RELIC_HOARDER_POLICIES: Policy[] = ['greedy', 'courtier_gilded_hand', 'courtier_crownlands'];
+
+function relicHoarderProbe(baseSeed: number): RunResult[] {
+  const runs: RunResult[] = [];
+  for (const policy of RELIC_HOARDER_POLICIES) {
+    const salt = policy.length;
+    for (let i = 0; i < RELIC_HOARDER_RUNS; i++) {
+      runs.push(playRun(baseSeed + 741_259 + salt * 131 + i * 4451, RUN_LENGTHS[RUN_LENGTHS.length - 1], policy));
+    }
   }
   return runs;
 }
@@ -1748,6 +2025,7 @@ function main(): void {
   const lich = lichProbe(baseSeed);
   const completion = completionProbe(baseSeed ^ 0xc0111ec7, COMPLETION_PLAYERS, COMPLETION_CAP);
   const redeemed = redeemedProbe(baseSeed);
+  const relicHoarder = relicHoarderProbe(baseSeed);
 
   /** Every career the harness played, for the reachability check only. */
   const byEndingAnywhere = new Map(byEnding);
@@ -1936,6 +2214,103 @@ function main(): void {
     'runs discovering nothing at all',
     pct(results.filter((r) => r.discoveredIds.length === 0).length, total),
   );
+
+  // Per-relic fire-rate instrument (issue #80). Each origin grants ONE
+  // relic, so a run only ever holds its own origin's — never all four — and
+  // "% of runs" (denominator: every run, regardless of origin) tops out near
+  // that origin's own population share (~25% each) no matter how reliably
+  // the relic fires for the wizards who actually hold it. "% of holders"
+  // (denominator: runs whose `discoveredIds` name this relic, which is every
+  // holder — the origin grant lands before `run.eras` exists, so it is
+  // never absent from `discoveredIds`) is the number that actually says
+  // whether the relic's own `if`/timing is gating it: the Purse and the
+  // Mantle should read high there (their gates barely bite), the Signature
+  // should read near the share of ITS holders who ever sign a pact at all,
+  // and the Footnote (a passive, never an event) never appears in this table
+  // at all — it has nothing to fire, only a rule to bend.
+  const poweredArtifacts = artifacts.filter((a) => a.power && a.power.kind !== 'passive');
+  if (poweredArtifacts.length > 0) {
+    console.log(rule());
+    for (const relic of poweredArtifacts) {
+      const fires = results.map((r) => r.relicFires[relic.id] ?? 0);
+      const totalFires = fires.reduce((a, b) => a + b, 0);
+      const runsWithFires = fires.filter((n) => n > 0).length;
+      const holders = results.filter((r) => r.discoveredIds.includes(relic.id)).length;
+      row(
+        `${relic.name} fires`,
+        `${totalFires} · ${pct(runsWithFires, total)} of runs · ${pct(runsWithFires, Math.max(1, holders))} of holders`,
+      );
+    }
+  }
+
+  // --- relic set synergy (issue #82) --------------------------------------
+  //
+  // PRINTED ONLY, never a `checks` entry — the issue's own words: "a printed
+  // synergy report... printed only, not a pass/fail check". Design rule from
+  // #77 that this instrument exists to WATCH, not enforce: "synergy comes
+  // from complementary effects, not from relics triggering relics" — nothing
+  // below measures relics reacting to each other (`relics.ts` structurally
+  // cannot produce that, see its own header comment), only whether a run
+  // that happens to hold two-plus of a THEMATIC set reads differently from
+  // the population at large.
+  //
+  // The groupings are the "Set" column from issue #82's own table — scoped to
+  // the 22 relics that table names; the ten relics from earlier slices were
+  // never given a set label there, so they are left out rather than guessed
+  // at. `discoveredIds` (ever held this run, not concurrently) is the cheap
+  // proxy available without threading a held-set snapshot through every era
+  // — good enough for a diagnostic instrument, not exact enough for a gate.
+  const RELIC_SET: Record<string, string> = {
+    bone_crown: 'School',
+    antler_baton: 'School',
+    censer_of_small_regrets: 'Gambler',
+    spectacles_of_the_third_reading: 'Gambler',
+    ninth_clause_brazier: 'Pact',
+    appraisers_monocle: 'Followers',
+    counterfeit_soul: 'Followers',
+    gilded_thumb: 'Followers',
+    seed_that_remembers: 'Followers',
+    shallow_worms_tooth: 'Followers',
+    second_stomach: 'Followers',
+    chalk_of_the_last_lecture: 'Hero',
+    weather_leash: 'Hero',
+    portcullis_tooth: 'Hero',
+    sword_that_was_returned: 'Hero',
+    pocketful_of_dark: 'Hero',
+    tenure_ring: 'Standing',
+    root_of_the_standing_vote: 'Standing',
+    writ_of_tolerated_existence: 'Standing',
+    confiscated_banner: 'Standing',
+    patient_lantern: 'Lich',
+    // key_to_no_particular_door carries no set ("—" in the issue's table).
+  };
+  const setMembers = new Map<string, string[]>();
+  for (const [id, set] of Object.entries(RELIC_SET)) {
+    const list = setMembers.get(set);
+    if (list) list.push(id);
+    else setMembers.set(set, [id]);
+  }
+  console.log(rule());
+  for (const set of Array.from(setMembers.keys()).sort()) {
+    const members = setMembers.get(set) ?? [];
+    const runsWithSet = results.filter(
+      (r) => members.filter((id) => r.discoveredIds.includes(id)).length >= 2,
+    );
+    if (runsWithSet.length === 0) {
+      row(`${set} synergy (2+ of ${members.length})`, 'n=0 in population');
+      continue;
+    }
+    const byEndingSet = new Map<EndingId, number>();
+    for (const r of runsWithSet) byEndingSet.set(r.ending, (byEndingSet.get(r.ending) ?? 0) + 1);
+    const [topEnding, topCount] = [...byEndingSet.entries()].reduce((max, cur) =>
+      cur[1] > max[1] ? cur : max,
+    );
+    row(
+      `${set} synergy (2+ of ${members.length})`,
+      `n=${runsWithSet.length} · mean notoriety ${mean(runsWithSet.map((r) => r.finalNotoriety)).toFixed(1)} · top ending ${topEnding} ${pct(topCount, runsWithSet.length)}`,
+    );
+  }
+
   console.log(rule());
   row('mean lairs held per run', mean(results.map((r) => r.lairsHeld)).toFixed(2));
   row('mean peak lair tier', mean(results.map((r) => r.peakLairTier)).toFixed(2));
@@ -2199,6 +2574,30 @@ function main(): void {
   const [minOtherEndingName, minOtherRate] = otherEndingRates.reduce((min, cur) =>
     cur[1] < min[1] ? cur : min,
   );
+
+  /**
+   * Every relic power fires at least once (issue #82), the same
+   * "population plus every dedicated cohort probe" shape the reachability
+   * check above uses, for the same reason: several powers gate on a
+   * condition (a specific ending nearly firing, a faction's own gated
+   * grant) rare enough that the 2000-run population alone would flicker.
+   */
+  const allCareers: RunResult[] = [
+    ...results,
+    ...[...probe.values()].flat(),
+    ...[...leadership.values()].flat(),
+    ...saint,
+    ...lich,
+    ...redeemed,
+    ...relicHoarder,
+  ];
+  const relicFiresAnywhere = new Map<string, number>();
+  for (const r of allCareers) {
+    for (const [id, n] of Object.entries(r.relicFires)) {
+      relicFiresAnywhere.set(id, (relicFiresAnywhere.get(id) ?? 0) + n);
+    }
+  }
+
   const checks: Array<[string, boolean, string]> = [
     [
       /*
@@ -2589,6 +2988,22 @@ function main(): void {
       'Ledger: <2% of deed lines repeat consecutively',
       repeatRate < 0.02,
       `${(repeatRate * 100).toFixed(2)}%`,
+    ],
+    [
+      // Rule 6's own reachability bar, read for relic POWERS rather than
+      // endings (issue #82's acceptance item): every one of them fires at
+      // least once somewhere this harness plays, counted across the
+      // population plus every dedicated cohort probe for the identical
+      // reason `Every authored ending occurs` above is — several of these
+      // gate on a condition (a lifeline's own ending nearly firing, a
+      // faction-gated named grant, the hero first drawing close) rare
+      // enough that the 2000-run population alone would flicker between
+      // seeds. `passive` powers are excluded, same as the printed
+      // instrument above: they have no discrete firing to count, only a
+      // rule they bend for as long as they are held.
+      `Every relic power fires at least once (${poweredArtifacts.length} powered relics, ${allCareers.length} careers)`,
+      poweredArtifacts.every((a) => (relicFiresAnywhere.get(a.id) ?? 0) > 0),
+      `${poweredArtifacts.filter((a) => (relicFiresAnywhere.get(a.id) ?? 0) > 0).length}/${poweredArtifacts.length}`,
     ],
   ];
 

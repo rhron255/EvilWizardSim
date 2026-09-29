@@ -62,11 +62,54 @@ describe('FirstRunGuide', () => {
     expect(screen.queryByRole('button', { name: /skip/i })).not.toBeInTheDocument();
   });
 
+  it('has no Back on the first card, where it would have nowhere to go', () => {
+    open();
+    expect(screen.queryByRole('button', { name: /back/i })).not.toBeInTheDocument();
+  });
+
+  it('walks backward without dismissing, and lands short of the first card', async () => {
+    const { onDismiss, user } = open();
+    await user.click(next());
+    await user.click(next());
+    expect(screen.getByRole('heading', { name: 'Each one says what it does' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /back/i }));
+    expect(screen.getByRole('heading', { name: 'The same six, every run' })).toBeInTheDocument();
+    expect(onDismiss).not.toHaveBeenCalled();
+
+    // Restored on the way back: the last card drops Skip, the middle one has it.
+    expect(screen.getByRole('button', { name: /skip/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /back/i }));
+    expect(screen.getByRole('heading', { name: 'One era at a time' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /back/i })).not.toBeInTheDocument();
+  });
+
+  it('brings Skip back once Back has moved off the last card', async () => {
+    const { user } = open();
+    await user.click(next());
+    await user.click(next());
+    expect(screen.getByRole('button', { name: 'Begin' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /back/i }));
+    expect(screen.getByRole('button', { name: 'Next' })).toBeInTheDocument();
+  });
+
   it('dismisses on Escape from anywhere', async () => {
     const { onDismiss, user } = open();
     await user.click(next());
     await user.keyboard('{Escape}');
     expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it('steps backward on the left arrow, same as clicking Back', async () => {
+    const { onDismiss, user } = open();
+    await user.click(next());
+    expect(screen.getByRole('heading', { name: 'The same six, every run' })).toBeInTheDocument();
+
+    await user.keyboard('{ArrowLeft}');
+    expect(screen.getByRole('heading', { name: 'One era at a time' })).toBeInTheDocument();
+    expect(onDismiss).not.toHaveBeenCalled();
   });
 
   it('does not teach the prophecy, which is a reveal and not a mechanic', () => {

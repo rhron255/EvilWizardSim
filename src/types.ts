@@ -263,7 +263,20 @@ export type Condition =
    * `Effect`'s `goodAct`/`illAct` variants for why that restriction matters.
    */
   | { c: 'minGoodActs'; v: number }
-  | { c: 'maxIllActs'; v: number };
+  | { c: 'maxIllActs'; v: number }
+  /**
+   * Unpaid Purse's gate (issue #80, slice 3 of #77): "if under N Followers".
+   * The mirror of `minFollowers` that a relic `if` needed and no offer gate
+   * ever had a reason to ask for before.
+   */
+  | { c: 'maxFollowers'; v: number }
+  /**
+   * The Weather Leash's own gate (issue #82, slice 5 of #77): true only
+   * during the decline phase. Nothing needed this before — every existing
+   * phase restriction lives on `Offer.phase` itself, which an era-end relic
+   * trigger (evaluated against the run, not an offer) has no equivalent of.
+   */
+  | { c: 'declinePhase' };
 
 export type Offer = {
   id: string;
@@ -295,19 +308,407 @@ export type Faction = {
   hostileTo: FactionId[];
   /** Short adjective used in ledger deed lines. */
   adjective: string;
+  /**
+   * One line naming this faction's relic THEME (issue #80's Necrolexicon
+   * acceptance item) — e.g. the Covenant: "Its relics pay you for what you
+   * owe." Never a rate and never a specific relic; authored for all six at
+   * once, since it is faction-level prose rather than something gated on how
+   * many of that faction's relics have a power yet. Required, so the
+   * compiler names every faction the moment a seventh is ever added — the
+   * same reason `Ending.hint` is required rather than optional.
+   */
+  reliquary: string;
 };
 
+/**
+ * A relic. Its wards contribution is a flat function of `rarity` alone —
+ * `RELIC_WARDS` in `src/engine/constants.ts` — not an authored number on the
+ * relic itself. That frees `id`/`name`/`flavorText` to carry the relic's
+ * actual identity (its power, in slices 3-5 of issue #77) instead of
+ * restating a defense figure in prose (issue #79, CLAUDE.md failure mode 4).
+ */
 export type Artifact = {
   id: string;
   name: string;
   /** Every artifact belongs to a faction — this is what makes routing legible. */
   factionId: FactionId;
   rarity: Rarity;
-  /** Player-facing mechanical summary. */
-  effect: string;
   flavorText: string;
-  /** Defense contribution toward surviving hero threat. */
-  defense: number;
+  /**
+   * What this relic does, once held — issue #77's power framework,
+   * completed by slice 5 (issue #82). Non-null: every one of the 32 relics
+   * now has a power, and the compiler names any future relic that ships
+   * without one — the same reasoning `Ending.hint` was made required for.
+   * It was `RelicPower | null` through slices 3-4, while most of the
+   * catalog still had nothing authored; see git history for that shape.
+   */
+  power: RelicPower;
+};
+
+// ---------------------------------------------------------------------------
+// Relic powers — issue #77's power framework (slice 3: issue #80)
+// ---------------------------------------------------------------------------
+
+/**
+ * The gate conditions an offer's own `requires` already uses, reused so a
+ * relic's `if` never invents a second vocabulary for "is this true right
+ * now".
+ */
+export type RelicTriggerTiming =
+  /**
+   * Evaluated once per era, against the run AFTER the chosen option's own
+   * effects have landed (see `src/engine/relics.ts`) — "reacts to the
+   * choice", in #77's own words. Combined with `once`, this is how Ashen
+   * Signature finds "the FIRST choice that adds Pact Debt": debt starts at 0
+   * and only a choice ever moves it, so `if: [{ c: 'minPactDebt', v: 1 }]`
+   * plus `once: true` names exactly that moment without a bespoke
+   * "which effect type did this option carry" primitive.
+   */
+  | 'onChoice'
+  /** Evaluated once at the end of every era, independent of what was chosen. */
+  | 'eraEnd'
+  /**
+   * Pocketful of Dark (issue #82, slice 5): fires at the SAME moment
+   * `resolveChoice`'s own era-end block narrates the hero's approach for the
+   * first time — immediately after `heroBandSeen` advances past `calm`, so
+   * "the first time the hero draws close" is the identical event the
+   * header's own beat already marks, not a second reading of hero threat
+   * invented here (see `src/engine/relics.ts`'s `applyHeroApproachTriggers`).
+   * Deliberately absent from the offer card's pre-commit preview
+   * (`projectReactions`): whether the band crosses THIS era depends on decay
+   * and threat gain, which that preview does not compute — see its own doc
+   * comment. That is an accepted silent gap, the same one every other
+   * era-end relic reaction already has on the offer card per `RelicPage`'s
+   * own doc comment ("an accepted gap").
+   */
+  | 'heroApproach';
+
+/**
+ * What a `passive` power changes about a base rule.
+ *
+ * `contagionLossMultiplier` predates issue #81's `factionId` field (issue
+ * #80's Footnote That Bites, unscoped — it multiplies contagion off ANY
+ * faction's gain). Old-Growth Charter ("gaining CHOIR standing costs its
+ * enemies nothing") needs the narrower reading, so the field is optional and
+ * scopes the multiplier to gains in that one faction alone; omitted keeps
+ * Footnote's own unscoped behaviour unchanged. `relicRules` combines a held
+ * unscoped modifier and a held scoped one multiplicatively for the faction
+ * the scoped one names, same as two unscoped ones already combine.
+ */
+export type RelicPassiveModifier =
+  | {
+      t: 'contagionLossMultiplier';
+      /**
+       * Multiplies `CONTAGION_GAIN` alone — the rate that spills a LOSS onto a
+       * COURTED faction's enemies (`applyStanding`, `src/engine/effects.ts`).
+       * The mirror direction (losing standing with a faction warms its enemies —
+       * a gain for them) uses `CONTAGION_LOSS`, untouched by this multiplier: it
+       * is not a loss to halve. Issue #80 review: this comment previously said
+       * the opposite, which is the same confusion 391b6c6 fixed in the engine
+       * itself — the next reader who trusted this comment over `effects.ts`
+       * would "fix" the engine back to the bug.
+       */
+      v: number;
+      factionId?: FactionId;
+    }
+  /**
+   * Unbroken Line (issue #81): "your fame feeds the hero's threat at half the
+   * rate." Multiplies `HERO_FAME_COEF * notoriety` alone inside
+   * `threatGainFor` — the ramp-over-time term (`HERO_THREAT_BASE` +
+   * `HERO_THREAT_RAMP`) is untouched, because the relic's own wording names
+   * fame, not the clock.
+   */
+  | { t: 'fameThreatMultiplier'; v: number }
+  /** The Gilded Thumb (issue #82): multiplies a POSITIVE `followers` effect alone — never a cost. */
+  | { t: 'followersGainMultiplier'; v: number }
+  /** The Second Stomach (issue #82): multiplies a NEGATIVE `followers` effect alone — never a gain. */
+  | { t: 'followersCostMultiplier'; v: number }
+  /**
+   * Chalk of the Last Lecture (issue #82): a flat reduction to `decayFor`'s
+   * result, floored at 0 there — additive across multiple holders, the same
+   * combination rule as every other passive, though only one relic authors
+   * this today.
+   */
+  | { t: 'decayReduction'; v: number }
+  /**
+   * Spectacles of the Third Reading (issue #82): added directly to a
+   * gamble's odds before the roll, the same seam `effectiveOdds` already
+   * gives the Pale Orrery's `armsForesight`. Additive across multiple
+   * holders; `effectiveOdds` clamps the sum to 1.
+   */
+  | { t: 'gambleOddsBonus'; v: number }
+  /**
+   * The Counterfeit Soul (issue #82): a `loseArtifact` effect always names
+   * THE HOLDER of this modifier first, while it is held, instead of a random
+   * pick — see `relicRules`' `lossPriorityArtifactId` and the `loseArtifact`
+   * case in `src/engine/effects.ts`. No `v`: "the first relic a choice would
+   * take is this one" names itself, nothing else to parameterise.
+   */
+  | { t: 'loseArtifactPriority' }
+  /**
+   * The Patient Lantern (issue #82): excluded from the lich rite's
+   * forfeiture — see `forfeitForLichdom` in `src/engine/effects.ts`. The one
+   * relic power that changes what `becomeLich` takes, rather than a rate or
+   * a threshold.
+   */
+  | { t: 'survivesLichRite' }
+  /**
+   * The Tenure Ring (issue #82, double-edged): clamps ONE faction's standing
+   * to `[min, max]` for as long as the relic is held — narrower on BOTH
+   * ends than the ordinary `[STANDING_MIN, STANDING_MAX]` range, never
+   * wider. `applyStanding` (`src/engine/effects.ts`) reads this through
+   * `standingBandFor`, the ONE function the engine clamps standing through —
+   * unlike `reprisalThreshold` below, the header (`allegiances.ts`) does not
+   * also read it; the band is disclosed instead where the relic is actually
+   * granted (`describeEffect`'s `artifact` case in `effectText.ts` prints
+   * the power text on the grant card itself, gated on `isDoubleEdged`,
+   * before the player commits). `drawArtifact` derives "double-edged" from
+   * a narrowed `max` here, never from an authored flag — see
+   * `isDoubleEdged`.
+   */
+  | { t: 'standingBand'; factionId: FactionId; min: number; max: number }
+  /**
+   * The Writ of Tolerated Existence (issue #82): this faction's reprisal
+   * needs standing at or under `v` instead of the ordinary
+   * `SEAL_MAX_STANDING`. Read through `reprisalThresholdFor`, the shared
+   * function `reprisalEnding` (`src/engine/endings.ts`) and the header
+   * (`src/components/run/allegiances.ts`) both consult, so the engine's
+   * trigger and the player's warning can never name two different lines.
+   */
+  | { t: 'reprisalThreshold'; factionId: FactionId; v: number };
+
+/**
+ * What a relic's own power may do to the run — deliberately narrower than
+ * `Effect`. Excludes five members a relic must never touch: `ending`,
+ * `becomeLich` and `vowGoodWizard` are the PLAYER's own irreversible
+ * commitments, and `goodAct`/`illAct` are the Good Wizard route's one
+ * deliberate disclosure hole (see the doc comment on `Effect` above) — a
+ * relic silently moving either would open a SECOND undisclosed route into an
+ * ending, which that rule-1 exception was never written to cover.
+ */
+export type RelicEffect = Exclude<
+  Effect,
+  { t: 'ending' } | { t: 'becomeLich' } | { t: 'vowGoodWizard' } | { t: 'goodAct' } | { t: 'illAct' }
+>;
+
+/**
+ * What a relic does on its own, once held.
+ *
+ * Declared as the full four-member union now (issue #80, slice 3 of #77),
+ * even though this slice authors only `trigger` and `passive` instances —
+ * the contract only gets opened once this way rather than being reopened for
+ * `active` in slice 4 and for whatever a `lifeline` power turns out to need
+ * after it.
+ *
+ * Every kind obeys the same two rules #77 sets for the whole framework: a
+ * relic never asks a question (no new decision screens — `active` is a
+ * single tap with no follow-up choice, everything else is automatic), and it
+ * responds only to the player's own choices and the passing of eras, never to
+ * another relic's effects — `src/engine/relics.ts` is where that second rule
+ * is actually enforced, not just documented.
+ */
+export type RelicPower =
+  /**
+   * Changes a base rule for as long as the relic is held. No event, no roll,
+   * nothing to disclose beyond the relic's own power line, which every
+   * surface that shows a relic already prints. Every held passive combines —
+   * see `relicRules` in `src/engine/relics.ts` — with neutral defaults, so
+   * holding none at all reproduces today's numbers exactly.
+   */
+  | { kind: 'passive'; modifier: RelicPassiveModifier }
+  /**
+   * Fires automatically. `if` gates it beyond `when` alone, read against the
+   * run's AMBIENT state at `when` — era's end, or after this choice's own
+   * effects landed. `once`, when true, fires the power the first time it
+   * qualifies and never again this run — `RunState.relicState` remembers
+   * that, so it survives even a later era where `if` is no longer true.
+   *
+   * `watchesPositive`, `onChoice` only: fires only when the CHOSEN OPTION's
+   * OWN landed effects included a positive change of this type — never the
+   * ambient state `if` reads. The distinction is load-bearing, not
+   * cosmetic: `if: [{ c: 'minPactDebt', v: 1 }]` reads true the instant ANY
+   * OTHER source (an origin's own starting grant, a different relic) has
+   * ever put debt at or above 1, so a relic meant to react to "the first
+   * CHOICE that adds debt" would instead fire on the very first era of a
+   * run that simply started in debt, whether or not that era's choice
+   * touched debt at all. `watchesPositive` reads the option's landed
+   * effects directly (see `src/engine/relics.ts`), which is what "the
+   * chosen option's landed effects" in #77's own framework description
+   * means literally. Typed to `RelicEffect['t']`, not `Effect['t']`, for the
+   * same reason `effects` is: a relic must not react to a hidden Good
+   * Wizard counter or a run-ending effect either.
+   */
+  | {
+      kind: 'trigger';
+      when: RelicTriggerTiming;
+      if?: Condition[];
+      watchesPositive?: RelicEffect['t'];
+      /**
+       * Issue #82: the mirror of `watchesPositive` for a relic that reacts
+       * to a COST rather than a gain — Bone Crown ("costs you an
+       * Apprentice"), Shallow Worm's Tooth ("costs you Followers"). Same
+       * source as `watchesPositive` (the CHOSEN option's own landed
+       * effects, `onChoice` only) and the same reason it exists: an
+       * ambient `if` on the stat's floor would fire on a run that merely
+       * STARTED there, not on the choice that actually spent it. Checks
+       * `e.v < 0` where `watchesPositive` checks `e.v > 0` — never both on
+       * the same power, they read opposite signs of the same effect type.
+       */
+      watchesNegative?: RelicEffect['t'];
+      /**
+       * Issue #82: watches for the PRESENCE of an effect type that carries
+       * no magnitude to sign — `loseArtifact` chief among them (Appraiser's
+       * Monocle, Seed That Remembers: "when a choice costs you a relic").
+       * `watchesPositive`/`watchesNegative` both require `'v' in e`, which
+       * `loseArtifact` never satisfies; this is the third, magnitude-free
+       * reading of "the chosen option's own landed effects."
+       */
+      watchesEffect?: RelicEffect['t'];
+      /**
+       * Scopes `watchesPositive`/`watchesNegative` to ONE faction, read off
+       * a `standing` effect's own `factionId` — Confiscated Banner ("lowers
+       * CROWNLANDS standing", not any faction's contagion spill included).
+       * Ignored unless the watched type is `'standing'`.
+       */
+      watchesFactionId?: FactionId;
+      /**
+       * Fires only when the era's OFFER itself belonged to this faction —
+       * Antler Baton ("when you answer a Choir offer"). Distinct from every
+       * watch above: those read the choice's CONSEQUENCES; this reads which
+       * CARD it was, so `resolveChoice` threads the offer's own `factionId`
+       * in alongside `choiceEffects` rather than deriving it from them.
+       */
+      watchesOfferFaction?: FactionId;
+      /**
+       * Fires only when the choice was a GAMBLE that resolved to failure —
+       * Censer of Small Regrets ("when you lose a gamble"). The one watch
+       * that reads the roll's OUTCOME rather than its effects. `onChoice`
+       * only, like every watch above.
+       */
+      watchesGambleFailure?: boolean;
+      once?: boolean;
+      effects: RelicEffect[];
+      /**
+       * Long Appetite (issue #81): "+1 Notoriety per 10 Followers spent" is
+       * proportional to the choice's own cost, which a fixed `effects` list
+       * cannot express. `watches` reads the same source `watchesPositive`
+       * does — the CHOSEN OPTION's own landed effects, `onChoice` only — for
+       * a NEGATIVE instance of that type; `perUnit` floors its magnitude into
+       * whole units, and `perUnitEffect` is multiplied by that unit count and
+       * applied on top of `effects`. Still fully data, still projectable:
+       * `relics.ts` runs the identical computation in the preview and for
+       * real, the same guarantee `effects` alone already had.
+       */
+      scaled?: {
+        watches: RelicEffect['t'];
+        perUnit: number;
+        /** Constrained to a numeric-magnitude effect — there is a unit count to multiply it by. */
+        perUnitEffect: Extract<RelicEffect, { v: number }>;
+      };
+    }
+  /**
+   * A player-initiated Use button (issue #81, slice 4 of #77 — deferred by
+   * slice 3 to avoid the "written but never wired" trap, CLAUDE.md failure
+   * mode 2). `activateRelic` in `src/engine/relics.ts` applies `cost` (if any,
+   * and only if the run can afford it), then `grants`/`armsForesight` (if
+   * either is set), then `effects`, and records the relic in
+   * `RunState.relicState.spent` so it fires at most once per career.
+   *
+   * `grants` and `armsForesight` exist because two real actives need
+   * something `RelicEffect[]` cannot express, structurally rather than by
+   * hard-coding either relic's id in the engine:
+   *
+   *   - Final Ledger: "a random rare relic from your best-standing faction" —
+   *     WHICH faction is decided at the moment of use, not authored.
+   *     `grants: { rarity }` names the rarity; `activateRelic` finds the
+   *     faction and draws.
+   *   - Pale Orrery: "your next gamble succeeds" — a flag on
+   *     `RunState.relicState.foresight`, not a stat `applyEffects` knows how
+   *     to move. `armsForesight: true` sets it.
+   *
+   * Both are still structured data `relicPowerText` can derive a line from,
+   * same as any `RelicEffect` — see `src/components/meta/relicPower.ts`.
+   */
+  | {
+      kind: 'active';
+      cost?: RelicEffect[];
+      effects: RelicEffect[];
+      grants?: { rarity: Rarity };
+      armsForesight?: boolean;
+      /**
+       * The Key to No Particular Door (issue #82): redraws this era's
+       * offer. A pure engine action rather than a `RelicEffect` — nothing on
+       * `RunState` a card could disclose moves, only the salt `nextOffer`
+       * (`src/engine/offers.ts`) mixes into its own sampling stream, so the
+       * SAME era can land on a different, still-seeded card. See
+       * `RelicState.offerRedrawSalt`.
+       */
+      redrawsOffer?: boolean;
+    }
+  /**
+   * An automatic, one-time rescue from a specific ending (issue #82, slice 5
+   * of #77 — deferred by slices 3-4 as a bare placeholder). Checked once,
+   * right after `checkEndings` finds a terminal state
+   * (`src/engine/relics.ts`'s `applyLifeline`, called from `resolveChoice`):
+   * if a held, UNSPENT lifeline `covers` that ending, it is spent
+   * (`RunState.relicState.firedOnce` — the same one-time ledger an automatic
+   * `trigger` uses, since a lifeline is automatic too, never
+   * player-initiated), its `recovery` is applied, and the run continues.
+   *
+   * NEVER changes the THRESHOLD the ending itself checks — `recovery`
+   * repositions the STAT, not the ceiling or floor it was measured against,
+   * so the very same ending can still be reached again later the ordinary
+   * way. That is what "lifeline", not "immunity", means here.
+   */
+  | { kind: 'lifeline'; covers: EndingId[]; recovery: LifelineRecovery };
+
+/**
+ * What a lifeline restores, in place of the ending it cancels — narrower
+ * than `RelicEffect` because both real lifelines need to SET a stat off a
+ * value only known at the moment it fires (the current wards, the
+ * triggering faction), which no fixed authored delta can express. Kept a
+ * closed, purpose-built union rather than a generic "set stat to value"
+ * primitive — the same restraint `active`'s `grants`/`armsForesight` show:
+ * open the vocabulary only as far as a REAL lifeline needs it, per issue
+ * #82's own two.
+ */
+export type LifelineRecovery =
+  /** Portcullis Tooth: hero threat drops to `fraction` of the CURRENT wards, computed at the moment it fires. */
+  | { t: 'threatToWardsFraction'; fraction: number }
+  /** Root of the Standing Vote: the reprisal's own triggering faction resets to `v`. */
+  | { t: 'standingReset'; v: number };
+
+/**
+ * Tracks a run's `once` triggers, so a relic like Ashen Signature fires
+ * exactly one time ever rather than once per era its `if` happens to be true.
+ */
+export type RelicState = {
+  /** Artifact ids whose `once` trigger has already fired this run. */
+  firedOnce: string[];
+  /**
+   * Artifact ids whose `active` power has already been used this run (issue
+   * #81). Distinct from `firedOnce`, which tracks an AUTOMATIC trigger's own
+   * one-time firing — an active is player-initiated, and "at most once per
+   * career" is enforced against this list, not that one.
+   */
+  spent: string[];
+  /**
+   * True while the Pale Orrery's "your next gamble succeeds" is armed (issue
+   * #81). Read by `effectiveOdds` (`src/engine/relics.ts`) and cleared by
+   * `resolveChoice` the moment a gamble actually resolves, so it consumes
+   * exactly the next gamble the player rolls, not every gamble for the rest
+   * of the career.
+   */
+  foresight: boolean;
+  /**
+   * Bumped by one each time the Key to No Particular Door's active redraws
+   * the era's offer (issue #82). Mixed into `nextOffer`'s own sampling
+   * stream (`src/engine/offers.ts`) as an extra salt, so the SAME
+   * `(seed, eraIndex)` can land on a different offer without `nextOffer`
+   * losing its purity: two runs with identical seeds and identical choices
+   * — including whether this was used — still resolve identically.
+   */
+  offerRedrawSalt: number;
 };
 
 export type Lair = {
@@ -315,6 +716,22 @@ export type Lair = {
   name: string;
   /** 0-based rung on the ladder. Names carry the progression. */
   tier: number;
+  blurb: string;
+};
+
+/**
+ * One Necrolexicon entry explaining a rule the player needs during a run.
+ *
+ * Static reference prose, not run state — unlike a faction or a relic, a
+ * mechanic has no discovery gate: `requires` reads "the run screen currently
+ * uses this term with no in-place explanation", not "the player has seen
+ * this". Keep `blurb` to what a term MEANS, never to the odds of reaching a
+ * particular threshold — that is a strategy guide, and the Necrolexicon
+ * (issue #66) is explicitly not one.
+ */
+export type Mechanic = {
+  id: string;
+  name: string;
   blurb: string;
 };
 
@@ -412,6 +829,47 @@ export type RunState = {
   lairId: string;
   heldArtifactIds: string[];
   /**
+   * Relics granted by `createRun` itself (an origin's `{ t: 'artifact' }`
+   * grant), set once and never touched again. `EraRecord.artifactsGained`
+   * only ever gets an entry from `resolveChoice`, so an origin relic lost
+   * later — `loseArtifact`, the lich rite — would otherwise vanish from every
+   * "ever held" reconstruction: `recordRun`'s discovered-artifact fold,
+   * `RelicPage`'s "Lost this run", `EndingScreen`'s relic grid. All three read
+   * this alongside `eras[].artifactsGained` and `heldArtifactIds` for exactly
+   * that reason (issue #80 — a starting relic that disappears without a trace
+   * is the collection-reset regression Codex caught).
+   */
+  startingArtifactIds: string[];
+  /**
+   * Relics granted by an `active` power's own `grants` (issue #81 — Final
+   * Ledger), the same shape of gap `startingArtifactIds` closes for an
+   * origin's grant: `activateRelic` (`src/engine/relics.ts`) fires between
+   * eras, at the player's own choosing, so the grant never lands in any
+   * `EraRecord.artifactsGained`. Without a record of its own, a Final
+   * Ledger relic that was later lost — `loseArtifact`, the lich rite — would
+   * vanish from every "ever held" reconstruction exactly the way an origin
+   * relic used to. `recordRun`, `RelicPage`'s "Lost this run", and
+   * `EndingScreen`'s relic grid all read this alongside `startingArtifactIds`
+   * and `eras[].artifactsGained` for that reason.
+   */
+  activeGrantedArtifactIds: string[];
+  /**
+   * Relics granted by a relic TRIGGER's own `effects` (issue #82 — the Seed
+   * That Remembers grants the Mantle of Slow Moss), the same shape of gap
+   * `activeGrantedArtifactIds` closes for an active's own grant:
+   * `applyChoiceTriggers`/`applyEraEndTriggers` (`src/engine/relics.ts`) apply
+   * a trigger's effects directly, never through `resolveChoice`'s own
+   * `application.artifactsGained` fold, so the grant never lands in any
+   * `EraRecord.artifactsGained` either (code review). Without a record of its
+   * own, a trigger-granted relic that was later lost — `loseArtifact`, the
+   * lich rite — would vanish from every "ever held" reconstruction exactly
+   * the way an active-granted one used to before `activeGrantedArtifactIds`
+   * existed. `recordRun`, `RelicPage`'s "Lost this run", and `EndingScreen`'s
+   * relic grid all read this alongside `startingArtifactIds`,
+   * `activeGrantedArtifactIds`, and `eras[].artifactsGained` for that reason.
+   */
+  triggerGrantedArtifactIds: string[];
+  /**
    * Relics this PLAYER has discovered in earlier careers, from the persisted
    * collection. Read-only within a run: it never changes, and it exists so a
    * random draw can prefer something new (see `NOVELTY_BIAS`).
@@ -444,6 +902,8 @@ export type RunState = {
   illActs: number;
   /** True after the Good Wizard resolution's `vowGoodWizard` — see `Effect`. */
   goodWizardVowed: boolean;
+  /** Which `once` relic triggers have already fired this run — see `RelicState`. */
+  relicState: RelicState;
   /** Append-only. Never removed, never rewritten. */
   eras: EraRecord[];
   seenOfferIds: string[];
@@ -485,6 +945,16 @@ export type Collection = {
    * page.
    */
   selectedThemeId: ThemeId;
+  /**
+   * The build timestamp this player's relic collection was last reset at
+   * (issue #80's relic-collection reset). Compared, as a plain string, against
+   * `RELICS_RESET_AT_BUILD` in `src/version.ts` — the same
+   * sortable-ISO-8601-string trick `BUILD_VERSION` already relies on. Older
+   * (or absent, from a pre-reset save) clears `discoveredArtifactIds` on load
+   * and stamps this to the current constant; a current or newer value leaves
+   * the collection untouched.
+   */
+  relicsResetAt: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -514,9 +984,10 @@ export type Screen =
   | 'run'
   | 'prophecy'
   | 'ending'
-  | 'collection'
+  | 'necrolexicon'
   | 'themes'
-  | 'changelog';
+  | 'changelog'
+  | 'tutorial';
 
 // ---------------------------------------------------------------------------
 // Changelog (issue #67)

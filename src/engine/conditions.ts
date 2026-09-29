@@ -24,6 +24,8 @@ export function conditionMet(run: RunState, condition: Condition, content: Conte
       return run.apprentices.count >= condition.v;
     case 'minFollowers':
       return run.followers >= condition.v;
+    case 'maxFollowers':
+      return run.followers <= condition.v;
     case 'minPactDebt':
       return run.pactDebt >= condition.v;
     case 'minLairTier': {
@@ -44,8 +46,24 @@ export function conditionMet(run: RunState, condition: Condition, content: Conte
       return run.goodActs >= condition.v;
     case 'maxIllActs':
       return run.illActs <= condition.v;
-    default:
+    case 'declinePhase':
+      return run.phase === 'decline';
+    default: {
+      // Exhaustive over every CONTENT-authored `Condition` this codebase
+      // knows about — if this stops compiling, a variant was added to the
+      // union above with no case here to answer it, which is exactly the
+      // bug this line exists to catch at compile time rather than at the
+      // Weather Leash's own `if` silently failing closed forever (issue #82
+      // review: `declinePhase` was added to the type and to every renderer's
+      // own switch, but not here, so it fired never). A genuinely malformed
+      // value from untrusted JSON still cannot reach this line typed as
+      // `Condition`, so the "fail closed" doc comment above is about a
+      // shape TypeScript cannot see, not one this exhaustiveness check
+      // would ever suppress.
+      const exhaustive: never = condition;
+      void exhaustive;
       return false;
+    }
   }
 }
 
@@ -110,8 +128,17 @@ function grantsBenefit(effects: readonly Effect[]): boolean {
  * need is the MAX across `onSuccess` and `onFailure` separately: a player
  * must be able to cover the worse branch, since a bet is not an exit you can
  * take only if you win it.
+ *
+ * `followersCostMultiplier` (issue #82's Second Stomach, code review):
+ * defaults to 1 for every caller that predates it. Priced through the SAME
+ * multiplier `applyEffects`'s own `followers` case scales the real spend by
+ * — a discounted option must gate on what it will actually cost, not the
+ * raw authored magnitude, or a player who can afford exactly the discounted
+ * price sees the card refuse them (and, since `describeGate` prints this
+ * same `Condition`'s `v`, a contradictory "Requires 20" beside a card that
+ * shows the discounted "−15" a few lines below it).
  */
-export function impliedGatesOf(option: OfferOption): Condition[] {
+export function impliedGatesOf(option: OfferOption, followersCostMultiplier = 1): Condition[] {
   const branches: (readonly Effect[])[] =
     option.kind === 'certain' ? [option.effects] : [option.onSuccess, option.onFailure];
 
@@ -128,7 +155,7 @@ export function impliedGatesOf(option: OfferOption): Condition[] {
     let lairTier = 0;
     let artifacts = 0;
     for (const e of branch) {
-      if (e.t === 'followers' && e.v < 0) followers += -e.v;
+      if (e.t === 'followers' && e.v < 0) followers += Math.round(-e.v * followersCostMultiplier);
       else if (e.t === 'apprentices' && e.v < 0) apprentices += -e.v;
       else if (e.t === 'lairTier' && e.v < 0) lairTier += -e.v;
       else if (e.t === 'loseArtifact') artifacts += 1;

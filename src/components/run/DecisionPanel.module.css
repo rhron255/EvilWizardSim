@@ -178,6 +178,76 @@
 }
 
 /* --------------------------------------------------------------------------
+   The Relics stat is a navigation control, not a caption toggle (issue #78:
+   a relic page to read what you carry). Styling rule 2 applies the same way
+   it does to `FactionStandings`' expand/collapse toggle: a border, a pill
+   radius, and the brighter inks, so it reads as an affordance rather than one
+   more `ink-faint` label a player is not required to act on.
+   -------------------------------------------------------------------------- */
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.relicsButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ew-space-1);
+  max-width: 100%;
+  margin: 0;
+  padding: var(--ew-space-1) var(--ew-space-3);
+  border: 1px solid var(--ew-line-strong);
+  border-radius: var(--ew-radius-pill);
+  font-size: var(--ew-size-sm);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--ew-ink);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color var(--ew-fast) var(--ew-ease), background-color var(--ew-fast) var(--ew-ease);
+}
+
+/* The 3-column phone grid gives this cell the least room of the five stats —
+   the same squeeze `.statLabel` handles at this breakpoint by tightening
+   its own letter-spacing. `nowrap` above stops "Relics · 3" breaking onto a
+   second line inside the pill; this shrinks the type and padding so the
+   pill itself still fits the column instead of overflowing it. */
+@media (max-width: 719px) {
+  .relicsButton {
+    padding: var(--ew-space-1) var(--ew-space-2);
+    font-size: var(--ew-size-xs);
+  }
+}
+
+/* Extends the tap target toward the ~44px phone floor without inflating the
+   pill visually — the same split `FactionStandings`'s `.toggle::after` uses. */
+.relicsButton::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+}
+
+.relicsButton:hover,
+.relicsButton:focus-visible {
+  color: var(--ew-ink-bright);
+  border-color: var(--ew-ink-faint);
+  background: color-mix(in srgb, var(--ew-ink-faint) 12%, transparent);
+}
+
+.relicsArrow {
+  color: var(--ew-ink-faint);
+}
+
+/* --------------------------------------------------------------------------
    The lich state and the wards-vs-hero comparison, decline-only.
    -------------------------------------------------------------------------- */
 

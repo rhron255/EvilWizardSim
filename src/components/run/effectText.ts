@@ -24,11 +24,21 @@
  * which makes the second one look like a different class of thing.
  */
 
-import { BETRAYAL_MAX_LOYALTY, DEF_LICH, indexOf } from '../../engine';
+import { BETRAYAL_MAX_LOYALTY, DEF_LICH, indexOf, isDoubleEdged } from '../../engine';
 import type { ContentBundle } from '../../engine';
-import type { Artifact, Condition, Effect, EndingId, Faction, FactionId, RunState } from '../../types';
+import type {
+  Artifact,
+  Condition,
+  Effect,
+  Ending,
+  EndingId,
+  Faction,
+  FactionId,
+  RunState,
+} from '../../types';
 import type { SystemicChange } from './resolution';
 import { heroApproachLine } from '../../content/heroes';
+import { relicPowerText } from '../meta/relicPower';
 
 /**
  * How a line should be *colored*, which is not the same as its sign.
@@ -41,6 +51,13 @@ export type EffectLine = {
   num?: string;
   /** The noun phrase that follows the number, or the whole line if there is none. */
   text: string;
+  /**
+   * A second, visually lighter line under `text` — currently only a double-
+   * edged relic's power (`relicPowerText`), kept separate from `text` rather
+   * than joined by " · " so the card can weight the name and its real cost
+   * differently and break them onto their own lines instead of one dense run.
+   */
+  detail?: string;
   tone: EffectTone;
 };
 
@@ -83,13 +100,23 @@ function plural(n: number, one: string, many: string): string {
 function factionName(id: FactionId, factions: Faction[]): string {
   const f = factions.find((x) => x.id === id);
   if (f) return f.name;
-  // Content may not be loaded (fixtures, tests). Degrade to a readable id.
+  // A cast that lacks this faction (a partial list, a content pack). Degrade to a readable id.
   return titleCase(id);
 }
 
-function artifactName(id: string, artifacts: Artifact[]): string {
+export function artifactName(id: string, artifacts: Artifact[]): string {
   const a = artifacts.find((x) => x.id === id);
   return a ? a.name : 'an unnamed relic';
+}
+
+/**
+ * The `Faction` object itself, not just its display name — for a caller that
+ * needs to hand it to `relicPowerText`'s `ctx.factions` (RelicPage,
+ * ResolutionOverlay), which `factionName`'s string-with-fallback shape
+ * doesn't fit. `undefined` for an id the list doesn't carry.
+ */
+export function factionFor(factions: Faction[], id: string): Faction | undefined {
+  return factions.find((f) => f.id === id);
 }
 
 export function titleCase(id: string): string {
@@ -115,6 +142,21 @@ export function endingName(id: EndingId): string {
 }
 
 /**
+ * The authored `Ending.name`, which should win over `endingName`'s bare id
+ * derivation wherever the real content catalog is in hand — that fallback is
+ * "display fallback only" by its own doc comment, and the two genuinely
+ * diverge: `slain_by_chosen_one` derives "Slain by Chosen One" (no "the" —
+ * the word isn't in the id to derive), and `contract_writer`/
+ * `overthrown_the_kingdom` derive names that aren't even close to their
+ * authored "Pact Master"/"King". Falls back to the bare derivation only if
+ * `endings` doesn't carry the id (a partial list, a content pack) — the
+ * same degrade-gracefully shape `factionName` already uses for factions.
+ */
+export function endingDisplayName(id: EndingId, endings: Ending[]): string {
+  return endings.find((e) => e.id === id)?.name ?? endingName(id);
+}
+
+/**
  * Faction name used adjectivally: "a Gilded Hand relic", not "a The Gilded
  * Hand relic". Matches the phrasing in wiki/04_operational_behaviors-1.md.
  */
@@ -136,6 +178,7 @@ export function describeEffect(
   effect: Effect,
   artifacts: Artifact[],
   factions: Faction[],
+  endings: Ending[] = [],
 ): EffectLine {
   switch (effect.t) {
     case 'notoriety':
@@ -155,8 +198,25 @@ export function describeEffect(
         tone: good(effect.v),
       };
 
-    case 'artifact':
-      return { text: `Gain ${artifactName(effect.artifactId, artifacts)}`, tone: 'up' };
+    case 'artifact': {
+      const name = artifactName(effect.artifactId, artifacts);
+      // Rule 1: "no undisclosed downside." A named grant is ordinarily just a
+      // bonus, and the name alone is enough — but a double-edged relic (issue
+      // #82) is reachable ONLY through a grant like this one, and its power
+      // IS a real cost (a capped standing band, an ongoing era-end tax). The
+      // name alone would hide it until after commit, so the power text rides
+      // along here for exactly the relics `isDoubleEdged` flags — the same
+      // structural check that keeps them out of `drawArtifact`.
+      const artifact = artifacts.find((a) => a.id === effect.artifactId);
+      if (artifact && isDoubleEdged(artifact)) {
+        return {
+          text: `Gain ${name}`,
+          detail: relicPowerText(artifact.power, { factions }),
+          tone: 'up',
+        };
+      }
+      return { text: `Gain ${name}`, tone: 'up' };
+    }
 
     case 'artifactFrom':
       // A specified rarity prints itself ("a legendary Gilded Hand relic"). An
@@ -229,7 +289,7 @@ export function describeEffect(
       };
 
     case 'ending':
-      return { text: `The run ends · ${endingName(effect.endingId)}`, tone: 'grave' };
+      return { text: `The run ends · ${endingDisplayName(effect.endingId, endings)}`, tone: 'grave' };
 
     default: {
       // If this line stops compiling, a member was added to `Effect` and an
@@ -364,20 +424,21 @@ export function formatOdds(odds: number): string {
  * is a silent bug" — the same rule applies to a shared VOCABULARY).
  *
  * `impliedGatesOf` is documented to only ever emit four of `Condition`'s
- * fourteen variants — `minFollowers`, `minApprentices`, `minLairTier`,
+ * fifteen variants — `minFollowers`, `minApprentices`, `minLairTier`,
  * `minArtifacts` — because those are the only ones tied to stock an option's
  * effects can actually spend. Every other variant (standing, notoriety, pact
- * debt, era index, the Good Wizard counters, and the artifact-IDENTITY gates
- * `hasArtifact`/`holdsAnyArtifact`, which are offer-`requires` concerns, not
- * per-option affordability ones) is routed through the `never`-guarded
- * default below rather than quietly falling through a bare
- * `default: return '…'`. That bare-default shape is exactly what issue #44
- * fixed in `components/meta/effectText.ts`'s `isNegative`: a case that
- * slipped past it rendered wrong instead of failing to compile. Here, a
- * fifteenth `Condition` variant — or `impliedGatesOf` starting to emit one of
- * the ten grouped below — fails typecheck at this switch instead of silently
- * printing the generic fallback for something this function was never taught
- * to describe.
+ * debt, era index, the Good Wizard counters, `maxFollowers` — a RELIC
+ * trigger's `if` concern (issue #80), never an option's own affordability
+ * gate — and the artifact-IDENTITY gates `hasArtifact`/`holdsAnyArtifact`,
+ * which are offer-`requires` concerns, not per-option affordability ones) is
+ * routed through the `never`-guarded default below rather than quietly
+ * falling through a bare `default: return '…'`. That bare-default shape is
+ * exactly what issue #44 fixed in `components/meta/effectText.ts`'s
+ * `isNegative`: a case that slipped past it rendered wrong instead of
+ * failing to compile. Here, a sixteenth `Condition` variant — or
+ * `impliedGatesOf` starting to emit one of the eleven grouped below — fails
+ * typecheck at this switch instead of silently printing the generic
+ * fallback for something this function was never taught to describe.
  */
 export function describeGate(condition: Condition, run: RunState, content: ContentBundle): string {
   switch (condition.c) {
@@ -410,15 +471,17 @@ export function describeGate(condition: Condition, run: RunState, content: Conte
     case 'holdsAnyArtifact':
     case 'minGoodActs':
     case 'maxIllActs':
+    case 'maxFollowers':
+    case 'declinePhase':
       return 'Requirements not currently met.';
 
     default: {
       // If this line stops compiling, a Condition variant exists that no
       // case above names — either a genuinely new one, or `impliedGatesOf`
-      // starting to emit one of the ten just above (which this switch
+      // starting to emit one of the eleven just above (which this switch
       // currently treats as unreachable, not as one of its four real
       // cases). Mirrors the guard in `components/meta/effectText.ts`'s
-      // `isNegative` (issue #44) — note the ten cases directly above are
+      // `isNegative` (issue #44) — note the eleven cases directly above are
       // NOT chained into this `default`, on purpose: TypeScript does not
       // narrow a discriminant to `never` inside a `default` that shares a
       // fallthrough group with other `case` labels, only inside one that is

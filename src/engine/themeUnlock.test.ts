@@ -21,9 +21,9 @@ import { describe, expect, it } from 'vitest';
 import type { Collection, RunState } from '../types';
 import { gameReducer } from './useGame';
 import { emptyCollection } from './persistence';
-import { fixtureContent } from './__fixtures__/content';
+import { REAL_CONTENT } from '../testing/realContent';
 
-const content = fixtureContent;
+const content = REAL_CONTENT;
 
 /**
  * `GameState` is internal to `useGame`, so it is recovered from the reducer's
@@ -40,6 +40,9 @@ function finished(ending: RunState['ending'], collection: Collection): GameState
     seed: 1,
     wizardName: 'Malvorn',
     heldArtifactIds: [],
+    startingArtifactIds: [],
+    activeGrantedArtifactIds: [],
+    triggerGrantedArtifactIds: [],
     knownArtifactIds: [],
     eras: [],
     notoriety: 40,
@@ -132,7 +135,7 @@ describe('the unlock fires exactly once, and before the collection moves', () =>
 
     for (const action of [
       { type: 'playAgain' },
-      { type: 'viewCollection' },
+      { type: 'viewNecrolexicon' },
       { type: 'viewThemes' },
       { type: 'backToTitle' },
     ] as const) {

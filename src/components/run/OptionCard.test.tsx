@@ -8,21 +8,68 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { demoArtifacts, demoFactions, demoOffer } from './__fixtures__/demo';
+import type { Effect, OfferOption } from '../../types';
+import type { RelicReactionPreview } from '../../engine';
+import { createRun, projectEffects } from '../../engine';
+import { REAL_CONTENT, realOfferWhere } from '../../testing/realContent';
+import * as C from '../../content';
 import { OptionCard } from './OptionCard';
 
-const certainOption = demoOffer.options[1]!; // 'Pay the courier and burn the envelope'
-const gambleOption = demoOffer.options[0]!; // "Accept the Covenant's offer"
-const REASON = 'Requires 30 Followers · you have 10';
+const artifacts = C.artifacts;
+const factions = C.factions;
+const endings = C.endings;
+
+const followerCost = (effects: readonly Effect[]) =>
+  -effects.reduce((sum, e) => (e.t === 'followers' && e.v < 0 ? sum + e.v : sum), 0);
+const hostile = new Set(factions.filter((f) => f.hostileTo.length > 0).map((f) => f.id));
+
+/**
+ * A real certain option with a follower price, a hero-threat move, and a
+ * standing change toward a faction with enemies — so the engine's own
+ * projection adds contagion rows its authored list never names.
+ */
+const isPaying = (o: OfferOption) =>
+  o.kind === 'certain' &&
+  followerCost(o.effects) > 1 &&
+  o.effects.some((e) => e.t === 'heroThreat') &&
+  o.effects.some((e) => e.t === 'standing' && hostile.has(e.factionId));
+const certainOption = realOfferWhere(
+  'a certain option with a follower price, a hero-threat move, and a contagious standing change',
+  (o) => o.options.some(isPaying),
+).options.find(isPaying) as Extract<OfferOption, { kind: 'certain' }>;
+const cost = followerCost(certainOption.effects);
+
+const isUneven = (o: OfferOption) => o.kind === 'gamble' && o.odds !== 0.5;
+const gambleOption = realOfferWhere('a card with a gamble at uneven odds', (o) =>
+  o.options.some(isUneven),
+).options.find(isUneven) as Extract<OfferOption, { kind: 'gamble' }>;
+
+const start = createRun(
+  { wizardName: 'Test', originId: C.origins[0].id, eraCount: 16, seed: 42 },
+  REAL_CONTENT,
+);
+/** What the engine prints for `certainOption` to a wizard holding `have` followers. */
+const projectedFor = (have: number) =>
+  projectEffects({ ...start, followers: have }, certainOption.effects, REAL_CONTENT);
+/**
+ * A follower count short of the price whose floor-clamped figure is not a
+ * number any other row on the card also prints, so the assertions below can
+ * tell the clamped cost from the authored one.
+ */
+const HAVE = Array.from({ length: cost - 1 }, (_, i) => i + 1).find((n) =>
+  projectedFor(n).every((e) => e.t === 'followers' || !('v' in e) || Math.abs(e.v) !== n),
+)!;
+const REASON = `Requires ${cost} Followers · you have ${HAVE}`;
 
 describe('OptionCard · unaffordable (reason prop)', () => {
-  it('renders the reason line in place of a certain option’s effect list', () => {
+  it('renders the reason line ALONGSIDE a certain option’s effect list, not in place of it', () => {
     render(
       <OptionCard
         option={certainOption}
         index={1}
-        artifacts={demoArtifacts}
-        factions={demoFactions}
+        artifacts={artifacts}
+        factions={factions}
+        endings={endings}
         disabled
         reason={REASON}
         onChoose={() => {}}
@@ -30,18 +77,20 @@ describe('OptionCard · unaffordable (reason prop)', () => {
     );
     const card = screen.getByRole('button');
     expect(within(card).getByText(REASON)).toBeInTheDocument();
-    // The effect list this option would otherwise show is gone, not merely
-    // hidden alongside the reason — a shorter card, not a taller one.
-    expect(within(card).queryByText(/Hero Threat/)).not.toBeInTheDocument();
+    // The price is exactly the thing a player needs to see on a card they
+    // cannot afford — hiding it is what let a floor-clamped display number
+    // read as "paid for" when the real, authored cost was higher.
+    expect(within(card).getByText(/Hero Threat/)).toBeInTheDocument();
   });
 
-  it('renders the reason line in place of a gamble’s odds rail', () => {
+  it('renders the reason line alongside a gamble’s odds rail, not in place of it', () => {
     render(
       <OptionCard
         option={gambleOption}
         index={0}
-        artifacts={demoArtifacts}
-        factions={demoFactions}
+        artifacts={artifacts}
+        factions={factions}
+        endings={endings}
         disabled
         reason={REASON}
         onChoose={() => {}}
@@ -49,10 +98,105 @@ describe('OptionCard · unaffordable (reason prop)', () => {
     );
     const card = screen.getByRole('button');
     expect(within(card).getByText(REASON)).toBeInTheDocument();
-    // Both branches of the gamble — odds, arrow, success/failure text — are
-    // gone, not just the odds percentages.
-    expect(within(card).queryByText('35%')).not.toBeInTheDocument();
-    expect(within(card).queryByText('65%')).not.toBeInTheDocument();
+    const win = Math.round(gambleOption.odds * 100);
+    expect(within(card).getByText(`${win}%`)).toBeInTheDocument();
+    expect(within(card).getByText(`${100 - win}%`)).toBeInTheDocument();
+  });
+
+  it('merges the authored gated cost into the projected effect list, rather than swapping the whole option', () => {
+    // PR #85 review: swapping `option` for `rawOption` wholesale on an
+    // unaffordable card silently dropped the projected Standing contagion
+    // row too — an undisclosed-consequence regression, not a fix. `projected`
+    // is what `projectEffects` really prints to a wizard this short: the
+    // follower cost floor-clamped, plus Standing rows for factions the
+    // authored option never mentions — contagion along `hostileTo`.
+    const projected = { ...certainOption, effects: projectedFor(HAVE) };
+    expect(projected.effects).toContainEqual({ t: 'followers', v: -HAVE });
+    const authoredFactions = new Set(
+      certainOption.effects.flatMap((e) => (e.t === 'standing' ? [e.factionId] : [])),
+    );
+    const shownFactions = projected.effects.flatMap((e) => (e.t === 'standing' ? [e.factionId] : []));
+    expect(shownFactions.some((id) => !authoredFactions.has(id))).toBe(true);
+    render(
+      <OptionCard
+        option={projected}
+        rawOption={certainOption}
+        index={1}
+        artifacts={artifacts}
+        factions={factions}
+        endings={endings}
+        disabled
+        reason={REASON}
+        onChoose={() => {}}
+      />,
+    );
+    const card = screen.getByRole('button');
+    // The gated cost reverts to the authored price, not the projected/clamped
+    // figure `option` carries.
+    expect(within(card).getByText(`\u2212${cost}`)).toBeInTheDocument();
+    expect(within(card).queryByText(`\u2212${HAVE}`)).not.toBeInTheDocument();
+    // Every projected Standing row survives, contagion included — those rows
+    // exist only in the projected copy, and a whole-option swap would have
+    // silently dropped them.
+    for (const id of shownFactions) {
+      const name = factions.find((f) => f.id === id)!.name;
+      expect(within(card).getByText(new RegExp(name))).toBeInTheDocument();
+    }
+  });
+
+  it('still shows the authored cost line at the floor, where the clamp drops the projected row entirely', () => {
+    // Bug found by code review: withAuthoredStockCosts matched authored to
+    // projected by walking `projected.map(...)` alone. At followers=0 the
+    // clamped delta is exactly 0, and `projectEffects`'s `followers` case
+    // pushes NO row at all in that case (not even a zero row) — so there was
+    // nothing in `projected` for the authored −cost Followers effect to
+    // splice into, and the whole line silently vanished from the card.
+    const projectedAtZero = { ...certainOption, effects: projectedFor(0) };
+    expect(projectedAtZero.effects.some((e) => e.t === 'followers')).toBe(false);
+    render(
+      <OptionCard
+        option={projectedAtZero}
+        rawOption={certainOption}
+        index={1}
+        artifacts={artifacts}
+        factions={factions}
+        endings={endings}
+        disabled
+        reason={`Requires ${cost} Followers · you have 0`}
+        onChoose={() => {}}
+      />,
+    );
+    const card = screen.getByRole('button');
+    expect(within(card).getByText(`−${cost}`)).toBeInTheDocument();
+    expect(within(card).getByText('Followers')).toBeInTheDocument();
+  });
+
+  it('shows a lock mark for an unaffordable card, and none for an affordable one', () => {
+    const { container, rerender } = render(
+      <OptionCard
+        option={certainOption}
+        index={1}
+        artifacts={artifacts}
+        factions={factions}
+        endings={endings}
+        disabled
+        reason={REASON}
+        onChoose={() => {}}
+      />,
+    );
+    expect(container.querySelector('svg')).toBeInTheDocument();
+
+    rerender(
+      <OptionCard
+        option={certainOption}
+        index={1}
+        artifacts={artifacts}
+        factions={factions}
+        endings={endings}
+        onChoose={() => {}}
+      />,
+    );
+    expect(container.querySelector('svg')).not.toBeInTheDocument();
   });
 
   it('keeps the keycap and the label unchanged', () => {
@@ -60,8 +204,9 @@ describe('OptionCard · unaffordable (reason prop)', () => {
       <OptionCard
         option={certainOption}
         index={1}
-        artifacts={demoArtifacts}
-        factions={demoFactions}
+        artifacts={artifacts}
+        factions={factions}
+        endings={endings}
         disabled
         reason={REASON}
         onChoose={() => {}}
@@ -77,8 +222,9 @@ describe('OptionCard · unaffordable (reason prop)', () => {
       <OptionCard
         option={certainOption}
         index={1}
-        artifacts={demoArtifacts}
-        factions={demoFactions}
+        artifacts={artifacts}
+        factions={factions}
+        endings={endings}
         disabled
         reason={REASON}
         onChoose={() => {}}
@@ -94,8 +240,9 @@ describe('OptionCard · unaffordable (reason prop)', () => {
       <OptionCard
         option={certainOption}
         index={1}
-        artifacts={demoArtifacts}
-        factions={demoFactions}
+        artifacts={artifacts}
+        factions={factions}
+        endings={endings}
         disabled
         reason={REASON}
         onChoose={onChoose}
@@ -103,6 +250,118 @@ describe('OptionCard · unaffordable (reason prop)', () => {
     );
     await user.click(screen.getByRole('button'));
     expect(onChoose).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Rule 1's newest corollary (issue #80): "any deterministic relic reaction is
+ * projected onto the offer card before the player commits." `reactions` is
+ * the prop `OfferPanel` derives from `projectReactions`; this file pins only
+ * what `OptionCard` does with it, the same contract-at-the-prop-level split
+ * the file's own header comment describes for `reason`.
+ */
+describe('OptionCard · the odds prop (effectiveOdds seam, issue #80 review)', () => {
+  /**
+   * `resolveChoice` rolls against `effectiveOdds(run, option)`, not
+   * `option.odds` directly (`run.ts`), so the card has to print the same
+   * number or a future odds-changing relic would make the roll and the
+   * printed percentage disagree. `OptionCard` cannot call `effectiveOdds`
+   * itself — it has no `RunState` — so `OfferPanel` computes it and passes
+   * it down as `odds`; this pins that the card actually PREFERS that prop
+   * over reading `option.odds` off the authored/projected option.
+   */
+  it('prints the odds prop, not option.odds, when the two disagree', () => {
+    const stubbed = 0.9;
+    expect(Math.round(gambleOption.odds * 100)).not.toBe(Math.round(stubbed * 100));
+    render(
+      <OptionCard
+        option={gambleOption}
+        odds={stubbed}
+        index={0}
+        artifacts={artifacts}
+        factions={factions}
+        endings={endings}
+        onChoose={() => {}}
+      />,
+    );
+    const card = screen.getByRole('button');
+    expect(within(card).getByText('90%')).toBeInTheDocument();
+    expect(within(card).getByText('10%')).toBeInTheDocument();
+    expect(within(card).queryByText(`${Math.round(gambleOption.odds * 100)}%`)).toBeNull();
+  });
+
+  it('falls back to option.odds when the prop is not wired', () => {
+    render(
+      <OptionCard option={gambleOption} index={0} artifacts={artifacts} factions={factions} endings={endings} onChoose={() => {}} />,
+    );
+    const card = screen.getByRole('button');
+    const win = Math.round(gambleOption.odds * 100);
+    expect(within(card).getByText(`${win}%`)).toBeInTheDocument();
+  });
+});
+
+describe('OptionCard · relic reactions (issue #80)', () => {
+  const option: OfferOption = { kind: 'certain', label: 'Sign it', effects: [{ t: 'pactDebt', v: 2 }] };
+  const reactions: RelicReactionPreview = {
+    kind: 'certain',
+    events: [{ artifactId: 'ashen_signature', applied: [{ t: 'pactDebt', v: -1 }] }],
+  };
+
+  it('renders one attributed line for the relic that reacts, alongside the option’s own effects', () => {
+    render(
+      <OptionCard
+        option={option}
+        index={0}
+        artifacts={artifacts}
+        factions={factions}
+        endings={endings}
+        reactions={reactions}
+        onChoose={() => {}}
+      />,
+    );
+    const card = screen.getByRole('button');
+    expect(within(card).getByText('The Ashen Signature')).toBeInTheDocument();
+    expect(within(card).getByText('+2')).toBeInTheDocument(); // the option's own, untouched
+    expect(within(card).getByText('−1')).toBeInTheDocument(); // the relic's own, attributed
+  });
+
+  it('renders nothing extra when no relic reacts to this option', () => {
+    render(
+      <OptionCard option={option} index={0} artifacts={artifacts} factions={factions} endings={endings} onChoose={() => {}} />,
+    );
+    const card = screen.getByRole('button');
+    expect(within(card).queryByText('The Ashen Signature')).not.toBeInTheDocument();
+  });
+
+  it('attributes a gamble’s two branches separately, never merging them', () => {
+    const gamble: OfferOption = {
+      kind: 'gamble',
+      label: 'Risk it',
+      odds: 0.5,
+      onSuccess: [{ t: 'pactDebt', v: 2 }],
+      onFailure: [{ t: 'pactDebt', v: 3 }],
+      successText: 'It goes well.',
+      failureText: 'It does not.',
+    };
+    const gambleReactions: RelicReactionPreview = {
+      kind: 'gamble',
+      onSuccess: [{ artifactId: 'ashen_signature', applied: [{ t: 'pactDebt', v: -1 }] }],
+      onFailure: [],
+    };
+    render(
+      <OptionCard
+        option={gamble}
+        index={0}
+        artifacts={artifacts}
+        factions={factions}
+        endings={endings}
+        reactions={gambleReactions}
+        onChoose={() => {}}
+      />,
+    );
+    const card = screen.getByRole('button');
+    // Exactly one attribution — the failure branch's own preview is empty.
+    expect(within(card).getAllByText('The Ashen Signature')).toHaveLength(1);
   });
 });
 
@@ -114,8 +373,9 @@ describe('OptionCard · disabled for a reason OTHER than affordability', () => {
       <OptionCard
         option={certainOption}
         index={1}
-        artifacts={demoArtifacts}
-        factions={demoFactions}
+        artifacts={artifacts}
+        factions={factions}
+        endings={endings}
         disabled
         onChoose={() => {}}
       />,

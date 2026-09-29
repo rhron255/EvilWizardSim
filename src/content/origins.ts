@@ -8,6 +8,14 @@ import type { Origin } from '../types';
  * Asymmetry is the design goal — every origin makes one faction easier and at
  * least one harder, and one of them trades a debt for a head start on the
  * lair ladder.
+ *
+ * Each also grants its own named relic (issue #80, slice 3 of #77) — a
+ * single `{ t: 'artifact', artifactId }`, never `artifactFrom`, because the
+ * whole point is that a wizard of this background starts with THIS relic,
+ * not a random one of its faction's commons. `scripts/validate-content.ts`
+ * holds two things about the grant: it is exactly one per origin, and the
+ * relic it names is a common — an origin relic is a background detail, not a
+ * legendary the creation screen would otherwise gate behind a run.
  */
 export const origins: Origin[] = [
   {
@@ -19,6 +27,7 @@ export const origins: Origin[] = [
       { t: 'standing', factionId: 'pale_academy', v: -30 },
       { t: 'standing', factionId: 'ashen_covenant', v: 10 },
       { t: 'notoriety', v: 5 },
+      { t: 'artifact', artifactId: 'footnote_that_bites' },
     ],
   },
   {
@@ -31,6 +40,7 @@ export const origins: Origin[] = [
       { t: 'standing', factionId: 'pale_academy', v: -10 },
       { t: 'followers', v: 4 },
       { t: 'notoriety', v: 3 },
+      { t: 'artifact', artifactId: 'mantle_of_slow_moss' },
     ],
   },
   {
@@ -43,6 +53,7 @@ export const origins: Origin[] = [
       { t: 'pactDebt', v: 2 },
       { t: 'standing', factionId: 'gilded_hand', v: -15 },
       { t: 'notoriety', v: 2 },
+      { t: 'artifact', artifactId: 'ashen_signature' },
     ],
   },
   {
@@ -53,7 +64,10 @@ export const origins: Origin[] = [
     effects: [
       { t: 'standing', factionId: 'gilded_hand', v: 20 },
       { t: 'standing', factionId: 'verdant_choir', v: -15 },
-      { t: 'artifactFrom', factionId: 'gilded_hand', rarity: 'common' },
+      // Was `{ t: 'artifactFrom', factionId: 'gilded_hand', rarity: 'common' }`
+      // — replaced (issue #80) with the named grant every origin now makes,
+      // rather than stacking a random Hand common on top of it.
+      { t: 'artifact', artifactId: 'unpaid_purse' },
     ],
   },
 ];

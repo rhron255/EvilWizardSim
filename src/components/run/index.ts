@@ -21,6 +21,9 @@ export type { FactionStandingsProps } from './FactionStandings';
 export { DecisionPanel } from './DecisionPanel';
 export type { DecisionPanelProps } from './DecisionPanel';
 
+export { RelicPage } from './RelicPage';
+export type { RelicPageProps } from './RelicPage';
+
 export { FirstRunGuide } from './FirstRunGuide';
 export type { FirstRunGuideProps } from './FirstRunGuide';
 

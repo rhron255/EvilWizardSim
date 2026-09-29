@@ -70,9 +70,10 @@ type Faction = {
   id: FactionId;
   name: string;
   blurb: string;
-  offersArtifactIds: string[];
   demands: string;            // what they take, in player-facing terms
   hostileTo: FactionId[];
+  adjective: string;           // used in ledger deed lines
+  reliquary: string;           // this faction's relic THEME, one line, issue #80
 };
 
 type Artifact = {
@@ -80,8 +81,8 @@ type Artifact = {
   name: string;
   factionId: FactionId;       // every artifact belongs to a faction
   rarity: 'common' | 'rare' | 'legendary';
-  effect: string;
   flavorText: string;
+  power: RelicPower;           // what it does, once held — issue #77, completed by slice 5 (#82)
 };
 
 type Offer = {
@@ -233,6 +234,15 @@ seeds 1–7 then landed at 1.15–1.85%.
 - Tone rule: **body text is comedic, effects are straight-faced.**
   "The villagers have renamed you 'That Prick From The Hill'" is the
   register. `-3 Notoriety` is not a joke.
+- Vocabulary rule: **no internal engine/mechanic name reaches the player.**
+  "Contagion", "clamp", "projection", `hostileTo`, `CONTAGION_GAIN` — these
+  are names for how the engine computes a number, not words a player has
+  ever been taught. A relic power, offer, or ending line describes the
+  effect a player can observe ("courting a faction costs its rivals X%
+  less standing") instead of the mechanism's own name. `relicPower.ts`'s
+  `contagionLossMultiplier` case shipped as "standing lost to contagion is
+  X% lower" and reached the relic panel unnoticed because it typechecked
+  and read like flavour — see wiki/07 failure mode 16.
 
 ## Naming Rules
 

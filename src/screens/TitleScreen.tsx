@@ -21,9 +21,10 @@ export type TitleScreenProps = {
   hasResumableRun: boolean;
   onBegin(): void;
   onResume(): void;
-  onViewCollection(): void;
+  onViewNecrolexicon(): void;
   onViewThemes(): void;
   onViewChangelog(): void;
+  onViewTutorial(): void;
 };
 
 export function TitleScreen({
@@ -32,9 +33,10 @@ export function TitleScreen({
   hasResumableRun,
   onBegin,
   onResume,
-  onViewCollection,
+  onViewNecrolexicon,
   onViewThemes,
   onViewChangelog,
+  onViewTutorial,
 }: TitleScreenProps) {
   const found = collection.discoveredArtifactIds.length;
   const tier = tierOf(collection.bestNotoriety);
@@ -82,8 +84,8 @@ export function TitleScreen({
             </button>
           ) : null}
 
-          <button type="button" className={styles.door} onClick={onViewCollection}>
-            <span>Collection</span>
+          <button type="button" className={styles.door} onClick={onViewNecrolexicon}>
+            <span>Necrolexicon</span>
             <span className={styles.doorNote}>
               <span className={styles.num}>{found}</span>
               <span className={styles.slash}>/</span>
@@ -102,6 +104,16 @@ export function TitleScreen({
 
           <button type="button" className={styles.door} onClick={onViewChangelog}>
             <span>Changelog</span>
+          </button>
+
+          {/* Issue #37: the three-card guide otherwise shows exactly once,
+              ever — a player who skipped it, or who just wants the loop
+              re-explained, had no way back in. Always present, unlike the
+              tutorial itself, because whether a stranger to the mechanics
+              exists is not something the title screen can tell from the
+              collection. */}
+          <button type="button" className={styles.door} onClick={onViewTutorial}>
+            <span>Tutorial</span>
           </button>
         </nav>
 

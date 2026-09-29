@@ -11,18 +11,28 @@
  */
 
 import { useEffect, useId, useRef } from 'react';
-import type { Artifact, Faction } from '../../types';
+import type { Artifact, Ending, Faction } from '../../types';
 import { tierColor, tierFor, tierGlow } from '../../theme/tokens';
 import type { Resolution } from './resolution';
 import { EffectList } from './EffectList';
-import { describeSystemic, endingName, formatOdds, systemicKey } from './effectText';
+import {
+  artifactName,
+  describeSystemic,
+  endingDisplayName,
+  factionFor,
+  formatOdds,
+  systemicKey,
+} from './effectText';
 import { NotorietyBadge } from './NotorietyBadge';
+import { ArtifactCard } from '../meta';
 import styles from './ResolutionOverlay.module.css';
 
 export type ResolutionOverlayProps = {
   resolution: Resolution;
   artifacts: Artifact[];
   factions: Faction[];
+  /** Needed for the authored ending name — see `endingDisplayName` in `effectText.ts`. Required, not optional: wiki/07's failure mode 17 is exactly a caller silently falling back to a bare id-derived name because nothing forced this through. */
+  endings: Ending[];
   onContinue(): void;
 };
 
@@ -48,6 +58,7 @@ export function ResolutionOverlay({
   resolution,
   artifacts,
   factions,
+  endings,
   onContinue,
 }: ResolutionOverlayProps) {
   const headingId = useId();
@@ -156,6 +167,7 @@ export function ResolutionOverlay({
             effects={resolution.appliedEffects}
             artifacts={artifacts}
             factions={factions}
+            endings={endings}
           />
         </div>
 
@@ -184,6 +196,32 @@ export function ResolutionOverlay({
                   </li>
                 );
               })}
+            </ul>
+          </div>
+        )}
+
+        {/* A relic's own consequence this era (issue #80) — kept separate
+            from the option's own effects above for the same reason
+            `systemic` is: attributing it to the choice the player just made
+            would misname its cause. Short on purpose: the relic's power
+            line, shown wherever the relic itself is, already explains WHY;
+            this only says what it did. */}
+        {resolution.relicEvents.length > 0 && (
+          <div className={styles.relicEvents}>
+            <p className={styles.relicEventsLabel}>Your relics</p>
+            <ul className={styles.relicEventsList}>
+              {resolution.relicEvents.map((event) => (
+                <li key={event.artifactId} className={styles.relicEventRow}>
+                  <span className={styles.relicEventName}>{artifactName(event.artifactId, artifacts)}</span>
+                  <EffectList
+                    effects={event.applied}
+                    artifacts={artifacts}
+                    factions={factions}
+                    endings={endings}
+                    compact
+                  />
+                </li>
+              ))}
             </ul>
           </div>
         )}
@@ -227,6 +265,26 @@ export function ResolutionOverlay({
           </div>
         )}
 
+        {/* `artifactsLost` was landing on `Resolution` unread — the card still
+            said only "Lose a held relic," the generic pre-commit phrasing,
+            even after the roll named exactly which one (issue #80 review).
+            `ArtifactCard`'s own `lost` state already has the vocabulary
+            (`RelicPage`'s "Lost this run" section uses the same one); this
+            just points it at what a single era took, right where the
+            equivalent GAIN is shown above. */}
+        {resolution.artifactsLost.length > 0 && (
+          <div className={styles.relicsLost}>
+            <p className={styles.relicsLostLabel}>Lost this era</p>
+            <ul className={styles.relicsLostList}>
+              {resolution.artifactsLost.map((a) => (
+                <li key={a.id}>
+                  <ArtifactCard artifact={a} faction={factionFor(factions, a.factionId)} lost compact />
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {resolution.lairMoved && (
           <p className={styles.lairMove} data-up={resolution.lairMoved.up ? 'true' : undefined}>
             <span className={styles.lairMoveLabel}>
@@ -237,6 +295,33 @@ export function ResolutionOverlay({
           </p>
         )}
 
+        {/* A lifeline (issue #82): the run was about to end, and a held relic
+            spent itself instead. Its own block, not folded into `relicEvents`
+            above — that section is for a routine era-tick reaction, and this
+            is the one thing bigger than the ending line below it: the run
+            NOT ending. Styled for weight (a brighter border, like the
+            controls styling convention 2 asks for) rather than a new color —
+            `--ew-tier` stays the one chromatic reward the run pays out
+            (CLAUDE.md rule 3). */}
+        {resolution.lifeline && (
+          <div className={styles.lifeline}>
+            <p className={styles.lifelineLabel}>Lifeline</p>
+            <p className={styles.lifelineText}>
+              {artifactName(resolution.lifeline.artifactId, artifacts)} spends itself:{' '}
+              {endingDisplayName(resolution.lifeline.endingAverted, endings)} does not happen.
+            </p>
+            {resolution.lifeline.applied.length > 0 && (
+              <EffectList
+                effects={resolution.lifeline.applied}
+                artifacts={artifacts}
+                factions={factions}
+                endings={endings}
+                compact
+              />
+            )}
+          </div>
+        )}
+
         {tierCrossed && (
           <p className={styles.tier} data-celebrate={tierCrossed.celebrate ? 'true' : undefined}>
             <span className={styles.tierName}>{tierCrossed.name}</span>
@@ -245,7 +330,7 @@ export function ResolutionOverlay({
         )}
 
         {resolution.ending && (
-          <p className={styles.ending}>The run ends · {endingName(resolution.ending)}</p>
+          <p className={styles.ending}>The run ends · {endingDisplayName(resolution.ending, endings)}</p>
         )}
 
         {/* The deed line the ledger is about to receive was echoed here, which

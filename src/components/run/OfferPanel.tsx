@@ -7,15 +7,34 @@
  */
 
 import { useCallback, useEffect, useId, useMemo, useRef } from 'react';
-import type { Artifact, Faction, Offer, OfferOption, RunState } from '../../types';
-import type { ContentBundle } from '../../engine';
-import { conditionMet, impliedGatesOf, isOptionPickable } from '../../engine';
+import type { Artifact, Effect, Faction, Offer, OfferOption, RunState } from '../../types';
+import type { ContentBundle, RelicEvent, RelicReactionPreview } from '../../engine';
+import {
+  conditionMet,
+  effectiveOdds,
+  impliedGatesOf,
+  isOptionPickable,
+  projectReactions,
+  relicRules,
+} from '../../engine';
 import { describeGate } from './effectText';
 import { OptionCard } from './OptionCard';
 import styles from './OfferPanel.module.css';
 
 export type OfferPanelProps = {
   offer: Offer;
+  /**
+   * The unprojected counterpart of `offer` — same options, same order,
+   * authored magnitudes rather than the run-projected ones `offer` may carry.
+   * Affordability gating (`gateFor` below) is computed against THIS, never
+   * against `offer`: a projected follower cost that floor-clamped from -15 to
+   * -8 would otherwise gate on -8, and a wizard with exactly 8 followers would
+   * see the card as pickable right up until the engine — which validates
+   * against the same authored magnitudes this prop carries — refuses it.
+   * Defaults to `offer` when omitted, which is correct wherever the caller's
+   * `offer` was never projected to begin with.
+   */
+  rawOffer?: Offer;
   run: RunState;
   content: ContentBundle;
   artifacts: Artifact[];
@@ -47,15 +66,78 @@ function gateFor(
   content: ContentBundle,
 ): OptionGate {
   if (isOptionPickable(run, option, content)) return { pickable: true };
-  const failing = impliedGatesOf(option).find((c) => !conditionMet(run, c, content));
+  const followersCostMultiplier = relicRules(run, content).followersCostMultiplier;
+  const failing = impliedGatesOf(option, followersCostMultiplier).find((c) => !conditionMet(run, c, content));
   return {
     pickable: false,
     reason: failing ? describeGate(failing, run, content) : undefined,
   };
 }
 
+// ---------------------------------------------------------------------------
+// Ambient relic reactions (styling convention 3)
+// ---------------------------------------------------------------------------
+
+function sameApplied(a: readonly Effect[], b: readonly Effect[]): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+/** Every branch of every option this offer previews — a `certain` has one, a `gamble` two. */
+function allBranches(previews: readonly RelicReactionPreview[]): RelicEvent[][] {
+  return previews.flatMap((p) => (p.kind === 'certain' ? [p.events] : [p.onSuccess, p.onFailure]));
+}
+
+/**
+ * A relic event is AMBIENT for this offer when it lands, with the exact same
+ * applied effects, on EVERY branch of EVERY option — an unconditional
+ * era-end trigger (the Mantle) fires the same way whatever gets picked, so it
+ * is not a consequence of the choice at all. It used to be printed once, here
+ * on the offer card, under a "Whatever you choose" label — dropped because it
+ * repeated identically on every offer of the run. The Relics page now opens
+ * with a plain "name, then effect" line for every held relic instead (see
+ * `RelicPage`), not tied to any one offer, so this function's only remaining
+ * job is what it always also did: keep the same event off every option's OWN
+ * card, per CLAUDE.md's styling convention 3 ("if two elements on one screen
+ * state the same … consequence, drop whichever copy is not the ambient line
+ * for it").
+ *
+ * An event that varies by branch (the Purse only tops up on branches that
+ * leave followers under ten) or is absent on some — never counts as ambient,
+ * and stays exactly where it already was: attributed to the specific
+ * branch that actually produces it.
+ */
+function ambientReactionsOf(previews: readonly RelicReactionPreview[]): RelicEvent[] {
+  const branches = allBranches(previews);
+  const [first, ...rest] = branches;
+  if (!first) return [];
+  return first.filter((event) =>
+    rest.every((branch) =>
+      branch.some((e) => e.artifactId === event.artifactId && sameApplied(e.applied, event.applied)),
+    ),
+  );
+}
+
+function withoutAmbient(events: readonly RelicEvent[], ambient: readonly RelicEvent[]): RelicEvent[] {
+  const ambientIds = new Set(ambient.map((e) => e.artifactId));
+  return events.filter((e) => !ambientIds.has(e.artifactId));
+}
+
+function withoutAmbientReactions(
+  preview: RelicReactionPreview,
+  ambient: readonly RelicEvent[],
+): RelicReactionPreview {
+  return preview.kind === 'certain'
+    ? { kind: 'certain', events: withoutAmbient(preview.events, ambient) }
+    : {
+        kind: 'gamble',
+        onSuccess: withoutAmbient(preview.onSuccess, ambient),
+        onFailure: withoutAmbient(preview.onFailure, ambient),
+      };
+}
+
 export function OfferPanel({
   offer,
+  rawOffer,
   run,
   content,
   artifacts,
@@ -66,10 +148,42 @@ export function OfferPanel({
   const titleId = useId();
   const listRef = useRef<HTMLDivElement>(null);
   const count = offer.options.length;
+  const gateOptions = (rawOffer ?? offer).options;
 
   const optionGates = useMemo(
-    () => offer.options.map((option) => gateFor(run, option, content)),
-    [offer.options, run, content],
+    () => gateOptions.map((option) => gateFor(run, option, content)),
+    [gateOptions, run, content],
+  );
+
+  // Rule 1: any deterministic relic reaction is projected onto the card
+  // before the commit. Computed from `gateOptions` (the AUTHORED option,
+  // same as `gateFor` above) so the preview matches what `resolveChoice` will
+  // actually apply, never a copy already rewritten by `projectEffects`.
+  const optionReactions = useMemo(
+    () => gateOptions.map((option) => projectReactions(run, option, content, offer.factionId)),
+    [gateOptions, run, content, offer.factionId],
+  );
+
+  // Same reasoning as `optionReactions`: computed from `gateOptions` (the
+  // AUTHORED option) so the odds printed on the card are the odds
+  // `resolveChoice` actually rolls against, via the same `effectiveOdds` seam
+  // — never `option.odds` read straight off a UI-projected copy. `content`
+  // is what lets it see the Spectacles of the Third Reading's own bonus
+  // (issue #82) — omitting it here would silently under-print the odds the
+  // engine will actually roll against.
+  const optionOdds = useMemo(
+    () => gateOptions.map((option) => effectiveOdds(run, option, content)),
+    [gateOptions, run, content],
+  );
+
+  // Styling convention 3: a reaction every branch of every option produces
+  // identically (an unconditional era-end trigger) is not a consequence of
+  // THIS choice, so it renders once, ambient to the offer, rather than
+  // repeated on every card — see `ambientReactionsOf`'s own doc comment.
+  const ambientReactions = useMemo(() => ambientReactionsOf(optionReactions), [optionReactions]);
+  const cardReactions = useMemo(
+    () => optionReactions.map((preview) => withoutAmbientReactions(preview, ambientReactions)),
+    [optionReactions, ambientReactions],
   );
 
   const buttons = useCallback((): HTMLButtonElement[] => {
@@ -146,11 +260,15 @@ export function OfferPanel({
             <OptionCard
               key={`${offer.id}-${i}-${option.label}`}
               option={option}
+              rawOption={gateOptions[i]}
+              odds={optionOdds[i]}
               index={i}
               artifacts={artifacts}
               factions={factions}
+              endings={content.endings}
               disabled={disabled || !gate?.pickable}
               reason={gate?.reason}
+              reactions={cardReactions[i]}
               onChoose={onChoose}
             />
           );
