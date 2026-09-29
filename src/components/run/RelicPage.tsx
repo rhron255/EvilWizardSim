@@ -35,11 +35,14 @@
  * so a short name and a short effect can still land side by side there; this
  * summary always stacks the two). The effect itself uses the same
  * colour-coded, comma-flowed notation `EffectList` already renders for an
- * ordinary offer's consequences, not the fuller descriptive sentence
- * `relicPowerText` builds around it (the "At every era's end, if …:" framing
- * and the gating condition). That fuller sentence still appears once, on the
- * full card below under "Artifacts" — this summary is the quick version, not
- * a second copy of the same disclosure. Only a `trigger` power carries a
+ * ordinary offer's consequences, preceded by a short line saying WHEN it
+ * fires (`relicTriggerWhen`: "When you lose a gamble:", "Every era's end:").
+ * *Amended from play:* the summary once dropped that condition entirely, and
+ * every trigger read as a flat bonus paid each era — "+3 Notoriety" for a
+ * relic that only pays when you lose a gamble. The effect is the terse
+ * notation; the condition is never optional. The fuller sentence
+ * `relicPowerText` builds still appears on the card below under
+ * "Artifacts". Only a `trigger` power carries a
  * discrete `Effect[]` to render that way; a `passive` rate change (the only
  * other kind authored so far) has no such list, so it falls back to its own
  * prose, and a relic with no power at all gets no effect line. This is
@@ -53,7 +56,7 @@ import { useEffect, useRef } from 'react';
 import { canActivateRelic } from '../../engine';
 import type { ContentBundle, DefenseReadout } from '../../engine';
 import type { Artifact, Faction, RelicPower, RunState } from '../../types';
-import { ArtifactCard, relicPowerText } from '../meta';
+import { ArtifactCard, relicPowerText, relicTriggerWhen } from '../meta';
 import { EffectList } from './EffectList';
 import { factionFor } from './effectText';
 import styles from './RelicPage.module.css';
@@ -172,6 +175,11 @@ export function RelicPage({
             return (
               <div key={artifact.id} className={styles.summaryItem}>
                 <p className={styles.summaryName}>{artifact.name}</p>
+                {showEffects && (
+                  <p className={styles.summaryWhen}>
+                    {relicTriggerWhen(artifact.power, { factions })}:
+                  </p>
+                )}
                 {showEffects && (
                   <EffectList
                     effects={artifact.power.effects}

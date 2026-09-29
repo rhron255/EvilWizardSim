@@ -8,8 +8,19 @@
   position: fixed;
   inset: 0;
   z-index: 40;
-  display: grid;
-  place-items: center;
+  /* The SCRIM scrolls, never the card. The card used to be the scroll
+     container (`max-height` + `overflow-y: auto`), and its verdict wash
+     below is an absolutely-positioned `::before` at `inset: 0` — which in a
+     scroll container is only one viewport tall and scrolls away with the
+     content, so on a phone a long resolution showed the wash's rounded
+     bottom edge floating mid-card above the ending line and Continue. With
+     the card at its natural height the wash always covers all of it.
+     `margin: auto` on the card centres it when it fits and, unlike
+     `place-items: center`, never pushes its top out of reach when it does
+     not. */
+  display: flex;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: var(--ew-space-4);
   background: radial-gradient(120% 90% at 50% 40%, rgba(11, 10, 9, 0.82), rgba(11, 10, 9, 0.94));
   backdrop-filter: blur(3px);
@@ -36,8 +47,8 @@
 .card {
   position: relative;
   width: min(30rem, 100%);
-  max-height: calc(100vh - var(--ew-space-6));
-  overflow-y: auto;
+  margin: auto;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   gap: var(--ew-space-4);

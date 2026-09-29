@@ -21,6 +21,13 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-09-28T19:05:46Z': {
+    summary: 'The Relics page now says when each relic takes effect, and long result cards display properly on phones.',
+    details: [
+      "The Relics page summary now names each relic's condition (\"When you lose a gamble: +3 Notoriety\"), so a conditional relic no longer looks like a bonus paid every era.",
+      "Fixed a bug where a long result card's coloured outline stopped partway down when you scrolled, leaving a stray edge above Continue.",
+    ],
+  },
   '2026-09-25T16:00:00Z': {
     summary: 'Every relic in the game does something now, and careers hold more of them.',
     details: [

@@ -143,6 +143,30 @@ function watchPhrasesFor(power: TriggerPower, ctx: RelicPowerContext): string[] 
   return phrases;
 }
 
+/**
+ * WHEN a trigger fires, as one short clause — the relic page's summary line
+ * (issue #78) prints this above the trigger's colour-coded effects. Without
+ * it the summary listed every trigger as a bare "+3 Notoriety", which read as
+ * a flat bonus the relic pays every era rather than a reaction to losing a
+ * gamble, raising Pact Debt, answering a Choir offer, and so on. Built from
+ * the same `watchPhrasesFor`/`ifPhrase` clauses the full card line uses, so
+ * the two cannot state different conditions — only the framing is terser
+ * ("When …" rather than "At the choice you make, if …").
+ */
+export function relicTriggerWhen(power: TriggerPower, ctx: RelicPowerContext = {}): string {
+  if (power.when === 'heroApproach') return 'The first time the hero draws close';
+  const watchPhrases = watchPhrasesFor(power, ctx);
+  const ifClause = ifPhrase(power.if, ctx);
+  const gate = [...watchPhrases, ifClause].filter(Boolean).join(' and ');
+  if (power.once) {
+    const soleWatchIsPositive = Boolean(power.watchesPositive) && watchPhrases.length === 1 && !ifClause;
+    if (soleWatchIsPositive) return `Once, the first choice that raises your ${statLabel(power.watchesPositive!)}`;
+    return gate ? `Once, the first time ${gate}` : 'Once';
+  }
+  if (power.when === 'eraEnd') return gate ? `Every era's end, if ${gate}` : "Every era's end";
+  return gate ? `When ${gate}` : 'Every choice you make';
+}
+
 export function relicPowerText(power: RelicPower, ctx: RelicPowerContext = {}): string {
   switch (power.kind) {
     case 'passive': {
