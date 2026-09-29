@@ -14,8 +14,55 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Classifies the diff so the two jobs below only do work that can actually
+  # produce a different answer. `code` is anything that can change what
+  # typecheck/test/lint/validate:content/build report; `balance` is the
+  # narrower set that can move a `npm run sim` number — see CLAUDE.md's
+  # repository-layout table and "content and engine are separated on
+  # purpose" for why `src/engine/`, `src/content/`, and `src/types.ts` (the
+  # contract both are written against) are the only source directories that
+  # qualify. A docs-only change (`wiki/`, root `*.md`) or a UI-only change
+  # (`src/components/`, `src/screens/`, `src/theme/`) cannot move either, so
+  # neither job needs to run for it.
+  changes:
+    name: Classify changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+      balance: ${{ steps.filter.outputs.balance }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Filter paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            code:
+              - 'src/**'
+              - 'scripts/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'tsconfig*.json'
+              - 'vite.config.ts'
+              - 'eslint.config.js'
+              - 'index.html'
+              - '.github/workflows/ci.yml'
+            balance:
+              - 'src/engine/**'
+              - 'src/content/**'
+              - 'src/types.ts'
+              - 'scripts/simulate.ts'
+              - 'scripts/balance-report.ts'
+              - 'package.json'
+              - 'package-lock.json'
+
   quality:
     name: Quality gates
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -57,9 +104,10 @@ jobs:
   # too" is about. It reports; a human decides.
   balance:
     name: Balance report
+    needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && needs.changes.outputs.balance == 'true'
 
     permissions:
       contents: read
