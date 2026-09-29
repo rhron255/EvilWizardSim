@@ -261,7 +261,10 @@ function checkOption(where: string, option: OfferOption) {
     ['failureText', option.failureText],
   ] as const) {
     if (text.trim().length > DEED_CLIP_WARN) {
-      warn(where, `${field} is ${text.trim().length} chars — the Deeds column will clip it`);
+      warn(
+        where,
+        `${field} is ${text.trim().length} chars — long for a resolution line (over ${DEED_CLIP_WARN}); nothing clips it, this only flags the author`,
+      );
     }
   }
 

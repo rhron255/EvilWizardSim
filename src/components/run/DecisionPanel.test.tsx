@@ -243,12 +243,15 @@ describe('DecisionPanel · the next-threat line', () => {
 });
 
 describe('DecisionPanel · the patron line', () => {
-  it('says "None yet" when no faction has cleared the devotion bar and margin', () => {
+  it('shows no patron line until a faction has cleared the devotion bar and margin', () => {
     // demoRun's highest standing (Ashen Covenant, 46) sits under
-    // DEVOTION_STANDING (50).
+    // DEVOTION_STANDING (50). The line used to read "Patron: None yet" on every
+    // era of every career that never earned one — about 30px of the one screen
+    // with none to spare, saying nothing that changes a decision. It appears the
+    // moment there is a patron to name.
     show(demoRun);
-    expect(screen.getByText('Patron')).toBeInTheDocument();
-    expect(screen.getByText('None yet')).toBeInTheDocument();
+    expect(screen.queryByText('Patron')).toBeNull();
+    expect(screen.queryByText('None yet')).toBeNull();
   });
 
   it('names the faction once devotion and the exclusivity margin both clear', () => {
@@ -264,6 +267,7 @@ describe('DecisionPanel · the patron line', () => {
     // No offer, so the faction's name cannot ALSO appear as an unrelated
     // offer eyebrow — this test is about the patron line specifically.
     show(devoted, wards(120), null);
+    expect(screen.getByText('Patron')).toBeInTheDocument();
     expect(screen.getByText('The Ashen Covenant')).toBeInTheDocument();
     expect(screen.queryByText('None yet')).toBeNull();
   });

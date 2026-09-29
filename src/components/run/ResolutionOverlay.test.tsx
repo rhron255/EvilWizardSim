@@ -15,8 +15,8 @@
  * (CLAUDE.md § 2), and the previous instance of it — the roll rail — survived a
  * whole build because nothing rendered the component with real engine output.
  */
-import { describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { artifacts } from '../../content/artifacts';
 import { factions } from '../../content/factions';
@@ -25,6 +25,8 @@ import { BETRAYAL_MAX_LOYALTY } from '../../engine';
 import type { Resolution, SystemicChange } from './resolution';
 import { ResolutionOverlay } from './ResolutionOverlay';
 import { endingDisplayName } from './effectText';
+import { BEATS } from '../meta';
+import { tierFor } from '../../theme/tokens';
 
 // A real long-shot gamble paying off with a relic: the card, its odds, its
 // success narration, and the notoriety it prints all come from the catalog.
@@ -438,5 +440,74 @@ describe('ResolutionOverlay · dismissing exactly once', () => {
     await user.click(screen.getByText(demoResolutionSuccess.text));
     await user.click(screen.getByText('While you were elsewhere'));
     expect(onContinue).not.toHaveBeenCalled();
+  });
+});
+
+describe('ResolutionOverlay · haptics', () => {
+  // A buzz is only worth having if it lands WITH the thing it is about: the
+  // verdict word starts its own animation at the roll's settle, so that event
+  // is the cue — not a second copy of the timing in a setTimeout that could
+  // drift from the stylesheet.
+  let vibrate: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vibrate = vi.fn(() => true);
+    Object.defineProperty(navigator, 'vibrate', { value: vibrate, configurable: true, writable: true });
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    Reflect.deleteProperty(navigator, 'vibrate');
+  });
+
+  it('stays silent through the roll and buzzes when the verdict lands', () => {
+    show([], { outcome: 'success' });
+    expect(vibrate).not.toHaveBeenCalled();
+
+    fireEvent.animationStart(screen.getByText('Success'));
+
+    expect(vibrate).toHaveBeenCalledTimes(1);
+    expect(vibrate).toHaveBeenCalledWith(BEATS.success);
+  });
+
+  it('gives a failure its own pattern', () => {
+    show([], { outcome: 'failure' });
+    fireEvent.animationStart(screen.getByText('Failure'));
+    expect(vibrate).toHaveBeenCalledWith(BEATS.failure);
+  });
+
+  it('gives a certain choice nothing — the quiet case stays quiet', () => {
+    show([], { outcome: 'deterministic', odds: undefined, roll: undefined });
+    expect(vibrate).not.toHaveBeenCalled();
+    // Even a stray animation event on the word cannot buzz a choice with no roll.
+    fireEvent.animationStart(screen.getByText('Resolved'));
+    expect(vibrate).not.toHaveBeenCalled();
+  });
+
+  it('marks a celebrated tier crossing on the verdict of the gamble that earned it', () => {
+    show([], { outcome: 'success', tierCrossed: tierFor(80) });
+    expect(vibrate).not.toHaveBeenCalled();
+
+    fireEvent.animationStart(screen.getByText('Success'));
+
+    expect(vibrate).toHaveBeenCalledTimes(1);
+    expect(vibrate).toHaveBeenCalledWith(BEATS.crossing);
+  });
+
+  it('marks a crossing straight away when a certain choice earned it, since nothing rolls', () => {
+    show([], { outcome: 'deterministic', odds: undefined, roll: undefined, tierCrossed: tierFor(80) });
+    expect(vibrate).toHaveBeenCalledTimes(1);
+    expect(vibrate).toHaveBeenCalledWith(BEATS.crossing);
+  });
+
+  it('does not buzz for a player who asked for reduced motion', () => {
+    vi.stubGlobal('matchMedia', (q: string) => ({
+      matches: q.includes('prefers-reduced-motion'),
+      addEventListener() {},
+      removeEventListener() {},
+    }));
+    show([], { outcome: 'success' });
+    fireEvent.animationStart(screen.getByText('Success'));
+    expect(vibrate).not.toHaveBeenCalled();
   });
 });

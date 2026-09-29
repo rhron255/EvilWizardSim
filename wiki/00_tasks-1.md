@@ -7,85 +7,106 @@ description: Prioritized, verifiable task board grouped by decisions, architectu
 
 Status legend: `Planned` · `Partial` · `Complete` · `Blocked` · `Missing`
 
-Everything below is `Planned` or `Blocked`. Nothing is built.
+**Status, 2026-09-29.** This board was written before anything was built and
+most of it has since been done. Items are ticked where the code proves them;
+the four that are genuinely open are marked **OPEN**. Where an item names a
+count or a mechanism that has since changed, the code is right.
 
 ## P0 — Blocking Decisions
 
-- [ ] Choose the stack. Proposal in `03_systems_architecture.md` is React
-      + TypeScript, no backend. **Blocks all implementation.**
-- [ ] Choose the target language. **Blocks all content authoring** —
-      comedy does not translate cheaply.
-- [ ] Decide whether cross-run collection is `localStorage`-only for v1.
+- [x] Choose the stack. React + TypeScript + Vite, no backend.
+- [x] Choose the target language. English (en-GB in player-facing text).
+- [x] Cross-run collection is `localStorage`-only, versioned.
 
 ## P1 — Vertical Slice
 
 Goal: find out whether the ledger is compelling before investing in
-content. See `05_implementation_blueprint.md` Phase 1.
+content. See `05_implementation_blueprint-1.md` Phase 1.
 
-- [ ] `RunState` reducer with append-only `EraRecord[]`.
-- [ ] `<Ledger>` component rendering era rows with placeholder text.
-- [ ] One offer type with two options and printed odds.
-- [ ] Notoriety value plus badge tier coloring.
-- [ ] Hard stop at 15 eras.
-- [ ] **Verify:** a team member plays 5 consecutive runs voluntarily with
-      placeholder text and no art.
+- [x] `RunState` reducer with append-only `EraRecord[]`.
+- [x] `<Ledger>` component rendering era rows. *(Built, then removed from the
+      run screen by issue #36 — see `CLAUDE.md` rule 2. The per-era record
+      remains.)*
+- [x] One offer type with two options and printed odds.
+- [x] Notoriety value plus badge tier coloring.
+- [x] Hard stop — now 12 / 16 / 20 eras, chosen at creation.
+- [x] **Verify:** the loop held up under play; the vertical slice was
+      superseded by the full build.
 
 ## P2 — Full Loop
 
-- [ ] Creation screen with wizard name capture and origin selection.
-- [ ] Prophecy interstitial as a full-screen set piece.
-- [ ] Phase flip from ascent to decline.
-- [ ] Notoriety decay per `04_operational_behaviors.md`.
-- [ ] Hero threat escalation and defense comparison.
-- [ ] All seven endings reachable.
-- [ ] Ending card with lair grid.
-- [ ] **Verify:** a run completes in 2–4 minutes; every ending hit in test.
+- [x] Creation screen with wizard name capture, epithet, origin and length.
+- [x] Prophecy interstitial as a full-screen set piece.
+- [x] Phase flip from ascent to decline.
+- [x] Notoriety decay per `04_operational_behaviors-1.md`.
+- [x] Hero threat escalation and defense comparison.
+- [x] All endings reachable — there are now nineteen, not seven; `npm run
+      sim` fails if any is unreachable.
+- [x] Ending card with lair grid.
+- [x] **Verify:** a run is roughly 15 decisions; every ending is hit by the
+      sim's dedicated cohort probes.
 
 ## P3 — Systems Quality
 
-- [ ] Content validation script (faction refs valid, 2–4 options per
-      offer, every probabilistic option declares success *and* failure
-      effects).
-- [ ] Enforce odds display structurally — make an undisclosed effect
-      impossible to author, not merely discouraged.
-- [ ] Headless simulation harness reporting ending distribution, final
-      Notoriety spread, and Ascension rate over N runs.
-- [ ] Schema `version` key on persisted collection.
+- [x] Content validation script (`npm run validate:content`).
+- [x] Odds display enforced structurally — `Effect` is data, and a gamble
+      cannot compile without `onFailure`.
+- [x] Headless simulation harness (`npm run sim`, 2000 runs, seven policies).
+- [x] Schema `version` key on the collection and the saved run.
 
 ## P4 — Content
 
 Blocked on the language decision.
 
-- [ ] Write six faction blurbs, demands, and `hostileTo` relations.
-- [ ] Author 30 artifacts with faction assignment, rarity, flavor.
-- [ ] Author lair list with tiers and names.
-- [ ] Author 20 offers for the vertical slice.
-- [ ] Author remaining offers to 80–120 total.
-- [ ] Write seven ending narrations, including a swamp retirement that
-      still reads as a story.
-- [ ] **Verify:** 10 consecutive runs with no repeated offer.
+- [x] Six faction blurbs, demands, and `hostileTo` relations.
+- [x] 32 relics with faction, rarity, flavour and (issue #77) a power each.
+- [x] Ten lairs, tiered.
+- [x] 155 offers (target was 80–120).
+- [x] Nineteen ending narrations, including a swamp retirement that reads
+      as a story.
+- [x] **Verify:** offers do not repeat within a run (`seenOfferIds`).
 
 ## P5 — Persistence & Collection
 
-- [ ] Collection read at run start, written at run end.
-- [ ] Collection grid with silhouettes for undiscovered artifacts.
-- [ ] In-progress run recovery on tab close.
-- [ ] **Verify:** collection survives browser restart and a version bump.
+- [x] Collection read at run start, written at run end.
+- [x] The Necrolexicon (issue #66): every relic and ending, silhouettes for
+      the undiscovered.
+- [x] In-progress run recovery on tab close ("Resume run").
+- [x] **Verify:** collection survives a restart and a version bump
+      (`persistence.ts`; the relic-power rework reset the relic grid once, on
+      purpose — `RELICS_RESET_AT_BUILD`).
 
 ## P6 — Balance
 
-- [ ] Tune decay base/exponent against 100 simulated runs.
-- [ ] Tune hero escalation so age-limit survival is uncommon.
-- [ ] Hold Ascension rate in the low single-digit percent.
+- [x] Tune decay base/exponent against simulated runs.
+- [x] Tune hero escalation so age-limit survival is uncommon (30% on the
+      2000-run population; band 8–35%).
+- [x] Hold Ascension rate in the low single-digit percent (1.1% on seed 1).
+- [ ] **OPEN.** One sim target still fails: `arch_lich < good_wizard <
+      every other dedicated-cohort ending` (good_wizard 2.40%,
+      overthrown_the_kingdom 1.00%). It is a rarity-ordering check between
+      cohorts, not a reachability failure; it should be resolved by a
+      decision about which ending is rarer, not by loosening the check.
 - [x] Tune Notoriety tier thresholds against real run distributions. Measured 2026-08-23 against 2000 runs of the real catalog: the 0-39 / 40-59 / 60-74 / 75-89 / 90-99 bands survive measurement unchanged, and `npm run sim` now carries a target for the 40+ crossing (70-95%, currently 87.70%) alongside the 60+/75+/90+ ones it already had. The first tier crossing — the first time the rationed colour does anything — had never been measured.
 
 ## P7 — Release Readiness
 
-- [ ] Share image generation.
-- [ ] Profanity screening on wizard names — **required before any public
-      sharing feature ships.**
-- [ ] OG tags and preview image.
-- [ ] **Verify:** share image renders on mobile Safari and Android Chrome.
+- [x] Share image generation (`shareImage.ts`, a 1080×1350 canvas).
+- [x] Profanity screening on wizard names — **decided against** (2026-09-29).
+      The original note said *required before any public sharing feature
+      ships*; nothing here is published, the player shares their own image of a
+      name they typed. Void if the game ever hosts names. See `index-1.md`
+      § Decisions.
+- [x] OG tags and preview image (`public/og.png`, generated by `npm run
+      assets`), favicon, touch icon and install manifest.
+- [ ] **OPEN.** **Verify:** share image renders on mobile Safari and Android
+      Chrome. The repo's own probes (`qa/shoot-share.mjs`) only render it in
+      desktop Chromium.
+
+## Not yet on any board
+
+- Audio (decided against; haptics are in — see `index-1.md` § Decisions).
+- A screen-reader pass beyond the keyboard checks in `qa/`.
 
 ## Deferred
 

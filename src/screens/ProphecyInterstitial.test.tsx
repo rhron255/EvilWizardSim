@@ -17,14 +17,17 @@
  * TIMERS. The screen stages six `setTimeout`s out to 2900ms and probes
  * `matchMedia` to skip them. jsdom has no `matchMedia`, so without the stub
  * below every test here would schedule real timers that fire `setState`
- * outside `act`. This is the same stub `EndingScreen.test.tsx` uses; no test in
- * this repo uses fake timers.
+ * outside `act`. This is the same stub `EndingScreen.test.tsx` uses. The one
+ * exception is the haptics block at the bottom: the buzz is tied to a stage of
+ * the staging itself, so proving it lands on the headline and not before
+ * requires watching the stages happen — fake timers, driven inside `act`.
  */
-import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { RunState } from '../types';
 import { ProphecyInterstitial } from './ProphecyInterstitial';
+import { BEATS } from '../components/meta';
 
 /** A mid-run state, taken at the moment the prophecy fires (era index 10). */
 const demoRunAtProphecy: RunState = {
@@ -161,5 +164,68 @@ describe('ProphecyInterstitial · skipping', () => {
     const { onContinue } = show();
     await userEvent.click(screen.getByRole('button', { name: /return to your work/i }));
     expect(onContinue).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ProphecyInterstitial · haptics', () => {
+  let vibrate: ReturnType<typeof vi.fn>;
+  const motion = (reduce: boolean) =>
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: reduce && query.includes('prefers-reduced-motion'),
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    }));
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vibrate = vi.fn(() => true);
+    Object.defineProperty(navigator, 'vibrate', { value: vibrate, configurable: true, writable: true });
+    motion(false);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    Reflect.deleteProperty(navigator, 'vibrate');
+  });
+
+  it('buzzes once, when the headline is revealed and not before', () => {
+    show();
+    act(() => {
+      vi.advanceTimersByTime(900); // the headline's cue is at 1000ms
+    });
+    expect(vibrate).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+    expect(vibrate).toHaveBeenCalledTimes(1);
+    expect(vibrate).toHaveBeenCalledWith(BEATS.prophecy);
+
+    act(() => {
+      vi.advanceTimersByTime(4000); // the rest of the staging must not buzz again
+    });
+    expect(vibrate).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not buzz a player who skips the staging for a beat they did not watch', () => {
+    show();
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    fireEvent.click(screen.getByRole('main'));
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+    expect(vibrate).not.toHaveBeenCalled();
+  });
+
+  it('does not buzz under reduced motion, where the staging is not played', () => {
+    motion(true);
+    show();
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+    expect(vibrate).not.toHaveBeenCalled();
   });
 });

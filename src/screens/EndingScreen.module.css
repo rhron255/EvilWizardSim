@@ -158,6 +158,8 @@
 }
 
 .tierName {
+  flex: 0 0 100%;
+  text-align: center;
   color: var(--ew-tier);
 }
 
@@ -533,6 +535,23 @@
 @media (max-width: 720px) {
   .standings {
     grid-template-columns: 1fr;
+  }
+}
+
+/* A 320px phone: the name column shrinks to ~81px next to a 76px track, so
+   "The Ashen Covenant" (128px) was cut to an ellipsis on the one screen that
+   exists to be read and shared. Tighter track, and a name that may wrap. */
+@media (max-width: 359px) {
+  .standing {
+    grid-template-columns: auto minmax(0, 1fr) 52px 36px;
+    gap: var(--ew-space-2);
+  }
+
+  .standingName {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    line-height: 1.25;
   }
 }
 

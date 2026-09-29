@@ -344,11 +344,13 @@ export function reprisalSentence(warning: ReprisalWarning): string {
  * `patronFaction` already backs the ending screen's "who remembers you"
  * passage (`src/components/meta/standing.ts`); this is the same function, on
  * the run screen, while the outcome is still live. `null` is a real, common
- * state — most careers never clear `PATRON_MARGIN` over a runner-up — and the
- * issue's acceptance check calls it out explicitly ("with a no-patron
- * state"), so callers must render *something* for it rather than omitting the
- * line, or the Decision tab silently loses the distinction between "no patron
- * yet" and "this UI forgot to ask".
+ * state — most careers never clear `PATRON_MARGIN` over a runner-up. The issue
+ * that introduced this line required the no-patron state to render ("None
+ * yet"), so the Decision tab could not confuse "no patron" with "this UI forgot
+ * to ask". That was REVERSED (2026-09-29, owner's call): on a phone the line
+ * cost ~30px of the run screen on every era to say nothing a player could act
+ * on, so the screen now omits it until a patron exists. `null` still means "no
+ * patron"; only the rendering changed.
  */
 export type Patron = {
   factionId: FactionId;

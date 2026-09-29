@@ -279,9 +279,9 @@ export function EndingScreen({
               ·
             </span>
             <span className={styles.num}>{run.eras.length}</span> eras
-            <span className={styles.sep} aria-hidden>
-              ·
-            </span>
+            {/* Its own line, always. As a third item in the same wrapping row the
+                tier name dropped below the rest at 393px and left the separator
+                stranded at the end of the line above it ("… 16 ERAS ·"). */}
             <span className={styles.tierName}>{tier.name}</span>
           </p>
         </header>

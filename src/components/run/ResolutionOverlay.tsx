@@ -24,7 +24,7 @@ import {
   systemicKey,
 } from './effectText';
 import { NotorietyBadge } from './NotorietyBadge';
-import { ArtifactCard } from '../meta';
+import { ArtifactCard, beat } from '../meta';
 import styles from './ResolutionOverlay.module.css';
 
 export type ResolutionOverlayProps = {
@@ -85,6 +85,21 @@ export function ResolutionOverlay({
   const newRelicIds = new Set(resolution.newToCollection.map((a) => a.id));
   const notoriety = eraRecord.notoriety;
   const cardTier = tierCrossed ?? tierFor(notoriety);
+  const crossed = Boolean(tierCrossed);
+
+  // The buzz rides the visual, never a timer of its own. A gamble's verdict word
+  // begins its animation at the roll's settle, so that event is the cue and the
+  // two cannot drift apart if the stylesheet's timing changes. A certain choice
+  // has no roll to wait for, so a crossing it earned is marked on arrival; it
+  // has no verdict beat otherwise, and stays quiet like it stays grey.
+  useEffect(() => {
+    if (!showRoll && crossed) beat('crossing');
+  }, [showRoll, crossed]);
+
+  function onVerdictStart(event: React.AnimationEvent<HTMLElement>) {
+    if (event.target !== event.currentTarget) return;
+    beat(crossed ? 'crossing' : outcome === 'success' ? 'success' : 'failure');
+  }
 
   return (
     // Dismiss on the scrim (the margin around the card) or the Continue
@@ -123,7 +138,11 @@ export function ResolutionOverlay({
       >
         <div className={styles.top}>
           <div className={styles.verdict}>
-            <p className={styles.outcome} id={headingId}>
+            <p
+              className={styles.outcome}
+              id={headingId}
+              onAnimationStart={showRoll ? onVerdictStart : undefined}
+            >
               {OUTCOME_WORD[outcome]}
             </p>
             {againstTheOdds && (

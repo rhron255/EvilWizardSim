@@ -23,3 +23,14 @@ if (typeof Element !== 'undefined' && !Element.prototype.scrollTo) {
 if (typeof Element !== 'undefined' && !Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = () => {};
 }
+
+/**
+ * `window.scrollTo` exists in jsdom but is a "not implemented" stub that prints
+ * an error to the console on every call. `RunScreen` resets the page to the top
+ * at the start of every era, so every test that renders it would otherwise
+ * spray that noise. Replaced with a plain function so a test can still
+ * `vi.spyOn(window, 'scrollTo')` and assert on it.
+ */
+if (typeof window !== 'undefined') {
+  window.scrollTo = () => {};
+}

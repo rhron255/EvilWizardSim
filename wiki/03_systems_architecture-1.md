@@ -9,10 +9,10 @@ description: Component boundaries, state ownership, persistence strategy, and co
 
 | Area | Status | Notes |
 |------|--------|-------|
-| Stack choice | Blocked | Proposal below; needs owner sign-off. See `index.md` Open Decisions. |
-| Component map | Planned | Proposed boundaries only. |
-| Persistence | Planned | `localStorage` proposed for v1. |
-| Backend | Missing | Not required for v1. Share-image rendering may force the issue. |
+| Stack choice | Decided | React + TypeScript + Vite, no router, no backend. The proposal below was adopted unchanged. |
+| Component map | Built | The tree below is the **original** proposal; the shipped one is under "As built". |
+| Persistence | Built | `localStorage`, versioned and migrated (`src/engine/persistence.ts`). |
+| Backend | None | Not needed. The share image is rendered client-side to a canvas. |
 
 ## Design Intent
 
@@ -22,7 +22,7 @@ nothing to cheat *for* — the collection is a personal record, not a
 leaderboard. Keeping v1 backendless removes the largest source of build
 and hosting risk.
 
-## Proposed Stack
+## Stack (as adopted)
 
 - **React + TypeScript**, single-page, no router beyond run/collection.
 - **No game engine.** This is a state machine and a table; a canvas
@@ -31,10 +31,10 @@ and hosting risk.
 - Content authored as **typed data files in-repo**, not a CMS. Volume is
   low enough (~120 offers) that a CMS adds friction without payoff.
 
-Flagged as unconfirmed. If the team has an existing stack preference,
-take it — nothing in this design depends on React specifically.
+Nothing in this design depends on React specifically, and the engine
+(`src/engine/`) does not import it.
 
-## Component Boundaries
+## Component Boundaries (original proposal)
 
 ```
 <App>
@@ -48,6 +48,30 @@ take it — nothing in this design depends on React specifically.
 ├── <EndingCard>               terminal screen, share target
 └── <CollectionView>           persistent artifact grid + endings seen
 ```
+
+### As built
+
+```
+<App>                     routes `useGame`'s screen to a component; holds no state
+├── <TitleScreen>         + <ChangelogPopup> on launch (issue #67)
+├── <CreationScreen>      name · epithet · origin · length
+├── <RunScreen>           ONE continuous column, no tabs (issue #36)
+│   ├── <Masthead>            name, era, lair, Notoriety badge, Ascension trophy
+│   ├── <FactionStandings>    the six standings, collapsed to the two most extreme
+│   ├── <DecisionPanel>       threat lines, resources, wards readout, <OfferPanel>
+│   │   └── <OptionCard>      the card that prints the odds and what the engine WILL do
+│   ├── <RelicPage>           swapped in for the decision, one tap away (issue #78)
+│   ├── <ResolutionOverlay>   the roll, the verdict, the consequences
+│   └── <FirstRunGuide>       three cards, once ever
+├── <ProphecyInterstitial>    the phase-flip set piece
+├── <EndingScreen>            the shareable card; `shareImage.ts` paints it to a canvas
+├── <NecrolexiconScreen>      the in-game wiki: relics, endings, mechanics (issue #66)
+├── <ThemeScreen>             cosmetic themes, one per ending (issue #15)
+└── <ChangelogScreen>         what changed, from `src/content/changelog.ts`
+```
+
+The scroll position is the document's, so `App` resets it on every screen
+change and `RunScreen` resets it when an era's resolution is dismissed.
 
 Ownership rules:
 - `RunState` lives in one reducer. Every offer resolution is a single
@@ -71,12 +95,14 @@ hero threat and pact debt can terminate a run mid-arc.
 
 | Data | Where | When |
 |------|-------|------|
-| `Collection` | `localStorage` | Written at run end only |
-| In-progress run | `localStorage` | Optional; see below |
-| Analytics | TBD | Not specified |
+| `Collection` | `localStorage` (`evil-wizard-sim:collection`) | Written at run end and on theme/tutorial changes |
+| In-progress run | `localStorage` (`evil-wizard-sim:run`) | Saved every era; cleared at the ending |
+| Changelog acknowledgement | `localStorage` (`evil-wizard-sim:changelog-ack`) | On dismissing the launch popup |
+| Analytics | none | Not collected |
 
-**In-progress run persistence:** proposal is to save it, so a closed tab
-does not destroy a 15-era run. This matters more than it appears —
+**In-progress run persistence** is built, so a closed tab does not destroy a
+15-era run (`RUN_SAVE_VERSION`; a save from a different version is
+discarded, and a shape check backs the version check). This matters more than it appears —
 losing an accumulated ledger to a browser refresh directly attacks the
 sunk-cost mechanism the design depends on.
 
@@ -93,9 +119,11 @@ The end card needs to become an image. Two options:
 2. **Server-rendered OG image.** Reliable, shareable as a link preview,
    requires a backend.
 
-Unresolved. Option 1 for v1 is reasonable, but note that the reference
-game's virality ran substantially through shared screenshots — this is
-not a peripheral feature.
+**Resolved: option 1.** `shareImage.ts` paints a 1080×1350 canvas and hands
+the PNG to `navigator.share` where the platform supports files, else
+downloads it. It has only been rendered in desktop Chromium by the repo's own
+probes — see `00_tasks-1.md`. Link previews (as opposed to the image the
+player shares) use static Open Graph tags and `public/og.png`.
 
 ## Content Pipeline
 
@@ -109,8 +137,9 @@ not a peripheral feature.
 
 ## Open Tasks
 
-- [ ] Get stack sign-off; replace the proposal above with the decision.
-- [ ] Implement `RunState` reducer with full era history.
-- [ ] Implement collection persistence with a version key.
-- [ ] Decide share-image approach.
-- [ ] Write the content validation script before catalog authoring starts.
+- [x] Stack sign-off.
+- [x] `RunState` reducer with full era history.
+- [x] Collection persistence with a version key.
+- [x] Share-image approach.
+- [x] Content validation script (`npm run validate:content`).
+- [ ] Render the share image on real mobile Safari and Android Chrome.

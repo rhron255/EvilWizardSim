@@ -552,9 +552,15 @@
 
   .lengthInner {
     flex-direction: row;
+    /* Wrap, so the note drops onto its own line at any width where it does not
+       fit beside the rest — measured clipped at 360 and 375px, not only at the
+       320px the block below was first written for. At 393px it still fits. */
+    flex-wrap: wrap;
     align-items: baseline;
     justify-content: flex-start;
     gap: var(--ew-space-3);
+    /* After the shorthand, or it resets the row gap this sets. */
+    row-gap: var(--ew-space-1);
     padding: var(--ew-space-2) var(--ew-space-3);
     text-align: left;
   }
@@ -573,8 +579,6 @@
   .lengthNote {
     margin-left: auto;
     margin-top: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 
   .bottom {
@@ -588,5 +592,25 @@
 
   .commitNote {
     font-size: var(--ew-size-sm);
+  }
+}
+
+/* A 320px phone. The 520px block above puts name, era count, years AND the
+   note on one nowrap row, which needs ~313px of a 288px row: the option boxes
+   ran 16px off the right edge of the screen and the note was ellipsised
+   ("The intended…"). The note drops onto its own line instead — the first row
+   still fits, and nothing is cut or hidden. */
+@media (max-width: 359px) {
+  .lengthInner {
+    flex-wrap: wrap;
+    row-gap: var(--ew-space-1);
+  }
+
+  .lengthNote {
+    flex: 1 0 100%;
+    margin-left: 0;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
   }
 }

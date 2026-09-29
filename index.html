@@ -10,14 +10,37 @@
       content="Build the career of an evil wizard, one era at a time. Two minutes. One life. No second chances, but plenty of second runs."
     />
 
-    <!-- OG / share preview -->
+    <!-- Tab icon, home-screen icon and install manifest. `%BASE_URL%` is Vite's
+         own substitution, so these hold under the GitHub Pages `/<repo>/` prefix
+         as well as at a domain root. The files are generated from the game's own
+         sigil by `npm run assets` and committed under `public/`. -->
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
+    <link rel="apple-touch-icon" href="%BASE_URL%apple-touch-icon.png" />
+    <link rel="manifest" href="%BASE_URL%manifest.webmanifest" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Evil Wizard" />
+
+    <!-- OG / share preview. `og:image` must be an ABSOLUTE URL — link-preview
+         crawlers do not resolve a relative one — so it names the deployed site
+         (README § Deployment); a fork changes it there. Without it the large
+         Twitter card declared below renders as a blank box. -->
     <meta property="og:title" content="Evil Wizard Simulator" />
     <meta
       property="og:description"
       content="Build the career of an evil wizard, one era at a time."
     />
     <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://rhron255.github.io/EvilWizardSim/" />
+    <meta property="og:image" content="https://rhron255.github.io/EvilWizardSim/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="A ring of occult geometry beside the words Evil Wizard Simulator."
+    />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://rhron255.github.io/EvilWizardSim/og.png" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

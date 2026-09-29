@@ -21,6 +21,18 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-09-29T09:56:29Z': {
+    summary: 'Each era now opens at the top of the screen, with small-phone fixes and a little haptic feedback.',
+    details: [
+      'Fixed a bug where the next era could open scrolled partway down the page after you tapped a card near the bottom.',
+      'Long lair names like Citadel of Nine Winters now show in full instead of trailing off, and the run screen no longer sways sideways.',
+      'The Patron line only appears once you have a patron, and your age sits beside your name, so more of the first card shows on small phones.',
+      'Fixed the run-length options, a few ending-card labels and the Never seen before badge running off the edge of small phones.',
+      'The Continue and Back buttons are taller and easier to tap, and Begin a Career is easier to read on a fresh profile.',
+      'Phones that support it now buzz gently when a gamble lands, when you cross into a new tier, and when the prophecy arrives.',
+      'Added a tab icon, a home-screen icon, and a proper preview image when a link to the game is shared.',
+    ],
+  },
   '2026-09-28T19:05:46Z': {
     summary: 'The Relics page now says when each relic takes effect, and long result cards display properly on phones.',
     details: [
