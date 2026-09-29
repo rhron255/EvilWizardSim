@@ -58,7 +58,15 @@ jobs:
   balance:
     name: Balance report
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Measured, not guessed: five seeds on one ref take ~7 minutes on a good
+    # runner and ~14 on a slow one (2026-09-29: 7m19s and 13m56s for the same
+    # step on two runs), and the job measures TWO refs one after the other. At 15
+    # minutes it sat just under the limit on a good day and was cancelled on a
+    # slow one — most recent pull-request runs were cancelled mid-way through the
+    # merge-base measurement, so the report never posted. 40 leaves room for the
+    # slow case; this is measurement, not a gate, so a generous limit costs
+    # nothing but runner minutes.
+    timeout-minutes: 40
     if: github.event_name == 'pull_request'
 
     permissions:
@@ -81,10 +89,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # The completion probe is ~85% of the sim's runtime (about 60s of a 72s
-      # run) and is independently seeded, so dropping it leaves every other
-      # number bit-identical while taking a seed from ~72s to ~10s. That is
-      # what makes five seeds on two refs affordable. `balance-report.ts`
+      # The completion probe is the biggest single cost of a default sim run and
+      # is independently seeded, so dropping it leaves every other number
+      # bit-identical while making five seeds on two refs affordable. It is no
+      # longer "~10s a seed" — the cohort probes added since (the 10,000-run
+      # Arch-Lich cohort among them) keep a seed at ~85-170s on a runner, which
+      # is why the job's limit below is what it is. `balance-report.ts`
       # omits the checks that depend on it rather than reporting them red.
       - name: Measure this branch
         env:
