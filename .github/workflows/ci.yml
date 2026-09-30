@@ -68,9 +68,13 @@ jobs:
   balance:
     name: Balance report
     runs-on: ubuntu-latest
-    # Measured, not guessed: five seeds on one ref take ~7 minutes on a good
-    # runner and ~14 on a slow one (2026-09-29: 7m19s and 13m56s for the same
-    # step on two runs). The base ref's numbers are cached by commit (below), so
+    # Measured, not guessed: five seeds run ONE AFTER ANOTHER took ~7 minutes on
+    # a good runner and ~14 on a slow one (2026-09-29: 7m19s and 13m56s for the
+    # same step on two runs). They now run side by side
+    # (`scripts/measure-seeds.sh`; 708s to 181s on a 20-core machine, output
+    # byte-identical), so expect roughly a third of that on the 4-core runner —
+    # unmeasured there until this has run, which is why the limit below has not
+    # been lowered. The base ref's numbers are cached by commit (below), so
     # most runs now measure ONE ref; but a cache miss still measures two, one
     # after the other, and at the old 15-minute limit a slow runner was cancelled
     # mid-way through the second — most recent pull-request runs were, and the
@@ -141,11 +145,7 @@ jobs:
       # omits the checks that depend on it rather than reporting them red.
       - name: Measure this branch
         run: |
-          mkdir -p /tmp/balance/head
-          for seed in $BALANCE_SEEDS; do
-            npx tsx scripts/simulate.ts --seed "$seed" \
-              --report-json "/tmp/balance/head/seed$seed.json" > /dev/null
-          done
+          bash scripts/measure-seeds.sh /tmp/balance/head
 
       # The base ref will not have `--report-json` until the commit adding it
       # lands, and a branch cut before that never will. A failure here is
@@ -162,11 +162,11 @@ jobs:
           head_sha="$(git rev-parse HEAD)"
           base="${{ steps.base.outputs.sha }}"
           echo "Merge base: $base"
+          # Copied out first: the base commit predates the script, and `git
+          # checkout` is about to swap the working tree for the base's.
+          cp scripts/measure-seeds.sh /tmp/measure-seeds.sh
           git checkout --quiet --detach "$base"
-          for seed in $BALANCE_SEEDS; do
-            npx tsx scripts/simulate.ts --seed "$seed" \
-              --report-json "/tmp/balance/base/seed$seed.json" > /dev/null || true
-          done
+          bash /tmp/measure-seeds.sh /tmp/balance/base --tolerate-failures
           git checkout --quiet --force "$head_sha"
 
       # Only a COMPLETE set is worth keeping. The step above tolerates every seed
@@ -294,11 +294,7 @@ jobs:
       - name: Measure this commit
         if: steps.have.outputs.cache-hit != 'true'
         run: |
-          mkdir -p /tmp/balance/base
-          for seed in $BALANCE_SEEDS; do
-            npx tsx scripts/simulate.ts --seed "$seed" \
-              --report-json "/tmp/balance/base/seed$seed.json" > /dev/null
-          done
+          bash scripts/measure-seeds.sh /tmp/balance/base
 
       - name: Check the numbers are complete
         id: complete

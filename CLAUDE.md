@@ -67,7 +67,9 @@ npm run sim              # 2000-run balance report, always against real content
 
 CI posts the balance numbers on every PR as one comment that updates in place
 (`.github/workflows/ci.yml` → `balance`). It runs `simulate.ts --report-json`
-over five seeds on the branch and compares against the base commit's numbers,
+over five seeds on the branch (side by side, one process per seed, via
+`scripts/measure-seeds.sh` — the numbers are identical to a sequential run) and
+compares against the base commit's numbers,
 and `scripts/balance-report.ts` renders the diff. The base's numbers are not
 re-measured every time: the sim is deterministic per seed, so they are cached
 by commit (`scripts/balance-cache-key.ts` builds the key), seeded by the
