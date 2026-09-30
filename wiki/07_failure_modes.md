@@ -477,3 +477,39 @@ against the old names, so the button carried a class the new stylesheet no longe
 defined. Production builds do not do this. When a real-browser check says a change
 did not land, compare the element's class hash with the served rule's, and restart
 the dev server, before concluding the change is wrong.
+
+### 20. The card is exact until a random draw lands mid-list
+
+Rule 1 says the card prints what the engine will do. The relic rework (#77) added
+passives that rescale a number — the Gilded Thumb on followers gained, the Second
+Stomach on followers spent, the Footnote That Bites on the standing a favour
+spills onto a faction's rivals — and nobody re-asked the question of every card
+that already existed. Eight effect lists across seven offers put a `loseArtifact`
+BEFORE a `followers` or `standing` effect. Which relic a `loseArtifact` takes is
+random once two or more are held, so the card cannot say; it printed the numbers
+with every relic still in place. If the roll then took the very relic doing the
+rescaling, the outcome was worse than the card: Choir standing printed −4 and
+landed −8, Gilded Thumb followers printed +30 and landed +20, a Second Stomach
+cost printed −11 and landed −15. About 0.2% of resolutions — a specific offer, two
+or more relics, one of them the right one, and the wrong roll — so no player
+report was ever going to isolate it, and `projection.test.ts` (which proves the
+card equals the outcome for the cards it names) could not have.
+
+Found by fuzzing: 2,500 seeded careers (35,000 resolutions) against the real
+catalogue, asserting after every one that no stat or relic changed by more than
+the resolution reported and that the printed effects equal the applied ones.
+Everything else held: no soft-lock, nothing non-finite or out of range, every
+stat and relic change disclosed. The one remaining difference is deliberate and
+one-directional — an `artifactFrom` in the same list is left unresolved on the
+card (resolving it would spoil the reveal), and a drawn relic can only ever help,
+because no double-edged relic is ever drawn — so there the card is the worst case.
+
+**Check:** `src/engine/disclosure.property.test.ts` plays 2,500 seeded careers and
+fails on any unreported change or any card that understates what landed;
+`validate:content` refuses a `loseArtifact` listed before a `followers` or
+`standing` effect, so a new card cannot reintroduce it. When a mechanic starts
+rescaling numbers other effects print (a passive, a multiplier, a clamp), do not
+re-read the old cards — run the property test, because the failure lives in the
+combinations no one thought to name. It went red on the unfixed catalogue and
+green on the fixed one, and goes red if the engine changes a stat without
+reporting it or the card omits an effect.

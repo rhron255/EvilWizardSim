@@ -1436,9 +1436,9 @@ export const ascentOffers: Offer[] = [
           { t: 'notoriety', v: 6 },
         ],
         onFailure: [
-          { t: 'loseArtifact' },
           { t: 'followers', v: -8 },
           { t: 'standing', factionId: 'gilded_hand', v: 5 },
+          { t: 'loseArtifact' }, // last: the loss must follow every effect a relic can rescale
         ],
         successText: 'You trade up. This is the reason the appraisals are free.',
         failureText: 'You trade down, and pay the difference. This is also the reason they are free.',

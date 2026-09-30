@@ -21,6 +21,19 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-09-29T13:06:47Z': {
+    summary: 'Closing the update popup now returns keyboard focus to Begin a Career.',
+    details: [
+      'Fixed a bug where dismissing this popup with the keyboard dropped focus to the top of the page instead of back onto Begin a Career.',
+    ],
+  },
+  '2026-09-29T12:41:25Z': {
+    summary: 'Cards that cost you a relic now print the Followers and Standing you actually get.',
+    details: [
+      'Fixed a bug where a card that made you sell or lose a relic could show a better Followers or Standing figure than you got, if the relic you lost was the one changing it.',
+      'Eight choices were affected, including Settle in relics, Sell one piece and Sell her a relic for what you need.',
+    ],
+  },
   '2026-09-29T09:56:29Z': {
     summary: 'Each era now opens at the top of the screen, with small-phone fixes and a little haptic feedback.',
     details: [
@@ -69,7 +82,7 @@ export const CHANGELOG: Changelog = {
     summary: 'The Footnote That Bites now describes its power in plain terms.',
     details: [
       "Fixed a bug where this relic's passive described itself using a term the game never explains anywhere else.",
-      'It now reads: favoring a faction costs its rivals less standing than usual.',
+      'It now reads: favouring a faction costs its rivals less standing than usual.',
     ],
   },
   '2026-09-24T15:30:00Z': {

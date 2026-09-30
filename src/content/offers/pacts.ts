@@ -398,8 +398,8 @@ export const pactOffers: Offer[] = [
         label: 'Let them take it',
         effects: [
           { t: 'pactDebt', v: -3 },
-          { t: 'loseArtifact' },
           { t: 'standing', factionId: 'ashen_covenant', v: 12 },
+          { t: 'loseArtifact' }, // last: the loss must follow every effect a relic can rescale
         ],
         resultText: 'It is carried out under a cloth. The cloth is returned, laundered, within the week.',
       },
