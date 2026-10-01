@@ -24,5 +24,5 @@
     // the browser. Keep browser code off node globals regardless.
     "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom", "node"]
   },
-  "include": ["src", "scripts", "vite.config.ts", "eslint.config.js"]
+  "include": ["src", "scripts", "tools", "vite.config.ts", "eslint.config.js"]
 }
