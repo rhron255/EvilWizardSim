@@ -24,6 +24,14 @@
  */
 
 import { Node, SourceFile, SyntaxKind } from 'ts-morph';
+import { setLiteralExactly } from './literal';
+
+/**
+ * Files whose player-facing text is a shared TEMPLATE rather than per-item
+ * content. The one list the loader (what to show) and the writer (how to route
+ * an edit) both read.
+ */
+export const TEMPLATE_FILES = ['src/components/meta/relicPower.ts'];
 
 export type Fragment = {
   index: number;
@@ -40,17 +48,23 @@ const EQUALITY_OPERATORS = new Set(['===', '!==', '==', '!=']);
 
 // A plain StringLiteral can be CODE rather than prose: an import specifier
 // (`import x from '../../types'`), a switch `case 'passive':` discriminant,
-// or one side of an `x === 'eraEnd'` comparison against a union member.
+// one side of an `x === 'eraEnd'` comparison against a union member, or a
+// string-literal TYPE (`Extract<RelicPower, { kind: 'trigger' }>`).
 // Editing any of these would not reword anything a player sees — it would
-// silently break the import or stop that branch/comparison from ever
-// matching again. All three are always the direct parent of the string
-// literal itself, never of a TemplateHead/Middle/Tail (those can't appear in
-// any of those positions), so this check only ever needs to run for that one
-// kind.
+// silently break the import, stop that branch/comparison from ever
+// matching again, or fail the typecheck. All four are always the direct
+// parent of the string literal itself, never of a TemplateHead/Middle/Tail
+// (those can't appear in any of those positions), so this check only ever
+// needs to run for that one kind.
 function isCodeNotProse(node: Node): boolean {
   if (!Node.isStringLiteral(node)) return false;
   const parent = node.getParent();
-  if (Node.isImportDeclaration(parent) || Node.isExportDeclaration(parent) || Node.isCaseClause(parent)) {
+  if (
+    Node.isImportDeclaration(parent) ||
+    Node.isExportDeclaration(parent) ||
+    Node.isCaseClause(parent) ||
+    Node.isLiteralTypeNode(parent)
+  ) {
     return true;
   }
   return Node.isBinaryExpression(parent) && EQUALITY_OPERATORS.has(parent.getOperatorToken().getText());
@@ -92,7 +106,7 @@ function escapeForTemplatePart(text: string): string {
 /** Rewrites one fragment's text in place, returning the (possibly new) node. */
 export function setFragmentValue(node: Node, newValue: string): Node {
   if (Node.isStringLiteral(node) || Node.isNoSubstitutionTemplateLiteral(node)) {
-    node.setLiteralValue(newValue);
+    setLiteralExactly(node, newValue);
     return node;
   }
   // Head/Middle/Tail have no `setLiteralValue` of their own — `replaceWithText`

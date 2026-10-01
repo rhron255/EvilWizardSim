@@ -8,8 +8,11 @@
  *   POST /api/edit      — writes one field back into its source .ts file
  *   POST /api/validate  — re-runs scripts/validate-content.ts and returns its output
  *
- * Binds to 127.0.0.1 only. Meant to run side-by-side with `npm run dev` while
- * auditing content, so it probes for a free port starting above Vite's default.
+ * Binds to 127.0.0.1 only, and refuses any request whose Host, Origin or
+ * content type says it did not come from its own page (requestGuard.ts) — it
+ * writes source files, so another web page must not be able to drive it. Meant
+ * to run side-by-side with `npm run dev` while auditing content, so it probes
+ * for a free port starting above Vite's default.
  */
 
 import http from 'node:http';
@@ -17,7 +20,9 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import type { AddressInfo } from 'node:net';
 import { applyEdit, ROOT } from './writer';
+import { guardRequest } from './requestGuard';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -43,7 +48,7 @@ function runTsx(scriptRelPath: string, args: string[] = []) {
 async function serveStatic(reqPath: string, res: http.ServerResponse) {
   const rel = reqPath === '/' ? '/index.html' : reqPath;
   const filePath = path.join(PUBLIC_DIR, path.normalize(rel));
-  if (!filePath.startsWith(PUBLIC_DIR)) {
+  if (!filePath.startsWith(PUBLIC_DIR + path.sep)) {
     res.writeHead(403);
     res.end();
     return;
@@ -58,10 +63,18 @@ async function serveStatic(reqPath: string, res: http.ServerResponse) {
   }
 }
 
+const MAX_BODY_BYTES = 1024 * 1024;
+
 function readBody(req: http.IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     let body = '';
-    req.on('data', (chunk) => (body += chunk));
+    req.on('data', (chunk) => {
+      body += chunk;
+      if (body.length > MAX_BODY_BYTES) {
+        reject(new Error('request body too large'));
+        req.destroy();
+      }
+    });
     req.on('end', () => resolve(body));
     req.on('error', reject);
   });
@@ -74,6 +87,21 @@ function sendJson(res: http.ServerResponse, status: number, data: unknown) {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', 'http://localhost');
+
+  // Answered before anything else, including static files: see requestGuard.ts.
+  const refusal = guardRequest(
+    {
+      method: req.method,
+      host: req.headers.host,
+      origin: req.headers.origin,
+      contentType: req.headers['content-type'],
+    },
+    (server.address() as AddressInfo).port,
+  );
+  if (refusal) {
+    sendJson(res, 403, { error: refusal });
+    return;
+  }
 
   if (req.method === 'GET' && url.pathname === '/api/content') {
     // Spawned fresh every request — a long-lived process would keep the

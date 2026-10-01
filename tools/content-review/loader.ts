@@ -33,7 +33,7 @@ import {
 import { CHANGELOG } from '../../src/content/changelog';
 import { relicPowerText } from '../../src/components/meta/relicPower';
 import type { Offer } from '../../src/types';
-import { listTemplateFragments } from './templateFragments';
+import { listTemplateFragments, TEMPLATE_FILES } from './templateFragments';
 
 export type ReviewField = {
   category:
@@ -64,11 +64,6 @@ const CODA_MAX = 110;
 const DEED_CLIP_WARN = 90;
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-
-// Files whose player-facing text is a shared TEMPLATE rather than per-item
-// content — see templateFragments.ts. Kept in sync with writer.ts's own
-// TEMPLATE_FILES, which needs the same list to route an edit correctly.
-export const TEMPLATE_FILES = ['src/components/meta/relicPower.ts'];
 
 const OFFER_FILES: { file: string; offers: Offer[] }[] = [
   { file: 'src/content/offers/any.ts', offers: anyOffers },

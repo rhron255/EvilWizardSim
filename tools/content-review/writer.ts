@@ -17,6 +17,11 @@
  * the cost of refusing an edit if the same sentence appears twice in one
  * record — an edge case cheap enough to just ask the user to resolve by hand.
  *
+ * `grievances.ts` is the exception to "an object literal carries the id": it
+ * builds each offer's id as a template (`grievance_${g.targetId}`), so no
+ * literal holds it. When no record is found the search widens to the whole
+ * file, and the same exactly-one-match rule is what keeps that safe.
+ *
  * One shape has no `id` property at all: `src/content/changelog.ts`'s
  * `CHANGELOG` is a `Record<string, ChangelogEntry>`, so each entry is keyed by
  * its build-version STRING as an object property rather than carrying an `id`
@@ -35,15 +40,15 @@ import { Project, SyntaxKind, Node } from 'ts-morph';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { listTemplateFragments, setFragmentValue } from './templateFragments';
+import { listTemplateFragments, setFragmentValue, TEMPLATE_FILES } from './templateFragments';
+import { setLiteralExactly } from './literal';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const ROOT = path.resolve(__dirname, '..', '..');
 
 const project = new Project({ skipAddingFilesFromTsConfig: true });
 
-// Kept in sync with loader.ts's own TEMPLATE_FILES list.
-const TEMPLATE_FILES = new Set(['src/components/meta/relicPower.ts']);
+const TEMPLATE_FILE_SET = new Set<string>(TEMPLATE_FILES);
 
 export type EditRequest = {
   file: string;
@@ -149,26 +154,38 @@ function applyTemplateEdit(absPath: string, file: string, oldValue: string, newV
   return { ok: true, file, confirmedValue: confirmed.value, lintWarning };
 }
 
-export function applyEdit({ file, itemId, oldValue, newValue }: EditRequest): EditResult {
+export function applyEdit(request: EditRequest): EditResult {
+  const { file, itemId, oldValue, newValue } = request;
+  for (const [name, value] of Object.entries({ file, itemId, oldValue, newValue })) {
+    if (typeof value !== 'string') throw new Error(`"${name}" must be a string`);
+  }
+  // The loader leaves an empty field out of its list, so saving one would make
+  // the field vanish from this tool with no way to edit it back.
+  if (newValue.trim() === '') {
+    throw new Error('refusing to save an empty value — the field would disappear from this tool');
+  }
   if (path.isAbsolute(file) || file.includes('..')) {
     throw new Error(`refusing to touch a path outside the content directories: "${file}"`);
   }
   const absPath = path.join(ROOT, file);
   const underContent = absPath.startsWith(path.join(ROOT, 'src', 'content') + path.sep);
-  if (!underContent && !TEMPLATE_FILES.has(file)) {
+  if (!underContent && !TEMPLATE_FILE_SET.has(file)) {
     throw new Error(`refusing to write outside src/content (or the known template files): "${file}"`);
   }
 
-  if (TEMPLATE_FILES.has(file)) {
+  if (TEMPLATE_FILE_SET.has(file)) {
     return applyTemplateEdit(absPath, file, oldValue, newValue);
   }
 
-  const { record } = findRecordById(absPath, itemId);
-  if (!record) {
-    throw new Error(`no object with id "${itemId}" found in ${file} — it may have been renamed or removed`);
-  }
+  // Some files generate their offers from a private authoring shape whose id is
+  // a template (`grievance_${g.targetId}`), so no object literal carries the id
+  // as a string — the whole file is searched instead. Safe for the same reason
+  // the per-record search is: the edit only proceeds on exactly ONE literal
+  // holding the value the loader just read out of the live module.
+  const { sourceFile, record } = findRecordById(absPath, itemId);
+  const container: Node = record ?? sourceFile;
 
-  const matches = findStringLiteralsByValue(record, oldValue);
+  const matches = findStringLiteralsByValue(container, oldValue);
   if (matches.length === 0) {
     throw new Error(
       `could not find the current text for "${itemId}" in ${file} — the file changed on disk since this page loaded. Reload and try again.`,
@@ -180,15 +197,16 @@ export function applyEdit({ file, itemId, oldValue, newValue }: EditRequest): Ed
     );
   }
 
-  matches[0].setLiteralValue(newValue);
+  // Throws, with nothing written, if the text would not read back exactly.
+  setLiteralExactly(matches[0], newValue);
   matches[0].getSourceFile().saveSync();
 
   const lintWarning = runEslintFix(file);
 
   // Confirm what actually landed on disk, per the failure mode this repo
   // keeps re-learning: "I wrote it" is not "I verified what's there now".
-  const { record: confirmedRecord } = findRecordById(absPath, itemId);
-  const confirmed = confirmedRecord && findStringLiteralsByValue(confirmedRecord, newValue)[0];
+  const { sourceFile: reread, record: confirmedRecord } = findRecordById(absPath, itemId);
+  const confirmed = findStringLiteralsByValue(confirmedRecord ?? reread, newValue)[0];
   if (!confirmed) {
     throw new Error(
       `wrote ${file} but could not re-read "${newValue.slice(0, 50)}" back from it afterward — check the file by hand.`,

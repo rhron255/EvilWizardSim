@@ -20,7 +20,18 @@ const $ = (sel, el = document) => el.querySelector(sel);
 async function loadContent() {
   $('#counts').textContent = 'Loading…';
   const res = await fetch('/api/content');
-  allFields = await res.json();
+  const data = await res.json();
+  if (!res.ok || !Array.isArray(data)) {
+    // The loader fails while a content file is half-edited; say why instead of
+    // leaving the page on "Loading…".
+    $('#counts').textContent = 'Could not load content';
+    $('#main').innerHTML = '';
+    const pre = document.createElement('pre');
+    pre.textContent = (data && data.error) || `HTTP ${res.status}`;
+    $('#main').appendChild(pre);
+    return;
+  }
+  allFields = data;
   renderSidebar();
   renderCounts();
   renderMain();
@@ -234,7 +245,11 @@ $('#validate-btn').addEventListener('click', async () => {
   const output = $('#validate-output');
   panel.hidden = false;
   output.textContent = 'Running scripts/validate-content.ts…';
-  const res = await fetch('/api/validate', { method: 'POST' });
+  const res = await fetch('/api/validate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}',
+  });
   const result = await res.json();
   output.textContent = `exit code ${result.code}\n\n${result.output}`;
 });
