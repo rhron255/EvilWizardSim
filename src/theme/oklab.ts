@@ -11,7 +11,7 @@
  * constant is the anchor the distinctness test is measured against.
  */
 
-import { parseHex } from './contrast';
+import { parseHex, type Rgb } from './contrast';
 
 /** One sRGB channel, 0-255, to linear light (the sRGB transfer function). */
 function toLinear(channel: number): number {
@@ -59,4 +59,16 @@ export function over(bottom: string, top: string, alpha: number): string {
       )
       .join('')
   );
+}
+
+/**
+ * `top` composited over `bottom` at `alpha`, in exact arithmetic: `over`
+ * without the rounding to a level. A browser rounds, and dithers its
+ * gradients, in ways `over` cannot reproduce, so the bare-room model
+ * composites exactly and allows for the browser's spread in one stated
+ * margin instead (`themes.test.ts`, `PAINT_SLACK`).
+ */
+export function overRgb(bottom: Rgb, top: Rgb, alpha: number): Rgb {
+  const mix = (i: 0 | 1 | 2) => bottom[i] * (1 - alpha) + top[i] * alpha;
+  return [mix(0), mix(1), mix(2)];
 }

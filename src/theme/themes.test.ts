@@ -24,8 +24,8 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { EndingId } from '../types';
 import { endings } from '../content/endings';
-import { contrastRatio, parseHex } from './contrast';
-import { deltaEOK, JND_OK, over } from './oklab';
+import { contrastRatio, contrastRatioRgb, luminanceOfRgb, parseHex, type Rgb } from './contrast';
+import { deltaEOK, JND_OK, over, overRgb } from './oklab';
 import { shapeKind, SHAPE_IDS, type ShapeId } from './ornaments';
 import {
   DEFAULT_THEME_ID,
@@ -185,7 +185,68 @@ function notNull<T>(value: T | null): value is T {
  * the set-piece screens, and the wallpaper. The model below rebuilds that
  * stack from the stylesheets themselves, each layer at the strongest it is
  * ever drawn on screen, and measures the ink against it.
+ *
+ * It is a model, and `qa/probe-room-contrast.mjs` is what it answers to: the
+ * same stacks painted by Chromium and scored pixel by pixel.
  */
+
+/** A rule of a stylesheet: its selector, its body, and the at-rule it sits in, if any. */
+type CssRule = { selector: string; body: string; atRule: string | null };
+
+/**
+ * Every rule in a stylesheet, comments stripped — the rules inside an
+ * `@media` (or any other block at-rule) included, tagged with it, so an
+ * override hiding in a breakpoint is counted like any other.
+ */
+function rulesOf(css: string): CssRule[] {
+  const out: CssRule[] = [];
+  const walk = (text: string, atRule: string | null) => {
+    let i = 0;
+    while (i < text.length) {
+      const open = text.indexOf('{', i);
+      if (open === -1) break;
+      const selector = text.slice(i, open).trim();
+      let depth = 1;
+      let j = open + 1;
+      for (; j < text.length && depth > 0; j++) {
+        if (text[j] === '{') depth++;
+        if (text[j] === '}') depth--;
+      }
+      const body = text.slice(open + 1, j - 1);
+      if (selector.startsWith('@')) walk(body, selector);
+      else out.push({ selector, body, atRule });
+      i = j;
+    }
+  };
+  walk(css.replace(/\/\*[\s\S]*?\*\//g, ''), null);
+  return out;
+}
+
+/** A stylesheet's rules, read off disk. */
+const rulesIn = (path: string) => rulesOf(readFileSync(resolve(process.cwd(), path), 'utf8'));
+
+/** One declaration's value in a rule body, normalised, or null if the body does not set it. */
+function declared(body: string, prop: string): string | null {
+  const m = body.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:([^;]*)(?:;|$)`));
+  return m ? normalise(m[1]) : null;
+}
+
+/** Whether any selector in a list paints the `.screen` element itself, rather than a pseudo-element of it. */
+function targetsScreen(selectorList: string): boolean {
+  return selectorList.split(',').some((selector) => {
+    const last = selector.trim().split(/[\s>+~]+/).pop() ?? '';
+    return /(?:^|[^\w-])\.screen(?![\w-])/.test(last) && !/::|:(?:before|after)\b/.test(last);
+  });
+}
+
+/**
+ * Every rule in a stylesheet that sets `.screen`'s background, in any
+ * spelling and under any at-rule. The model reads the first; the stack-shape
+ * test requires there to be exactly one, so a breakpoint cannot repaint the
+ * room behind the model's back.
+ */
+const screenBackgroundRules = (path: string) =>
+  rulesIn(path).filter((r) => targetsScreen(r.selector) && /(?:^|;)\s*background(?:-color|-image)?\s*:/.test(r.body));
 
 /** A CSS value split on its top-level commas: one entry per background layer. */
 function layersOf(css: string): string[] {
@@ -210,12 +271,18 @@ function layersOf(css: string): string[] {
  * paints, not against a copy of them kept here.
  */
 function screenLayers(path: string): string[] {
-  const css = readFileSync(resolve(process.cwd(), path), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-  const rule = css.slice(css.indexOf('.screen {'));
-  const body = rule.slice(rule.indexOf('{') + 1, rule.indexOf('}'));
-  const background = body.match(/(?:^|;)\s*background:([^;]*);/)?.[1] ?? '';
-  return layersOf(normalise(background));
+  const rule = screenBackgroundRules(path).find((r) => declared(r.body, 'background') !== null);
+  return layersOf(rule ? declared(rule.body, 'background')! : '');
 }
+
+/**
+ * The wallpaper rule both screens wear — craft's `.screen::before,
+ * .wallpaper::before` — read off disk. The model lays `--ew-line-strong` over
+ * the room at `motifOpacity`; this is the rule that says the browser does too.
+ */
+const WALLPAPER_RULES = rulesIn('src/components/meta/craft.module.css').filter((r) =>
+  r.selector.split(',').some((s) => ['.screen::before', '.wallpaper::before'].includes(s.trim())),
+);
 
 /**
  * A radial gradient's ellipse and transparent stop, all as fractions of the
@@ -304,26 +371,81 @@ function tierVignettePeak(): number {
   return mix * peakFactor({ rx, ry, cx, cy, stop });
 }
 
+/** How many 8-bit levels a room's every channel is moved, by direction. */
+type Slack = { lighter: number; darker: number };
+
 /**
- * The ink's worst contrast anywhere on a theme's bare room.
+ * How far the browser's painted room may stray from the exact composite, in
+ * 8-bit levels per channel: `lighter` is toward the ink in a dark room,
+ * `darker` toward it in a light one.
  *
- * The layers are stacked bottom-up on the void — the tier vignette in every
- * tier colour (set-piece screens only), the key light, then the wallpaper,
- * `--ew-line-strong` at `motifOpacity` — each at its peak, as though every
- * peak fell on the same pixel. Text can also sit where any layer has faded to
- * nothing, so every subset of the layers is measured and the worst is kept.
- * That is the whole range: each layer moves the backdrop monotonically as it
- * strengthens, so the extremes are at the subsets. It also covers the one
- * light room, where the key light is white and RAISES the contrast — its
- * worst is the unlit room under the wallpaper.
+ * Chromium does not paint the exact composite. Every gradient is dithered and
+ * every layer lands on an 8-bit level, so a flat stretch of room comes out as
+ * a speckle of neighbouring levels. `qa/probe-room-contrast.mjs --spread`
+ * measures it: every theme but the Sword (whose glint it does not model),
+ * every tier, both stacks, 393×852 and 320×568, DPR 1 and 3, in Chromium
+ * 1194's headless shell. Over 147,744 channel samples the painted level sat
+ * between 3.45 below and 1.56 above the exact one; a first, sparser pass over
+ * the rooms before they were retuned to this margin saw up to 1.71 above.
+ * Near the void one level is worth 0.1–0.15 of contrast — more than the whole
+ * margin six themes passed by when this model rounded each layer like `over`
+ * and allowed nothing, and Chromium then put three of them under the Tower
+ * (Kept Vigil 12.145, The Crown 12.223, The Final Number 12.234, against its
+ * 12.347).
  *
- * The black vignette at the foot of the set-piece screens is left out. In
- * every dark room it darkens the backdrop behind pale ink, which raises the
- * contrast, so leaving it out is the harder case.
+ * So each theme's room is scored with every channel pushed toward its ink
+ * past the furthest the browser was seen to stray that way, and the Tower's
+ * room, which sets the floor, at its exact value. A room's worst pixel is its
+ * own most ink-ward speckle, so the Tower's painted worst sits at or under its
+ * exact value (12.316 in Chromium, its mask included, against 12.347 exact),
+ * and a theme can pass the model only with its own worst speckle still clear
+ * of that.
  */
-function roomContrast(theme: ThemeDef, setPiece: boolean): number {
-  const voidc = theme.surface.void ?? surface.void;
-  const base = theme.ink?.base ?? ink.base;
+const PAINT_SLACK: Slack = { lighter: 2, darker: 4 };
+
+/** No slack: the exact composite, which is how the Tower's floor is scored. */
+const EXACT: Slack = { lighter: 0, darker: 0 };
+
+/**
+ * `backdrop` moved toward `text` in every channel — `slack.lighter` levels
+ * lighter behind pale ink, `slack.darker` darker behind dark — which can only
+ * lower the contrast between them, and kept inside 0–255.
+ */
+function towardInk(backdrop: Rgb, text: Rgb, slack: Slack): Rgb {
+  const move = luminanceOfRgb(text) > luminanceOfRgb(backdrop) ? slack.lighter : -slack.darker;
+  const at = (i: 0 | 1 | 2) => Math.min(255, Math.max(0, backdrop[i] + move));
+  return [at(0), at(1), at(2)];
+}
+
+/**
+ * The ink's worst contrast anywhere on a theme's bare room, with the room's
+ * every channel moved toward the ink by `slack` (`PAINT_SLACK` for a theme,
+ * `EXACT` for the Tower's floor).
+ *
+ * The layers are stacked bottom-up on the void, in exact arithmetic — the
+ * tier vignette in every tier colour (set-piece screens only), the key light,
+ * then the wallpaper, `--ew-line-strong` at `motifOpacity` — each at its peak,
+ * as though every peak fell on the same pixel. Text can also sit where any
+ * layer has faded to nothing, so every subset of the layers is measured and
+ * the worst is kept. Each layer moves the backdrop monotonically as it
+ * strengthens, so the extremes are at the subsets. In a dark room the worst
+ * is every layer at once; in a light one the worst is whichever subset leaves
+ * the backdrop darkest, which is why a white light on cream never counts
+ * against it — the unlit room under the wallpaper does.
+ *
+ * The black vignette at the foot of the set-piece screens is not modelled:
+ * that is the settled bare-room model, and the stack-shape test pins the
+ * layer's existence so the omission stays deliberate. Behind pale ink on a
+ * dark room it only darkens the backdrop, which raises the contrast, so
+ * leaving it out is the harder case there. Ordinary Weather is the exception
+ * — dark ink on a light void, where that vignette is the darkest layer in the
+ * room and goes unmeasured here. Chromium puts its foot at 4.6:1
+ * (`qa/probe-room-contrast.mjs`, the `painted` column), against 13.7 for the
+ * rest of that room: a known issue that predates the themes' ornament.
+ */
+function roomContrast(theme: ThemeDef, setPiece: boolean, slack: Slack): number {
+  const voidc = parseHex(theme.surface.void ?? surface.void);
+  const base = parseHex(theme.ink?.base ?? ink.base);
   const wallpaper = {
     colour: theme.surface.lineStrong ?? surface.lineStrong,
     alpha: theme.ornament.motifOpacity,
@@ -339,18 +461,19 @@ function roomContrast(theme: ThemeDef, setPiece: boolean): number {
       wallpaper,
     ];
     for (let subset = 0; subset < 1 << layers.length; subset++) {
-      const backdrop = layers.reduce(
-        (colour, layer, i) => (subset & (1 << i) ? over(colour, layer.colour, layer.alpha) : colour),
+      const backdrop = layers.reduce<Rgb>(
+        (colour, layer, i) => (subset & (1 << i) ? overRgb(colour, parseHex(layer.colour), layer.alpha) : colour),
         voidc,
       );
-      worst = Math.min(worst, contrastRatio(base, backdrop));
+      worst = Math.min(worst, contrastRatioRgb(base, towardInk(backdrop, base, slack)));
     }
   }
   return worst;
 }
 
 /** Worst over both stacks: the run screen and the set pieces. */
-const roomFloorOf = (theme: ThemeDef) => Math.min(roomContrast(theme, false), roomContrast(theme, true));
+const roomFloorOf = (theme: ThemeDef, slack: Slack = PAINT_SLACK) =>
+  Math.min(roomContrast(theme, false, slack), roomContrast(theme, true, slack));
 
 /*
  * The vocabulary a key light or card trim may be written in (constraint 7).
@@ -576,16 +699,30 @@ describe('themes · constraints 5 and 7, the bare room reads as well as the Towe
    */
   const FLOOR = contrastRatio(ink.base, surface.panel);
 
+  const TOWER = THEMES.find((t) => t.id === DEFAULT_THEME_ID)!;
+
   /**
    * The worst the DEFAULT room does for text with no panel behind it, computed
-   * from `tokens.ts`, never quoted.
+   * from `tokens.ts`, never quoted, and at its exact value (`PAINT_SLACK`,
+   * `EXACT`).
    *
    * Lower than the panel floor, and that is the default's own doing: its key
    * light and the tier vignette both lift the void behind pale ink. So the
    * promise for the bare room is "no theme makes text on it harder to read
    * than the Tower does", and the Tower is measured to find out what that is.
    */
-  const ROOM_FLOOR = roomFloorOf(THEMES.find((t) => t.id === DEFAULT_THEME_ID)!);
+  const ROOM_FLOOR = roomFloorOf(TOWER, EXACT);
+
+  /** A copy of a theme with some of its surface, ink and ornament replaced. */
+  const variant = (
+    theme: ThemeDef,
+    change: { surface?: ThemeDef['surface']; ink?: ThemeDef['ink']; ornament?: Partial<ThemeDef['ornament']> },
+  ): ThemeDef => ({
+    ...theme,
+    surface: { ...theme.surface, ...change.surface },
+    ink: { ...theme.ink, ...change.ink },
+    ornament: { ...theme.ornament, ...change.ornament },
+  });
 
   it('is measured against a default room that itself clears WCAG AAA, and no higher than a panel', () => {
     expect(ROOM_FLOOR).toBeGreaterThanOrEqual(7);
@@ -600,10 +737,50 @@ describe('themes · constraints 5 and 7, the bare room reads as well as the Towe
     expect(SET_PIECE_STACK[0]).toBe('var(--ew-light, none)');
     expect(SET_PIECE_STACK[1]).toMatch(TIER_VIGNETTE);
     expect(SET_PIECE_STACK[3]).toBe('var(--ew-void)');
-    // The layer the model leaves out must stay black, which only darkens.
+    // The layer the model leaves out (the settled bare-room model) must stay
+    // black. In a dark room that only darkens the backdrop behind pale ink;
+    // in the one light room it is the unmeasured darkest layer — see
+    // `roomContrast`.
     const vignette = rgbCalls(SET_PIECE_STACK[2]);
     expect(vignette).toHaveLength(1);
     expect(channels(vignette[0]).slice(0, 3)).toEqual([0, 0, 0]);
+  });
+
+  it('reads the one rule that paints each screen, with no breakpoint repainting it', () => {
+    // The model reads the first `.screen` background it finds. A second one —
+    // most easily an `@media` override — would be a room the browser paints
+    // and the model never sees.
+    for (const path of ['src/screens/RunScreen.module.css', 'src/components/meta/craft.module.css']) {
+      const rules = screenBackgroundRules(path);
+      expect(
+        rules.map((r) => `${r.atRule ?? ''} ${r.selector}`.trim()),
+        `${path}: rules setting .screen's background`,
+      ).toEqual(['.screen']);
+    }
+  });
+
+  it('counts a rule hidden in a breakpoint, and only rules that paint the screen itself', () => {
+    // Guards the guard above: a rule walker that skipped at-rules would
+    // count one rule where the browser applies two.
+    const css = `.screen { background: red; } .screen::before { background: blue; }
+      @media (max-width: 420px) { .wallpaper, .screen { background-color: green; } }`;
+    const found = rulesOf(css).filter((r) => targetsScreen(r.selector) && /background/.test(r.body));
+    expect(found.map((r) => r.atRule)).toEqual([null, '@media (max-width: 420px)']);
+  });
+
+  it('lays the wallpaper over the room as the model does: the strong line, at motifOpacity', () => {
+    // The model draws `--ew-line-strong` at exactly `motifOpacity`. If the
+    // rule that paints it scaled the opacity, or painted another colour, the
+    // model would be measuring a wallpaper nobody sees.
+    const painting = WALLPAPER_RULES.filter(
+      (r) => declared(r.body, 'opacity') !== null || declared(r.body, 'background') !== null,
+    );
+    expect(painting.map((r) => [r.atRule, normalise(r.selector)])).toEqual([
+      [null, '.screen::before, .wallpaper::before'],
+    ]);
+    expect(declared(painting[0].body, 'opacity')).toBe('var(--ew-motif-opacity, 0)');
+    expect(declared(painting[0].body, 'background')).toBe('var(--ew-line-strong)');
+    expect(declared(painting[0].body, 'mask-image')).toMatch(/^var\(--ew-motif,/);
   });
 
   it('attenuates a light from above the frame by its distance to the top edge', () => {
@@ -626,6 +803,67 @@ describe('themes · constraints 5 and 7, the bare room reads as well as the Towe
     expect(keyLight('none')).toEqual([]);
   });
 
+  it('scores a dark room at its wallpaper, pushed toward the ink, by hand', () => {
+    // Black void, white ink, white wallpaper at 0.2 and no light: the worst
+    // backdrop is 0.2 × 255 = 51 in every channel, and PAINT_SLACK.lighter levels
+    // lighter than that is what the browser may paint.
+    const room = variant(TOWER, {
+      surface: { void: '#000000', lineStrong: '#ffffff' },
+      ink: { base: '#ffffff' },
+      ornament: { light: 'none', motifOpacity: 0.2 },
+    });
+    const level = (51 + PAINT_SLACK.lighter).toString(16).padStart(2, '0');
+    expect(roomContrast(room, false, PAINT_SLACK)).toBeCloseTo(contrastRatio('#ffffff', `#${level.repeat(3)}`), 10);
+    expect(roomContrast(room, false, EXACT)).toBeCloseTo(contrastRatio('#ffffff', '#333333'), 10);
+  });
+
+  it('finds a light room at its unlit wallpaper, not its sunlit one', () => {
+    // A #f0f0f0 void, black ink, a black wallpaper at 0.1 and a white light
+    // at 0.5 centred on screen. The subsets, by hand: bare 240, lit 247.5,
+    // wallpaper 216, both 222.75. Behind black ink the darkest is worst, and
+    // that is the wallpaper with the light faded out — exactly the room with
+    // no light at all.
+    const unlit = variant(TOWER, {
+      surface: { void: '#f0f0f0', lineStrong: '#000000' },
+      ink: { base: '#000000' },
+      ornament: { light: 'none', motifOpacity: 0.1 },
+    });
+    const lit = variant(unlit, {
+      ornament: { light: 'radial-gradient(80% 80% at 50% 50%, rgba(255, 255, 255, 0.5), transparent 70%)' },
+    });
+    const expected = contrastRatio('#000000', `#${(216 - PAINT_SLACK.darker).toString(16).repeat(3)}`);
+    expect(roomContrast(lit, false, PAINT_SLACK)).toBeCloseTo(expected, 10);
+    expect(roomContrast(lit, false, PAINT_SLACK)).toBe(roomContrast(unlit, false, PAINT_SLACK));
+  });
+
+  it('counts every layer it claims to: the wallpaper, the light and the tier vignette', () => {
+    // Anchored to numbers the model does not produce. A wallpaper drawn
+    // solid hides the whole room behind the strong line, so nothing can read
+    // better on it than the ink does on that colour; under a white lamp at
+    // full strength the ink reads no better than it does on white; and the
+    // set pieces, which add the tier vignette, read worse than the run
+    // screen.
+    const solid = variant(TOWER, { ornament: { motifOpacity: 1 } });
+    expect(roomFloorOf(solid)).toBeLessThanOrEqual(contrastRatio(ink.base, surface.lineStrong));
+    expect(roomFloorOf(solid)).toBeLessThan(ROOM_FLOOR);
+    const lamp = variant(TOWER, {
+      ornament: { light: 'radial-gradient(90% 55% at 50% 50%, rgba(255, 255, 255, 1), transparent 68%)' },
+    });
+    expect(roomFloorOf(lamp)).toBeLessThanOrEqual(contrastRatio(ink.base, '#ffffff'));
+    expect(roomFloorOf(lamp)).toBeLessThan(ROOM_FLOOR);
+    expect(roomContrast(TOWER, true, EXACT)).toBeLessThan(roomContrast(TOWER, false, EXACT));
+  });
+
+  it('holds a theme to the Tower with a margin the browser cannot eat', () => {
+    // The slack must clear the spread `--spread` measured in each direction
+    // (1.71 lighter at most, 3.45 darker; see PAINT_SLACK), and it must cost
+    // the Tower itself something against its own floor: the Tower scored like
+    // a theme would not pass. A slack of zero would.
+    expect(PAINT_SLACK.lighter).toBeGreaterThan(1.71);
+    expect(PAINT_SLACK.darker).toBeGreaterThan(3.45);
+    expect(roomFloorOf(TOWER)).toBeLessThan(ROOM_FLOOR);
+  });
+
   for (const theme of THEMES) {
     it(`${theme.name}'s key light is read in full, and reaches the screen`, () => {
       // Guards the model: a light it parsed to nothing would pass the floor
@@ -638,6 +876,8 @@ describe('themes · constraints 5 and 7, the bare room reads as well as the Towe
       }
     });
 
+    // The Tower is the floor, not a room held to it.
+    if (theme.id === DEFAULT_THEME_ID) continue;
     it(`${theme.name}'s bare room carries the ink at least as well as the Tower's`, () => {
       expect(theme.ornament.motifOpacity).toBeGreaterThan(0);
       expect(roomFloorOf(theme)).toBeGreaterThanOrEqual(ROOM_FLOOR);

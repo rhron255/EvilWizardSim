@@ -35,8 +35,11 @@
  *    against `panel` at or above the default's 13.80:1. On the bare room —
  *    text with no panel behind it — at or above the Tower's own worst, with
  *    the void, key light, tier vignette and wallpaper all counted at their
- *    brightest. Asserted in `themes.test.ts` with real contrast maths, never
- *    by eye.
+ *    brightest, and each theme's room pushed toward its ink by more than the
+ *    browser was measured to stray from the exact composite — it dithers
+ *    gradients and rounds every layer (`PAINT_SLACK` in `themes.test.ts`).
+ *    Asserted there with real contrast maths, never by eye, and in Chromium's
+ *    own pixels by `qa/probe-room-contrast.mjs`.
  * 6. `--ew-legendary` is pinned in every theme. It is absent from the
  *    overridable surface here, which is how it stays pinned.
  * 7. Ornament never brings a colour of its own, and never costs the ink its
@@ -243,8 +246,8 @@ export const THEMES: ThemeDef[] = [
     },
     ornament: {
       light:
-        'radial-gradient(90% 55% at 50% -10%, rgba(255, 228, 220, 0.05), transparent 68%), linear-gradient(115deg, transparent 42%, rgba(255, 240, 236, 0.025) 50%, transparent 58%)',
-      ...wallpaper('swords', 0.14),
+        'radial-gradient(90% 55% at 50% -10%, rgba(255, 228, 220, 0.048), transparent 68%), linear-gradient(115deg, transparent 42%, rgba(255, 240, 236, 0.024) 50%, transparent 58%)',
+      ...wallpaper('swords', 0.12),
       pip: shapeRef('hilt'),
       trim: edgeBand(
         'linear-gradient(90deg, transparent, color-mix(in srgb, var(--ew-ink-bright) 55%, transparent) 50%, transparent)',
@@ -483,8 +486,8 @@ export const THEMES: ThemeDef[] = [
     },
     ornament: {
       light:
-        'radial-gradient(120% 70% at 50% -22%, rgba(180, 255, 236, 0.055), transparent 74%), radial-gradient(80% 50% at 50% 104%, rgba(120, 220, 200, 0.025), transparent 70%)',
-      ...wallpaper('stars', 0.12),
+        'radial-gradient(120% 70% at 50% -22%, rgba(180, 255, 236, 0.045), transparent 74%), radial-gradient(80% 50% at 50% 104%, rgba(120, 220, 200, 0.02), transparent 70%)',
+      ...wallpaper('stars', 0.11),
       pip: shapeRef('sparkle'),
       // The light from outside the frame catches the top edge of every card.
       // It was a 16px glow over the card's first line, which cost the ink
@@ -771,7 +774,7 @@ export const THEMES: ThemeDef[] = [
       // still, but the brass already spends almost all of the room's hue
       // family, and a tinted light has to stay inside it (constraint 7).
       light: 'radial-gradient(90% 55% at 50% -10%, rgba(240, 246, 176, 0.05), transparent 68%)',
-      ...wallpaper('coins', 0.15),
+      ...wallpaper('coins', 0.12),
       pip: shapeRef('coin'),
       trim: `${edgeRule('bottom', 3)}, ${edgeRule('bottom', 1)}`,
     },
@@ -803,7 +806,7 @@ export const THEMES: ThemeDef[] = [
     },
     ornament: {
       light: 'radial-gradient(70% 50% at 50% -10%, rgba(220, 232, 255, 0.06), transparent 70%)',
-      ...wallpaper('diagram', 0.14),
+      ...wallpaper('diagram', 0.11),
       pip: shapeRef('eye'),
       trim: edgeRule('left', 2),
     },
@@ -835,7 +838,7 @@ export const THEMES: ThemeDef[] = [
     },
     ornament: {
       light: 'radial-gradient(85% 60% at 50% 108%, rgba(150, 224, 160, 0.05), transparent 70%)',
-      ...wallpaper('leaves', 0.19),
+      ...wallpaper('leaves', 0.14),
       pip: shapeRef('acorn'),
       // Moss along the foot of every card, in the edge band: a 14px tint
       // under the last line of text cost the ink a point of contrast.
@@ -872,7 +875,7 @@ export const THEMES: ThemeDef[] = [
     },
     ornament: {
       light: 'radial-gradient(90% 55% at 50% -10%, rgba(255, 226, 180, 0.05), transparent 68%)',
-      ...wallpaper('fleur', 0.18),
+      ...wallpaper('fleur', 0.15),
       pip: shapeRef('crown'),
       trim: `${edgeRule('top', 0, 2)}, ${edgeRule('top', 3, 1, 'color-mix(in srgb, var(--ew-line-strong) 50%, transparent)')}`,
     },
@@ -956,8 +959,8 @@ export const THEMES: ThemeDef[] = [
       // a tinted light must keep to (constraint 7), and read as a second
       // colour rather than a warmer corner of the same one.
       light:
-        'radial-gradient(60% 40% at 50% -6%, rgba(255, 222, 236, 0.03), transparent 70%), radial-gradient(90% 55% at 50% -10%, rgba(236, 220, 255, 0.03), transparent 68%)',
-      ...wallpaper('candles', 0.11),
+        'radial-gradient(60% 40% at 50% -6%, rgba(255, 222, 236, 0.025), transparent 70%), radial-gradient(90% 55% at 50% -10%, rgba(236, 220, 255, 0.025), transparent 68%)',
+      ...wallpaper('candles', 0.09),
       pip: shapeRef('flame'),
       // The candle's glow on the top edge of every card, in the edge band
       // rather than over the text, for the same reason as Wrong Colour's.

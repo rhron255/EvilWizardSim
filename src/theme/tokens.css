@@ -106,7 +106,9 @@
        --ew-motif          wallpaper tiled behind every screen; never none
        --ew-motif-size     one tile of it
        --ew-motif-opacity  how strongly it is drawn — capped, with --ew-light, so
-                           text on the bare room reads as well as in this one
+                           text on the bare room reads as well as in this one,
+                           in the pixels Chromium paints
+                           (qa/probe-room-contrast.mjs)
        --ew-pip            glyph at card corners and in section rules
        --ew-trim           background layer(s) over a card's own surface, or none:
                            a mark (a rule, a hem) keeps to the outer 4px between
@@ -166,10 +168,10 @@
   --ew-ink-faint: #866e6b;
   --ew-ink-ghost: #564644;
 
-  --ew-light: radial-gradient(90% 55% at 50% -10%, rgba(255, 228, 220, 0.05), transparent 68%), linear-gradient(115deg, transparent 42%, rgba(255, 240, 236, 0.025) 50%, transparent 58%);
+  --ew-light: radial-gradient(90% 55% at 50% -10%, rgba(255, 228, 220, 0.048), transparent 68%), linear-gradient(115deg, transparent 42%, rgba(255, 240, 236, 0.024) 50%, transparent 58%);
   --ew-motif: var(--ew-shape-swords);
   --ew-motif-size: 120px 120px;
-  --ew-motif-opacity: 0.14;
+  --ew-motif-opacity: 0.12;
   --ew-pip: var(--ew-shape-hilt);
   --ew-trim: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ew-ink-bright) 55%, transparent) 50%, transparent) left 12px top 0px / calc(100% - 24px) 1px no-repeat;
 }
@@ -324,10 +326,10 @@
   --ew-ink-faint: #607a7a;
   --ew-ink-ghost: #3d4e4e;
 
-  --ew-light: radial-gradient(120% 70% at 50% -22%, rgba(180, 255, 236, 0.055), transparent 74%), radial-gradient(80% 50% at 50% 104%, rgba(120, 220, 200, 0.025), transparent 70%);
+  --ew-light: radial-gradient(120% 70% at 50% -22%, rgba(180, 255, 236, 0.045), transparent 74%), radial-gradient(80% 50% at 50% 104%, rgba(120, 220, 200, 0.02), transparent 70%);
   --ew-motif: var(--ew-shape-stars);
   --ew-motif-size: 110px 110px;
-  --ew-motif-opacity: 0.12;
+  --ew-motif-opacity: 0.11;
   --ew-pip: var(--ew-shape-sparkle);
   --ew-trim: radial-gradient(70% 100% at 50% 0%, color-mix(in srgb, var(--ew-line-strong) 50%, transparent), transparent) left 12px top 0px / calc(100% - 24px) 3px no-repeat;
 }
@@ -510,7 +512,7 @@
   --ew-light: radial-gradient(90% 55% at 50% -10%, rgba(240, 246, 176, 0.05), transparent 68%);
   --ew-motif: var(--ew-shape-coins);
   --ew-motif-size: 80px 80px;
-  --ew-motif-opacity: 0.15;
+  --ew-motif-opacity: 0.12;
   --ew-pip: var(--ew-shape-coin);
   --ew-trim: linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) left 12px bottom 3px / calc(100% - 24px) 1px no-repeat, linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) left 12px bottom 1px / calc(100% - 24px) 1px no-repeat;
 }
@@ -535,7 +537,7 @@
   --ew-light: radial-gradient(70% 50% at 50% -10%, rgba(220, 232, 255, 0.06), transparent 70%);
   --ew-motif: var(--ew-shape-diagram);
   --ew-motif-size: 140px 140px;
-  --ew-motif-opacity: 0.14;
+  --ew-motif-opacity: 0.11;
   --ew-pip: var(--ew-shape-eye);
   --ew-trim: linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) left 2px top 12px / 1px calc(100% - 24px) no-repeat;
 }
@@ -560,7 +562,7 @@
   --ew-light: radial-gradient(85% 60% at 50% 108%, rgba(150, 224, 160, 0.05), transparent 70%);
   --ew-motif: var(--ew-shape-leaves);
   --ew-motif-size: 100px 100px;
-  --ew-motif-opacity: 0.19;
+  --ew-motif-opacity: 0.14;
   --ew-pip: var(--ew-shape-acorn);
   --ew-trim: linear-gradient(0deg, color-mix(in srgb, var(--ew-line-strong) 50%, transparent), transparent) left 12px bottom 0px / calc(100% - 24px) 4px no-repeat;
 }
@@ -585,7 +587,7 @@
   --ew-light: radial-gradient(90% 55% at 50% -10%, rgba(255, 226, 180, 0.05), transparent 68%);
   --ew-motif: var(--ew-shape-fleur);
   --ew-motif-size: 56px 56px;
-  --ew-motif-opacity: 0.18;
+  --ew-motif-opacity: 0.15;
   --ew-pip: var(--ew-shape-crown);
   --ew-trim: linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) left 12px top 0px / calc(100% - 24px) 2px no-repeat, linear-gradient(color-mix(in srgb, var(--ew-line-strong) 50%, transparent), color-mix(in srgb, var(--ew-line-strong) 50%, transparent)) left 12px top 3px / calc(100% - 24px) 1px no-repeat;
 }
@@ -633,10 +635,10 @@
   --ew-ink-faint: #777184;
   --ew-ink-ghost: #4c4855;
 
-  --ew-light: radial-gradient(60% 40% at 50% -6%, rgba(255, 222, 236, 0.03), transparent 70%), radial-gradient(90% 55% at 50% -10%, rgba(236, 220, 255, 0.03), transparent 68%);
+  --ew-light: radial-gradient(60% 40% at 50% -6%, rgba(255, 222, 236, 0.025), transparent 70%), radial-gradient(90% 55% at 50% -10%, rgba(236, 220, 255, 0.025), transparent 68%);
   --ew-motif: var(--ew-shape-candles);
   --ew-motif-size: 100px 110px;
-  --ew-motif-opacity: 0.11;
+  --ew-motif-opacity: 0.09;
   --ew-pip: var(--ew-shape-flame);
   --ew-trim: radial-gradient(50% 100% at 50% 0%, color-mix(in srgb, var(--ew-line-strong) 50%, transparent), transparent) left 12px top 0px / calc(100% - 24px) 3px no-repeat;
 }

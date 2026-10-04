@@ -250,8 +250,10 @@ export const ornament = {
    *
    * Capped by contrast, not by taste: `themes.test.ts` lays
    * `--ew-line-strong` at this opacity over the void, the key light and the
-   * tier vignette at their brightest, and requires the ink to read on the
-   * result at least as well as it does in this, the default, room.
+   * tier vignette at their brightest, allows for the browser painting the
+   * result a little lighter than the arithmetic says, and requires the ink to
+   * read on it at least as well as it does in this, the default, room.
+   * `qa/probe-room-contrast.mjs` checks the same in Chromium's pixels.
    */
   motifOpacity: 0.15,
   /** The corner glyph on cards and the centre of section rules: a `glyph` shape. */
