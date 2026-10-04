@@ -27,7 +27,7 @@ export const CHANGELOG: Changelog = {
       'Every theme has its own wallpaper, an emblem at each card corner, and its own card edging.',
       'Themes that were nearly the same colour have been pulled apart.',
       'The theme picker previews each room’s wallpaper and emblem, not just its colours.',
-      'Text is exactly as readable as before under every theme.',
+      'The new decorations never make text harder to read than it is in the default look.',
     ],
   },
   '2026-09-29T13:06:47Z': {

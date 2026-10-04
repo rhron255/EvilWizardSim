@@ -233,7 +233,8 @@ export const motion = {
 export const ornament = {
   /**
    * The key light: background-image layer(s) laid over `--ew-void` on every
-   * screen. `none` is a flat wash.
+   * screen. `none` is a flat wash. Counts against the same floor as
+   * `motifOpacity`, at its brightest point on screen.
    */
   light: 'radial-gradient(90% 55% at 50% -10%, rgba(255, 246, 224, 0.045), transparent 68%)',
   /**
@@ -247,9 +248,10 @@ export const ornament = {
   /**
    * How strongly the wallpaper is drawn, 0–1, over `--ew-void`.
    *
-   * Capped by the ink contrast floor, not by taste: `themes.test.ts` composites
-   * `--ew-line-strong` over `--ew-void` at this opacity and requires the ink to
-   * read on the result as well as it reads on a panel.
+   * Capped by contrast, not by taste: `themes.test.ts` lays
+   * `--ew-line-strong` at this opacity over the void, the key light and the
+   * tier vignette at their brightest, and requires the ink to read on the
+   * result at least as well as it does in this, the default, room.
    */
   motifOpacity: 0.15,
   /** The corner glyph on cards and the centre of section rules: a `glyph` shape. */

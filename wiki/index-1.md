@@ -83,8 +83,9 @@ non-obvious constraints in this design come from there.
    what you say about the room.
    A theme's ornament — its key light, wallpaper, corner glyph and card
    trim — is held to the same terms: drawn only in the theme's own line
-   colour through colourless shapes, never strong enough to cost the ink
-   its contrast, and no two rooms closer than 1.5 just-noticeable
+   colour through colourless shapes, never strong enough to leave text on
+   the bare room harder to read than the default room leaves it, and no
+   two rooms closer than 1.5 just-noticeable
    differences apart.
 6. **Comedy in the text, never in the numbers.** Flavor text is funny;
    stat changes are straight-faced. If the mechanics wink too, nothing

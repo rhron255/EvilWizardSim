@@ -14,7 +14,9 @@
  *   - The contrast floor is computed from the DEFAULT palette, not pinned to a
  *     literal. Widening the default's own contrast would move the floor with
  *     it, which is correct; hardcoding 13.8 would let a future edit to the
- *     default silently strand every theme above it.
+ *     default silently strand every theme above it. The bare-room floor is
+ *     computed the same way, from the default room, and its screen stacks
+ *     are read off the stylesheets that paint them.
  */
 
 import { readdirSync, readFileSync } from 'node:fs';
@@ -37,8 +39,9 @@ import {
   themeVars,
   unlockedThemeIds,
   swatchBands,
+  type ThemeDef,
 } from './themes';
-import { ink, ornament, surface } from './tokens';
+import { ink, ornament, surface, tierColor } from './tokens';
 
 /**
  * Read off disk, not imported.
@@ -172,6 +175,182 @@ const HUE_FAMILY = 90;
 function notNull<T>(value: T | null): value is T {
   return value !== null;
 }
+
+/*
+ * The bare room, modelled (constraints 5 and 7).
+ *
+ * Text that sits straight on a screen — the title's epigraph, the run screen's
+ * quiet line — has no panel behind it. It sits on `--ew-void` with every
+ * screen-wide layer painted over that: the key light, the tier vignette on
+ * the set-piece screens, and the wallpaper. The model below rebuilds that
+ * stack from the stylesheets themselves, each layer at the strongest it is
+ * ever drawn on screen, and measures the ink against it.
+ */
+
+/** A CSS value split on its top-level commas: one entry per background layer. */
+function layersOf(css: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let current = '';
+  for (const ch of css) {
+    if (ch === '(') depth++;
+    if (ch === ')') depth--;
+    if (ch === ',' && depth === 0) {
+      out.push(current.trim());
+      current = '';
+    } else current += ch;
+  }
+  if (current.trim()) out.push(current.trim());
+  return out;
+}
+
+/**
+ * The layers of a stylesheet's `.screen { background: … }`, top first, read
+ * off disk: the model is checked against the stacks the browser actually
+ * paints, not against a copy of them kept here.
+ */
+function screenLayers(path: string): string[] {
+  const css = readFileSync(resolve(process.cwd(), path), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const rule = css.slice(css.indexOf('.screen {'));
+  const body = rule.slice(rule.indexOf('{') + 1, rule.indexOf('}'));
+  const background = body.match(/(?:^|;)\s*background:([^;]*);/)?.[1] ?? '';
+  return layersOf(normalise(background));
+}
+
+/**
+ * A radial gradient's ellipse and transparent stop, all as fractions of the
+ * box: radii `rx` of its width and `ry` of its height, centre (`cx`, `cy`),
+ * and the stop as a fraction of the radius.
+ */
+type Ellipse = { rx: number; ry: number; cx: number; cy: number; stop: number };
+
+/**
+ * How much of a radial gradient's alpha reaches the screen at its brightest
+ * point, 0–1.
+ *
+ * The alpha falls linearly from the centre to the transparent stop. A centre
+ * inside the box is on screen, so the peak is full strength. A centre outside
+ * it — a light from above the frame — peaks at the nearest point of the box,
+ * at `1 − d / stop`, where `d` is that point's distance from the centre in
+ * radii. Measured in radii the ellipse is a circle and the box is still an
+ * axis-aligned box, so the nearest point is the centre clamped into it.
+ */
+function peakFactor({ rx, ry, cx, cy, stop }: Ellipse): number {
+  const clamp = (v: number) => Math.min(1, Math.max(0, v));
+  const d = Math.hypot((clamp(cx) - cx) / rx, (clamp(cy) - cy) / ry);
+  return Math.max(0, 1 - d / stop);
+}
+
+/** A flat colour laid over the room at `alpha`, `factor` of its authored strength. */
+type RoomLayer = { colour: string; alpha: number; factor: number };
+
+const toHex = (r: number, g: number, b: number) =>
+  '#' + [r, g, b].map((c) => Math.round(c).toString(16).padStart(2, '0')).join('');
+
+/** `radial-gradient(RX% RY% at X% Y%, rgba(…), transparent STOP%)` — every radial key light's shape. */
+const RADIAL_LIGHT =
+  /^radial-gradient\(\s*([\d.]+)%\s+([\d.]+)%\s+at\s+(-?[\d.]+)%\s+(-?[\d.]+)%\s*,\s*rgba?\([^)]*\)\s*,\s*transparent\s+([\d.]+)%\s*\)$/i;
+
+/**
+ * A key light as the layers it paints, BOTTOM first, each at its peak.
+ *
+ * Throws on any layer it cannot model rather than skipping it: a light this
+ * cannot read is a light the floor below is not measuring.
+ */
+function keyLight(light: string): RoomLayer[] {
+  if (normalise(light) === 'none') return [];
+  return layersOf(light)
+    .map((layer) => {
+      const calls = rgbCalls(layer);
+      if (calls.length !== 1 || /var\(|color-mix\(/i.test(layer)) {
+        throw new Error(`the room model cannot read this key-light layer: ${layer}`);
+      }
+      const [r, g, b, a] = channels(calls[0]);
+      let factor: number;
+      if (/^linear-gradient\(/i.test(layer)) {
+        // Every stop of a linear gradient lands somewhere on screen.
+        factor = 1;
+      } else {
+        const m = layer.match(RADIAL_LIGHT);
+        if (!m) throw new Error(`the room model cannot read this key-light layer: ${layer}`);
+        const [rx, ry, cx, cy, stop] = m.slice(1).map((n) => parseFloat(n) / 100);
+        factor = peakFactor({ rx, ry, cx, cy, stop });
+      }
+      return { colour: toHex(r, g, b), alpha: a * factor, factor };
+    })
+    .reverse();
+}
+
+/** The run screen: the key light over the void, and nothing else. */
+const RUN_STACK = screenLayers('src/screens/RunScreen.module.css');
+
+/**
+ * The set-piece screens (title, ending, theme selector, changelog…): the key
+ * light over a vignette tinted with the tier colour, over a black vignette at
+ * the foot, over the void.
+ */
+const SET_PIECE_STACK = screenLayers('src/components/meta/craft.module.css');
+
+/** `radial-gradient(… , color-mix(in srgb, var(--ew-tier) N%, transparent), transparent STOP%)`. */
+const TIER_VIGNETTE =
+  /^radial-gradient\(([\d.]+)% ([\d.]+)% at (-?[\d.]+)% (-?[\d.]+)%, color-mix\(in srgb, var\(--ew-tier\) ([\d.]+)%, transparent\), transparent ([\d.]+)%\)$/;
+
+/** The tier vignette's alpha at its peak, read from the set-piece stack. */
+function tierVignettePeak(): number {
+  const m = SET_PIECE_STACK[1]?.match(TIER_VIGNETTE);
+  if (!m) throw new Error(`the set-piece stack's second layer is not the tier vignette: ${SET_PIECE_STACK[1]}`);
+  const [rx, ry, cx, cy, mix, stop] = m.slice(1).map((n) => parseFloat(n) / 100);
+  // color-mix() with `transparent` keeps the tier's hue at `mix` alpha.
+  return mix * peakFactor({ rx, ry, cx, cy, stop });
+}
+
+/**
+ * The ink's worst contrast anywhere on a theme's bare room.
+ *
+ * The layers are stacked bottom-up on the void — the tier vignette in every
+ * tier colour (set-piece screens only), the key light, then the wallpaper,
+ * `--ew-line-strong` at `motifOpacity` — each at its peak, as though every
+ * peak fell on the same pixel. Text can also sit where any layer has faded to
+ * nothing, so every subset of the layers is measured and the worst is kept.
+ * That is the whole range: each layer moves the backdrop monotonically as it
+ * strengthens, so the extremes are at the subsets. It also covers the one
+ * light room, where the key light is white and RAISES the contrast — its
+ * worst is the unlit room under the wallpaper.
+ *
+ * The black vignette at the foot of the set-piece screens is left out. In
+ * every dark room it darkens the backdrop behind pale ink, which raises the
+ * contrast, so leaving it out is the harder case.
+ */
+function roomContrast(theme: ThemeDef, setPiece: boolean): number {
+  const voidc = theme.surface.void ?? surface.void;
+  const base = theme.ink?.base ?? ink.base;
+  const wallpaper = {
+    colour: theme.surface.lineStrong ?? surface.lineStrong,
+    alpha: theme.ornament.motifOpacity,
+    factor: 1,
+  };
+  const tierAlpha = tierVignettePeak();
+  const tints: (string | null)[] = setPiece ? Object.values(tierColor) : [null];
+  let worst = Infinity;
+  for (const tint of tints) {
+    const layers: RoomLayer[] = [
+      ...(tint ? [{ colour: tint, alpha: tierAlpha, factor: 1 }] : []),
+      ...keyLight(theme.ornament.light),
+      wallpaper,
+    ];
+    for (let subset = 0; subset < 1 << layers.length; subset++) {
+      const backdrop = layers.reduce(
+        (colour, layer, i) => (subset & (1 << i) ? over(colour, layer.colour, layer.alpha) : colour),
+        voidc,
+      );
+      worst = Math.min(worst, contrastRatio(base, backdrop));
+    }
+  }
+  return worst;
+}
+
+/** Worst over both stacks: the run screen and the set pieces. */
+const roomFloorOf = (theme: ThemeDef) => Math.min(roomContrast(theme, false), roomContrast(theme, true));
 
 /*
  * The vocabulary a key light or card trim may be written in (constraint 7).
@@ -391,6 +570,81 @@ describe('themes · constraint 5, the ink contrast floor', () => {
   }
 });
 
+describe('themes · constraints 5 and 7, the bare room reads as well as the Tower', () => {
+  /**
+   * The panel floor, for the two guards below.
+   */
+  const FLOOR = contrastRatio(ink.base, surface.panel);
+
+  /**
+   * The worst the DEFAULT room does for text with no panel behind it, computed
+   * from `tokens.ts`, never quoted.
+   *
+   * Lower than the panel floor, and that is the default's own doing: its key
+   * light and the tier vignette both lift the void behind pale ink. So the
+   * promise for the bare room is "no theme makes text on it harder to read
+   * than the Tower does", and the Tower is measured to find out what that is.
+   */
+  const ROOM_FLOOR = roomFloorOf(THEMES.find((t) => t.id === DEFAULT_THEME_ID)!);
+
+  it('is measured against a default room that itself clears WCAG AAA, and no higher than a panel', () => {
+    expect(ROOM_FLOOR).toBeGreaterThanOrEqual(7);
+    expect(ROOM_FLOOR).toBeLessThanOrEqual(FLOOR);
+  });
+
+  it('models the stacks the screens actually paint', () => {
+    // If a screen gains or loses a layer, the model has to learn about it
+    // before this floor means anything again.
+    expect(RUN_STACK).toEqual(['var(--ew-light, none)', 'var(--ew-void)']);
+    expect(SET_PIECE_STACK).toHaveLength(4);
+    expect(SET_PIECE_STACK[0]).toBe('var(--ew-light, none)');
+    expect(SET_PIECE_STACK[1]).toMatch(TIER_VIGNETTE);
+    expect(SET_PIECE_STACK[3]).toBe('var(--ew-void)');
+    // The layer the model leaves out must stay black, which only darkens.
+    const vignette = rgbCalls(SET_PIECE_STACK[2]);
+    expect(vignette).toHaveLength(1);
+    expect(channels(vignette[0]).slice(0, 3)).toEqual([0, 0, 0]);
+  });
+
+  it('attenuates a light from above the frame by its distance to the top edge', () => {
+    // Worked by hand: the Tower's light is centred 10% above a box whose
+    // vertical radius is 55% of it, so the top edge is 10/55 of a radius out,
+    // and the colour runs out at 68% of a radius.
+    const tower = 'radial-gradient(90% 55% at 50% -10%, rgba(255, 246, 224, 0.045), transparent 68%)';
+    const expected = 1 - 10 / 55 / 0.68;
+    const [layer] = keyLight(tower);
+    expect(layer.factor).toBeCloseTo(expected, 10);
+    expect(layer.alpha).toBeCloseTo(0.045 * expected, 10);
+    expect(layer.colour).toBe('#fff6e0');
+  });
+
+  it('leaves a light centred on screen, or a linear one, at full strength', () => {
+    const side = keyLight('radial-gradient(80% 60% at 92% 6%, rgba(224, 190, 200, 0.045), transparent 70%)');
+    const glint = keyLight('linear-gradient(115deg, transparent 42%, rgba(255, 240, 236, 0.025) 50%, transparent 58%)');
+    expect(side[0].factor).toBe(1);
+    expect(glint[0].alpha).toBe(0.025);
+    expect(keyLight('none')).toEqual([]);
+  });
+
+  for (const theme of THEMES) {
+    it(`${theme.name}'s key light is read in full, and reaches the screen`, () => {
+      // Guards the model: a light it parsed to nothing would pass the floor
+      // for free.
+      const layers = keyLight(theme.ornament.light);
+      if (normalise(theme.ornament.light) !== 'none') expect(layers.length).toBeGreaterThan(0);
+      for (const { factor } of layers) {
+        expect(factor).toBeGreaterThan(0);
+        expect(factor).toBeLessThanOrEqual(1);
+      }
+    });
+
+    it(`${theme.name}'s bare room carries the ink at least as well as the Tower's`, () => {
+      expect(theme.ornament.motifOpacity).toBeGreaterThan(0);
+      expect(roomFloorOf(theme)).toBeGreaterThanOrEqual(ROOM_FLOOR);
+    });
+  }
+});
+
 describe('themes · constraint 3, the CSS mirrors the TypeScript', () => {
   for (const theme of THEMES) {
     if (theme.id === DEFAULT_THEME_ID) continue;
@@ -423,9 +677,7 @@ describe('themes · constraint 2, near-monochrome within a theme', () => {
   }
 });
 
-describe('themes · constraint 7, ornament brings no colour and costs the ink nothing', () => {
-  const FLOOR = contrastRatio(ink.base, surface.panel);
-
+describe('themes · constraint 7, ornament brings no colour', () => {
   it('the :root ornament agrees with tokens.ts, as every theme block agrees with its theme', () => {
     // The default has no block of its own (it IS :root), so the sync test
     // above never looks at it. Without this, the default's wallpaper could
@@ -437,19 +689,6 @@ describe('themes · constraint 7, ornament brings no colour and costs the ink no
   });
 
   for (const theme of THEMES) {
-    it(`${theme.name}'s wallpaper leaves the ink as readable as a panel would`, () => {
-      // The wallpaper is `--ew-line-strong` drawn over `--ew-void` at
-      // `motifOpacity`, and text sits straight on the void on the run screen
-      // and the title. At the pattern's densest pixel the room is that
-      // composite, so that is the colour the ink is measured against.
-      const { motifOpacity } = theme.ornament;
-      const voidc = theme.surface.void ?? surface.void;
-      const strong = theme.surface.lineStrong ?? surface.lineStrong;
-      const base = theme.ink?.base ?? ink.base;
-      expect(motifOpacity).toBeGreaterThan(0);
-      expect(contrastRatio(base, over(voidc, strong, motifOpacity))).toBeGreaterThanOrEqual(FLOOR);
-    });
-
     it(`${theme.name}'s light and trim are written only in the room's own palette`, () => {
       // `light` and `trim` are free CSS, which is the one place a theme could
       // name `--ew-tier`, or a colour of its own, without the type system

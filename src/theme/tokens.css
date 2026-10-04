@@ -105,7 +105,8 @@
        --ew-light          key light: background layer(s) over --ew-void, or none
        --ew-motif          wallpaper tiled behind every screen; never none
        --ew-motif-size     one tile of it
-       --ew-motif-opacity  how strongly it is drawn — capped by the ink floor
+       --ew-motif-opacity  how strongly it is drawn — capped, with --ew-light, so
+                           text on the bare room reads as well as in this one
        --ew-pip            glyph at card corners and in section rules
        --ew-trim           background layer(s) over a card's own surface, or none */
   --ew-light: radial-gradient(90% 55% at 50% -10%, rgba(255, 246, 224, 0.045), transparent 68%);
@@ -165,7 +166,7 @@
   --ew-light: radial-gradient(90% 55% at 50% -10%, rgba(255, 228, 220, 0.05), transparent 68%), linear-gradient(115deg, transparent 42%, rgba(255, 240, 236, 0.025) 50%, transparent 58%);
   --ew-motif: var(--ew-shape-swords);
   --ew-motif-size: 120px 120px;
-  --ew-motif-opacity: 0.2;
+  --ew-motif-opacity: 0.14;
   --ew-pip: var(--ew-shape-hilt);
   --ew-trim: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ew-ink-bright) 55%, transparent) 50%, transparent) top / 100% 1px no-repeat;
 }
@@ -319,10 +320,10 @@
   --ew-ink-faint: #607a7a;
   --ew-ink-ghost: #3d4e4e;
 
-  --ew-light: radial-gradient(120% 70% at 50% -22%, rgba(180, 255, 236, 0.07), transparent 74%), radial-gradient(80% 50% at 50% 104%, rgba(120, 220, 200, 0.035), transparent 70%);
+  --ew-light: radial-gradient(120% 70% at 50% -22%, rgba(180, 255, 236, 0.055), transparent 74%), radial-gradient(80% 50% at 50% 104%, rgba(120, 220, 200, 0.025), transparent 70%);
   --ew-motif: var(--ew-shape-stars);
   --ew-motif-size: 110px 110px;
-  --ew-motif-opacity: 0.17;
+  --ew-motif-opacity: 0.12;
   --ew-pip: var(--ew-shape-sparkle);
   --ew-trim: radial-gradient(70% 100% at 50% 0%, color-mix(in srgb, var(--ew-line-strong) 28%, transparent), transparent) top / 100% 16px no-repeat;
 }
@@ -505,7 +506,7 @@
   --ew-light: radial-gradient(90% 55% at 50% -10%, rgba(240, 246, 176, 0.05), transparent 68%);
   --ew-motif: var(--ew-shape-coins);
   --ew-motif-size: 80px 80px;
-  --ew-motif-opacity: 0.16;
+  --ew-motif-opacity: 0.15;
   --ew-pip: var(--ew-shape-coin);
   --ew-trim: linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) left 12px bottom 3px / calc(100% - 24px) 1px no-repeat, linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) left 12px bottom 1px / calc(100% - 24px) 1px no-repeat;
 }
@@ -530,7 +531,7 @@
   --ew-light: radial-gradient(70% 50% at 50% -10%, rgba(220, 232, 255, 0.06), transparent 70%);
   --ew-motif: var(--ew-shape-diagram);
   --ew-motif-size: 140px 140px;
-  --ew-motif-opacity: 0.15;
+  --ew-motif-opacity: 0.14;
   --ew-pip: var(--ew-shape-eye);
   --ew-trim: linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) left 6px top 16px / 1px calc(100% - 32px) no-repeat;
 }
@@ -627,10 +628,10 @@
   --ew-ink-faint: #777184;
   --ew-ink-ghost: #4c4855;
 
-  --ew-light: radial-gradient(60% 40% at 50% -6%, rgba(255, 222, 236, 0.04), transparent 70%), radial-gradient(90% 55% at 50% -10%, rgba(236, 220, 255, 0.04), transparent 68%);
+  --ew-light: radial-gradient(60% 40% at 50% -6%, rgba(255, 222, 236, 0.03), transparent 70%), radial-gradient(90% 55% at 50% -10%, rgba(236, 220, 255, 0.03), transparent 68%);
   --ew-motif: var(--ew-shape-candles);
   --ew-motif-size: 100px 110px;
-  --ew-motif-opacity: 0.15;
+  --ew-motif-opacity: 0.11;
   --ew-pip: var(--ew-shape-flame);
   --ew-trim: radial-gradient(50% 100% at 50% 0%, color-mix(in srgb, var(--ew-line-strong) 24%, transparent), transparent) top / 100% 14px no-repeat;
 }

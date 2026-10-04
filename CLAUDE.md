@@ -158,8 +158,9 @@ These come from a game that worked at scale. They look arbitrary in isolation.
    in its `tokens.css` block, never a `[data-theme]` selector in a component
    stylesheet. The shapes are colourless masks (`src/theme/ornaments.ts`)
    painted in the theme's own `--ew-line-strong`, so ornament can never bring
-   a hue the palette does not already have; the wallpaper's strength is
-   capped by the same ink floor; and every pair of themes must sit at least
+   a hue the palette does not already have; the wallpaper and key light are
+   capped so text on the bare room reads at least as well as in the default
+   room; and every pair of themes must sit at least
    1.5 just-noticeable differences apart (all measured in `themes.test.ts`).
 4. **Comedy in the text, never in the numbers.**
 5. **No fail state, and no doom meter.** Every ending is a biography. The decline

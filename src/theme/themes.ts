@@ -31,9 +31,12 @@
  * 4. Layout and information hierarchy never change. Ornament, palette and
  *    typographic treatment only — every ornament is a background layer, a mask
  *    or an absolutely positioned pseudo-element, none of which takes space.
- * 5. Ink contrast floor: `ink` against `panel` at or above what the default
- *    palette achieves (13.80:1). Asserted in `themes.test.ts` with real
- *    contrast maths, never by eye.
+ * 5. Ink contrast floor, set by what the default achieves. On a panel, `ink`
+ *    against `panel` at or above the default's 13.80:1. On the bare room —
+ *    text with no panel behind it — at or above the Tower's own worst, with
+ *    the void, key light, tier vignette and wallpaper all counted at their
+ *    brightest. Asserted in `themes.test.ts` with real contrast maths, never
+ *    by eye.
  * 6. `--ew-legendary` is pinned in every theme. It is absent from the
  *    overridable surface here, which is how it stays pinned.
  * 7. Ornament never brings a colour of its own, and never costs the ink its
@@ -42,10 +45,9 @@
  *    light and the card trim are free CSS, so they are held to a vocabulary
  *    instead: the room's own surface and ink tokens, plain white or black,
  *    and — for the key light alone — a faint tint in the room's own hue
- *    family. The wallpaper's opacity is capped by constraint 5:
- *    `--ew-line-strong` composited over `--ew-void` at `motifOpacity` must
- *    still carry the ink at the floor, because text sits straight on the void
- *    on several screens.
+ *    family. The wallpaper's opacity and the key light's strength are both
+ *    capped by constraint 5's bare-room floor, because text sits straight on
+ *    the room on several screens.
  * 8. No two rooms look alike. Every pair of themes sits at least 1.5
  *    just-noticeable differences apart in OKLab — see the distinctness block
  *    in `themes.test.ts` for the measure and where its numbers come from.
@@ -214,7 +216,7 @@ export const THEMES: ThemeDef[] = [
     ornament: {
       light:
         'radial-gradient(90% 55% at 50% -10%, rgba(255, 228, 220, 0.05), transparent 68%), linear-gradient(115deg, transparent 42%, rgba(255, 240, 236, 0.025) 50%, transparent 58%)',
-      ...wallpaper('swords', 0.2),
+      ...wallpaper('swords', 0.14),
       pip: shapeRef('hilt'),
       trim: 'linear-gradient(90deg, transparent, color-mix(in srgb, var(--ew-ink-bright) 55%, transparent) 50%, transparent) top / 100% 1px no-repeat',
     },
@@ -443,8 +445,8 @@ export const THEMES: ThemeDef[] = [
     },
     ornament: {
       light:
-        'radial-gradient(120% 70% at 50% -22%, rgba(180, 255, 236, 0.07), transparent 74%), radial-gradient(80% 50% at 50% 104%, rgba(120, 220, 200, 0.035), transparent 70%)',
-      ...wallpaper('stars', 0.17),
+        'radial-gradient(120% 70% at 50% -22%, rgba(180, 255, 236, 0.055), transparent 74%), radial-gradient(80% 50% at 50% 104%, rgba(120, 220, 200, 0.025), transparent 70%)',
+      ...wallpaper('stars', 0.12),
       pip: shapeRef('sparkle'),
       trim: 'radial-gradient(70% 100% at 50% 0%, color-mix(in srgb, var(--ew-line-strong) 28%, transparent), transparent) top / 100% 16px no-repeat',
     },
@@ -712,7 +714,7 @@ export const THEMES: ThemeDef[] = [
       // still, but the brass already spends almost all of the room's hue
       // family, and a tinted light has to stay inside it (constraint 7).
       light: 'radial-gradient(90% 55% at 50% -10%, rgba(240, 246, 176, 0.05), transparent 68%)',
-      ...wallpaper('coins', 0.16),
+      ...wallpaper('coins', 0.15),
       pip: shapeRef('coin'),
       trim: `${edgeRule('bottom', 3)}, ${edgeRule('bottom', 1)}`,
     },
@@ -744,7 +746,7 @@ export const THEMES: ThemeDef[] = [
     },
     ornament: {
       light: 'radial-gradient(70% 50% at 50% -10%, rgba(220, 232, 255, 0.06), transparent 70%)',
-      ...wallpaper('diagram', 0.15),
+      ...wallpaper('diagram', 0.14),
       pip: shapeRef('eye'),
       trim: 'linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) left 6px top 16px / 1px calc(100% - 32px) no-repeat',
     },
@@ -895,8 +897,8 @@ export const THEMES: ThemeDef[] = [
       // a tinted light must keep to (constraint 7), and read as a second
       // colour rather than a warmer corner of the same one.
       light:
-        'radial-gradient(60% 40% at 50% -6%, rgba(255, 222, 236, 0.04), transparent 70%), radial-gradient(90% 55% at 50% -10%, rgba(236, 220, 255, 0.04), transparent 68%)',
-      ...wallpaper('candles', 0.15),
+        'radial-gradient(60% 40% at 50% -6%, rgba(255, 222, 236, 0.03), transparent 70%), radial-gradient(90% 55% at 50% -10%, rgba(236, 220, 255, 0.03), transparent 68%)',
+      ...wallpaper('candles', 0.11),
       pip: shapeRef('flame'),
       trim: 'radial-gradient(50% 100% at 50% 0%, color-mix(in srgb, var(--ew-line-strong) 24%, transparent), transparent) top / 100% 14px no-repeat',
     },
