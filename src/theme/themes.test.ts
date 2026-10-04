@@ -41,7 +41,7 @@ import {
   swatchBands,
   type ThemeDef,
 } from './themes';
-import { ink, ornament, surface, tierColor } from './tokens';
+import { ink, ornament, space, surface, tierColor } from './tokens';
 
 /**
  * Read off disk, not imported.
@@ -89,18 +89,25 @@ function declarationsFrom(start: number): Record<string, string> {
 
 /**
  * A CSS value as the sync tests compare it: every run of whitespace, newlines
- * included, collapsed to one space, and the case folded.
+ * included, collapsed to one space.
  *
  * `tokens.css` is hand-written — that is what makes it an anchor — so a long
- * value there may be wrapped across lines, and the CSS is conventionally
- * lowercase where the TS has a few uppercase hexes carried over from
- * `tokens.ts`. Both sides go through this, so only spacing and case are
- * forgiven: a space that appears or vanishes between two tokens, or any other
- * character changed, still fails.
+ * value there may be wrapped across lines. Both sides go through this, so only
+ * spacing is forgiven: a space that appears or vanishes between two tokens, or
+ * any other character changed, still fails. Case is NOT folded: a custom
+ * property's name is case-sensitive, so `var(--EW-LINE-STRONG)` names no token
+ * the browser has, and a trim or wallpaper written that way would vanish.
  */
 function normalise(value: string): string {
-  return value.replace(/\s+/g, ' ').trim().toLowerCase();
+  return value.replace(/\s+/g, ' ').trim();
 }
+
+/**
+ * `normalise`, with hex literals' case folded too. Only for `:root` against
+ * `tokens.ts`, whose hexes are uppercase where the stylesheet's are lowercase;
+ * a theme block is compared with `normalise` alone (tokens.css rule 3).
+ */
+const normaliseHex = (value: string) => normalise(value).replace(/#[\da-f]+\b/gi, (hex) => hex.toLowerCase());
 
 /** Every value of a `{ '--ew-…': value }` record, normalised. */
 function normaliseAll(record: Record<string, string>): Record<string, string> {
@@ -169,6 +176,18 @@ function hueSpread(hues: number[]): number {
  * The Sword and New Management deliberately carry a red rule against
  * warm-brown surfaces, which is a wider family than the rest — but a theme
  * spanning more than a quadrant has stopped being one hue.
+ *
+ * "Family" is that and no more: one quadrant of the hue circle. It is wider
+ * than near-monochrome, which is what the palettes themselves do (most sit
+ * within a few degrees); the bound is there to catch a second hue, not to
+ * define the first. The key-light test reuses it for the same reason, and so
+ * lets through what a quadrant does: a cyan candle in Kept Vigil's violet
+ * room passes, an amber one does not.
+ *
+ * Below `hue`'s saturation floor — channels spread by under about 10 levels
+ * (0.04 of the range) — a colour has no hue and is not counted. A tint that
+ * grey, at the key light's 0.07 alpha or less, moves the room's channels
+ * apart by under one level: below a visible step, so not a hue to police.
  */
 const HUE_FAMILY = 90;
 
@@ -917,14 +936,100 @@ describe('themes · constraint 2, near-monochrome within a theme', () => {
   }
 });
 
+describe('themes · the colour readers, against known answers', () => {
+  // Each of these readers decides what a test above sees. A reader that
+  // returned nothing, or a constant, would turn those tests green for free,
+  // so each is pinned to answers worked out by hand.
+
+  it('rejects every way a hue could get into a light or a trim', () => {
+    const bad = [
+      'red',
+      'RED',
+      'rebeccapurple',
+      'currentColor',
+      '#f00',
+      'hsl(0 100% 50%)',
+      'hwb(0 0% 0%)',
+      'lab(50% 80 60)',
+      'lch(50% 80 30)',
+      'oklab(0.6 0.2 0.1)',
+      'oklch(0.6 0.2 30)',
+      'color(srgb 1 0 0)',
+      'color-mix(in hsl, var(--ew-ink) 50%, transparent)',
+      'color-mix(in srgb, var(--ew-ink) 50%, red)',
+      'var(--ew-tier)',
+      'var(--ew-panel, red)',
+      'url(x)',
+      'image-set("x.png" 1x)',
+      'rgb(from red r g b)',
+      'light-dark(white, black)',
+    ];
+    for (const colour of bad) {
+      expect(offVocabulary(colour), colour).not.toEqual([]);
+      // And where it would actually sit: a stop inside a gradient.
+      expect(offVocabulary(`linear-gradient(180deg, ${colour}, transparent 10px)`), colour).not.toEqual([]);
+    }
+  });
+
+  it('accepts the vocabulary itself', () => {
+    for (const good of [
+      'none',
+      'linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 14px)',
+      'radial-gradient(90% 55% at 50% -10%, rgba(255, 246, 224, 0.045), transparent 68%)',
+      'linear-gradient(90deg, transparent, color-mix(in srgb, var(--ew-ink-bright) 55%, transparent) 50%, transparent) left 12px top 0px / calc(100% - 24px) 1px no-repeat',
+      'repeating-linear-gradient(90deg, var(--ew-void) 0 2px, transparent 2px 6px) left 12px top 1px / calc(100% - 24px) 2px no-repeat',
+    ]) {
+      expect(offVocabulary(good), good).toEqual([]);
+    }
+  });
+
+  it('reads rgb() channels in every spelling, alpha defaulting to opaque', () => {
+    expect(channels('rgb(216 198 255)')).toEqual([216, 198, 255, 1]);
+    expect(channels('rgb(216 198 255)')[3]).toBe(1);
+    expect(channels('rgb(216 198 255 / 50%)')).toEqual([216, 198, 255, 0.5]);
+    expect(channels('rgba(100%, 0%, 0%, .07)')).toEqual([255, 0, 0, 0.07]);
+    expect(channels('rgba(255, 246, 224, 0.045)')).toEqual([255, 246, 224, 0.045]);
+  });
+
+  it('reads hue at the primaries, and none for a grey', () => {
+    expect(hue('#ff0000')).toBe(0);
+    expect(hue('rgb(0 0 255)')).toBe(240);
+    expect(hue('#00ff00')).toBe(120);
+    expect(hue('#808080')).toBeNull();
+    // Just under the saturation floor: 10 levels apart, no hue.
+    expect(hue('#80808a')).toBeNull();
+    expect(hueSpread([350, 10])).toBe(20);
+  });
+
+  it('is measuring something: rooms have hues, and they spread', () => {
+    // Every room but the one deliberately neutral one has hued surfaces, and
+    // between them the rooms span the wheel.
+    const spreads = THEMES.map((t) => Object.values(t.surface).map(hue).filter(notNull)).filter((h) => h.length > 0);
+    expect(spreads.length).toBeGreaterThanOrEqual(THEMES.length - 1);
+    expect(Math.max(...spreads.map(hueSpread))).toBeGreaterThan(0);
+    expect(hueSpread(spreads.map((h) => h[0]))).toBeGreaterThan(90);
+  });
+});
+
 describe('themes · constraint 7, ornament brings no colour', () => {
-  it('the :root ornament agrees with tokens.ts, as every theme block agrees with its theme', () => {
+  it(':root agrees with tokens.ts — palette and ornament — as every theme block agrees with its theme', () => {
     // The default has no block of its own (it IS :root), so the sync test
     // above never looks at it. Without this, the default's wallpaper could
-    // drift between the two files with nothing failing.
+    // drift between the two files with nothing failing — and so could its
+    // palette, which matters more: every floor in this file is computed from
+    // tokens.ts, while the browser paints :root.
     const root = declarationsFrom(CSS.indexOf(':root {'));
-    for (const [key, name] of Object.entries(ORNAMENT_VARS)) {
-      expect(normalise(root[name] ?? ''), name).toBe(normalise(String(ornament[key as keyof typeof ornament])));
+    const expected: [string, string][] = [
+      ...Object.entries(SURFACE_VARS).map(([k, name]): [string, string] => [name, surface[k as keyof typeof surface]]),
+      ...Object.entries(INK_VARS).map(([k, name]): [string, string] => [name, ink[k as keyof typeof ink]]),
+      ...Object.entries(ORNAMENT_VARS).map(([k, name]): [string, string] => [
+        name,
+        String(ornament[k as keyof typeof ornament]),
+      ]),
+    ];
+    expect(expected).toHaveLength(6 + 5 + 6);
+    for (const [name, value] of expected) {
+      expect(normaliseHex(root[name] ?? ''), name).toBe(normaliseHex(value));
     }
   });
 
@@ -964,8 +1069,11 @@ describe('themes · constraint 7, ornament brings no colour', () => {
     it(`${theme.name}'s key light, where it is tinted, is tinted in the room's own hue`, () => {
       // The one colour ornament may bring rather than borrow: a key light's
       // faint tint. It joins the room's surfaces and the whole set is held to
-      // constraint 2's spread, so a light can warm or cool a room within its
-      // family but cannot light a violet room amber.
+      // constraint 2's spread — one quadrant, not near-monochrome (see
+      // HUE_FAMILY). So a light cannot bring a hue from across the wheel: an
+      // amber lamp in a violet room fails. A neighbouring hue in the same
+      // quadrant, a cyan one there, passes; the 0.07 alpha cap above is what
+      // keeps such a tint faint.
       const room = Object.values(theme.surface).map(hue).filter(notNull);
       const tints = rgbCalls(theme.ornament.light).map(hue).filter(notNull);
       expect(hueSpread([...room, ...tints]), `light tints ${tints.map(Math.round).join(', ')}°`).toBeLessThanOrEqual(
@@ -978,9 +1086,12 @@ describe('themes · constraint 7, ornament brings no colour', () => {
     // The compiler holds this for themes.ts (`ShapeRef<PatternId>`); the CSS
     // has no compiler, and a shape named there but never generated would
     // paint a transparent mask — no wallpaper, and nothing failing.
-    const named = [...CSS.matchAll(/var\(--ew-shape-([a-z0-9-]+)\)/g)].map((m) => m[1]);
+    // Matched in any case, then held to the exact name: a custom property is
+    // case-sensitive, so `var(--ew-shape-Swords)` or `var(--EW-SHAPE-swords)`
+    // names nothing the browser has and must not slip past as a non-match.
+    const named = [...CSS.matchAll(/var\((--ew-shape-[\w-]+)\)/gi)].map((m) => m[1]);
     expect(named.length).toBeGreaterThan(THEMES.length);
-    for (const id of named) expect(SHAPE_IDS, id).toContain(id);
+    for (const name of named) expect(SHAPE_IDS.map((id) => `--ew-shape-${id}`), name).toContain(name);
     for (const theme of THEMES) {
       // Every room has a wallpaper: `mask-image: none` means "no mask", which
       // would paint `--ew-line-strong` over the whole screen.
@@ -1033,35 +1144,113 @@ describe('themes · constraint 7, ornament brings no colour', () => {
  * A trim layer is one of two kinds, and which kind is decided by how hard it
  * is drawn, not by what its author meant. The line is the ornament probe's own
  * `DRAWN` — the move in some channel at which `qa/probe-ornament-spacing.mjs`
- * starts counting a pixel as ornament — read off disk, so the probe and this
- * test cannot drift apart.
+ * starts counting a pixel as ornament. The probe and this test share exactly
+ * two things, both read off disk: that number, and the surfaces a trim is laid
+ * over (`TRIM_SURFACES`, read from the stylesheets that lay it — the probe
+ * photographs a card at rest, over the raised-to-panel gradient, which is two
+ * of them). They do not share a classifier: the probe diffs rendered pixels
+ * and this test does arithmetic on the stops, so a trim the browser draws
+ * harder than its stops say is the probe's to catch.
  *
- *   - A MARK moves some channel by `DRAWN` or more over the panel. The probe
- *     sees it, so it has to keep out of the content's way by geometry: an edge
- *     band in the outer 4px between the corner glyphs, or the corner square a
- *     glyph sits in.
- *   - A WASH moves none by that much. The probe does not see it and it may sit
- *     behind text, so it is held by strength instead: the ink still clears the
- *     panel floor over it.
+ *   - A MARK moves some channel by `DRAWN` or more over SOME surface it is
+ *     laid on. The probe can see it, so it has to keep out of the content's
+ *     way by geometry: an edge band in the outer 4px between the corner
+ *     glyphs, or a corner form that keeps 4px from where content starts.
+ *   - A WASH moves none by that much over ANY of them. It may sit behind
+ *     text, so it is held by strength instead: over each surface, the ink
+ *     reads at least as well as the default ink does on the default's
+ *     version of that surface — the bare-room promise (D1) applied to a card.
+ *     On the panel that is the 13.80 panel floor.
  *
- * The geometry is written out literally below rather than imported from
- * `themes.ts`: the 12px is an 8px corner glyph (`craft.module.css`'s
- * `mask-size`) plus `--ew-space-1`, and the 4px is `--ew-space-1` alone. A
- * change to `themes.ts`' helpers that moved a mark has to get past these
- * numbers, not agree with itself (failure mode 11).
+ * Geometry is measured inside the card's border — from the padding box, where
+ * a background layer is positioned and where the corner glyphs sit. The
+ * numbers are read off disk or written out literally rather than imported
+ * from `themes.ts`: the 12px is an 8px corner glyph (`craft.module.css`'s
+ * `mask-size`) plus `--ew-space-1`, the 4px is `--ew-space-1` alone, and the
+ * corner allowance comes from OptionCard's phone padding. A change to
+ * `themes.ts`' helpers that moved a mark has to get past these numbers, not
+ * agree with itself (failure mode 11).
  */
 
 /** The probe's `const DRAWN = <n>;`, read off disk. */
 const PROBE = readFileSync(resolve(process.cwd(), 'qa/probe-ornament-spacing.mjs'), 'utf8');
 const DRAWN = Number(PROBE.match(/^const DRAWN = (\d+);$/m)?.[1]);
 
+/** A `--ew-space-N` step in CSS px, from `tokens.ts` (rem at the 16px root). */
+const spacePx = (step: string) => parseFloat(space[step as keyof typeof space]) * 16;
+
 /** How far in from a card's edge the corner glyph and its clearance reach. */
 const CORNER_SQUARE = 8 + 4;
 /** The outer band of a card an edge mark keeps to: `--ew-space-1`. */
-const EDGE_BAND = 4;
+const EDGE_BAND = spacePx('1');
 
-/** A colour stop, resolved: an opaque hex at an alpha. */
-type Stop = { colour: string; alpha: number };
+/**
+ * OptionCard's padding at phone width — the tightest card a trim is laid on —
+ * as `[vertical, horizontal]` px, read from its stylesheet's `max-width: 420px`
+ * rule (`padding: var(--ew-space-2) var(--ew-space-3)`, 8px × 12px).
+ */
+const PHONE_PADDING = (() => {
+  const rule = rulesIn('src/components/run/OptionCard.module.css').find(
+    (r) => r.atRule === '@media (max-width: 420px)' && r.selector === '.card' && declared(r.body, 'padding') !== null,
+  );
+  const steps = [...(declared(rule?.body ?? '', 'padding') ?? '').matchAll(/var\(--ew-space-(\d)\)/g)].map((m) => m[1]);
+  if (steps.length !== 2) throw new Error("cannot read OptionCard's phone padding as two --ew-space steps");
+  return steps.map(spacePx) as [number, number];
+})();
+
+/**
+ * How far a corner mark may draw from its corner and still keep `EDGE_BAND`
+ * from where content starts: every drawn point must lie within `x` of the side
+ * or within `y` of the top or bottom edge (8px and 4px).
+ */
+const CORNER_REACH = { x: PHONE_PADDING[1] - EDGE_BAND, y: PHONE_PADDING[0] - EDGE_BAND };
+
+/**
+ * The widest OptionCard's own leading hairline is drawn — its `::before`,
+ * 1px at rest and 2px under a finger — read off disk. It runs down the left
+ * edge between the corner glyphs, exactly where a left edge mark would.
+ */
+const HAIRLINE = Math.max(
+  ...rulesIn('src/components/run/OptionCard.module.css')
+    .filter((r) => r.selector.endsWith('::before') && declared(r.body, 'width') !== null)
+    .map((r) => parseFloat(declared(r.body, 'width')!)),
+);
+
+/**
+ * Every surface a trim is laid over, read from the stylesheets: each
+ * `background: var(--ew-trim, none), …` names the surface tokens under it.
+ * OptionCard at rest is raised-to-panel and the panel under a press, and
+ * `--ew-hover` under a finger; the lair plates are raised-to-panel; the other
+ * plates and ending slots the panel (one tinted 4% toward the tier, one at
+ * 35% over the room — both nearer the void than the panel, which a dark room
+ * reads better on).
+ */
+const TRIM_SURFACES: string[] = (() => {
+  const found = new Set<string>();
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = resolve(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.name.endsWith('.css')) {
+        for (const rule of rulesOf(readFileSync(full, 'utf8'))) {
+          const bg = declared(rule.body, 'background');
+          if (!bg?.startsWith('var(--ew-trim')) continue;
+          for (const [, name] of bg.matchAll(/var\((--ew-[\w-]+)\)/g)) {
+            if (Object.values(SURFACE_VARS).includes(name)) found.add(name);
+          }
+        }
+      }
+    }
+  };
+  walk(resolve(process.cwd(), 'src'));
+  return [...found].sort();
+})();
+
+/** A position along a gradient's line: a percentage of it, or px. */
+type At = { value: number; unit: '%' | 'px' };
+
+/** A colour stop, resolved: an opaque hex at an alpha, and where it sits (none, one or two positions). */
+type Stop = { colour: string; alpha: number; at: At[] };
 
 /** Custom property name -> the theme's value for it, falling back to the default's. */
 function paletteOf(theme: ThemeDef): Map<string, string> {
@@ -1083,7 +1272,7 @@ function paletteOf(theme: ThemeDef): Map<string, string> {
  * mix a trim uses), or an `rgb()`/`rgba()` of plain numbers. Throws on
  * anything else: a colour this cannot read is a stop nothing is measuring.
  */
-function resolveColour(css: string, theme: ThemeDef): Stop {
+function resolveColour(css: string, theme: ThemeDef): { colour: string; alpha: number } {
   const value = normalise(css);
   if (value === 'transparent') return { colour: '#000000', alpha: 0 };
   const ref = value.match(/^var\((--[\w-]+)\)$/);
@@ -1114,21 +1303,37 @@ function callAt(css: string, from: number): string {
   throw new Error(`unbalanced parentheses in ${css}`);
 }
 
+/** A stop's positions: `0`, `8px`, `60%`, `2px 6px`. Throws on any other unit. */
+function positionsOf(text: string): At[] {
+  return text
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((p) => {
+      const m = p.match(/^(-?[\d.]+)(px|%)?$/);
+      if (!m || (m[2] === undefined && parseFloat(m[1]) !== 0)) throw new Error(`the trim model cannot read this stop position: ${p}`);
+      return { value: parseFloat(m[1]), unit: (m[2] ?? 'px') as At['unit'] };
+    });
+}
+
+/** One trim layer, parsed. */
+type TrimLayer = { image: string; kind: string; prelude: string | null; placement: string; stops: Stop[] };
+
 /**
  * One trim layer split into its gradient and what follows it (position, size
- * and repeat), with the gradient's colour stops resolved. A layer that is not
- * a gradient throws — a trim may only be painted with one.
+ * and repeat), with the gradient's colour stops resolved and its first
+ * argument kept when it is a direction or shape rather than a stop. A layer
+ * that is not a gradient throws — a trim may only be painted with one.
  */
-function trimLayer(layer: string, theme: ThemeDef): { image: string; placement: string; stops: Stop[] } {
+function trimLayer(layer: string, theme: ThemeDef): TrimLayer {
   const css = normalise(layer);
-  if (!/^(repeating-)?(linear|radial|conic)-gradient\(/.test(css)) {
-    throw new Error(`a trim layer must be a gradient: ${layer}`);
-  }
+  const kind = css.match(/^((?:repeating-)?(?:linear|radial|conic)-gradient)\(/)?.[1];
+  if (!kind) throw new Error(`a trim layer must be a gradient: ${layer}`);
   const image = callAt(css, 0);
   const placement = css.slice(image.length).trim();
   const args = layersOf(image.slice(image.indexOf('(') + 1, -1));
   const stops: Stop[] = [];
-  for (const arg of args) {
+  let prelude: string | null = null;
+  args.forEach((arg, i) => {
     // A colour comes first in a stop; a gradient's direction or shape does
     // not start with one, and is the only other thing a gradient takes.
     const colour = arg.match(/^(?:transparent|(?:var|color-mix|rgba?)\()/)
@@ -1136,9 +1341,11 @@ function trimLayer(layer: string, theme: ThemeDef): { image: string; placement: 
         ? 'transparent'
         : callAt(arg, 0)
       : null;
-    if (colour) stops.push(resolveColour(colour, theme));
-  }
-  return { image, placement, stops };
+    if (colour) stops.push({ ...resolveColour(colour, theme), at: positionsOf(arg.slice(colour.length)) });
+    else if (i === 0) prelude = arg;
+    else throw new Error(`a trim stop must start with a colour: ${arg}`);
+  });
+  return { image, kind, prelude, placement, stops };
 }
 
 /** A theme's trim, top layer first. `none` is no layers. */
@@ -1147,25 +1354,98 @@ function trimLayers(theme: ThemeDef) {
   return trim === 'none' ? [] : layersOf(trim).map((layer) => trimLayer(layer, theme));
 }
 
-/** The furthest any channel of `panel` moves under `stop`, in 0–255 levels, as a browser rounds it. */
-function moveOver(panel: string, stop: Stop): number {
-  const lo = parseHex(panel);
-  const hi = parseHex(over(panel, stop.colour, stop.alpha));
+/**
+ * The strongest alpha a trim layer actually paints anywhere in its box, 0–1.
+ *
+ * A linear gradient's line runs the length of its box, so every stop on it is
+ * reached. A radial one is reached only out to the box's farthest corner, and
+ * from its nearest point: the same arithmetic as the key light's
+ * `peakFactor`, measured in radii. Its alpha runs linearly between stops,
+ * holds the first colour inside the first stop and the last beyond the last,
+ * so the peak over a stretch of the ray is at one of its ends or at a stop
+ * inside it. Throws on any other form, rather than calling it reached.
+ */
+function peakAlpha(layer: TrimLayer): number {
+  if (layer.kind === 'linear-gradient' || layer.kind === 'repeating-linear-gradient') {
+    return Math.max(0, ...layer.stops.filter((s) => s.at.every((p) => p.unit === 'px' || p.value <= 100)).map((s) => s.alpha));
+  }
+  const shape = layer.prelude?.match(/^([\d.]+)% ([\d.]+)% at (-?[\d.]+)% (-?[\d.]+)%$/);
+  if (layer.kind !== 'radial-gradient' || !shape) {
+    throw new Error(`the trim model cannot find where this layer paints: ${layer.image}`);
+  }
+  const [rx, ry, cx, cy] = shape.slice(1).map((n) => parseFloat(n) / 100);
+  // Every stop as (position in radii, alpha), CSS's defaults filled in: the
+  // first at 0, the last at 1, a position never behind the one before it,
+  // and an unplaced run spread evenly between its neighbours.
+  const points = layer.stops.flatMap((s): { t: number | null; alpha: number }[] =>
+    s.at.length === 0
+      ? [{ t: null, alpha: s.alpha }]
+      : s.at.map((p) => {
+          if (p.unit !== '%') throw new Error(`the trim model reads a radial stop in % only: ${layer.image}`);
+          return { t: p.value / 100, alpha: s.alpha };
+        }),
+  );
+  if (points[0].t === null) points[0].t = 0;
+  if (points[points.length - 1].t === null) points[points.length - 1].t = 1;
+  for (let i = 1; i < points.length; i++) {
+    if (points[i].t === null) {
+      let j = i;
+      while (points[j].t === null) j++;
+      const from = points[i - 1].t!;
+      const step = (points[j].t! - from) / (j - i + 1);
+      for (let k = i; k < j; k++) points[k].t = from + step * (k - i + 1);
+    }
+    points[i].t = Math.max(points[i].t!, points[i - 1].t!);
+  }
+  const alphaAt = (t: number) => {
+    if (t <= points[0].t!) return points[0].alpha;
+    for (let i = 1; i < points.length; i++) {
+      const a = points[i - 1];
+      const b = points[i];
+      if (t <= b.t!) return b.t! === a.t! ? b.alpha : a.alpha + ((t - a.t!) / (b.t! - a.t!)) * (b.alpha - a.alpha);
+    }
+    return points[points.length - 1].alpha;
+  };
+  const clamp = (v: number) => Math.min(1, Math.max(0, v));
+  const near = Math.hypot((clamp(cx) - cx) / rx, (clamp(cy) - cy) / ry);
+  const far = Math.max(...[0, 1].flatMap((x) => [0, 1].map((y) => Math.hypot((x - cx) / rx, (y - cy) / ry))));
+  const inReach = points.map((p) => p.t!).filter((t) => t >= near && t <= far);
+  return Math.max(...[near, far, ...inReach].map(alphaAt));
+}
+
+/** The furthest any channel of `backdrop` moves under `stop`, in 0–255 levels, as a browser rounds it. */
+function moveOver(backdrop: string, stop: { colour: string; alpha: number }): number {
+  const lo = parseHex(backdrop);
+  const hi = parseHex(over(backdrop, stop.colour, stop.alpha));
   return Math.max(...lo.map((c, i) => Math.abs(hi[i] - c)));
 }
 
-const isMark = (panel: string, stops: Stop[]) => stops.some((stop) => moveOver(panel, stop) >= DRAWN);
+/** The theme's colour for a surface var, falling back to the default's. */
+const surfaceOf = (theme: ThemeDef, name: string) => paletteOf(theme).get(name)!;
+
+/** Whether a layer is drawn hard enough, over any of `backdrops`, for the probe to see it. */
+const isMark = (backdrops: string[], stops: Stop[]) =>
+  backdrops.some((b) => stops.some((stop) => moveOver(b, stop) >= DRAWN));
 
 /**
- * Whether a mark's placement is one of the three it may take, and if not, why.
+ * Whether a mark's placement is one it may take, and if not, why.
  *
  *   - horizontal edge band: `left 12px (top|bottom) Apx / calc(100% - 24px) Bpx no-repeat`, A + B ≤ 4
  *   - vertical edge band: `(left|right) Apx top 12px / Bpx calc(100% - 24px) no-repeat`, A + B ≤ 4
- *   - corner square: `(top|bottom) (left|right) / Kpx Kpx no-repeat`, K ≤ 12
+ *   - corner: `(top|bottom) (left|right) / Kpx Kpx no-repeat`, every point it
+ *     draws within `CORNER_REACH.x` of the side or `.y` of the edge. Two forms
+ *     are accepted: any image in a square of side up to the larger reach (8px,
+ *     so every point is within 8px of the side), or a hard-stop triangle across
+ *     the corner — `linear-gradient(Ddeg, C [0 Spx], transparent Tpx)`, D the
+ *     angle pointing away from that corner, hard-edged or fading out by T —
+ *     in a square of up to 12px, whose legs, `T × √2`, reach no further than
+ *     the two reaches added (12px: a point with x + y ≤ 12 cannot have both
+ *     x > 8 and y > 4).
  *
- * Zero may be written without a unit, as CSS allows; nothing else may.
+ * Offsets are measured inside the card's border (the padding box). Zero may be
+ * written without a unit, as CSS allows; nothing else may.
  */
-function markGeometry(placement: string): string | null {
+function markGeometry(image: string, placement: string): string | null {
   const len = '(0|\\d+px)';
   const px = (s: string) => parseFloat(s);
   const span = `calc\\(100% - ${CORNER_SQUARE * 2}px\\)`;
@@ -1176,22 +1456,35 @@ function markGeometry(placement: string): string | null {
     const reach = px(band[1]) + px(band[2]);
     return reach <= EDGE_BAND ? null : `reaches ${reach}px in from the edge, past the outer ${EDGE_BAND}px`;
   }
-  const corner = placement.match(/^(?:top|bottom) (?:left|right) \/ (\d+)px \1px no-repeat$/);
+  const corner = placement.match(/^(top|bottom) (left|right) \/ (\d+)px \3px no-repeat$/);
   if (corner) {
-    return px(corner[1]) <= CORNER_SQUARE ? null : `a ${corner[1]}px corner, past the ${CORNER_SQUARE}px corner square`;
+    const side = px(corner[3]);
+    if (side <= Math.max(CORNER_REACH.x, CORNER_REACH.y)) return null;
+    if (side > CORNER_SQUARE) return `a ${side}px corner, past the ${CORNER_SQUARE}px corner square`;
+    const away: Record<string, number> = { 'top left': 135, 'top right': 225, 'bottom right': 315, 'bottom left': 45 };
+    const pointing = away[`${corner[1]} ${corner[2]}`];
+    // One colour, then transparent from T px on: everything past T is
+    // transparent, so T (or a later position on the colour, which CSS would
+    // push T out to) is how far along the diagonal it draws.
+    const triangle = image.match(/^linear-gradient\((\d+)deg, (.+?)((?: [\d.]+(?:px)?)*), transparent ([\d.]+)px\)$/);
+    if (!triangle) return `a ${side}px corner filled with something other than a triangle across it`;
+    if (Number(triangle[1]) !== pointing) return `a triangle at ${triangle[1]}deg does not start in the ${corner[1]} ${corner[2]} corner`;
+    const leg = Math.max(...[...triangle[3].split(' '), triangle[4]].filter(Boolean).map(px)) * Math.SQRT2;
+    const most = CORNER_REACH.x + CORNER_REACH.y;
+    return leg <= most ? null : `a corner triangle with ${leg.toFixed(1)}px legs, past ${most}px`;
   }
-  return `"${placement}" is neither an edge band between the corner glyphs nor a corner square`;
+  return `"${placement}" is neither an edge band between the corner glyphs nor a corner mark`;
 }
 
 /**
- * The worst contrast `text` makes with the panel under a theme's washes.
+ * The worst contrast `text` makes with `backdrop` under a theme's washes.
  *
  * Washes can overlap, and text can sit where any one has faded out, so every
  * combination of one stop (or none) from each wash is composited bottom-up
- * over the panel, and the worst is kept.
+ * over the backdrop, and the worst is kept.
  */
-function worstUnderWashes(panel: string, washes: Stop[][], text: string): number {
-  let backdrops = [panel];
+function worstUnderWashes(backdrop: string, washes: Stop[][], text: string): number {
+  let backdrops = [backdrop];
   for (const stops of [...washes].reverse()) {
     backdrops = backdrops.flatMap((b) => [b, ...stops.map((s) => over(b, s.colour, s.alpha))]);
   }
@@ -1202,6 +1495,34 @@ describe('themes · card trims are marks or washes', () => {
   /** The panel floor, as the ink contrast block computes it. */
   const FLOOR = contrastRatio(ink.base, surface.panel);
   const byId = (id: string) => THEMES.find((t) => t.id === id)!;
+  const TOWER = byId(DEFAULT_THEME_ID);
+  const stop = (colour: string, alpha: number, at: At[] = []): Stop => ({ colour, alpha, at });
+
+  /**
+   * What a wash must leave `text` reading at over one surface: the default's
+   * ink on the default's version of that surface — the panel floor, on the
+   * panel. Where a palette's own surface already reads below that, as many
+   * hover steps do (a palette shortfall that predates trims and is not a
+   * trim's to fix), the wash may cost nothing at all: the floor is then the
+   * bare surface. Panels never take that branch; the ink contrast block holds
+   * every panel to the floor on its own.
+   */
+  const washFloor = (text: string, bare: string, name: string) =>
+    Math.min(contrastRatio(ink.base, surfaceOf(TOWER, name)), contrastRatio(text, bare));
+
+  it('holds a wash to the default surface, or to the bare one where the palette is already below it', () => {
+    // Anchored to tokens.ts, not to the floor function: the default's ink on
+    // its own panel, raised step and hover.
+    expect(washFloor(ink.base, surface.panel, '--ew-panel')).toBe(contrastRatio(ink.base, surface.panel));
+    expect(washFloor('#ffffff', '#000000', '--ew-hover')).toBe(contrastRatio(ink.base, surface.hover));
+    // A hover that already reads worse than the default's: the floor is the
+    // hover itself, so a lightening wash on it fails and a darkening one passes.
+    const dim = '#3a3a3a';
+    const floor = washFloor(ink.base, dim, '--ew-hover');
+    expect(floor).toBe(contrastRatio(ink.base, dim));
+    expect(worstUnderWashes(dim, [[stop('#ffffff', 0.02)]], ink.base)).toBeLessThan(floor);
+    expect(worstUnderWashes(dim, [[stop('#000000', 0.2)]], ink.base)).toBeGreaterThanOrEqual(floor);
+  });
 
   it("reads the probe's own DRAWN, and it is a sane threshold", () => {
     // An 8-bit channel moves 0–255. Below a handful of levels the probe would
@@ -1210,6 +1531,21 @@ describe('themes · card trims are marks or washes', () => {
     expect(Number.isInteger(DRAWN), 'no `const DRAWN = <n>;` line in the probe').toBe(true);
     expect(DRAWN).toBeGreaterThanOrEqual(8);
     expect(DRAWN).toBeLessThanOrEqual(64);
+  });
+
+  it("reads OptionCard's phone padding and the 4px band off disk", () => {
+    // 8px × 12px is the padding every corner allowance below is cut from; the
+    // corner may reach 8px across or 4px down.
+    expect(PHONE_PADDING).toEqual([8, 12]);
+    expect(EDGE_BAND).toBe(4);
+    expect(CORNER_REACH).toEqual({ x: 8, y: 4 });
+    expect(HAIRLINE).toBe(2);
+  });
+
+  it('finds every surface a trim is laid over, and only surfaces', () => {
+    // OptionCard alone lays its trim over all three. A walker that found
+    // nothing would leave every wash measured on no surface at all.
+    expect(TRIM_SURFACES).toEqual(['--ew-hover', '--ew-panel', '--ew-raised']);
   });
 
   it('splits a trim on its top-level commas only', () => {
@@ -1234,24 +1570,111 @@ describe('themes · card trims are marks or washes', () => {
     expect(resolveColour('var(--ew-ink)', bare).colour).toBe(ink.base);
     expect(() => resolveColour('red', sword)).toThrow();
     expect(() => resolveColour('var(--ew-tier)', sword)).toThrow();
+    // Custom property names are case-sensitive: the browser would find no such token.
+    expect(() => resolveColour('var(--EW-LINE-STRONG)', sword)).toThrow();
   });
 
-  it('reads every stop of a layer, and its placement apart from them', () => {
+  it('reads every stop of a layer, its positions, and its placement apart from them', () => {
     const [layer] = trimLayers(byId('exiled_and_overrun'));
     expect(layer.stops.map((s) => s.alpha)).toEqual([1, 0, 1]);
+    expect(layer.stops.map((s) => s.at)).toEqual([
+      [
+        { value: 0, unit: 'px' },
+        { value: 38, unit: '%' },
+      ],
+      [
+        { value: 38, unit: '%' },
+        { value: 62, unit: '%' },
+      ],
+      [{ value: 62, unit: '%' }],
+    ]);
+    expect(layer.prelude).toBe('90deg');
     expect(layer.placement).toBe('left 12px top 0px / calc(100% - 24px) 1px no-repeat');
   });
 
-  it('accepts exactly the three mark geometries', () => {
-    expect(markGeometry('left 12px top 0 / calc(100% - 24px) 4px no-repeat')).toBeNull();
-    expect(markGeometry('left 12px bottom 3px / calc(100% - 24px) 1px no-repeat')).toBeNull();
-    expect(markGeometry('right 3px top 12px / 1px calc(100% - 24px) no-repeat')).toBeNull();
-    expect(markGeometry('bottom right / 12px 12px no-repeat')).toBeNull();
-    expect(markGeometry('left 12px top 3px / calc(100% - 24px) 2px no-repeat')).not.toBeNull();
-    expect(markGeometry('left 6px top 16px / 1px calc(100% - 32px) no-repeat')).not.toBeNull();
-    expect(markGeometry('top left / 18px 18px no-repeat')).not.toBeNull();
-    expect(markGeometry('top / 100% 1px no-repeat')).not.toBeNull();
-    expect(markGeometry('')).not.toBeNull();
+  it('finds where a radial trim paints, by hand', () => {
+    const black = (prelude: string, stops: Stop[]): TrimLayer => ({
+      image: '',
+      kind: 'radial-gradient',
+      prelude,
+      placement: '',
+      stops,
+    });
+    const shade = [stop('#000000', 0, [{ value: 60, unit: '%' }]), stop('#000000', 0.28)];
+    // Good Ground's old trim: centred (50%, 40%) with radii 130% × 140% of the
+    // box, so its farthest corner, (0, 1), is hypot(0.5/1.3, 0.6/1.4) = 0.576
+    // radii out — short of the 60% where its shade begins. It painted nothing.
+    expect(peakAlpha(black('130% 140% at 50% 40%', shade))).toBe(0);
+    // Halve the radii and that corner is 1.15 radii out, past the last stop:
+    // the full 0.28.
+    expect(peakAlpha(black('65% 70% at 50% 40%', shade))).toBeCloseTo(0.28, 10);
+    // Radii of 100%, centred: the farthest corner is √0.5 = 0.707 radii out,
+    // (0.707 − 0.6) / 0.4 of the way to 0.28.
+    expect(peakAlpha(black('100% 100% at 50% 50%', shade))).toBeCloseTo(((Math.SQRT1_2 - 0.6) / 0.4) * 0.28, 10);
+    // A light from above the box: its nearest point is 0.5 radii out, past the
+    // opaque centre, and it fades to nothing by 0.8.
+    const glow = [stop('#ffffff', 1), stop('#ffffff', 0, [{ value: 80, unit: '%' }])];
+    expect(peakAlpha(black('100% 100% at 50% -50%', glow))).toBeCloseTo(1 - 0.5 / 0.8, 10);
+    // A linear gradient runs its whole box, so every stop on it is reached —
+    // and a stop placed past the end of it is not.
+    const linear = (stops: Stop[]): TrimLayer => ({ ...black('180deg', stops), kind: 'linear-gradient' });
+    expect(peakAlpha(linear([stop('#000000', 0), stop('#000000', 0.25)]))).toBe(0.25);
+    expect(peakAlpha(linear([stop('#000000', 0, [{ value: 0, unit: 'px' }, { value: 100, unit: '%' }]), stop('#000000', 0.25, [{ value: 120, unit: '%' }])]))).toBe(0);
+  });
+
+  it('accepts the edge bands, a small corner square, and a corner triangle up to 12px legs', () => {
+    const solid = 'linear-gradient(var(--ew-line-strong), var(--ew-line-strong))';
+    const facet = (deg: number, stopPx: number) =>
+      `linear-gradient(${deg}deg, var(--ew-line-strong) 0 ${stopPx}px, transparent ${stopPx}px)`;
+    expect(markGeometry(solid, 'left 12px top 0 / calc(100% - 24px) 4px no-repeat')).toBeNull();
+    expect(markGeometry(solid, 'left 12px bottom 3px / calc(100% - 24px) 1px no-repeat')).toBeNull();
+    expect(markGeometry(solid, 'right 3px top 12px / 1px calc(100% - 24px) no-repeat')).toBeNull();
+    expect(markGeometry(solid, 'bottom right / 8px 8px no-repeat')).toBeNull();
+    // Amethyst's facets: 8px along the diagonal, legs of 11.3px.
+    expect(markGeometry(facet(135, 8), 'top left / 12px 12px no-repeat')).toBeNull();
+    expect(markGeometry(facet(315, 8), 'bottom right / 12px 12px no-repeat')).toBeNull();
+    expect(markGeometry(facet(225, 8), 'top right / 12px 12px no-repeat')).toBeNull();
+    expect(markGeometry(facet(45, 8), 'bottom left / 12px 12px no-repeat')).toBeNull();
+    // Cold Room's rime: the same triangle, fading out rather than hard-edged.
+    const rime = 'linear-gradient(135deg, color-mix(in srgb, var(--ew-ink-bright) 25%, transparent), transparent 8px)';
+    expect(markGeometry(rime, 'top left / 12px 12px no-repeat')).toBeNull();
+    expect(markGeometry(rime.replace('8px', '9px'), 'top left / 12px 12px no-repeat')).not.toBeNull();
+  });
+
+  it('refuses a mark that comes within 4px of content', () => {
+    const solid = 'linear-gradient(var(--ew-line-strong), var(--ew-line-strong))';
+    const facet = (deg: number, stopPx: number) =>
+      `linear-gradient(${deg}deg, var(--ew-line-strong) 0 ${stopPx}px, transparent ${stopPx}px)`;
+    // Content starts 12px across and 8px down: a solid 12px corner reaches
+    // (12, 8) itself, and the probe measured it 1px from a keycap at 320.
+    expect(markGeometry(solid, 'top left / 12px 12px no-repeat')).not.toBeNull();
+    expect(markGeometry(solid, 'top left / 9px 9px no-repeat')).not.toBeNull();
+    // A triangle whose legs pass 12px (9px × √2 = 12.7), or that starts in the
+    // wrong corner and so fills the far one.
+    expect(markGeometry(facet(135, 9), 'top left / 12px 12px no-repeat')).not.toBeNull();
+    expect(markGeometry(facet(315, 8), 'top left / 12px 12px no-repeat')).not.toBeNull();
+    expect(markGeometry(facet(135, 8), 'top left / 16px 16px no-repeat')).not.toBeNull();
+    expect(markGeometry(solid, 'left 12px top 3px / calc(100% - 24px) 2px no-repeat')).not.toBeNull();
+    expect(markGeometry(solid, 'left 6px top 16px / 1px calc(100% - 32px) no-repeat')).not.toBeNull();
+    expect(markGeometry(solid, 'top / 100% 1px no-repeat')).not.toBeNull();
+    expect(markGeometry(solid, '')).not.toBeNull();
+  });
+
+  it('measures the worst a wash does to the ink, by hand', () => {
+    // No wash: the ink on the bare panel, which is the floor itself.
+    expect(worstUnderWashes(surface.panel, [], ink.base)).toBe(FLOOR);
+    // White at 50% over the default panel, (19, 17, 14): (137, 136, 134.5),
+    // which rounds to #898887 — and the ink on that is nowhere near the floor.
+    const white = [[stop('#ffffff', 0.5)]];
+    expect(worstUnderWashes(surface.panel, white, ink.base)).toBeCloseTo(contrastRatio(ink.base, '#898887'), 10);
+    expect(worstUnderWashes(surface.panel, white, ink.base)).toBeLessThan(FLOOR);
+    // A black wash darkens the backdrop behind pale ink, which only helps: the
+    // worst is still where it has faded out.
+    expect(worstUnderWashes(surface.panel, [[stop('#000000', 0.5)]], ink.base)).toBe(FLOOR);
+    // Two washes stack, each rounded to a level as a browser composites them:
+    // #898887, then half-way from that to white, (196, 195.5, 195) -> #c4c4c3.
+    const twice = [[stop('#ffffff', 0.5)], [stop('#ffffff', 0.5)]];
+    expect(worstUnderWashes(surface.panel, twice, ink.base)).toBeCloseTo(contrastRatio(ink.base, '#c4c4c3'), 10);
   });
 
   it('finds marks where rules are drawn, and washes where tints are', () => {
@@ -1259,32 +1682,64 @@ describe('themes · card trims are marks or washes', () => {
     // every misplaced rule through, and one that called everything a mark
     // would fail every soft tint for its geometry.
     const ruled = byId('contract_writer');
-    const ruledPanel = ruled.surface.panel ?? surface.panel;
-    expect(trimLayers(ruled).filter((l) => isMark(ruledPanel, l.stops)).length).toBeGreaterThanOrEqual(1);
-    const cold = byId('lichdom');
-    const coldPanel = cold.surface.panel ?? surface.panel;
-    expect(trimLayers(cold).filter((l) => !isMark(coldPanel, l.stops)).length).toBeGreaterThanOrEqual(1);
+    const ruledOn = TRIM_SURFACES.map((s) => surfaceOf(ruled, s));
+    expect(trimLayers(ruled).filter((l) => isMark(ruledOn, l.stops)).length).toBeGreaterThanOrEqual(1);
+    const wet = byId('turned_to_fertilizer');
+    const wetOn = TRIM_SURFACES.map((s) => surfaceOf(wet, s));
+    expect(trimLayers(wet).filter((l) => !isMark(wetOn, l.stops)).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('calls a layer a mark when it is drawn hard on any one surface', () => {
+    // Requisition's perforation is the void punched through the card: 14
+    // levels on its panel, 24 on its raised step and 35 under a finger. A
+    // classifier that only looked at the panel would call it a wash.
+    const form = byId('eternally_repurposed');
+    const [layer] = trimLayers(form);
+    expect(isMark([surfaceOf(form, '--ew-panel')], layer.stops)).toBe(false);
+    expect(isMark([surfaceOf(form, '--ew-raised')], layer.stops)).toBe(true);
+    expect(isMark(TRIM_SURFACES.map((s) => surfaceOf(form, s)), layer.stops)).toBe(true);
   });
 
   for (const theme of THEMES) {
-    const panel = theme.surface.panel ?? surface.panel;
+    const on = TRIM_SURFACES.map((name) => surfaceOf(theme, name));
 
-    it(`${theme.name}'s trim marks keep to the card's edge band and corners`, () => {
+    it(`${theme.name}'s trim marks keep 4px from content`, () => {
       const misplaced = trimLayers(theme)
-        .filter((l) => isMark(panel, l.stops))
-        .map((l) => [l.image, markGeometry(l.placement)])
+        .filter((l) => isMark(on, l.stops))
+        .map((l) => [l.image, markGeometry(l.image, l.placement)])
         .filter(([, why]) => why !== null);
-      expect(misplaced, `${theme.id}: marks outside the edge band and corner squares`).toEqual([]);
+      expect(misplaced, `${theme.id}: marks outside the edge band and corners`).toEqual([]);
     });
 
-    it(`${theme.name}'s trim washes leave the ink above the panel floor`, () => {
+    it(`${theme.name}'s left edge marks stay apart from the card's own hairline`, () => {
+      // Flush against it, a 1px rule and the 2px hover hairline merge into
+      // one bar: a mark down the left edge starts at least a pixel past it.
+      for (const layer of trimLayers(theme)) {
+        const left = layer.placement.match(/^left (0|\d+px) top /);
+        if (left && isMark(on, layer.stops)) expect(parseFloat(left[1]), layer.image).toBeGreaterThanOrEqual(HAIRLINE + 1);
+      }
+    });
+
+    it(`${theme.name}'s trim washes leave the ink reading as well as the default's, on every surface`, () => {
       const washes = trimLayers(theme)
-        .filter((l) => !isMark(panel, l.stops))
+        .filter((l) => !isMark(on, l.stops))
         .map((l) => l.stops);
-      for (const text of [theme.ink?.base ?? ink.base, theme.ink?.bright ?? ink.bright]) {
-        expect(worstUnderWashes(panel, washes, text), `${theme.id}: ${text} under its washes`).toBeGreaterThanOrEqual(
-          FLOOR,
-        );
+      for (const name of TRIM_SURFACES) {
+        const bare = surfaceOf(theme, name);
+        for (const text of [theme.ink?.base ?? ink.base, theme.ink?.bright ?? ink.bright]) {
+          expect(
+            worstUnderWashes(bare, washes, text),
+            `${theme.id}: ${text} on ${name} under its washes`,
+          ).toBeGreaterThanOrEqual(washFloor(text, bare, name));
+        }
+      }
+    });
+
+    it(`${theme.name}'s every trim layer paints something`, () => {
+      // A layer that never reaches a visible stop inside its box draws
+      // nothing, and an ornament nobody can see is not one.
+      for (const layer of trimLayers(theme)) {
+        expect(peakAlpha(layer), `${theme.id}: ${layer.image}`).toBeGreaterThan(0);
       }
     });
   }

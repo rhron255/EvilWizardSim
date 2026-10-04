@@ -223,12 +223,14 @@ export const motion = {
 /**
  * The default room's ornament. Every theme overrides all six (`themes.ts`).
  *
- * None of these can introduce a colour. The two shape tokens name a colourless
- * mask from `ornaments.ts` and are painted in `--ew-line-strong`; `light` and
- * `trim` are gradient layers coloured only from the room's own surface and
- * ink tokens via `var()`, from plain white or black, or — the key light alone
- * — from a faint tint in the room's own hue family. `themes.test.ts` holds
- * both strings to that vocabulary.
+ * None of these can introduce a colour but one faint tint. The two shape
+ * tokens name a colourless mask from `ornaments.ts` and are painted in
+ * `--ew-line-strong`; `light` and `trim` are gradient layers coloured only
+ * from the room's own surface and ink tokens via `var()`, or from plain white
+ * or black — except that the key light alone may carry a faint tint (alpha
+ * 0.07 at most) within the room's hue family, the same 90° quadrant as its
+ * surfaces (`themes.ts` constraint 7). `themes.test.ts` holds both strings to
+ * that vocabulary.
  */
 export const ornament = {
   /**
@@ -260,10 +262,12 @@ export const ornament = {
   pip: shapeRef('star'),
   /**
    * Extra background layers drawn over a card's own surface — a hairline, a
-   * perforation, a double rule. `none` for a plain card. Each layer is a MARK
-   * (held to the card's edge band or a corner square) or a WASH (held below
-   * the ornament probe's drawn threshold, with the ink still on its panel
-   * floor over it); see `CORNER_CLEAR` in `themes.ts`.
+   * perforation, a double rule — whether that surface is the panel, the
+   * raised step or the hover. `none` for a plain card. Each layer is a MARK
+   * (held to the card's edge band, or to a corner within 8px of the side or
+   * 4px of the edge) or a WASH (held below the ornament probe's drawn
+   * threshold on every surface, with the ink over it reading as well as the
+   * default's on that surface); see `CORNER_CLEAR` in `themes.ts`.
    */
   trim: 'none',
 } as const;

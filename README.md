@@ -50,8 +50,10 @@ they come from analysis of a game that worked at scale, recorded in
   rather than inventing a vocabulary of their own. Endings additionally unlock
   cosmetic **themes** — chosen by the player between runs, never handed out
   mid-career, and forbidden from touching the tier colour. Each is a palette
-  and a decorated room (key light, wallpaper, corner glyphs, card trim), the
-  ornament drawn only in the theme's own line colour.
+  and a decorated room (key light, wallpaper, corner glyphs, card trim): the
+  shapes painted in the theme's own line colour, the light and trim coloured
+  only from the room's own tokens or plain white or black, and the key light
+  alone allowed a faint tint within the room's hue family.
 - **Comedy in the text, never in the numbers.** Flavor text is funny; stat
   changes are straight-faced.
 - **No doom meter.** The decline works because a number is quietly going the

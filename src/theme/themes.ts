@@ -42,15 +42,19 @@
  *    own pixels by `qa/probe-room-contrast.mjs`.
  * 6. `--ew-legendary` is pinned in every theme. It is absent from the
  *    overridable surface here, which is how it stays pinned.
- * 7. Ornament never brings a colour of its own, and never costs the ink its
- *    floor. Shapes are colourless masks (`ornaments.ts`) painted in
- *    `--ew-line-strong`, so the wallpaper of a violet room is violet. The key
- *    light and the card trim are free CSS, so they are held to a vocabulary
- *    instead: the room's own surface and ink tokens, plain white or black,
- *    and — for the key light alone — a faint tint in the room's own hue
- *    family. The wallpaper's opacity and the key light's strength are both
- *    capped by constraint 5's bare-room floor, because text sits straight on
- *    the room on several screens.
+ * 7. Ornament brings no colour of its own but one faint tint, and never costs
+ *    the ink its floor. Shapes are colourless masks (`ornaments.ts`) painted
+ *    in `--ew-line-strong`, so the wallpaper of a violet room is violet. The
+ *    key light and the card trim are free CSS, so they are held to a
+ *    vocabulary instead: the room's own surface and ink tokens, plain white
+ *    or black, and — for the key light alone — a faint tint (alpha 0.07 at
+ *    most) in the room's hue family. "Family" is constraint 2's measure, the
+ *    same 90° quadrant as the room's surfaces, which is wider than
+ *    near-monochrome: it keeps an amber lamp out of a violet room but lets a
+ *    cyan one into it. The wallpaper's opacity and the key light's strength
+ *    are both capped by constraint 5's bare-room floor, because text sits
+ *    straight on the room on several screens. A card trim is held to the
+ *    probe's edge band, a corner, or a wash's strength (`CORNER_CLEAR`).
  * 8. No two rooms look alike. Every pair of themes sits at least 1.5
  *    just-noticeable differences apart in OKLab — see the distinctness block
  *    in `themes.test.ts` for the measure and where its numbers come from.
@@ -149,32 +153,43 @@ export type ThemeDef = {
 // Strings, because they are CSS, so the compiler cannot hold what they are
 // coloured with; `themes.test.ts` does instead. A `light` or `trim` may take
 // its colour from a surface or ink token through `var()`, from plain white or
-// black, or — the key light only — from a faint tint in the room's own hue
-// family. Nothing else: no hex, no named colour, no colour function but
-// `rgb()` and `color-mix()`, so neither can introduce a hue the room does not
-// already have (constraint 7).
+// black, or — the key light only — from a faint tint in the room's hue family
+// (constraint 2's quadrant, see constraint 7). Nothing else: no hex, no named
+// colour, no colour function but `rgb()` and `color-mix()`, so a trim can
+// introduce no hue the room does not already have, and a light only a faint
+// one from the room's own quadrant.
 // ---------------------------------------------------------------------------
 
 /**
  * Where a card trim may draw. Measured, not guessed
  * (`qa/probe-ornament-spacing.mjs`): the tightest card padding in the game is
  * OptionCard's 8px × 12px at phone width, and nothing decorative may come
- * within `--ew-space-1` (4px) of a card's content. A trim layer is one of two
- * kinds, told apart by how hard it is drawn — the probe's `DRAWN`, a move of
- * 24 levels in some channel over the panel:
+ * within `--ew-space-1` (4px) of a card's content. Every offset here is
+ * measured inside the card's border — from the padding box, which is where a
+ * background layer is positioned and where the corner glyphs sit — so content
+ * starts 12px across and 8px down from each corner.
  *
- * - A MARK is drawn at least that hard, so it must keep out of the content's
- *   way by geometry. An edge mark keeps to the outer 4px of the card and runs
- *   only BETWEEN the corner glyphs — each 8px, plus the same 4px, so
- *   `CORNER_CLEAR` in from either end (`edgeRule`, `edgeBand`). A corner mark
- *   stays inside the `CORNER_CLEAR` square the glyph itself sits in
- *   (`cornerMark`).
+ * A trim is laid over more than one surface: OptionCard at rest is a gradient
+ * from `--ew-raised` to `--ew-panel` and `--ew-hover` under a finger, the lair
+ * plates are raised to panel, the rest sit on the panel. A trim layer is one of
+ * two kinds, told apart by how hard it is drawn over the strongest of those —
+ * the probe's `DRAWN`, a move of 24 levels in some channel:
+ *
+ * - A MARK is drawn at least that hard on some surface, so it must keep out of
+ *   the content's way by geometry. An edge mark keeps to the outer 4px of the
+ *   card and runs only BETWEEN the corner glyphs — each 8px, plus the same
+ *   4px, so `CORNER_CLEAR` in from either end (`edgeRule`, `edgeBand`). A
+ *   corner mark (`cornerMark`) keeps every drawn point within 8px of the side
+ *   or 4px of the top or bottom — the content box, less 4px — which allows a
+ *   solid square of up to 8px, or a hard-edged triangle across the corner with
+ *   legs of up to 12px.
  * - A WASH is a soft tint that may sit behind text, so it is held by strength
- *   instead: no channel moved by `DRAWN` or more, and the ink still clearing
- *   the panel's contrast floor over it at its strongest stop.
+ *   instead: no channel moved by `DRAWN` or more on any surface, and the ink
+ *   over each surface and the wash at its strongest stop reading at least as
+ *   well as the default ink on the default's version of that surface.
  *
  * `themes.test.ts` sorts every layer of every trim into one kind or the other
- * and asserts both.
+ * over every surface the stylesheets lay a trim on, and asserts both.
  */
 const CORNER_CLEAR = 12;
 const SPAN = `calc(100% - ${CORNER_CLEAR * 2}px)`;
@@ -198,7 +213,11 @@ function edgeRule(edge: 'top' | 'bottom' | 'left' | 'right', offset: number, px 
   return edgeBand(`linear-gradient(${colour}, ${colour})`, edge, offset, px);
 }
 
-/** Any image as a corner mark, confined to the corner square its glyph sits in. */
+/**
+ * Any image as a corner mark, in a `CORNER_CLEAR` square at the corner. The
+ * square is the most it may occupy, not what it may fill: the image itself
+ * must keep within 8px of the side or 4px of the edge (see above).
+ */
 function cornerMark(image: string, corner: `${'top' | 'bottom'} ${'left' | 'right'}`) {
   return `${image} ${corner} / ${CORNER_CLEAR}px ${CORNER_CLEAR}px no-repeat`;
 }
@@ -298,8 +317,8 @@ export const THEMES: ThemeDef[] = [
         'radial-gradient(60% 40% at 28% -8%, rgba(216, 198, 255, 0.055), transparent 66%), radial-gradient(52% 38% at 74% -4%, rgba(178, 156, 224, 0.04), transparent 62%)',
       ...wallpaper('facets', 0.14),
       pip: shapeRef('gem'),
-      // Each facet is a right triangle with legs of about 11px, inside the corner
-      // square its glyph sits in.
+      // Each facet is a hard-edged right triangle across the corner, its legs
+      // 8px × √2 ≈ 11.3px: under the 12px a corner mark's triangle may reach.
       trim: [
         cornerMark('linear-gradient(135deg, color-mix(in srgb, var(--ew-line-strong) 40%, transparent) 0 8px, transparent 8px)', 'top left'),
         cornerMark('linear-gradient(315deg, color-mix(in srgb, var(--ew-line-strong) 40%, transparent) 0 8px, transparent 8px)', 'bottom right'),
@@ -363,7 +382,8 @@ export const THEMES: ThemeDef[] = [
      * 295°, deliberately between The Chair's blue (262°) and Kept Vigil's
      * lighter violet (300°) and darker than both — those three were one blur
      * before the palettes were spread. The key light goes blue-white as the
-     * room cools, and frost has got onto the walls.
+     * room cools, frost has got onto the walls, and rime into the corners of
+     * every card.
      */
     surface: {
       void: '#0e071e',
@@ -384,7 +404,23 @@ export const THEMES: ThemeDef[] = [
       light: 'radial-gradient(90% 55% at 50% -10%, rgba(214, 224, 255, 0.05), transparent 68%)',
       ...wallpaper('frost', 0.34),
       pip: shapeRef('snowflake'),
-      trim: 'linear-gradient(180deg, color-mix(in srgb, var(--ew-ink-bright) 5%, transparent), transparent 10px)',
+      // Rime in the corners of every card, as on a window pane: a soft
+      // triangle across each corner, gone 8px along the diagonal (legs of
+      // 11.3px), under the snowflake. It was a 5% frost over the card's top
+      // 10px, which under a finger took the ink more than a point of contrast
+      // below the default's hover.
+      trim: (
+        [
+          [135, 'top left'],
+          [225, 'top right'],
+          [315, 'bottom right'],
+          [45, 'bottom left'],
+        ] as const
+      )
+        .map(([deg, corner]) =>
+          cornerMark(`linear-gradient(${deg}deg, color-mix(in srgb, var(--ew-ink-bright) 25%, transparent), transparent 8px)`, corner),
+        )
+        .join(', '),
     },
   },
 
@@ -603,7 +639,9 @@ export const THEMES: ThemeDef[] = [
     // green. These two were the closest pair in the set before the spread
     // (0.015 apart in OKLab, under one just-noticeable difference). Ornament, per issue #15: "borders soften and blur at the
     // corners" — every card's edges darken softly into the wet — and "a slow
-    // dark bloom centred low"; roots on the walls.
+    // dark bloom centred low"; roots on the walls. The shade starts 70% of the
+    // way out and is darkest at the corners and the foot, which sit past the
+    // end of its ray.
     surface: {
       void: '#080900',
       panel: '#121500',
@@ -623,7 +661,7 @@ export const THEMES: ThemeDef[] = [
       light: 'radial-gradient(70% 55% at 50% 78%, rgba(160, 200, 110, 0.045), transparent 72%)',
       ...wallpaper('roots', 0.34),
       pip: shapeRef('sprout'),
-      trim: 'radial-gradient(130% 140% at 50% 40%, transparent 60%, rgba(0, 0, 0, 0.28))',
+      trim: 'radial-gradient(60% 60% at 50% 45%, transparent 70%, rgba(0, 0, 0, 0.28))',
     },
   },
 
@@ -808,7 +846,9 @@ export const THEMES: ThemeDef[] = [
       light: 'radial-gradient(70% 50% at 50% -10%, rgba(220, 232, 255, 0.06), transparent 70%)',
       ...wallpaper('diagram', 0.11),
       pip: shapeRef('eye'),
-      trim: edgeRule('left', 2),
+      // 3px in, so the card's own leading hairline (1px at rest, 2px under a
+      // finger) and this rule stay two lines rather than merging into a bar.
+      trim: edgeRule('left', 3),
     },
   },
 
@@ -919,7 +959,10 @@ export const THEMES: ThemeDef[] = [
       light: 'radial-gradient(100% 60% at 50% -10%, rgba(255, 255, 255, 0.55), transparent 70%)',
       ...wallpaper('daisies', 0.12),
       pip: shapeRef('sun'),
-      trim: 'linear-gradient(180deg, rgba(255, 255, 255, 0.35), transparent 14px)',
+      // A sheen across the top of every card. A wash, so it is held under the
+      // drawn threshold on the deepest surface it is laid over: on the hover
+      // gold, white at 0.35 moved the blue channel 41 levels.
+      trim: 'linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 14px)',
     },
   },
 
@@ -962,11 +1005,13 @@ export const THEMES: ThemeDef[] = [
         'radial-gradient(60% 40% at 50% -6%, rgba(255, 222, 236, 0.025), transparent 70%), radial-gradient(90% 55% at 50% -10%, rgba(236, 220, 255, 0.025), transparent 68%)',
       ...wallpaper('candles', 0.09),
       pip: shapeRef('flame'),
-      // The candle's glow on the top edge of every card, in the edge band
-      // rather than over the text, for the same reason as Wrong Colour's.
+      // A pool of candlelight at the foot of every card, where a candle
+      // stands — centred and fading to either side, where Wrong Colour's
+      // light from outside the frame catches the top edge and the Oak's moss
+      // runs the whole foot. In the edge band, clear of the text.
       trim: edgeBand(
-        'radial-gradient(50% 100% at 50% 0%, color-mix(in srgb, var(--ew-line-strong) 50%, transparent), transparent)',
-        'top',
+        'radial-gradient(50% 100% at 50% 100%, color-mix(in srgb, var(--ew-line-strong) 50%, transparent), transparent)',
+        'bottom',
         0,
         3,
       ),

@@ -93,14 +93,16 @@
   /* Ornament — what the room is decorated with, as distinct from its colour.
      Mirrors `ornament` in tokens.ts; every theme block below overrides all six.
 
-     None of these can bring a colour of their own. `--ew-motif` and `--ew-pip`
-     name a colourless MASK shape from ornaments.css (generated from
-     ornaments.ts) and are painted in `--ew-line-strong` by whatever draws
-     them; `--ew-light` and `--ew-trim` are gradient layers coloured only by
-     the room's own surface and ink tokens, plain white or black, or — the key
-     light alone — a faint tint in the room's own hue family (themes.test.ts
-     holds both to that). So a violet room's wallpaper is violet, and nothing
-     here can compete with `--ew-tier`.
+     None of these can bring a colour of their own but one faint tint.
+     `--ew-motif` and `--ew-pip` name a colourless MASK shape from
+     ornaments.css (generated from ornaments.ts) and are painted in
+     `--ew-line-strong` by whatever draws them; `--ew-light` and `--ew-trim`
+     are gradient layers coloured only by the room's own surface and ink
+     tokens or plain white or black — except that the key light alone may
+     carry a faint tint (alpha 0.07 at most) within the room's hue family,
+     the same 90° quadrant as its surfaces (themes.test.ts holds both to
+     that). So a violet room's wallpaper is violet, and nothing here can
+     compete with `--ew-tier`.
 
        --ew-light          key light: background layer(s) over --ew-void, or none
        --ew-motif          wallpaper tiled behind every screen; never none
@@ -112,8 +114,10 @@
        --ew-pip            glyph at card corners and in section rules
        --ew-trim           background layer(s) over a card's own surface, or none:
                            a mark (a rule, a hem) keeps to the outer 4px between
-                           the corner glyphs or to a corner's 12px square; a
-                           wash (a soft tint) stays faint enough to read over */
+                           the corner glyphs, or to a corner within 8px of the
+                           side or 4px of the edge (offsets inside the border);
+                           a wash (a soft tint) stays faint enough to read over
+                           on every surface a card is drawn on */
   --ew-light: radial-gradient(90% 55% at 50% -10%, rgba(255, 246, 224, 0.045), transparent 68%);
   --ew-motif: var(--ew-shape-masonry);
   --ew-motif-size: 96px 48px;
@@ -146,7 +150,10 @@
         is spaced: the test collapses each run of whitespace, newlines
         included, to one space on both sides before it compares. So a long
         value may wrap across lines, but a space cannot appear or vanish
-        between two tokens.
+        between two tokens, and case counts — a custom property's name is
+        case-sensitive. (`:root` is checked against tokens.ts the same way,
+        except that a hex's case is forgiven there: tokens.ts writes them
+        uppercase.)
 
    `default` has no block: it IS `:root`. Selecting it removes the attribute
    rather than overriding anything back to where it started.
@@ -230,7 +237,7 @@
 
 /* Cold Room — undeath, as a temperature. Blue lifts above green in every
    surface, the key light goes blue-white as the room cools, frost on the
-   walls. A lich wears this whatever theme they chose: RunScreen forces it,
+   walls and rime in the corners of every card. A lich wears this whatever theme they chose: RunScreen forces it,
    because there it reports a state rather than a taste. */
 [data-theme='lichdom'] {
   --ew-void: #0e071e;
@@ -251,7 +258,11 @@
   --ew-motif-size: 100px 100px;
   --ew-motif-opacity: 0.34;
   --ew-pip: var(--ew-shape-snowflake);
-  --ew-trim: linear-gradient(180deg, color-mix(in srgb, var(--ew-ink-bright) 5%, transparent), transparent 10px);
+  --ew-trim:
+    linear-gradient(135deg, color-mix(in srgb, var(--ew-ink-bright) 25%, transparent), transparent 8px) top left / 12px 12px no-repeat,
+    linear-gradient(225deg, color-mix(in srgb, var(--ew-ink-bright) 25%, transparent), transparent 8px) top right / 12px 12px no-repeat,
+    linear-gradient(315deg, color-mix(in srgb, var(--ew-ink-bright) 25%, transparent), transparent 8px) bottom right / 12px 12px no-repeat,
+    linear-gradient(45deg, color-mix(in srgb, var(--ew-ink-bright) 25%, transparent), transparent 8px) bottom left / 12px 12px no-repeat;
 }
 
 /* Peat — the warmest and softest room: true brown, every radius one step
@@ -392,8 +403,8 @@
 }
 
 /* Good Ground — Verdant Choir, paired with `archdruid`: the green pushed
-   olive-black and wetter. Card edges darken softly, a slow bloom sits low,
-   roots run down the walls. */
+   olive-black and wetter. Card edges darken softly, most at the corners and
+   the foot, a slow bloom sits low, roots run down the walls. */
 [data-theme='turned_to_fertilizer'] {
   --ew-void: #080900;
   --ew-panel: #121500;
@@ -413,7 +424,7 @@
   --ew-motif-size: 100px 100px;
   --ew-motif-opacity: 0.34;
   --ew-pip: var(--ew-shape-sprout);
-  --ew-trim: radial-gradient(130% 140% at 50% 40%, transparent 60%, rgba(0, 0, 0, 0.28));
+  --ew-trim: radial-gradient(60% 60% at 50% 45%, transparent 70%, rgba(0, 0, 0, 0.28));
 }
 
 /* Past the Border — Crownlands, paired with `overthrown_the_kingdom`: the
@@ -518,8 +529,9 @@
 }
 
 /* The Chair — Pale Academy, paired with `sealed_in_gem`: navy and chalk. A
-   marginal rule down every card, as on a cited page; constructions on a
-   blackboard behind. */
+   marginal rule down every card, as on a cited page, set 3px in so it stays
+   apart from the card's own leading hairline; constructions on a blackboard
+   behind. */
 [data-theme='archmage'] {
   --ew-void: #050e1f;
   --ew-panel: #0c1930;
@@ -539,7 +551,7 @@
   --ew-motif-size: 140px 140px;
   --ew-motif-opacity: 0.11;
   --ew-pip: var(--ew-shape-eye);
-  --ew-trim: linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) left 2px top 12px / 1px calc(100% - 24px) no-repeat;
+  --ew-trim: linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) left 3px top 12px / 1px calc(100% - 24px) no-repeat;
 }
 
 /* The Eldest Oak — Verdant Choir, paired with `turned_to_fertilizer`: leaf
@@ -593,8 +605,9 @@
 }
 
 /* Ordinary Weather — the one light room (issue #23): cream and gold,
-   sunlight from above, daisies in the lawn. The ink inverts direction and
-   is measured against the same floor. */
+   sunlight from above, a faint sheen across the top of every card, daisies
+   in the lawn. The ink inverts direction and is measured against the same
+   floor. */
 [data-theme='good_wizard'] {
   --ew-void: #fbf4df;
   --ew-panel: #f3e7c4;
@@ -614,13 +627,13 @@
   --ew-motif-size: 90px 90px;
   --ew-motif-opacity: 0.12;
   --ew-pip: var(--ew-shape-sun);
-  --ew-trim: linear-gradient(180deg, rgba(255, 255, 255, 0.35), transparent 14px);
+  --ew-trim: linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 14px);
 }
 
 /* Kept Vigil — Arch-Lich (issue #25). The same violet undeath family as
    Cold Room, lit a shade warmer and several steps brighter: a candle in the
-   cold room, not the cold room itself, glowing on the top edge of every
-   card. */
+   cold room, not the cold room itself, pooling at the foot of every card
+   where a candle would stand. */
 [data-theme='arch_lich'] {
   --ew-void: #1b1329;
   --ew-panel: #281d3a;
@@ -640,7 +653,7 @@
   --ew-motif-size: 100px 110px;
   --ew-motif-opacity: 0.09;
   --ew-pip: var(--ew-shape-flame);
-  --ew-trim: radial-gradient(50% 100% at 50% 0%, color-mix(in srgb, var(--ew-line-strong) 50%, transparent), transparent) left 12px top 0px / calc(100% - 24px) 3px no-repeat;
+  --ew-trim: radial-gradient(50% 100% at 50% 100%, color-mix(in srgb, var(--ew-line-strong) 50%, transparent), transparent) left 12px bottom 0px / calc(100% - 24px) 3px no-repeat;
 }
 
 /* --------------------------------------------------------------------------

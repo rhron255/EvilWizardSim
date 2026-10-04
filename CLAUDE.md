@@ -157,11 +157,16 @@ These come from a game that worked at scale. They look arbitrary in isolation.
    light, a wallpaper, a corner glyph, a card trim — and all four are tokens
    in its `tokens.css` block, never a `[data-theme]` selector in a component
    stylesheet. The shapes are colourless masks (`src/theme/ornaments.ts`)
-   painted in the theme's own `--ew-line-strong`, so ornament can never bring
-   a hue the palette does not already have; the wallpaper and key light are
-   capped so text on the bare room reads at least as well as in the default
-   room; and every pair of themes must sit at least
-   1.5 just-noticeable differences apart (all measured in `themes.test.ts`).
+   painted in the theme's own `--ew-line-strong`; the key light and card trim
+   are coloured only from the room's own surface and ink tokens or plain
+   white or black, except that the key light alone may carry a faint tint
+   (alpha 0.07 at most) within the room's hue family — the same 90° quadrant
+   as its surfaces, which is looser than near-monochrome. So ornament brings
+   no hue from outside the room's quadrant, and only the key light brings one
+   the palette does not already have. The wallpaper and key light are capped
+   so text on the bare room reads at least as well as in the default room;
+   and every pair of themes must sit at least 1.5 just-noticeable differences
+   apart (all measured in `themes.test.ts`).
 4. **Comedy in the text, never in the numbers.**
 5. **No fail state, and no doom meter.** Every ending is a biography. The decline
    works because a number quietly goes the wrong way. Note this bans *announcing
@@ -234,16 +239,26 @@ that followed it.
    undefined custom property invalidates the whole `background` declaration
    and the card renders transparent. See `OptionCard.module.css`.
    **Ornament keeps `--ew-space-1` (4px) from content.** Corner glyphs sit in
-   the card's corner itself. A trim layer is one of two kinds, split by the
-   probe's `DRAWN` (some channel moved 24 levels over the panel). A *mark* — a
-   rule, a hem, a facet — is drawn that hard, so it is held by geometry: an
-   edge band in the outer 4px running only between the corner glyphs, 12px in
-   (`edgeBand` in `themes.ts`), or a corner square of at most 12px
-   (`cornerMark`). A *wash* — a soft tint — stays under `DRAWN` and may sit
-   behind text, so the ink must still clear the panel contrast floor over it.
-   `themes.test.ts` sorts every layer and asserts both. The numbers come from
-   the tightest card in the game — OptionCard at phone width, 8px × 12px of
-   padding — whose height the fold budget will not let grow.
+   the card's corner itself. Every offset is measured inside the card's
+   border — from the padding box, where background layers are positioned —
+   and the numbers come from the tightest card in the game, OptionCard at
+   phone width, 8px × 12px of padding, whose height the fold budget will not
+   let grow: content starts 12px across and 8px down from each corner. A trim
+   is laid over more than the panel — OptionCard is raised-to-panel at rest
+   and `--ew-hover` under a finger — and each layer is one of two kinds, split
+   by the probe's `DRAWN` (some channel moved 24 levels) on the strongest of
+   those surfaces. A *mark* — a rule, a hem, a facet — is drawn that hard on
+   at least one, so it is held by geometry: an edge band in the outer 4px
+   running only between the corner glyphs, 12px in (`edgeBand` in
+   `themes.ts`), or a corner mark (`cornerMark`) every point of which lies
+   within 8px of the side or 4px of the edge — a square of at most 8px, or a
+   triangle across the corner with legs of at most 12px. A *wash* — a soft
+   tint — stays under `DRAWN` on every surface and may sit behind text, so
+   over each surface the ink must read at least as well as the default ink on
+   the default's version of it (the panel floor, on the panel; where a
+   palette's own hover already reads lower, the wash may cost nothing).
+   `themes.test.ts` sorts every layer over every surface the stylesheets lay a
+   trim on and asserts both.
    `node qa/probe-ornament-spacing.mjs` measures every theme's glyphs and
    marks against every keycap, rail and line of text, at 393, 320 and 1280
    wide; run it after touching a trim, a glyph, or a card's padding.
