@@ -1,7 +1,7 @@
 /**
- * One of the seven ending slots in the collection.
+ * One of the ending slots in the collection, one per ending.
  *
- * Same rule as the relic grid: all seven are visible from run one, and the ones
+ * Same rule as the relic grid: every slot is visible from run one, and the ones
  * you have not reached withhold their name. An unseen ending should read as a
  * door you have not opened, not as an absence.
  */

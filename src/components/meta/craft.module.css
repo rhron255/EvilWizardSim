@@ -357,10 +357,14 @@
   content: '';
   position: absolute;
   left: 50%;
-  bottom: -6.5px;
-  width: 12px;
-  height: 12px;
-  margin-left: -6px;
+  /* 10px, centred on the 1px rule: it hangs 5.5px below the section, which
+     keeps it 4px clear of the next section's first line under every theme
+     (qa/probe-ornament-spacing.mjs; Ordinary Weather's sun, which fills its
+     square, came to 3.8px at 12px). */
+  bottom: -5.5px;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
   pointer-events: none;
   background: var(--ew-line-strong);
   -webkit-mask: var(--ew-pip, linear-gradient(transparent, transparent)) center / contain no-repeat;

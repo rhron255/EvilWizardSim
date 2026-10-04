@@ -149,9 +149,9 @@
 }
 
 /* The plate, its corner glyphs and its trim all come from `trimmedPlate`, and
-   this rule sets no background of its own: composing `plate` and overriding
-   `background` here lost to craft.module.css in the production build, and the
-   plate wore no trim under any theme. */
+   this rule sets no background of its own: composing craft's filled plate and
+   overriding `background` here lost to craft.module.css in the production
+   build, and the plate wore no trim under any theme. */
 .factionEntry {
   composes: trimmedPlate from '../components/meta/craft.module.css';
   padding: var(--ew-space-5);

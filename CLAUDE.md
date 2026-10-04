@@ -50,7 +50,7 @@ constraints below exist, and is the thing to read before relaxing any of them.
 | `src/screens/` | Screen composition. |
 | `scripts/` | `validate-content.ts`, `simulate.ts` (balance harness), `balance-report.ts` (renders the PR comment), `build-static-assets.ts` (`npm run assets`), `build-ornaments.ts` (`npm run ornaments`). |
 | `public/` | Favicon, touch/install icons, manifest and the link-preview image — generated from the game's own sigil by `npm run assets` and committed. |
-| `qa/` | Playwright probes. `sweep-layout.mjs` plays many careers and audits every state; `probe-late-game.mjs` and `probe-era-scroll.mjs` cover the worst-case header and the scroll reset; `probe-keyboard.mjs` plays a whole career with no mouse; `probe-themes.mjs` measures the themes, `probe-ornament-spacing.mjs` measures how close every theme's ornament sits to content, and `shoot-themes.mjs` photographs all twenty side by side. Screenshots are gitignored. |
+| `qa/` | Playwright probes. `sweep-layout.mjs` plays many careers and audits every state; `probe-late-game.mjs` and `probe-era-scroll.mjs` cover the worst-case header and the scroll reset; `probe-keyboard.mjs` plays a whole career with no mouse; `probe-themes.mjs` measures the themes, `probe-ornament-spacing.mjs` measures how close every theme's ornament sits to content, `probe-room-contrast.mjs` paints every theme's bare room and scores its text against the default's, and `shoot-themes.mjs` photographs all twenty side by side. Every probe that lists themes reads them from `THEMES` through `qa/theme-ids.mjs`. Screenshots are gitignored. |
 | `wiki/` | Design intent and rationale. |
 
 ## Commands
@@ -166,7 +166,11 @@ These come from a game that worked at scale. They look arbitrary in isolation.
    the palette does not already have. The wallpaper and key light are capped
    so text on the bare room reads at least as well as in the default room;
    and every pair of themes must sit at least 1.5 just-noticeable differences
-   apart (all measured in `themes.test.ts`).
+   apart (all measured in `themes.test.ts`). The room floor holds in the
+   browser's own pixels too: after touching a theme's key light, wallpaper
+   opacity, void or ink, run `node qa/probe-room-contrast.mjs`, which paints
+   every room in Chromium and fails if any reads worse than the default
+   (`--themes a,b` checks one retune; the full set takes about five minutes).
 4. **Comedy in the text, never in the numbers.**
 5. **No fail state, and no doom meter.** Every ending is a biography. The decline
    works because a number quietly goes the wrong way. Note this bans *announcing

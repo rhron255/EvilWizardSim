@@ -50,17 +50,20 @@ const ONLY = arg('--only', '393,320,1280').split(',');
 const MIN_CLEARANCE = 4;
 /**
  * A pixel counts as ornament only if some channel moved by at least this many
- * levels over the panel with the ornament switched off.
+ * levels against the same card with the ornament switched off.
  *
  * This number IS the line between the two kinds of card trim (CLAUDE.md,
  * styling rule 5). A MARK — a rule, a hem, a glyph, a perforation — moves a
  * channel by dozens of levels, is counted here, and must keep its clearance
- * from content. A WASH — a soft vignette, a frost — moves no channel this far,
- * may sit behind text, and answers instead to the ink's panel contrast floor
- * at its strongest stop. `src/theme/themes.test.ts` reads this constant off
- * disk to sort every theme's trim into one kind or the other, so the probe and
- * the unit test cannot disagree about which kind a trim is. Keep the
- * declaration on one line, exactly as it is.
+ * from content. A WASH — a soft vignette, a sheen — moves no channel this far,
+ * may sit behind text, and answers instead to a contrast floor: the default
+ * ink on the default's version of whatever surface it lies over (13.80 on the
+ * panel). `src/theme/themes.test.ts` reads this constant off disk and sorts
+ * each trim layer over every surface a stylesheet lays a trim on (panel,
+ * raised, hover); a layer is a mark if it reaches DRAWN on any of them. The
+ * two share this threshold and those surfaces, not a classifier: this probe
+ * measures cards at rest, as rendered, and the test measures the trims' own
+ * CSS. Keep the declaration on one line, exactly as it is.
  */
 const DRAWN = 24;
 /*
