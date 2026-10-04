@@ -58,16 +58,39 @@
 
 /* The glyph sits on the name's FIRST line: a long name ("New Management",
    "Settled Account") wraps at phone width, and centring the glyph on the
-   whole block left it floating between the two lines. */
+   whole block left it floating between the two lines.
+
+   A word that cannot fit beside the glyph at all drops to the line below it
+   instead of running out of the card: "Correspondence" in a 320px card, and
+   in New Management's wider sans even at 393. Measured against every card's
+   content box, wearing the default and New Management at 320 and 393. */
 .name {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
-  gap: 0.4em;
+  gap: 0 0.4em;
   font-family: var(--ew-font-display);
   font-size: var(--ew-size-md);
   font-weight: 600;
   line-height: 1.15;
   color: var(--ew-ink-bright);
+}
+
+/* Its own box, because bare text in a flex row cannot be told to shrink.
+   It asks for no more room than its longest word (a zero basis, plus the
+   automatic minimum), so the row wraps only when that word will not fit
+   beside the glyph, and never for more than the card is wide, so a word wider
+   than the whole card (Correspondence in Inter at 320) breaks inside it.
+
+   `break-word`, not `anywhere`: `anywhere` sizes the longest word as one
+   letter, so the name never drops and splits mid-word beside the glyph
+   instead. No `hyphens: auto`: with a dictionary, a browser hyphenates any
+   word that crosses the line end, and names that now break cleanly at a space
+   would start breaking mid-word. */
+.nameText {
+  flex: 1 1 0%;
+  max-width: 100%;
+  overflow-wrap: break-word;
 }
 
 /* The previewed theme's corner glyph, in that theme's strong line colour

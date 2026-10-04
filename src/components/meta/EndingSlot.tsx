@@ -13,7 +13,12 @@ import styles from './EndingSlot.module.css';
 export type EndingSlotProps = {
   ending: Ending;
   seen: boolean;
-  /** Highlighted as the one just reached, on the ending screen. */
+  /**
+   * Meant to highlight the ending just reached. Not wired yet: no caller
+   * passes it — the collection renders every slot without it, and the ending
+   * screen renders no slots at all. The `.current` style (tier border, tier
+   * wash, and the room's trim over it) is ready for when one does.
+   */
   current?: boolean;
 };
 

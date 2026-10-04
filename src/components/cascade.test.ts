@@ -3,8 +3,8 @@
  * to compile. The first two lost a card its trim; both shipped, and both were
  * found by looking, not by a check:
  *
- *   1. The Necrolexicon's faction plate composed `plate` (which sets
- *      `background: var(--ew-panel)`) and then set its own trimmed
+ *   1. The Necrolexicon's faction plate composed craft's old `plate` (which
+ *      set `background: var(--ew-panel)`) and then set its own trimmed
  *      `background` at the same specificity. Which one wins is decided by the
  *      order the two modules land in the bundle, not by either file — and in
  *      the production build `craft.module.css` lands LATER, so the plate wore
@@ -14,9 +14,18 @@
  *      without it. The slot just reached, and every slot not yet reached, kept
  *      their corner glyphs and lost their trim (CLAUDE.md styling rule 5).
  *
- * The third is the section rule, drawn as a gradient over a transparent
- * border: a forced-colours palette drops the gradient, so the rule has to
- * name a real border colour for that case itself.
+ * The third is forced colours: the section rule is drawn as a gradient over a
+ * transparent border, which a forced palette drops, so the rule has to name a
+ * real border colour for that case itself; and each ornament is a mask filled
+ * with a background colour, which a forced palette turns into a hole in
+ * whatever it overlaps, so each one steps aside.
+ *
+ * What the bundle-order check does NOT cover: it reads `background` and
+ * nothing else, because that is where both shipped losses were. Every other
+ * property a class sets over one it composes from another file is decided by
+ * bundle order in exactly the same way — more than eighty such pairs when this
+ * was written, the Prophecy continue button's height and padding among them.
+ * Those are a known open issue; a green run here says nothing about them.
  *
  * Everything here is read off disk — the stylesheets and the components that
  * apply their classes — so the rules are checked against what ships, not
@@ -271,6 +280,7 @@ function coApplied(): Map<string, Set<string>> {
 
 // --- the checks ------------------------------------------------------------
 
+// Background only: see the header for what this leaves open.
 describe('CSS modules · a composed background is never fought over', () => {
   /** Every cross-file composition that pulls in a background, and every clash over one. */
   const scan = () => {
@@ -300,10 +310,14 @@ describe('CSS modules · a composed background is never fought over', () => {
 
   /**
    * Found by this test, and left for the change that owns the file. In the
-   * production build the Prophecy's continue button loses its panel fill to
-   * `.btn`'s `transparent` (and the fill is the default room's panel as a
-   * fixed rgba besides). Listed, not ignored: fixing it without deleting the
-   * line here fails the test just as a new clash does.
+   * production build the Prophecy's continue button loses EVERY override it
+   * sets to `.btn`, not just the fill this line names: its 52px height,
+   * padding, colour, border colour and panel fill all go to `.btn`'s, and its
+   * `:hover` loses to `.btn:hover:not(:disabled)` on specificity in any bundle
+   * order. (The fill is also the default room's panel as a fixed rgba.) Only
+   * the background is listed because only the background is checked. Listed,
+   * not ignored: fixing it without deleting the line here fails the test just
+   * as a new clash does.
    */
   const PENDING = [
     'screens/ProphecyInterstitial.module.css .continue sets background, and composes .btn from components/meta/craft.module.css, which sets background',
@@ -326,6 +340,7 @@ describe('CSS modules · a composed background is never fought over', () => {
     // order in dev as in the build. A class that needs a background of its own
     // composes a FRAME (`plateFrame`, `plateDoubleFrame` in craft.module.css)
     // or a class that already carries that background (`trimmedPlate`).
+    // Every other property has the same hazard and is not checked here.
     expect(scan().clashes).toEqual(PENDING);
   });
 });
@@ -342,6 +357,25 @@ describe('CSS modules · a trimmed card keeps its trim in every state', () => {
     expect(names).toContain('screens/NecrolexiconScreen.module.css .factionEntry');
     const slot = together.get(`${resolve(SRC, 'components/meta/EndingSlot.module.css')}#slot`);
     expect([...(slot ?? [])]).toEqual(expect.arrayContaining(['current', 'unseen']));
+  });
+
+  it('puts the corner glyphs on every card it trims', () => {
+    // Styling rule 5: a card wears the room through two tokens, its trim and
+    // the glyphs at its corners (craft's `pips`). Losing the corners fails
+    // nothing else here — a trim with no `pips` still leads every background
+    // — so it is checked on its own. A modifier (`.current`, `.unseen`) takes
+    // its corners from the card class applied beside it.
+    const pips = `${resolve(SRC, 'components/meta/craft.module.css')}#pips`;
+    const wears = (c: Composed) => closure(c).some((x) => `${x.file}#${x.name}` === pips);
+    // Anchored to the plate that takes both from one class: dropping `pips`
+    // from `trimmedPlate`'s `composes` stripped the faction plate's corners
+    // with every other check here still green.
+    expect(wears({ file: resolve(SRC, 'screens/NecrolexiconScreen.module.css'), name: 'factionEntry' })).toBe(true);
+    const bare = trimmed.filter((card) => {
+      const beside = [...(together.get(`${card.file}#${card.name}`) ?? [])].map((name) => ({ file: card.file, name }));
+      return ![card, ...beside].some(wears);
+    });
+    expect(bare.map((c) => `${rel(c.file)} .${c.name}`)).toEqual([]);
   });
 
   it('leads every background on the same element with var(--ew-trim, none)', () => {
@@ -402,5 +436,44 @@ describe('CSS modules · a painted rule survives forced colours', () => {
       if (!restored) missing.push(`${rel(file)} ${rule.selectors.join(', ')}`);
     }
     expect(missing).toEqual([]);
+  });
+});
+
+describe('CSS modules · ornament steps aside under forced colours', () => {
+  /** A forced-colours media query, wherever it sits. */
+  const forced = (r: Rule) => r.atRules.some((a) => /forced-colors\s*:\s*active/.test(a));
+  /** A mask declaration that cuts a theme ornament's shape (`--ew-pip`, `--ew-motif`). */
+  const ornamentMask = (d: Decl) => /^(-webkit-)?mask(-image)?$/.test(d.prop) && /var\(\s*--ew-(pip|motif)\b/.test(d.value);
+
+  /**
+   * Every selector that paints an ornament: a fill seen through the ornament's
+   * mask. Under a forced palette the fill becomes a system colour and the shape
+   * a hole in whatever it overlaps — the section glyph cut a notch out of the
+   * very rule it sits on.
+   */
+  const masked = () =>
+    [...MODULES].flatMap(([file, rules]) =>
+      rules
+        .filter((r) => !forced(r) && r.decls.some(ornamentMask))
+        .flatMap((r) => r.selectors.map((selector) => ({ file, selector }))),
+    );
+
+  it('is checking something: the section glyph and the corner glyphs are masked ornaments', () => {
+    const found = masked().map(({ file, selector }) => `${rel(file)} ${selector}`);
+    expect(found).toContain('components/meta/craft.module.css .sectionRule::after');
+    expect(found).toContain('components/meta/craft.module.css .pips::after');
+  });
+
+  it('hides every masked ornament under forced colours', () => {
+    const shown = masked().filter(
+      ({ file, selector }) =>
+        !(MODULES.get(file) ?? []).some(
+          (r) =>
+            forced(r) &&
+            r.selectors.includes(selector) &&
+            r.decls.some((d) => d.prop === 'display' && d.value === 'none'),
+        ),
+    );
+    expect(shown.map(({ file, selector }) => `${rel(file)} ${selector}`)).toEqual([]);
   });
 });

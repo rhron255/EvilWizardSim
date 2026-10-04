@@ -18,7 +18,8 @@
  * near-black told two dark rooms apart badly; the wallpaper is what a player
  * actually recognises a room by. The glyph alone is printed on the CURRENT
  * room's card rather than on its own palette, so the stylesheet mixes its
- * colour toward the current ink until it reads there (`.glyph`).
+ * colour toward the current ink until it reads there (`.glyph`). A name whose
+ * longest word cannot fit beside the glyph drops to the line below it (`.name`).
  */
 
 import type { CSSProperties } from 'react';
@@ -123,7 +124,10 @@ export function ThemeSwatch({ theme, unlocked, selected, hint, onSelect }: Theme
               aria-hidden
               style={glyphStyle}
             />
-            {theme.name}
+            {/* A box of its own, not bare text: beside the glyph, bare text
+                could not wrap narrower than its longest word and ran out of
+                the card at phone width (`.nameText`). */}
+            <span className={styles.nameText}>{theme.name}</span>
           </span>
         ) : (
           <span className={styles.redaction} aria-hidden />
