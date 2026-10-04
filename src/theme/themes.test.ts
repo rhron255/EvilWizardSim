@@ -27,9 +27,11 @@ import { deltaEOK, JND_OK, over } from './oklab';
 import { shapeKind, SHAPE_IDS, type ShapeId } from './ornaments';
 import {
   DEFAULT_THEME_ID,
+  INK_VARS,
   isThemeId,
   isThemeUnlocked,
   ORNAMENT_VARS,
+  SURFACE_VARS,
   THEMES,
   themeFor,
   themeVars,
@@ -80,6 +82,189 @@ function declarationsFrom(start: number): Record<string, string> {
     out[prop] = rest.join(':').trim();
   }
   return out;
+}
+
+/**
+ * A CSS value as the sync tests compare it: every run of whitespace, newlines
+ * included, collapsed to one space, and the case folded.
+ *
+ * `tokens.css` is hand-written — that is what makes it an anchor — so a long
+ * value there may be wrapped across lines, and the CSS is conventionally
+ * lowercase where the TS has a few uppercase hexes carried over from
+ * `tokens.ts`. Both sides go through this, so only spacing and case are
+ * forgiven: a space that appears or vanishes between two tokens, or any other
+ * character changed, still fails.
+ */
+function normalise(value: string): string {
+  return value.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+/** Every value of a `{ '--ew-…': value }` record, normalised. */
+function normaliseAll(record: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(Object.entries(record).map(([k, v]) => [k, normalise(v)]));
+}
+
+/**
+ * The channels of an `rgb()`/`rgba()` call, 0–255 and alpha 0–1.
+ *
+ * Reads the comma and the space-and-slash spellings alike, and percentages in
+ * either place, so a light cannot slip past the alpha cap by being written in
+ * the other syntax. Alpha defaults to 1, as CSS does: an `rgb()` with no alpha
+ * is fully opaque, which is exactly what the cap has to see.
+ */
+function channels(fn: string): [number, number, number, number] {
+  const args = fn
+    .slice(fn.indexOf('(') + 1, fn.lastIndexOf(')'))
+    .split(/[\s,/]+/)
+    .filter(Boolean);
+  const read = (arg: string, full: number) => (arg.endsWith('%') ? (parseFloat(arg) / 100) * full : parseFloat(arg));
+  const [r, g, b, a = '1'] = args;
+  return [read(r, 255), read(g, 255), read(b, 255), read(a, 1)];
+}
+
+/** Every `rgb()`/`rgba()` call in a CSS string. */
+const rgbCalls = (css: string): string[] => css.match(/\brgba?\([^)]*\)/gi) ?? [];
+
+/**
+ * Rough hue of a colour, 0–360, ignoring near-greys. Takes a `#rrggbb` hex or
+ * an `rgb()`/`rgba()` call; alpha plays no part in hue.
+ */
+function hue(colour: string): number | null {
+  const [r, g, b] = (
+    colour.startsWith('#') ? [1, 3, 5].map((i) => parseInt(colour.slice(i, i + 2), 16)) : channels(colour)
+  ).map((c) => c / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const d = max - min;
+  // Saturation floor: a near-grey has no meaningful hue and pretending it
+  // does is how this check would produce nonsense for Settled Account.
+  if (d < 0.04) return null;
+  let h: number;
+  if (max === r) h = ((g - b) / d) % 6;
+  else if (max === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+  h *= 60;
+  return h < 0 ? h + 360 : h;
+}
+
+/** The widest pair of hues in a set, taking the shorter way round the circle. */
+function hueSpread(hues: number[]): number {
+  return Math.max(
+    0,
+    ...hues.flatMap((a) =>
+      hues.map((b) => {
+        const d = Math.abs(a - b) % 360;
+        return d > 180 ? 360 - d : d;
+      }),
+    ),
+  );
+}
+
+/**
+ * The widest a room's hues may spread and still be one family (constraint 2).
+ *
+ * The Sword and New Management deliberately carry a red rule against
+ * warm-brown surfaces, which is a wider family than the rest — but a theme
+ * spanning more than a quadrant has stopped being one hue.
+ */
+const HUE_FAMILY = 90;
+
+function notNull<T>(value: T | null): value is T {
+  return value !== null;
+}
+
+/*
+ * The vocabulary a key light or card trim may be written in (constraint 7).
+ *
+ * An allowlist, because the denylist this replaced — no hex literal, no tier
+ * var — let `red`, `currentColor`, `hsl()`, `oklch()`, `color()` and `lab()`
+ * straight through. A colour can only enter these strings as one of the
+ * room's own surface or ink tokens, or as an `rgb()` of plain numbers (which
+ * the tests below then hold to white, black or the room's own hue); every
+ * other word or function is an offence, and the failure names it.
+ */
+
+/** The room's own palette. Not the tier pair, `--ew-legendary`, `--ew-danger` or the deltas. */
+const PALETTE_VARS = new Set<string>([...Object.values(SURFACE_VARS), ...Object.values(INK_VARS)]);
+
+const ORNAMENT_FUNCTIONS = new Set([
+  'linear-gradient',
+  'radial-gradient',
+  'conic-gradient',
+  'repeating-linear-gradient',
+  'repeating-radial-gradient',
+  'repeating-conic-gradient',
+  'color-mix',
+  'rgb',
+  'rgba',
+  'calc',
+]);
+
+/** Background position, size, repeat and gradient-shape keywords, plus the two non-colours. */
+const ORNAMENT_WORDS = new Set([
+  'transparent',
+  'none',
+  'top',
+  'bottom',
+  'left',
+  'right',
+  'center',
+  'at',
+  'to',
+  'circle',
+  'ellipse',
+  'closest-side',
+  'closest-corner',
+  'farthest-side',
+  'farthest-corner',
+  'no-repeat',
+  'repeat',
+  'repeat-x',
+  'repeat-y',
+  'space',
+  'round',
+]);
+
+const ORNAMENT_UNITS = new Set(['', 'px', '%', 'deg', 'turn']);
+
+/** Every piece of `css` outside the ornament vocabulary; empty when it is all inside. */
+function offVocabulary(css: string): string[] {
+  const offences: string[] = [];
+
+  // rgb() takes plain numbers only. Checked before the var()s are stripped,
+  // so `rgba(var(--ew-panel), 0.5)` and `rgb(from red r g b)` are both caught.
+  for (const fn of rgbCalls(css)) {
+    if (!/^rgba?\([\d.\s,/%]*\)$/i.test(fn)) offences.push(fn);
+  }
+
+  // A var() may name the room's own surfaces and ink, with no fallback — a
+  // fallback is a second value nothing here would check.
+  let rest = css.replace(/var\(\s*(--[\w-]+)\s*\)/g, (ref: string, name: string) => {
+    if (!PALETTE_VARS.has(name)) offences.push(ref);
+    return ' ';
+  });
+
+  // color-mix() interpolates in sRGB or OKLab. The space is consumed here so
+  // `in` and `srgb` are not read as stray words below; any other space is.
+  rest = rest.replace(/color-mix\(\s*in\s+(?:srgb|oklab)\s*,/gi, 'color-mix(');
+
+  // What is left, token by token: separators, numbers with a unit, words
+  // (a word followed by `(` is a function), and anything else at all.
+  const TOKEN = /(\s+|[(),/*+])|(-?(?:\d+\.?\d*|\.\d+))([a-z%]*)|(-{0,2}[a-z_][\w-]*)(\()?|(#[\da-f]+|-|.)/gi;
+  for (const [token, separator, number, unit, word, call, other] of rest.matchAll(TOKEN)) {
+    if (separator !== undefined) continue;
+    if (number !== undefined) {
+      if (!ORNAMENT_UNITS.has(unit.toLowerCase())) offences.push(token);
+    } else if (word !== undefined) {
+      const known = call !== undefined ? ORNAMENT_FUNCTIONS : ORNAMENT_WORDS;
+      if (!known.has(word.toLowerCase())) offences.push(token);
+    } else if (other !== '-') {
+      // A lone `-` is calc()'s minus; everything else here — a hex, a quote,
+      // a semicolon — has no business in a background layer.
+      offences.push(token);
+    }
+  }
+  return offences;
 }
 
 describe('themes · every ending grants exactly one', () => {
@@ -214,13 +399,7 @@ describe('themes · constraint 3, the CSS mirrors the TypeScript', () => {
       const block = cssBlockFor(theme.id);
       expect(block, `no [data-theme='${theme.id}'] block in tokens.css`).not.toBeNull();
 
-      const expected = themeVars(theme);
-      // Compare case-insensitively: CSS is conventionally lowercase and the TS
-      // has a few uppercase hexes carried over from `tokens.ts`.
-      const norm = (r: Record<string, string>) =>
-        Object.fromEntries(Object.entries(r).map(([k, v]) => [k, v.toLowerCase()]));
-
-      expect(norm(block!)).toEqual(norm(expected));
+      expect(normaliseAll(block!)).toEqual(normaliseAll(themeVars(theme)));
     });
   }
 
@@ -236,45 +415,10 @@ describe('themes · constraint 3, the CSS mirrors the TypeScript', () => {
 });
 
 describe('themes · constraint 2, near-monochrome within a theme', () => {
-  /** Rough hue spread of a hex, 0-360, ignoring near-greys. */
-  function hue(hex: string): number | null {
-    const r = parseInt(hex.slice(1, 3), 16) / 255;
-    const g = parseInt(hex.slice(3, 5), 16) / 255;
-    const b = parseInt(hex.slice(5, 7), 16) / 255;
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    const d = max - min;
-    // Saturation floor: a near-grey has no meaningful hue and pretending it
-    // does is how this check would produce nonsense for Settled Account.
-    if (d < 0.04) return null;
-    let h: number;
-    if (max === r) h = ((g - b) / d) % 6;
-    else if (max === g) h = (b - r) / d + 2;
-    else h = (r - g) / d + 4;
-    h *= 60;
-    return h < 0 ? h + 360 : h;
-  }
-
   for (const theme of THEMES) {
     it(`${theme.name}'s surfaces sit in one hue family`, () => {
-      const hues = Object.values(theme.surface)
-        .map((v) => hue(v))
-        .filter((h): h is number => h !== null);
-      if (hues.length < 2) return;
-
-      // Spread on the hue circle, taking the shorter way round.
-      const spread = Math.max(
-        ...hues.flatMap((a) =>
-          hues.map((b) => {
-            const d = Math.abs(a - b) % 360;
-            return d > 180 ? 360 - d : d;
-          }),
-        ),
-      );
-      // The Sword and New Management deliberately carry a red rule against
-      // warm-brown surfaces, which is a wider family than the rest — but a
-      // theme spanning more than a quadrant has stopped being one hue.
-      expect(spread).toBeLessThanOrEqual(90);
+      const hues = Object.values(theme.surface).map(hue).filter(notNull);
+      expect(hueSpread(hues)).toBeLessThanOrEqual(HUE_FAMILY);
     });
   }
 });
@@ -288,7 +432,7 @@ describe('themes · constraint 7, ornament brings no colour and costs the ink no
     // drift between the two files with nothing failing.
     const root = declarationsFrom(CSS.indexOf(':root {'));
     for (const [key, name] of Object.entries(ORNAMENT_VARS)) {
-      expect(root[name], name).toBe(String(ornament[key as keyof typeof ornament]));
+      expect(normalise(root[name] ?? ''), name).toBe(normalise(String(ornament[key as keyof typeof ornament])));
     }
   });
 
@@ -298,29 +442,29 @@ describe('themes · constraint 7, ornament brings no colour and costs the ink no
       // `motifOpacity`, and text sits straight on the void on the run screen
       // and the title. At the pattern's densest pixel the room is that
       // composite, so that is the colour the ink is measured against.
-      const { motif, motifOpacity } = theme.ornament;
+      const { motifOpacity } = theme.ornament;
       const voidc = theme.surface.void ?? surface.void;
       const strong = theme.surface.lineStrong ?? surface.lineStrong;
       const base = theme.ink?.base ?? ink.base;
-      if (motif === 'none') return;
       expect(motifOpacity).toBeGreaterThan(0);
       expect(contrastRatio(base, over(voidc, strong, motifOpacity))).toBeGreaterThanOrEqual(FLOOR);
     });
 
-    it(`${theme.name}'s light and trim never reach for the scarce colours`, () => {
+    it(`${theme.name}'s light and trim are written only in the room's own palette`, () => {
       // `light` and `trim` are free CSS, which is the one place a theme could
-      // name `--ew-tier` without the type system noticing.
-      for (const css of [theme.ornament.light, theme.ornament.trim]) {
-        expect(css).not.toMatch(/--ew-tier|--ew-legendary|--ew-danger/);
-        expect(css, 'a hex literal is a colour the palette does not own').not.toMatch(/#[0-9a-f]{3,8}\b/i);
+      // name `--ew-tier`, or a colour of its own, without the type system
+      // noticing. Each offence is listed by name.
+      for (const key of ['light', 'trim'] as const) {
+        expect(offVocabulary(theme.ornament[key]), `--ew-${key} reaches outside the room's palette`).toEqual([]);
       }
     });
 
     it(`${theme.name}'s card trim colours itself from tokens or plain light and shade`, () => {
       // A trim sits on every card, so it is held tighter than the key light:
-      // any rgba() in it must be black or white, never a tint.
-      for (const rgba of theme.ornament.trim.match(/rgba?\([^)]*\)/g) ?? []) {
-        expect(rgba).toMatch(/^rgba?\(\s*(0,\s*0,\s*0|255,\s*255,\s*255)\s*[,)]/);
+      // any rgb() in it must be black or white, never a tint.
+      for (const fn of rgbCalls(theme.ornament.trim)) {
+        const [r, g, b] = channels(fn);
+        expect((r === 0 || r === 255) && g === r && b === r, `${fn} is a tint, not black or white`).toBe(true);
       }
     });
 
@@ -328,14 +472,26 @@ describe('themes · constraint 7, ornament brings no colour and costs the ink no
       // 0.07 is the brightest light any theme shipped with before ornament
       // became a token (Wrong Colour's, from outside the frame). White on the
       // one light room is the exception: it RAISES that room's contrast.
-      for (const rgba of theme.ornament.light.match(/rgba\([^)]*\)/g) ?? []) {
-        const alpha = Number(rgba.slice(rgba.lastIndexOf(',') + 1, -1));
-        const isWhite = /^rgba\(255,\s*255,\s*255,/.test(rgba);
+      for (const fn of rgbCalls(theme.ornament.light)) {
+        const [r, g, b, alpha] = channels(fn);
+        const isWhite = r === 255 && g === 255 && b === 255;
         const voidc = theme.surface.void ?? surface.void;
         const lightRoom = contrastRatio(voidc, '#000000') > contrastRatio(voidc, '#ffffff');
         if (isWhite && lightRoom) continue;
-        expect(alpha, rgba).toBeLessThanOrEqual(0.07);
+        expect(alpha, fn).toBeLessThanOrEqual(0.07);
       }
+    });
+
+    it(`${theme.name}'s key light, where it is tinted, is tinted in the room's own hue`, () => {
+      // The one colour ornament may bring rather than borrow: a key light's
+      // faint tint. It joins the room's surfaces and the whole set is held to
+      // constraint 2's spread, so a light can warm or cool a room within its
+      // family but cannot light a violet room amber.
+      const room = Object.values(theme.surface).map(hue).filter(notNull);
+      const tints = rgbCalls(theme.ornament.light).map(hue).filter(notNull);
+      expect(hueSpread([...room, ...tints]), `light tints ${tints.map(Math.round).join(', ')}°`).toBeLessThanOrEqual(
+        HUE_FAMILY,
+      );
     });
   }
 
@@ -347,9 +503,12 @@ describe('themes · constraint 7, ornament brings no colour and costs the ink no
     expect(named.length).toBeGreaterThan(THEMES.length);
     for (const id of named) expect(SHAPE_IDS, id).toContain(id);
     for (const theme of THEMES) {
-      const motif = theme.ornament.motif.match(/--ew-shape-([a-z0-9-]+)/)?.[1] as ShapeId | undefined;
-      const pip = theme.ornament.pip.match(/--ew-shape-([a-z0-9-]+)/)?.[1] as ShapeId;
-      if (motif) expect(shapeKind(motif)).toBe('pattern');
+      // Every room has a wallpaper: `mask-image: none` means "no mask", which
+      // would paint `--ew-line-strong` over the whole screen.
+      const motif = theme.ornament.motif.match(/^var\(--ew-shape-([a-z0-9-]+)\)$/)?.[1] as ShapeId;
+      const pip = theme.ornament.pip.match(/^var\(--ew-shape-([a-z0-9-]+)\)$/)?.[1] as ShapeId;
+      expect(motif, `${theme.id}'s motif is not a shape`).toBeDefined();
+      expect(shapeKind(motif)).toBe('pattern');
       expect(shapeKind(pip)).toBe('glyph');
     }
   });

@@ -96,12 +96,14 @@
      None of these can bring a colour of their own. `--ew-motif` and `--ew-pip`
      name a colourless MASK shape from ornaments.css (generated from
      ornaments.ts) and are painted in `--ew-line-strong` by whatever draws
-     them; `--ew-light` and `--ew-trim` are gradient layers whose colours are
-     surface tokens or plain white/black light. So a violet room's wallpaper is
-     violet, and nothing here can compete with `--ew-tier`.
+     them; `--ew-light` and `--ew-trim` are gradient layers coloured only by
+     the room's own surface and ink tokens, plain white or black, or — the key
+     light alone — a faint tint in the room's own hue family (themes.test.ts
+     holds both to that). So a violet room's wallpaper is violet, and nothing
+     here can compete with `--ew-tier`.
 
        --ew-light          key light: background layer(s) over --ew-void, or none
-       --ew-motif          wallpaper tiled behind every screen, or none
+       --ew-motif          wallpaper tiled behind every screen; never none
        --ew-motif-size     one tile of it
        --ew-motif-opacity  how strongly it is drawn — capped by the ink floor
        --ew-pip            glyph at card corners and in section rules
@@ -134,9 +136,11 @@
         reward it is not allowed to compete with.
      2. No block here may define `--ew-legendary`. It is pinned to the Legend
         gold for the reason its comment above gives, in every theme.
-     3. One declaration per line: the test compares each value to the
-        TypeScript string exactly, so a value wrapped across lines would read
-        as a different one.
+     3. Every value matches its TypeScript string exactly except in how it
+        is spaced: the test collapses each run of whitespace, newlines
+        included, to one space on both sides before it compares. So a long
+        value may wrap across lines, but a space cannot appear or vanish
+        between two tokens.
 
    `default` has no block: it IS `:root`. Selecting it removes the attribute
    rather than overriding anything back to where it started.
@@ -498,7 +502,7 @@
   --ew-ink-faint: #68796d;
   --ew-ink-ghost: #424e45;
 
-  --ew-light: radial-gradient(90% 55% at 50% -10%, rgba(255, 236, 170, 0.05), transparent 68%);
+  --ew-light: radial-gradient(90% 55% at 50% -10%, rgba(240, 246, 176, 0.05), transparent 68%);
   --ew-motif: var(--ew-shape-coins);
   --ew-motif-size: 80px 80px;
   --ew-motif-opacity: 0.16;
@@ -623,7 +627,7 @@
   --ew-ink-faint: #777184;
   --ew-ink-ghost: #4c4855;
 
-  --ew-light: radial-gradient(60% 40% at 50% -6%, rgba(255, 224, 196, 0.04), transparent 70%), radial-gradient(90% 55% at 50% -10%, rgba(236, 220, 255, 0.04), transparent 68%);
+  --ew-light: radial-gradient(60% 40% at 50% -6%, rgba(255, 222, 236, 0.04), transparent 70%), radial-gradient(90% 55% at 50% -10%, rgba(236, 220, 255, 0.04), transparent 68%);
   --ew-motif: var(--ew-shape-candles);
   --ew-motif-size: 100px 110px;
   --ew-motif-opacity: 0.15;

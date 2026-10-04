@@ -225,8 +225,10 @@ export const motion = {
  *
  * None of these can introduce a colour. The two shape tokens name a colourless
  * mask from `ornaments.ts` and are painted in `--ew-line-strong`; `light` and
- * `trim` are gradient layers, and the ones that are not plain white/black
- * light read their colour from surface tokens via `var()`.
+ * `trim` are gradient layers coloured only from the room's own surface and
+ * ink tokens via `var()`, from plain white or black, or — the key light alone
+ * — from a faint tint in the room's own hue family. `themes.test.ts` holds
+ * both strings to that vocabulary.
  */
 export const ornament = {
   /**
@@ -234,7 +236,11 @@ export const ornament = {
    * screen. `none` is a flat wash.
    */
   light: 'radial-gradient(90% 55% at 50% -10%, rgba(255, 246, 224, 0.045), transparent 68%)',
-  /** Wallpaper tiled behind every screen: a `pattern` shape, or `none`. */
+  /**
+   * Wallpaper tiled behind every screen: a `pattern` shape. Never `none` —
+   * as a `mask-image` that means "no mask", which would paint
+   * `--ew-line-strong` over the whole screen. Every room has a wallpaper.
+   */
   motif: shapeRef('masonry'),
   /** One tile of the wallpaper, as a `background-size`. */
   motifSize: tileSize('masonry'),

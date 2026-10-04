@@ -38,10 +38,14 @@
  *    overridable surface here, which is how it stays pinned.
  * 7. Ornament never brings a colour of its own, and never costs the ink its
  *    floor. Shapes are colourless masks (`ornaments.ts`) painted in
- *    `--ew-line-strong`, so the wallpaper of a violet room is violet. The
- *    wallpaper's opacity is capped by constraint 5: `--ew-line-strong`
- *    composited over `--ew-void` at `motifOpacity` must still carry the ink at
- *    the floor, because text sits straight on the void on several screens.
+ *    `--ew-line-strong`, so the wallpaper of a violet room is violet. The key
+ *    light and the card trim are free CSS, so they are held to a vocabulary
+ *    instead: the room's own surface and ink tokens, plain white or black,
+ *    and — for the key light alone — a faint tint in the room's own hue
+ *    family. The wallpaper's opacity is capped by constraint 5:
+ *    `--ew-line-strong` composited over `--ew-void` at `motifOpacity` must
+ *    still carry the ink at the floor, because text sits straight on the void
+ *    on several screens.
  * 8. No two rooms look alike. Every pair of themes sits at least 1.5
  *    just-noticeable differences apart in OKLab — see the distinctness block
  *    in `themes.test.ts` for the measure and where its numbers come from.
@@ -92,7 +96,7 @@ export type RadiusOverrides = { [K in keyof typeof radius]?: string };
  */
 export type ThemeOrnament = {
   [K in keyof typeof ornament]: K extends 'motif'
-    ? ShapeRef<PatternId> | 'none'
+    ? ShapeRef<PatternId>
     : K extends 'pip'
       ? ShapeRef<GlyphId>
       : K extends 'motifOpacity'
@@ -134,12 +138,18 @@ export type ThemeDef = {
   ornament: ThemeOrnament;
 };
 
-/**
- * Shared ornament fragments. Strings, because they are CSS — but every colour
- * in them is a `var()` of a surface or ink token, or plain white/black light,
- * so they cannot introduce a hue (constraint 7).
- */
-const LIGHT_FROM_ABOVE = 'radial-gradient(90% 55% at 50% -10%, rgba(255, 246, 224, 0.045), transparent 68%)';
+// ---------------------------------------------------------------------------
+// Shared ornament fragments.
+//
+// Strings, because they are CSS, so the compiler cannot hold what they are
+// coloured with; `themes.test.ts` does instead. A `light` or `trim` may take
+// its colour from a surface or ink token through `var()`, from plain white or
+// black, or — the key light only — from a faint tint in the room's own hue
+// family. Nothing else: no hex, no named colour, no colour function but
+// `rgb()` and `color-mix()`, so neither can introduce a hue the room does not
+// already have (constraint 7).
+// ---------------------------------------------------------------------------
+
 /**
  * Where a card trim may draw. Measured, not guessed
  * (`qa/probe-ornament-spacing.mjs`): the tightest card padding in the game is
@@ -284,7 +294,8 @@ export const THEMES: ThemeDef[] = [
       display: "'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif",
     },
     ornament: {
-      light: LIGHT_FROM_ABOVE,
+      // The Tower's own light, kept the same way as its stonework.
+      light: ornament.light,
       ...wallpaper('masonry', 0.16),
       pip: shapeRef('key'),
       trim: edgeRule('top', 0, 2),
@@ -697,7 +708,10 @@ export const THEMES: ThemeDef[] = [
       ghost: '#424e45',
     },
     ornament: {
-      light: 'radial-gradient(90% 55% at 50% -10%, rgba(255, 236, 170, 0.05), transparent 68%)',
+      // The lamp burns the brass rule's own colour. An amber lamp was warmer
+      // still, but the brass already spends almost all of the room's hue
+      // family, and a tinted light has to stay inside it (constraint 7).
+      light: 'radial-gradient(90% 55% at 50% -10%, rgba(240, 246, 176, 0.05), transparent 68%)',
       ...wallpaper('coins', 0.16),
       pip: shapeRef('coin'),
       trim: `${edgeRule('bottom', 3)}, ${edgeRule('bottom', 1)}`,
@@ -876,8 +890,12 @@ export const THEMES: ThemeDef[] = [
       ghost: '#4c4855',
     },
     ornament: {
+      // The candle burns rose, the warm edge of the room's violet. An amber
+      // flame sat a third of the wheel from the room, outside the hue family
+      // a tinted light must keep to (constraint 7), and read as a second
+      // colour rather than a warmer corner of the same one.
       light:
-        'radial-gradient(60% 40% at 50% -6%, rgba(255, 224, 196, 0.04), transparent 70%), radial-gradient(90% 55% at 50% -10%, rgba(236, 220, 255, 0.04), transparent 68%)',
+        'radial-gradient(60% 40% at 50% -6%, rgba(255, 222, 236, 0.04), transparent 70%), radial-gradient(90% 55% at 50% -10%, rgba(236, 220, 255, 0.04), transparent 68%)',
       ...wallpaper('candles', 0.15),
       pip: shapeRef('flame'),
       trim: 'radial-gradient(50% 100% at 50% 0%, color-mix(in srgb, var(--ew-line-strong) 24%, transparent), transparent) top / 100% 14px no-repeat',

@@ -83,19 +83,17 @@ export function ThemeSwatch({ theme, unlocked, selected, hint, onSelect }: Theme
         <span className={styles.band} data-part="band" style={{ background: bands.panel }} />
         <span className={styles.band} data-part="band" style={{ background: bands.line }} />
         <span className={styles.band} data-part="band" style={{ background: bands.ink }} />
-        {ornament.motif !== 'none' ? (
-          <span
-            className={styles.motif}
-            data-part="motif"
-            style={{
-              backgroundColor: bands.lineStrong,
-              WebkitMaskImage: ornament.motif,
-              maskImage: ornament.motif,
-              WebkitMaskSize: previewTile(ornament.motifSize),
-              maskSize: previewTile(ornament.motifSize),
-            }}
-          />
-        ) : null}
+        <span
+          className={styles.motif}
+          data-part="motif"
+          style={{
+            backgroundColor: bands.lineStrong,
+            WebkitMaskImage: ornament.motif,
+            maskImage: ornament.motif,
+            WebkitMaskSize: previewTile(ornament.motifSize),
+            maskSize: previewTile(ornament.motifSize),
+          }}
+        />
       </span>
 
       <span className={styles.body}>
