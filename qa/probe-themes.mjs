@@ -17,7 +17,7 @@
  */
 import { chromium } from 'playwright';
 import { openApp } from './first-run.mjs';
-import { themeEndingIds } from './theme-ids.mjs';
+import { themeEndingIds, themeIds, themes } from './theme-ids.mjs';
 import { mkdir } from 'node:fs/promises';
 
 const arg = (flag, fallback) => {
@@ -66,25 +66,39 @@ console.log(`\n▸ ${URL}  @${WIDTH}×${HEIGHT}\n`);
  * correctly, which is CLAUDE.md failure mode 11 in its purest form: when a
  * probe disagrees with a unit test, suspect the probe.
  *
- * `COLLECTION_VERSION` is 3; if this drifts the app migrates it and the probe
- * reports zero unlocked themes, which is a loud failure rather than a quiet one.
+ * The seed is written at `COLLECTION_VERSION` as it stands (6,
+ * src/engine/constants.ts), `relicsResetAt` included, the same as
+ * `probe-ornament-spacing.mjs` and `shoot-themes.mjs`. Nothing here notices
+ * when the constant is bumped past it: `migrateCollection` salvages an older
+ * save without a word, and through v6 that keeps every field this probe reads.
+ * The loud case is a seed ABOVE `COLLECTION_VERSION`. The app takes that for a
+ * save from a newer build and starts an empty collection, and the first check
+ * below finds one selectable swatch where it expects every theme. (It used to
+ * ask for `pressed: false` buttons, which matches every button with no
+ * `aria-pressed` at all — 21 of 22 on that screen, empty collection or full.)
  */
-await page.addInitScript((endings) => {
-  if (localStorage.getItem('evil-wizard-sim:collection')) return;
-  localStorage.setItem(
-    'evil-wizard-sim:collection',
-    JSON.stringify({
-      version: 3,
-      discoveredArtifactIds: [],
-      endingsSeen: endings,
-      runsCompleted: 9,
-      bestNotoriety: 88,
-      tutorialSeen: true,
-      lastWizardName: 'Malvorn',
-      selectedThemeId: 'default',
-    }),
-  );
-}, themeEndingIds());
+const SEED_VERSION = 6;
+await page.addInitScript(
+  ([endings, version]) => {
+    if (localStorage.getItem('evil-wizard-sim:collection')) return;
+    localStorage.setItem(
+      'evil-wizard-sim:collection',
+      JSON.stringify({
+        version,
+        discoveredArtifactIds: [],
+        endingsSeen: endings,
+        runsCompleted: 9,
+        bestNotoriety: 88,
+        tutorialSeen: true,
+        lastWizardName: 'Malvorn',
+        selectedThemeId: 'default',
+        relicsResetAt: '9999',
+      }),
+    );
+  },
+  [themeEndingIds(), SEED_VERSION],
+);
+const THEME_COUNT = themeIds().length;
 
 await openApp(page, URL);
 
@@ -92,8 +106,17 @@ await openApp(page, URL);
 await page.getByRole('button', { name: /^Themes/ }).click();
 await page.waitForSelector('main');
 
-const unlocked = await page.getByRole('button', { pressed: false }).count();
-note(unlocked > 0, 'selector reachable from the title', `${unlocked} selectable swatches`);
+// Every ending is seen, so every swatch is a live control: the worn default
+// and every other theme. Read off the DOM: a locked swatch is disabled and has
+// no `aria-pressed`; an unlocked one has it, true or false.
+const selectable = await page.evaluate(
+  () => document.querySelectorAll('main div[class*="grid"] > button[aria-pressed]:not([disabled])').length,
+);
+note(
+  selectable === THEME_COUNT,
+  'selector reachable from the title, every theme unlocked',
+  `${selectable} selectable swatches of ${THEME_COUNT}`,
+);
 
 // --- layout on the reference device ------------------------------------------
 const layout = await page.evaluate(() => {
@@ -112,10 +135,10 @@ const layout = await page.evaluate(() => {
 
 note(layout.horizontalOverflow <= 0, 'no horizontal overflow', `${layout.horizontalOverflow}px`);
 note(layout.columns === 2, 'two-column grid at 393px', `${layout.columns} columns`);
-// One theme per ending plus the default. The EXACT set is pinned by
-// `themes.test.ts`; hard-coding today's count here is what left this probe
-// asserting "eight" against twenty themes. Only check that the grid is populated.
-note(layout.cardCount >= 8, 'a swatch for every theme', `${layout.cardCount} cards`);
+// One swatch per theme, counted against `THEMES` itself (qa/theme-ids.mjs),
+// never against a number typed here: a typed "eight" is what left this probe
+// passing a grid of twenty without noticing twelve were new.
+note(layout.cardCount === THEME_COUNT, 'a swatch for every theme', `${layout.cardCount} cards for ${THEME_COUNT} themes`);
 note(
   layout.minCardHeight >= 44,
   'every swatch clears the 44px touch floor',
@@ -267,26 +290,41 @@ await page.screenshot({ path: `${OUT}/themes-creation-themed.png` });
 console.log(`  shot  ${OUT}/themes-creation-themed.png`);
 
 // --- the locked state, which is what a real new player sees ------------------
-await page.evaluate(() => {
-  localStorage.setItem(
-    'evil-wizard-sim:collection',
-    JSON.stringify({
-      version: 3,
-      discoveredArtifactIds: [],
-      endingsSeen: ['retired_to_swamp'],
-      runsCompleted: 1,
-      bestNotoriety: 22,
-      tutorialSeen: true,
-      lastWizardName: 'Malvorn',
-      selectedThemeId: 'default',
-    }),
-  );
-});
+// One ending seen. Its theme and the default are the only names the selector
+// may print; every other theme's name is a secret, read off `THEMES`
+// (qa/theme-ids.mjs) rather than hand-listed, so a theme added tomorrow is
+// checked tomorrow.
+const EARNED = 'retired_to_swamp';
+const ALL_THEMES = themes();
+const shown = ALL_THEMES.filter((t) => t.endingId === null || t.endingId === EARNED).map((t) => t.name);
+const secret = ALL_THEMES.map((t) => t.name).filter((name) => !shown.includes(name));
+if (shown.length !== 2) {
+  throw new Error(`probe-themes: expected the default and ${EARNED}'s theme to be open, found ${shown.join(', ') || 'none'}`);
+}
+await page.evaluate(
+  ([earned, version]) => {
+    localStorage.setItem(
+      'evil-wizard-sim:collection',
+      JSON.stringify({
+        version,
+        discoveredArtifactIds: [],
+        endingsSeen: [earned],
+        runsCompleted: 1,
+        bestNotoriety: 22,
+        tutorialSeen: true,
+        lastWizardName: 'Malvorn',
+        selectedThemeId: 'default',
+        relicsResetAt: '9999',
+      }),
+    );
+  },
+  [EARNED, SEED_VERSION],
+);
 await openApp(page, URL);
 await page.getByRole('button', { name: /^Themes/ }).click();
 await page.waitForTimeout(150);
 
-const locked = await page.evaluate(() => {
+const locked = await page.evaluate((secret) => {
   const cards = [...document.querySelectorAll('main div[class*="grid"] > button')];
   return {
     total: cards.length,
@@ -295,11 +333,20 @@ const locked = await page.evaluate(() => {
     // the name; the hint is the only real text on it.
     withHintText: cards.filter((c) => c.disabled && (c.textContent ?? '').trim().length > 12)
       .length,
-    namesLeaked: cards
-      .filter((c) => c.disabled)
-      .some((c) => /Cold Room|Amethyst|Wrong Colour|The Sword/.test(c.textContent ?? '')),
+    // What it prints AND what a screen reader announces. Case-sensitive, as a
+    // name is printed: "good ground" in a hint is a hint, "Good Ground" a name.
+    namesLeaked: [
+      ...new Set(
+        cards
+          .filter((c) => c.disabled)
+          .flatMap((c) => {
+            const said = `${c.textContent ?? ''}\n${c.getAttribute('aria-label') ?? ''}\n${c.getAttribute('title') ?? ''}`;
+            return secret.filter((name) => said.includes(name));
+          }),
+      ),
+    ],
   };
-});
+}, secret);
 
 // A one-ending player has the default and that ending's theme; the rest are
 // locked. Structural, not a count, for the reason above.
@@ -313,7 +360,11 @@ note(
   'every locked swatch still shows its ending hint',
   `${locked.withHintText}/${locked.disabled}`,
 );
-note(!locked.namesLeaked, 'no locked theme leaks its name');
+note(
+  locked.namesLeaked.length === 0,
+  'no locked theme leaks its name',
+  locked.namesLeaked.length ? `printed: ${locked.namesLeaked.join(', ')}` : `${secret.length} names checked`,
+);
 
 await page.screenshot({ path: `${OUT}/themes-selector-locked.png` });
 console.log(`  shot  ${OUT}/themes-selector-locked.png`);

@@ -63,6 +63,29 @@ const MIN_CLEARANCE = 4;
  * declaration on one line, exactly as it is.
  */
 const DRAWN = 24;
+/*
+ * PIXEL_CENTRE — where a drawn pixel is, for measuring.
+ *
+ * A screenshot pixel is a square, one device pixel on a side; the content it is
+ * measured against is a DOM rect at fractional CSS px. The probe used to place
+ * each drawn pixel at its top-left corner, and that error is lopsided. An edge
+ * mark whose inner edge lands on a half pixel antialiases into a half-covered
+ * row; the row clears DRAWN, and its top-left corner sits half a pixel nearer
+ * to content above it or to its left than the mark does. Marks that reach
+ * exactly 4px in (Assets Realised, The Final Number) read "3.5px from rail" in
+ * one run of three, depending only on where the card happened to fall. The
+ * same corner sits up to a whole pixel too far from content below it or to its
+ * right, which is how the standings rule's glyph under Ordinary Weather, about
+ * 3.9px above the next line of text at 393 wide, read 4.3 and passed.
+ *
+ * So a pixel is placed at its centre, `(i + 0.5) / scale` CSS px from the
+ * clip's origin. A half-covered antialiased row then reads exactly where the
+ * mark's edge is, and any pixel is off by at most half a pixel, the same in
+ * every direction. That half pixel (`0.5 / scale`, 0.5 CSS px at the scale of
+ * 1 used here) is the probe's resolution: a clearance it prints is good to
+ * about ±0.5px, so it cannot tell 3.8 from 4.0, and MIN_CLEARANCE is applied
+ * to the centre reading as it is, with no slack added for it.
+ */
 
 // Read off `THEMES` in src/theme/themes.ts, never hand-copied: a copy drifts.
 const ALL_THEMES = themeIds();
@@ -78,9 +101,19 @@ const findings = [];
 const worst = new Map();
 let measured = 0;
 
+/*
+ * `--disable-partial-raster`: step 3 above assumes the ornament is the ONLY
+ * thing that differs between the two shots. With partial raster on, Chromium
+ * re-rasters just the rect the switched-off glyph dirtied and patches it into
+ * the old tile, and the patch does not match a whole-tile raster: under the
+ * real webfonts, the standings toggle's chevron, 30px above the glyph, moved
+ * by 35 levels in one pixel and read as "1 ornament px ON toggle" in every
+ * run. Rastering whole tiles takes the chevron back out of the diff.
+ */
 const browser = await chromium.launch({
   headless: true,
   executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined,
+  args: ['--disable-partial-raster'],
 });
 
 /**
@@ -156,8 +189,9 @@ async function measure(page, handle, { size, kind, theme, index }, { extend = 0,
       for (let i = 0; i < da.length; i += 4) {
         const d = Math.max(Math.abs(da[i] - db[i]), Math.abs(da[i + 1] - db[i + 1]), Math.abs(da[i + 2] - db[i + 2]));
         if (d >= drawn) {
+          // The pixel's CENTRE, not its top-left corner. See PIXEL_CENTRE.
           const p = i / 4;
-          pts.push([clip.x + (p % canvas.width) / scale, clip.y + Math.floor(p / canvas.width) / scale]);
+          pts.push([clip.x + ((p % canvas.width) + 0.5) / scale, clip.y + (Math.floor(p / canvas.width) + 0.5) / scale]);
         }
       }
 
@@ -232,8 +266,12 @@ async function measureAll(page, selector, where, opts, limit = Infinity) {
   return handles.length;
 }
 
-for (const size of ONLY) {
-  const [width, height] = SIZES[size];
+/**
+ * A fresh context whose collection has seen `endings`, opened on the title.
+ * The seed is written ONLY IF ABSENT: `addInitScript` runs before every
+ * navigation, and the Necrolexicon pass re-opens the app mid-context.
+ */
+async function seeded(width, height, endings) {
   const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1, reducedMotion: 'reduce' });
   const page = await context.newPage();
   await page.addInitScript((endings) => {
@@ -252,29 +290,91 @@ for (const size of ONLY) {
         relicsResetAt: '9999',
       }),
     );
-  }, ENDINGS.slice(0, 9));
+  }, endings);
   await openApp(page, URL);
   await page.mouse.move(1, 1);
-  console.log(`\n▸ ${width}×${height}`);
+  return { context, page };
+}
 
-  // --- the theme picker: does each swatch's glyph sit on its name's first line?
+/**
+ * Does each swatch's glyph sit where the selector puts it?
+ *
+ * A locked swatch withholds its glyph along with its name, so this runs in a
+ * collection that has seen EVERY ending: under the run's own nine-ending seed
+ * it found ten glyphs of twenty and called the selector measured. The count
+ * is asserted, so a swatch that stops drawing its glyph is a finding rather
+ * than a smaller number nobody reads.
+ *
+ * Two layouts are right (ThemeSwatch.module.css, `.name`): the glyph beside the
+ * name, centred on its FIRST line and clear of its first letter; or, when the
+ * name's longest word cannot fit beside it, the glyph on a line of its own with
+ * the name starting below it. Each worn theme is measured, because the name is
+ * set in the WORN room's display face (one theme changes it), not the
+ * previewed one's.
+ */
+async function measureSwatches(size, width, height) {
+  const { context, page } = await seeded(width, height, ENDINGS);
   await page.getByRole('button', { name: /^Themes/ }).click();
   await page.waitForTimeout(150);
-  const swatchGlyphs = await page.evaluate(() =>
-    [...document.querySelectorAll('[data-part="glyph"]')].map((g) => {
-      const name = g.parentElement;
-      const range = document.createRange();
-      range.selectNodeContents(name.lastChild);
-      const first = range.getClientRects()[0];
-      const gr = g.getBoundingClientRect();
-      return { name: name.textContent, off: (gr.top + gr.bottom) / 2 - (first.top + first.bottom) / 2, gap: first.left - gr.right };
-    }),
-  );
-  for (const s of swatchGlyphs) {
-    if (Math.abs(s.off) > 2 || s.gap < 3) findings.push(`${size} swatch "${s.name}": glyph ${s.off.toFixed(1)}px off its first line, ${s.gap.toFixed(1)}px from the name`);
+  let beside = 0;
+  let above = 0;
+  for (const theme of THEMES) {
+    await wear(page, theme);
+    const swatchGlyphs = await page.evaluate(() =>
+      [...document.querySelectorAll('[data-part="glyph"]')].map((g) => {
+        const name = g.parentElement;
+        const text = name.lastChild;
+        const range = document.createRange();
+        range.selectNodeContents(text);
+        const first = range.getClientRects()[0];
+        const gr = g.getBoundingClientRect();
+        // The name's own box starts at the top of its first LINE BOX. The text
+        // rect above starts at the top of the font's content area, which in a
+        // face with tall ascenders (DejaVu, the fallback here when Google Fonts
+        // cannot load) spills past a 1.15 line box by about a pixel — so it
+        // would read a cleanly dropped name as overlapping the glyph. A name
+        // that is bare text, with no box of its own, cannot drop at all.
+        const lineTop = text.nodeType === Node.ELEMENT_NODE ? text.getBoundingClientRect().top : first.top;
+        return {
+          name: name.textContent,
+          // Dropped: the name's first line starts below the glyph's middle,
+          // so the glyph has a line to itself. Whether it is clear of the
+          // name is then `below`, checked by the caller.
+          dropped: lineTop > (gr.top + gr.bottom) / 2,
+          off: (gr.top + gr.bottom) / 2 - (first.top + first.bottom) / 2,
+          gap: first.left - gr.right,
+          below: lineTop - gr.bottom,
+        };
+      }),
+    );
+    if (swatchGlyphs.length !== ALL_THEMES.length) {
+      findings.push(`${size} swatches · ${theme}: ${swatchGlyphs.length} glyphs for ${ALL_THEMES.length} themes, every one of them unlocked`);
+    }
+    for (const s of swatchGlyphs) {
+      if (s.dropped) {
+        above++;
+        // Layout positions are in 1/64 px; anything under a tenth is rounding.
+        if (s.below < -0.1) findings.push(`${size} swatch "${s.name}" · ${theme}: glyph on its own line overlaps the name by ${(-s.below).toFixed(1)}px`);
+      } else {
+        beside++;
+        if (Math.abs(s.off) > 2 || s.gap < 3) findings.push(`${size} swatch "${s.name}" · ${theme}: glyph ${s.off.toFixed(1)}px off its first line, ${s.gap.toFixed(1)}px from the name`);
+      }
+    }
   }
-  console.log(`  swatches   ${swatchGlyphs.length} glyphs checked against their names`);
-  await page.getByRole('button', { name: /back/i }).first().click();
+  console.log(`  swatches   ${beside + above} glyphs under ${THEMES.length} worn theme(s): ${beside} beside the name's first line, ${above} on a line of their own`);
+  await context.close();
+}
+
+for (const size of ONLY) {
+  const [width, height] = SIZES[size];
+  console.log(`\n▸ ${width}×${height}`);
+
+  // --- the theme picker, every swatch unlocked
+  await measureSwatches(size, width, height);
+
+  // Everything else runs in a collection that has seen nine endings, not all:
+  // the Necrolexicon pass below needs unseen ending slots to measure.
+  const { context, page } = await seeded(width, height, ENDINGS.slice(0, 9));
 
   // --- the run screen
   await page.getByRole('button', { name: /begin a career/i }).click();

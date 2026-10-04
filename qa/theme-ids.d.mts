@@ -3,6 +3,11 @@
 // never compiled; this file is only here for that one import.
 export declare const THEMES_SOURCE: string;
 export declare function parseThemeIds(source: string): string[];
+export declare function parseThemeNames(source: string): string[];
 export declare function parseThemeEndingIds(source: string): string[];
+export type QaTheme = { id: string; name: string; endingId: string | null };
+export declare function parseThemes(source: string): QaTheme[];
 export declare function themeIds(): string[];
+export declare function themeNames(): string[];
 export declare function themeEndingIds(): string[];
+export declare function themes(): QaTheme[];

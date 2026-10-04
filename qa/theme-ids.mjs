@@ -9,13 +9,13 @@
  *
  * It is a parser, and a parser can be wrong quietly, so it is not its own
  * judge: `src/theme/qaThemeIds.test.ts` imports the real `THEMES` and asserts
- * this returns exactly its ids, in order (CLAUDE.md failure mode 11). What the
- * parser relies on is the shape prettier keeps `THEMES` in: one object per
- * theme, opened at two spaces of indent, with its own `id` and `endingId` as
- * four-space fields. A field nested deeper (an `ornament`, a `surface`) is at
- * six and is never read.
+ * this returns exactly its ids, names and endings, in order (CLAUDE.md failure
+ * mode 11). What the parser relies on is the shape `THEMES` is written in (by
+ * hand: the repo runs no formatter): one object per theme, opened at two spaces of indent, with its own `id`,
+ * `name` and `endingId` as four-space fields. A field nested deeper (an
+ * `ornament`, a `surface`) is at six and is never read.
  *
- *   import { themeIds, themeEndingIds } from './theme-ids.mjs';
+ *   import { themeIds, themeNames, themeEndingIds, themes } from './theme-ids.mjs';
  */
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -33,7 +33,8 @@ function themesArray(source) {
 }
 
 function field(source, pattern, what) {
-  const found = [...themesArray(source).matchAll(pattern)].map((m) => m[1]);
+  // The first group that matched: a pattern may offer two quote styles.
+  const found = [...themesArray(source).matchAll(pattern)].map((m) => m.slice(1).find((g) => g !== undefined));
   if (found.length === 0) {
     throw new Error(`theme-ids: found no THEMES entry ${what} in ${THEMES_SOURCE} — has its layout changed?`);
   }
@@ -46,6 +47,16 @@ export function parseThemeIds(source) {
 }
 
 /**
+ * Every theme's display `name`, in `THEMES` order — the words a locked swatch
+ * must never print. A name with an apostrophe in it would be written in double
+ * quotes, so both quote styles are read; one written with an escaped quote
+ * (`'Wizard\'s Den'`) is not, and `qaThemeIds.test.ts` fails on it.
+ */
+export function parseThemeNames(source) {
+  return field(source, /^ {4}name: (?:'([^']+)'|"([^"]+)"),$/gm, '`name`');
+}
+
+/**
  * The ending each earned theme is unlocked by, in `THEMES` order — what a
  * probe seeds `endingsSeen` with to open the whole selector. The default theme
  * (`endingId: null`) has none and is not in it.
@@ -54,7 +65,29 @@ export function parseThemeEndingIds(source) {
   return field(source, /^ {4}endingId: '([^']+)',$/gm, '`endingId`');
 }
 
+/**
+ * Every theme as `{ id, name, endingId }`, in `THEMES` order, with the default
+ * theme's `endingId` as `null` — for a probe that has to know WHICH theme an
+ * ending unlocks, not just that it unlocks one. The three fields are read as
+ * three lists and zipped, so it throws unless every entry has all three: a
+ * missing line would otherwise pair every theme after it with its neighbour's
+ * name.
+ */
+export function parseThemes(source) {
+  const ids = parseThemeIds(source);
+  const names = parseThemeNames(source);
+  const endings = [...themesArray(source).matchAll(/^ {4}endingId: (?:'([^']+)'|null),$/gm)].map((m) => m[1] ?? null);
+  if (names.length !== ids.length || endings.length !== ids.length) {
+    throw new Error(
+      `theme-ids: ${ids.length} ids, ${names.length} names and ${endings.length} endingIds in ${THEMES_SOURCE} — every THEMES entry needs one line of each`,
+    );
+  }
+  return ids.map((id, i) => ({ id, name: names[i], endingId: endings[i] }));
+}
+
 const read = () => readFileSync(THEMES_SOURCE, 'utf8');
 
 export const themeIds = () => parseThemeIds(read());
+export const themeNames = () => parseThemeNames(read());
 export const themeEndingIds = () => parseThemeEndingIds(read());
+export const themes = () => parseThemes(read());

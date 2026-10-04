@@ -40,6 +40,22 @@ console.log(`  ${ALL.length} themes in src/theme/themes.ts; shooting ${THEMES.le
 
 await mkdir(OUT, { recursive: true });
 const problems = [];
+
+/**
+ * Screenshot with the pointer parked in the corner. Every shot here follows a
+ * click, and the pointer stays where it clicked: where "Begin the career" was
+ * is over a choice card whenever the first era's cards reach that far down,
+ * and that card was photographed in its hover state — a different fill, and
+ * on a trimmed card a different trim. `probe-ornament-spacing.mjs` parks it
+ * the same way before it measures. The wait outlasts the hover-out
+ * transition (`--ew-base`, 220ms).
+ */
+async function shoot(page, options) {
+  await page.mouse.move(1, 1);
+  await page.waitForTimeout(300);
+  await page.screenshot(options);
+}
+
 const browser = await chromium.launch({
   headless: true,
   executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined,
@@ -77,12 +93,12 @@ for (const [i, theme] of THEMES.entries()) {
 
   const worn = await page.evaluate(() => document.querySelector('main')?.getAttribute('data-theme'));
   if ((worn ?? 'default') !== theme) problems.push(`${theme}: title wears ${worn ?? 'default'}`);
-  await page.screenshot({ path: `${prefix}-title.png` });
+  await shoot(page, { path: `${prefix}-title.png` });
 
   if (i === 0) {
     await page.getByRole('button', { name: /^Themes/ }).click();
     await page.waitForTimeout(300);
-    await page.screenshot({ path: `${OUT}/selector.png`, fullPage: true });
+    await shoot(page, { path: `${OUT}/selector.png`, fullPage: true });
     await page.getByRole('button', { name: /back/i }).first().click();
     await page.waitForTimeout(200);
   }
@@ -93,7 +109,7 @@ for (const [i, theme] of THEMES.entries()) {
   await page.waitForTimeout(500);
   await dismissFirstRunGuide(page);
   await page.waitForTimeout(400);
-  await page.screenshot({ path: `${prefix}-run.png` });
+  await shoot(page, { path: `${prefix}-run.png` });
   console.log(`  shot  ${prefix}-{title,run}.png`);
   await context.close();
 }
