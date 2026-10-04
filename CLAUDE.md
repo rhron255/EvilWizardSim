@@ -234,13 +234,19 @@ that followed it.
    undefined custom property invalidates the whole `background` declaration
    and the card renders transparent. See `OptionCard.module.css`.
    **Ornament keeps `--ew-space-1` (4px) from content.** Corner glyphs sit in
-   the card's corner itself, and a trim keeps to the outer 4px of a card and
-   runs only between the corner glyphs, 12px in (`edgeRule` in `themes.ts`).
-   Those numbers come from the tightest card in the game — OptionCard at phone
-   width, 8px × 12px of padding — whose height the fold budget will not let
-   grow. `node qa/probe-ornament-spacing.mjs` measures every theme's ornament
-   against every keycap, rail and line of text, at 393, 320 and 1280 wide;
-   run it after touching a trim, a glyph, or a card's padding.
+   the card's corner itself. A trim layer is one of two kinds, split by the
+   probe's `DRAWN` (some channel moved 24 levels over the panel). A *mark* — a
+   rule, a hem, a facet — is drawn that hard, so it is held by geometry: an
+   edge band in the outer 4px running only between the corner glyphs, 12px in
+   (`edgeBand` in `themes.ts`), or a corner square of at most 12px
+   (`cornerMark`). A *wash* — a soft tint — stays under `DRAWN` and may sit
+   behind text, so the ink must still clear the panel contrast floor over it.
+   `themes.test.ts` sorts every layer and asserts both. The numbers come from
+   the tightest card in the game — OptionCard at phone width, 8px × 12px of
+   padding — whose height the fold budget will not let grow.
+   `node qa/probe-ornament-spacing.mjs` measures every theme's glyphs and
+   marks against every keycap, rail and line of text, at 393, 320 and 1280
+   wide; run it after touching a trim, a glyph, or a card's padding.
 
 ## Failure modes this repo has actually produced
 

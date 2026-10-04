@@ -258,7 +258,10 @@ export const ornament = {
   pip: shapeRef('star'),
   /**
    * Extra background layers drawn over a card's own surface — a hairline, a
-   * perforation, a double rule. `none` for a plain card.
+   * perforation, a double rule. `none` for a plain card. Each layer is a MARK
+   * (held to the card's edge band or a corner square) or a WASH (held below
+   * the ornament probe's drawn threshold, with the ink still on its panel
+   * floor over it); see `CORNER_CLEAR` in `themes.ts`.
    */
   trim: 'none',
 } as const;

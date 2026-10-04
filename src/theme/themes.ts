@@ -156,20 +156,48 @@ export type ThemeDef = {
  * Where a card trim may draw. Measured, not guessed
  * (`qa/probe-ornament-spacing.mjs`): the tightest card padding in the game is
  * OptionCard's 8px × 12px at phone width, and nothing decorative may come
- * within `--ew-space-1` (4px) of a card's content. So an edge trim keeps to the
- * outer 4px of the card, and runs only BETWEEN the two corner glyphs — each
- * 8px, plus the same 4px — which is 12px in from either side.
+ * within `--ew-space-1` (4px) of a card's content. A trim layer is one of two
+ * kinds, told apart by how hard it is drawn — the probe's `DRAWN`, a move of
+ * 24 levels in some channel over the panel:
+ *
+ * - A MARK is drawn at least that hard, so it must keep out of the content's
+ *   way by geometry. An edge mark keeps to the outer 4px of the card and runs
+ *   only BETWEEN the corner glyphs — each 8px, plus the same 4px, so
+ *   `CORNER_CLEAR` in from either end (`edgeRule`, `edgeBand`). A corner mark
+ *   stays inside the `CORNER_CLEAR` square the glyph itself sits in
+ *   (`cornerMark`).
+ * - A WASH is a soft tint that may sit behind text, so it is held by strength
+ *   instead: no channel moved by `DRAWN` or more, and the ink still clearing
+ *   the panel's contrast floor over it at its strongest stop.
+ *
+ * `themes.test.ts` sorts every layer of every trim into one kind or the other
+ * and asserts both.
  */
 const CORNER_CLEAR = 12;
-const BETWEEN_CORNERS = `left ${CORNER_CLEAR}px`;
 const SPAN = `calc(100% - ${CORNER_CLEAR * 2}px)`;
 
 /**
- * A solid rule, `px` thick, `offset` px in from the top or bottom edge, laid
- * between the corner glyphs. Colour is a surface token, or a mix of one.
+ * Any image as an edge mark: `px` thick, `offset` px in from one edge, laid
+ * between the corner glyphs. Top and bottom bands run across the card, left
+ * and right bands down it. `offset + px` may not pass 4 — the outer band.
  */
-function edgeRule(edge: 'top' | 'bottom', offset: number, px = 1, colour = 'var(--ew-line-strong)') {
-  return `linear-gradient(${colour}, ${colour}) ${BETWEEN_CORNERS} ${edge} ${offset}px / ${SPAN} ${px}px no-repeat`;
+function edgeBand(image: string, edge: 'top' | 'bottom' | 'left' | 'right', offset: number, px: number) {
+  return edge === 'top' || edge === 'bottom'
+    ? `${image} left ${CORNER_CLEAR}px ${edge} ${offset}px / ${SPAN} ${px}px no-repeat`
+    : `${image} ${edge} ${offset}px top ${CORNER_CLEAR}px / ${px}px ${SPAN} no-repeat`;
+}
+
+/**
+ * A solid rule as an edge mark (`edgeBand`). Colour is a surface token, or a
+ * mix of one.
+ */
+function edgeRule(edge: 'top' | 'bottom' | 'left' | 'right', offset: number, px = 1, colour = 'var(--ew-line-strong)') {
+  return edgeBand(`linear-gradient(${colour}, ${colour})`, edge, offset, px);
+}
+
+/** Any image as a corner mark, confined to the corner square its glyph sits in. */
+function cornerMark(image: string, corner: `${'top' | 'bottom'} ${'left' | 'right'}`) {
+  return `${image} ${corner} / ${CORNER_CLEAR}px ${CORNER_CLEAR}px no-repeat`;
 }
 
 /** `default` first; the rest follow the ending order in `src/content/endings.ts`. */
@@ -218,7 +246,12 @@ export const THEMES: ThemeDef[] = [
         'radial-gradient(90% 55% at 50% -10%, rgba(255, 228, 220, 0.05), transparent 68%), linear-gradient(115deg, transparent 42%, rgba(255, 240, 236, 0.025) 50%, transparent 58%)',
       ...wallpaper('swords', 0.14),
       pip: shapeRef('hilt'),
-      trim: 'linear-gradient(90deg, transparent, color-mix(in srgb, var(--ew-ink-bright) 55%, transparent) 50%, transparent) top / 100% 1px no-repeat',
+      trim: edgeBand(
+        'linear-gradient(90deg, transparent, color-mix(in srgb, var(--ew-ink-bright) 55%, transparent) 50%, transparent)',
+        'top',
+        0,
+        1,
+      ),
     },
   },
 
@@ -262,7 +295,12 @@ export const THEMES: ThemeDef[] = [
         'radial-gradient(60% 40% at 28% -8%, rgba(216, 198, 255, 0.055), transparent 66%), radial-gradient(52% 38% at 74% -4%, rgba(178, 156, 224, 0.04), transparent 62%)',
       ...wallpaper('facets', 0.14),
       pip: shapeRef('gem'),
-      trim: 'linear-gradient(135deg, color-mix(in srgb, var(--ew-line-strong) 40%, transparent) 0 9px, transparent 9px) top left / 18px 18px no-repeat, linear-gradient(315deg, color-mix(in srgb, var(--ew-line-strong) 40%, transparent) 0 9px, transparent 9px) bottom right / 18px 18px no-repeat',
+      // Each facet is a right triangle with legs of about 11px, inside the corner
+      // square its glyph sits in.
+      trim: [
+        cornerMark('linear-gradient(135deg, color-mix(in srgb, var(--ew-line-strong) 40%, transparent) 0 8px, transparent 8px)', 'top left'),
+        cornerMark('linear-gradient(315deg, color-mix(in srgb, var(--ew-line-strong) 40%, transparent) 0 8px, transparent 8px)', 'bottom right'),
+      ].join(', '),
     },
   },
 
@@ -343,7 +381,7 @@ export const THEMES: ThemeDef[] = [
       light: 'radial-gradient(90% 55% at 50% -10%, rgba(214, 224, 255, 0.05), transparent 68%)',
       ...wallpaper('frost', 0.34),
       pip: shapeRef('snowflake'),
-      trim: 'linear-gradient(180deg, color-mix(in srgb, var(--ew-ink-bright) 6%, transparent), transparent 10px)',
+      trim: 'linear-gradient(180deg, color-mix(in srgb, var(--ew-ink-bright) 5%, transparent), transparent 10px)',
     },
   },
 
@@ -448,7 +486,16 @@ export const THEMES: ThemeDef[] = [
         'radial-gradient(120% 70% at 50% -22%, rgba(180, 255, 236, 0.055), transparent 74%), radial-gradient(80% 50% at 50% 104%, rgba(120, 220, 200, 0.025), transparent 70%)',
       ...wallpaper('stars', 0.12),
       pip: shapeRef('sparkle'),
-      trim: 'radial-gradient(70% 100% at 50% 0%, color-mix(in srgb, var(--ew-line-strong) 28%, transparent), transparent) top / 100% 16px no-repeat',
+      // The light from outside the frame catches the top edge of every card.
+      // It was a 16px glow over the card's first line, which cost the ink
+      // three points of contrast; drawn as a mark in the edge band instead,
+      // it keeps clear of the text rather than dimming it.
+      trim: edgeBand(
+        'radial-gradient(70% 100% at 50% 0%, color-mix(in srgb, var(--ew-line-strong) 50%, transparent), transparent)',
+        'top',
+        0,
+        3,
+      ),
     },
   },
 
@@ -499,7 +546,7 @@ export const THEMES: ThemeDef[] = [
       // and a round one are the same thing, and a repeating stripe can be
       // bounded between the corners where a tiled dot cannot.
       trim: [1, 1]
-        .map((offset, i) => `repeating-linear-gradient(90deg, var(--ew-void) 0 2px, transparent 2px 6px) ${BETWEEN_CORNERS} ${i ? 'bottom' : 'top'} ${offset}px / ${SPAN} 2px no-repeat`)
+        .map((offset, i) => edgeBand('repeating-linear-gradient(90deg, var(--ew-void) 0 2px, transparent 2px 6px)', i ? 'bottom' : 'top', offset, 2))
         .join(', '),
     },
   },
@@ -534,7 +581,12 @@ export const THEMES: ThemeDef[] = [
       light: 'radial-gradient(90% 55% at 50% -10%, rgba(220, 240, 230, 0.025), transparent 68%)',
       ...wallpaper('hatch', 0.22),
       pip: shapeRef('nil'),
-      trim: `repeating-linear-gradient(-45deg, color-mix(in srgb, var(--ew-line-strong) 45%, transparent) 0 1px, transparent 1px 6px) ${BETWEEN_CORNERS} bottom 0 / ${SPAN} 4px no-repeat`,
+      trim: edgeBand(
+        'repeating-linear-gradient(-45deg, color-mix(in srgb, var(--ew-line-strong) 45%, transparent) 0 1px, transparent 1px 6px)',
+        'bottom',
+        0,
+        4,
+      ),
     },
   },
 
@@ -606,7 +658,12 @@ export const THEMES: ThemeDef[] = [
       light: 'radial-gradient(80% 60% at 92% 6%, rgba(224, 190, 200, 0.045), transparent 70%)',
       ...wallpaper('border', 0.26),
       pip: shapeRef('pennant'),
-      trim: `linear-gradient(90deg, var(--ew-line-strong) 0 38%, transparent 38% 62%, var(--ew-line-strong) 62%) ${BETWEEN_CORNERS} top 0 / ${SPAN} 1px no-repeat`,
+      trim: edgeBand(
+        'linear-gradient(90deg, var(--ew-line-strong) 0 38%, transparent 38% 62%, var(--ew-line-strong) 62%)',
+        'top',
+        0,
+        1,
+      ),
     },
   },
 
@@ -748,7 +805,7 @@ export const THEMES: ThemeDef[] = [
       light: 'radial-gradient(70% 50% at 50% -10%, rgba(220, 232, 255, 0.06), transparent 70%)',
       ...wallpaper('diagram', 0.14),
       pip: shapeRef('eye'),
-      trim: 'linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) left 6px top 16px / 1px calc(100% - 32px) no-repeat',
+      trim: edgeRule('left', 2),
     },
   },
 
@@ -759,7 +816,7 @@ export const THEMES: ThemeDef[] = [
     blurb: 'Gold-green, the colour of a grove that voted without meeting.',
     // Verdant Choir, paired with `turned_to_fertilizer`: leaf green (132°),
     // the living half of the pair. Growth, not light — the gradient rises from
-    // the bottom edge, and moss creeps up the foot of every card; leaves on
+    // the bottom edge, and moss grows along the foot of every card; leaves on
     // the wind across the walls.
     surface: {
       void: '#091601',
@@ -780,7 +837,9 @@ export const THEMES: ThemeDef[] = [
       light: 'radial-gradient(85% 60% at 50% 108%, rgba(150, 224, 160, 0.05), transparent 70%)',
       ...wallpaper('leaves', 0.19),
       pip: shapeRef('acorn'),
-      trim: 'linear-gradient(0deg, color-mix(in srgb, var(--ew-line-strong) 16%, transparent), transparent 14px)',
+      // Moss along the foot of every card, in the edge band: a 14px tint
+      // under the last line of text cost the ink a point of contrast.
+      trim: edgeBand('linear-gradient(0deg, color-mix(in srgb, var(--ew-line-strong) 50%, transparent), transparent)', 'bottom', 0, 4),
     },
   },
 
@@ -900,7 +959,14 @@ export const THEMES: ThemeDef[] = [
         'radial-gradient(60% 40% at 50% -6%, rgba(255, 222, 236, 0.03), transparent 70%), radial-gradient(90% 55% at 50% -10%, rgba(236, 220, 255, 0.03), transparent 68%)',
       ...wallpaper('candles', 0.11),
       pip: shapeRef('flame'),
-      trim: 'radial-gradient(50% 100% at 50% 0%, color-mix(in srgb, var(--ew-line-strong) 24%, transparent), transparent) top / 100% 14px no-repeat',
+      // The candle's glow on the top edge of every card, in the edge band
+      // rather than over the text, for the same reason as Wrong Colour's.
+      trim: edgeBand(
+        'radial-gradient(50% 100% at 50% 0%, color-mix(in srgb, var(--ew-line-strong) 50%, transparent), transparent)',
+        'top',
+        0,
+        3,
+      ),
     },
   },
 ];

@@ -108,7 +108,10 @@
        --ew-motif-opacity  how strongly it is drawn — capped, with --ew-light, so
                            text on the bare room reads as well as in this one
        --ew-pip            glyph at card corners and in section rules
-       --ew-trim           background layer(s) over a card's own surface, or none */
+       --ew-trim           background layer(s) over a card's own surface, or none:
+                           a mark (a rule, a hem) keeps to the outer 4px between
+                           the corner glyphs or to a corner's 12px square; a
+                           wash (a soft tint) stays faint enough to read over */
   --ew-light: radial-gradient(90% 55% at 50% -10%, rgba(255, 246, 224, 0.045), transparent 68%);
   --ew-motif: var(--ew-shape-masonry);
   --ew-motif-size: 96px 48px;
@@ -168,7 +171,7 @@
   --ew-motif-size: 120px 120px;
   --ew-motif-opacity: 0.14;
   --ew-pip: var(--ew-shape-hilt);
-  --ew-trim: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ew-ink-bright) 55%, transparent) 50%, transparent) top / 100% 1px no-repeat;
+  --ew-trim: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ew-ink-bright) 55%, transparent) 50%, transparent) left 12px top 0px / calc(100% - 24px) 1px no-repeat;
 }
 
 /* Amethyst — the Academy's violet, seen from inside the stone. The most
@@ -193,7 +196,7 @@
   --ew-motif-size: 40px 70px;
   --ew-motif-opacity: 0.14;
   --ew-pip: var(--ew-shape-gem);
-  --ew-trim: linear-gradient(135deg, color-mix(in srgb, var(--ew-line-strong) 40%, transparent) 0 9px, transparent 9px) top left / 18px 18px no-repeat, linear-gradient(315deg, color-mix(in srgb, var(--ew-line-strong) 40%, transparent) 0 9px, transparent 9px) bottom right / 18px 18px no-repeat;
+  --ew-trim: linear-gradient(135deg, color-mix(in srgb, var(--ew-line-strong) 40%, transparent) 0 8px, transparent 8px) top left / 12px 12px no-repeat, linear-gradient(315deg, color-mix(in srgb, var(--ew-line-strong) 40%, transparent) 0 8px, transparent 8px) bottom right / 12px 12px no-repeat;
 }
 
 /* New Management — the same stone walls as the Tower, redecorated in khaki
@@ -246,7 +249,7 @@
   --ew-motif-size: 100px 100px;
   --ew-motif-opacity: 0.34;
   --ew-pip: var(--ew-shape-snowflake);
-  --ew-trim: linear-gradient(180deg, color-mix(in srgb, var(--ew-ink-bright) 6%, transparent), transparent 10px);
+  --ew-trim: linear-gradient(180deg, color-mix(in srgb, var(--ew-ink-bright) 5%, transparent), transparent 10px);
 }
 
 /* Peat — the warmest and softest room: true brown, every radius one step
@@ -305,7 +308,8 @@
 
 /* Wrong Colour — a teal with no red left in it. The only theme permitted a
    second light source, the first sitting ABOVE the frame: light arriving
-   from outside the room. A sky that is not this one on the walls. */
+   from outside the room, caught on the top edge of every card. A sky that
+   is not this one on the walls. */
 [data-theme='ascension'] {
   --ew-void: #001717;
   --ew-panel: #012424;
@@ -325,7 +329,7 @@
   --ew-motif-size: 110px 110px;
   --ew-motif-opacity: 0.12;
   --ew-pip: var(--ew-shape-sparkle);
-  --ew-trim: radial-gradient(70% 100% at 50% 0%, color-mix(in srgb, var(--ew-line-strong) 28%, transparent), transparent) top / 100% 16px no-repeat;
+  --ew-trim: radial-gradient(70% 100% at 50% 0%, color-mix(in srgb, var(--ew-line-strong) 50%, transparent), transparent) left 12px top 0px / calc(100% - 24px) 3px no-repeat;
 }
 
 /* --------------------------------------------------------------------------
@@ -382,7 +386,7 @@
   --ew-motif-size: 14px 14px;
   --ew-motif-opacity: 0.22;
   --ew-pip: var(--ew-shape-nil);
-  --ew-trim: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--ew-line-strong) 45%, transparent) 0 1px, transparent 1px 6px) left 12px bottom 0 / calc(100% - 24px) 4px no-repeat;
+  --ew-trim: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--ew-line-strong) 45%, transparent) 0 1px, transparent 1px 6px) left 12px bottom 0px / calc(100% - 24px) 4px no-repeat;
 }
 
 /* Good Ground — Verdant Choir, paired with `archdruid`: the green pushed
@@ -433,7 +437,7 @@
   --ew-motif-size: 96px 64px;
   --ew-motif-opacity: 0.26;
   --ew-pip: var(--ew-shape-pennant);
-  --ew-trim: linear-gradient(90deg, var(--ew-line-strong) 0 38%, transparent 38% 62%, var(--ew-line-strong) 62%) left 12px top 0 / calc(100% - 24px) 1px no-repeat;
+  --ew-trim: linear-gradient(90deg, var(--ew-line-strong) 0 38%, transparent 38% 62%, var(--ew-line-strong) 62%) left 12px top 0px / calc(100% - 24px) 1px no-repeat;
 }
 
 /* Underneath — Worm Below, paired with `lichdom`: the same violet dropped
@@ -533,12 +537,12 @@
   --ew-motif-size: 140px 140px;
   --ew-motif-opacity: 0.14;
   --ew-pip: var(--ew-shape-eye);
-  --ew-trim: linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) left 6px top 16px / 1px calc(100% - 32px) no-repeat;
+  --ew-trim: linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) left 2px top 12px / 1px calc(100% - 24px) no-repeat;
 }
 
 /* The Eldest Oak — Verdant Choir, paired with `turned_to_fertilizer`: leaf
    green. Growth, not light — the gradient rises from the bottom edge and
-   moss creeps up the foot of every card. */
+   moss grows along the foot of every card. */
 [data-theme='archdruid'] {
   --ew-void: #091601;
   --ew-panel: #122202;
@@ -558,7 +562,7 @@
   --ew-motif-size: 100px 100px;
   --ew-motif-opacity: 0.19;
   --ew-pip: var(--ew-shape-acorn);
-  --ew-trim: linear-gradient(0deg, color-mix(in srgb, var(--ew-line-strong) 16%, transparent), transparent 14px);
+  --ew-trim: linear-gradient(0deg, color-mix(in srgb, var(--ew-line-strong) 50%, transparent), transparent) left 12px bottom 0px / calc(100% - 24px) 4px no-repeat;
 }
 
 /* The Crown — Crownlands, paired with `exiled_and_overrun`: royal plum with
@@ -613,7 +617,8 @@
 
 /* Kept Vigil — Arch-Lich (issue #25). The same violet undeath family as
    Cold Room, lit a shade warmer and several steps brighter: a candle in the
-   cold room, not the cold room itself. */
+   cold room, not the cold room itself, glowing on the top edge of every
+   card. */
 [data-theme='arch_lich'] {
   --ew-void: #1b1329;
   --ew-panel: #281d3a;
@@ -633,7 +638,7 @@
   --ew-motif-size: 100px 110px;
   --ew-motif-opacity: 0.11;
   --ew-pip: var(--ew-shape-flame);
-  --ew-trim: radial-gradient(50% 100% at 50% 0%, color-mix(in srgb, var(--ew-line-strong) 24%, transparent), transparent) top / 100% 14px no-repeat;
+  --ew-trim: radial-gradient(50% 100% at 50% 0%, color-mix(in srgb, var(--ew-line-strong) 50%, transparent), transparent) left 12px top 0px / calc(100% - 24px) 3px no-repeat;
 }
 
 /* --------------------------------------------------------------------------
