@@ -279,12 +279,15 @@
 .pips::after {
   content: '';
   position: absolute;
-  /* 3px in and 8px across: clear of the narrowest card padding this is used
-     with (OptionCard's 8px × 12px at phone width), so a glyph never touches a
-     keycap or a line of text. */
-  inset: 3px;
+  /* Fitted into the corner itself, against the border, rather than floating
+     in the padding. Measured (qa/probe-ornament-spacing.mjs): the tightest
+     card this is used with is OptionCard at phone width, 8px × 12px of
+     padding, and from 3px in an 8px glyph came within 1px of a gamble's odds
+     rail and 3px of a keycap. From the corner it keeps the 4px
+     (`--ew-space-1`) every ornament keeps from content. No border-radius:
+     inheriting the card's rounding clipped the glyph's own outer corner. */
+  inset: 0;
   pointer-events: none;
-  border-radius: inherit;
   background: var(--ew-line-strong);
   opacity: 0.9;
   -webkit-mask-image:

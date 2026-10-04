@@ -215,7 +215,7 @@
   --ew-motif-size: 96px 48px;
   --ew-motif-opacity: 0.16;
   --ew-pip: var(--ew-shape-key);
-  --ew-trim: linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) top / 100% 2px no-repeat;
+  --ew-trim: linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) left 12px top 0px / calc(100% - 24px) 2px no-repeat;
 }
 
 /* Cold Room — undeath, as a temperature. Blue lifts above green in every
@@ -352,7 +352,7 @@
   --ew-motif-size: 120px 48px;
   --ew-motif-opacity: 0.17;
   --ew-pip: var(--ew-shape-checkbox);
-  --ew-trim: radial-gradient(circle, var(--ew-void) 1.3px, transparent 1.8px) left 2px top 2px / 7px 6px repeat-x, radial-gradient(circle, var(--ew-void) 1.3px, transparent 1.8px) left 2px bottom 2px / 7px 6px repeat-x;
+  --ew-trim: repeating-linear-gradient(90deg, var(--ew-void) 0 2px, transparent 2px 6px) left 12px top 1px / calc(100% - 24px) 2px no-repeat, repeating-linear-gradient(90deg, var(--ew-void) 0 2px, transparent 2px 6px) left 12px bottom 1px / calc(100% - 24px) 2px no-repeat;
 }
 
 /* Assets Realised — Gilded Hand, paired with `grand_arbiter`: the same
@@ -377,7 +377,7 @@
   --ew-motif-size: 14px 14px;
   --ew-motif-opacity: 0.22;
   --ew-pip: var(--ew-shape-nil);
-  --ew-trim: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--ew-line-strong) 45%, transparent) 0 1px, transparent 1px 6px) bottom / 100% 8px no-repeat;
+  --ew-trim: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--ew-line-strong) 45%, transparent) 0 1px, transparent 1px 6px) left 12px bottom 0 / calc(100% - 24px) 4px no-repeat;
 }
 
 /* Good Ground — Verdant Choir, paired with `archdruid`: the green pushed
@@ -428,7 +428,7 @@
   --ew-motif-size: 96px 64px;
   --ew-motif-opacity: 0.26;
   --ew-pip: var(--ew-shape-pennant);
-  --ew-trim: linear-gradient(90deg, var(--ew-line-strong) 0 38%, transparent 38% 62%, var(--ew-line-strong) 62%) top / 100% 1px no-repeat;
+  --ew-trim: linear-gradient(90deg, var(--ew-line-strong) 0 38%, transparent 38% 62%, var(--ew-line-strong) 62%) left 12px top 0 / calc(100% - 24px) 1px no-repeat;
 }
 
 /* Underneath — Worm Below, paired with `lichdom`: the same violet dropped
@@ -478,7 +478,7 @@
   --ew-motif-size: 40px 26px;
   --ew-motif-opacity: 0.18;
   --ew-pip: var(--ew-shape-nib);
-  --ew-trim: linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) left 14px top 3px / calc(100% - 28px) 1px no-repeat, linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) left 14px top 6px / calc(100% - 28px) 1px no-repeat;
+  --ew-trim: linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) left 12px top 1px / calc(100% - 24px) 1px no-repeat, linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) left 12px top 3px / calc(100% - 24px) 1px no-repeat;
 }
 
 /* The Final Number — Gilded Hand, paired with `liquidated`: green-black
@@ -503,7 +503,7 @@
   --ew-motif-size: 80px 80px;
   --ew-motif-opacity: 0.16;
   --ew-pip: var(--ew-shape-coin);
-  --ew-trim: linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) left 14px bottom 6px / calc(100% - 28px) 1px no-repeat, linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) left 14px bottom 3px / calc(100% - 28px) 1px no-repeat;
+  --ew-trim: linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) left 12px bottom 3px / calc(100% - 24px) 1px no-repeat, linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) left 12px bottom 1px / calc(100% - 24px) 1px no-repeat;
 }
 
 /* The Chair — Pale Academy, paired with `sealed_in_gem`: navy and chalk. A
@@ -578,7 +578,7 @@
   --ew-motif-size: 56px 56px;
   --ew-motif-opacity: 0.18;
   --ew-pip: var(--ew-shape-crown);
-  --ew-trim: linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) top / 100% 2px no-repeat, linear-gradient(color-mix(in srgb, var(--ew-line-strong) 50%, transparent), color-mix(in srgb, var(--ew-line-strong) 50%, transparent)) left 0 top 4px / 100% 1px no-repeat;
+  --ew-trim: linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) left 12px top 0px / calc(100% - 24px) 2px no-repeat, linear-gradient(color-mix(in srgb, var(--ew-line-strong) 50%, transparent), color-mix(in srgb, var(--ew-line-strong) 50%, transparent)) left 12px top 3px / calc(100% - 24px) 1px no-repeat;
 }
 
 /* Ordinary Weather — the one light room (issue #23): cream and gold,

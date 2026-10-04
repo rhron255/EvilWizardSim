@@ -27,11 +27,13 @@
 }
 
 /* Hairline on the leading edge — brightens on hover so the row reads as live
-   without introducing a second color. */
+   without introducing a second color. Stops 12px short of each end: the
+   theme's corner glyphs (`pips`, 8px) sit in those corners, and the hairline
+   keeps the same 4px from them that they keep from the card's content. */
 .card::before {
   content: '';
   position: absolute;
-  inset: 6px auto 6px 0;
+  inset: 12px auto 12px 0;
   width: 1px;
   background: var(--ew-line);
   transition: background-color var(--ew-fast) var(--ew-ease);

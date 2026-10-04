@@ -50,7 +50,7 @@ constraints below exist, and is the thing to read before relaxing any of them.
 | `src/screens/` | Screen composition. |
 | `scripts/` | `validate-content.ts`, `simulate.ts` (balance harness), `balance-report.ts` (renders the PR comment), `build-static-assets.ts` (`npm run assets`), `build-ornaments.ts` (`npm run ornaments`). |
 | `public/` | Favicon, touch/install icons, manifest and the link-preview image — generated from the game's own sigil by `npm run assets` and committed. |
-| `qa/` | Playwright probes. `sweep-layout.mjs` plays many careers and audits every state; `probe-late-game.mjs` and `probe-era-scroll.mjs` cover the worst-case header and the scroll reset; `probe-keyboard.mjs` plays a whole career with no mouse; `probe-themes.mjs` measures the themes and `shoot-themes.mjs` photographs all twenty side by side. Screenshots are gitignored. |
+| `qa/` | Playwright probes. `sweep-layout.mjs` plays many careers and audits every state; `probe-late-game.mjs` and `probe-era-scroll.mjs` cover the worst-case header and the scroll reset; `probe-keyboard.mjs` plays a whole career with no mouse; `probe-themes.mjs` measures the themes, `probe-ornament-spacing.mjs` measures how close every theme's ornament sits to content, and `shoot-themes.mjs` photographs all twenty side by side. Screenshots are gitignored. |
 | `wiki/` | Design intent and rationale. |
 
 ## Commands
@@ -232,6 +232,14 @@ that followed it.
    or the trim vanishes under a finger. The `none` fallback matters: an
    undefined custom property invalidates the whole `background` declaration
    and the card renders transparent. See `OptionCard.module.css`.
+   **Ornament keeps `--ew-space-1` (4px) from content.** Corner glyphs sit in
+   the card's corner itself, and a trim keeps to the outer 4px of a card and
+   runs only between the corner glyphs, 12px in (`edgeRule` in `themes.ts`).
+   Those numbers come from the tightest card in the game — OptionCard at phone
+   width, 8px × 12px of padding — whose height the fold budget will not let
+   grow. `node qa/probe-ornament-spacing.mjs` measures every theme's ornament
+   against every keycap, rail and line of text, at 393, 320 and 1280 wide;
+   run it after touching a trim, a glyph, or a card's padding.
 
 ## Failure modes this repo has actually produced
 

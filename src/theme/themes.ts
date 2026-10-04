@@ -140,8 +140,25 @@ export type ThemeDef = {
  * so they cannot introduce a hue (constraint 7).
  */
 const LIGHT_FROM_ABOVE = 'radial-gradient(90% 55% at 50% -10%, rgba(255, 246, 224, 0.045), transparent 68%)';
-/** A solid rule in the strong line colour, as a gradient layer. */
-const RULE = 'linear-gradient(var(--ew-line-strong), var(--ew-line-strong))';
+/**
+ * Where a card trim may draw. Measured, not guessed
+ * (`qa/probe-ornament-spacing.mjs`): the tightest card padding in the game is
+ * OptionCard's 8px × 12px at phone width, and nothing decorative may come
+ * within `--ew-space-1` (4px) of a card's content. So an edge trim keeps to the
+ * outer 4px of the card, and runs only BETWEEN the two corner glyphs — each
+ * 8px, plus the same 4px — which is 12px in from either side.
+ */
+const CORNER_CLEAR = 12;
+const BETWEEN_CORNERS = `left ${CORNER_CLEAR}px`;
+const SPAN = `calc(100% - ${CORNER_CLEAR * 2}px)`;
+
+/**
+ * A solid rule, `px` thick, `offset` px in from the top or bottom edge, laid
+ * between the corner glyphs. Colour is a surface token, or a mix of one.
+ */
+function edgeRule(edge: 'top' | 'bottom', offset: number, px = 1, colour = 'var(--ew-line-strong)') {
+  return `linear-gradient(${colour}, ${colour}) ${BETWEEN_CORNERS} ${edge} ${offset}px / ${SPAN} ${px}px no-repeat`;
+}
 
 /** `default` first; the rest follow the ending order in `src/content/endings.ts`. */
 export const THEMES: ThemeDef[] = [
@@ -270,7 +287,7 @@ export const THEMES: ThemeDef[] = [
       light: LIGHT_FROM_ABOVE,
       ...wallpaper('masonry', 0.16),
       pip: shapeRef('key'),
-      trim: `${RULE} top / 100% 2px no-repeat`,
+      trim: edgeRule('top', 0, 2),
     },
   },
 
@@ -465,7 +482,12 @@ export const THEMES: ThemeDef[] = [
       light: 'radial-gradient(90% 55% at 50% 110%, rgba(214, 228, 240, 0.04), transparent 68%)',
       ...wallpaper('form', 0.17),
       pip: shapeRef('checkbox'),
-      trim: 'radial-gradient(circle, var(--ew-void) 1.3px, transparent 1.8px) left 2px top 2px / 7px 6px repeat-x, radial-gradient(circle, var(--ew-void) 1.3px, transparent 1.8px) left 2px bottom 2px / 7px 6px repeat-x',
+      // Square 2px holes every 6px, top and bottom: at that size a square hole
+      // and a round one are the same thing, and a repeating stripe can be
+      // bounded between the corners where a tiled dot cannot.
+      trim: [1, 1]
+        .map((offset, i) => `repeating-linear-gradient(90deg, var(--ew-void) 0 2px, transparent 2px 6px) ${BETWEEN_CORNERS} ${i ? 'bottom' : 'top'} ${offset}px / ${SPAN} 2px no-repeat`)
+        .join(', '),
     },
   },
 
@@ -499,7 +521,7 @@ export const THEMES: ThemeDef[] = [
       light: 'radial-gradient(90% 55% at 50% -10%, rgba(220, 240, 230, 0.025), transparent 68%)',
       ...wallpaper('hatch', 0.22),
       pip: shapeRef('nil'),
-      trim: 'repeating-linear-gradient(-45deg, color-mix(in srgb, var(--ew-line-strong) 45%, transparent) 0 1px, transparent 1px 6px) bottom / 100% 8px no-repeat',
+      trim: `repeating-linear-gradient(-45deg, color-mix(in srgb, var(--ew-line-strong) 45%, transparent) 0 1px, transparent 1px 6px) ${BETWEEN_CORNERS} bottom 0 / ${SPAN} 4px no-repeat`,
     },
   },
 
@@ -571,7 +593,7 @@ export const THEMES: ThemeDef[] = [
       light: 'radial-gradient(80% 60% at 92% 6%, rgba(224, 190, 200, 0.045), transparent 70%)',
       ...wallpaper('border', 0.26),
       pip: shapeRef('pennant'),
-      trim: 'linear-gradient(90deg, var(--ew-line-strong) 0 38%, transparent 38% 62%, var(--ew-line-strong) 62%) top / 100% 1px no-repeat',
+      trim: `linear-gradient(90deg, var(--ew-line-strong) 0 38%, transparent 38% 62%, var(--ew-line-strong) 62%) ${BETWEEN_CORNERS} top 0 / ${SPAN} 1px no-repeat`,
     },
   },
 
@@ -641,7 +663,7 @@ export const THEMES: ThemeDef[] = [
         'radial-gradient(90% 55% at 50% -10%, rgba(255, 240, 230, 0.035), transparent 68%), radial-gradient(80% 45% at 50% 112%, rgba(255, 120, 70, 0.05), transparent 70%)',
       ...wallpaper('ruled', 0.18),
       pip: shapeRef('nib'),
-      trim: `${RULE} left 14px top 3px / calc(100% - 28px) 1px no-repeat, ${RULE} left 14px top 6px / calc(100% - 28px) 1px no-repeat`,
+      trim: `${edgeRule('top', 1)}, ${edgeRule('top', 3)}`,
     },
   },
 
@@ -678,7 +700,7 @@ export const THEMES: ThemeDef[] = [
       light: 'radial-gradient(90% 55% at 50% -10%, rgba(255, 236, 170, 0.05), transparent 68%)',
       ...wallpaper('coins', 0.16),
       pip: shapeRef('coin'),
-      trim: `${RULE} left 14px bottom 6px / calc(100% - 28px) 1px no-repeat, ${RULE} left 14px bottom 3px / calc(100% - 28px) 1px no-repeat`,
+      trim: `${edgeRule('bottom', 3)}, ${edgeRule('bottom', 1)}`,
     },
   },
 
@@ -710,7 +732,7 @@ export const THEMES: ThemeDef[] = [
       light: 'radial-gradient(70% 50% at 50% -10%, rgba(220, 232, 255, 0.06), transparent 70%)',
       ...wallpaper('diagram', 0.15),
       pip: shapeRef('eye'),
-      trim: `${RULE} left 6px top 16px / 1px calc(100% - 32px) no-repeat`,
+      trim: 'linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) left 6px top 16px / 1px calc(100% - 32px) no-repeat',
     },
   },
 
@@ -777,7 +799,7 @@ export const THEMES: ThemeDef[] = [
       light: 'radial-gradient(90% 55% at 50% -10%, rgba(255, 226, 180, 0.05), transparent 68%)',
       ...wallpaper('fleur', 0.18),
       pip: shapeRef('crown'),
-      trim: `${RULE} top / 100% 2px no-repeat, linear-gradient(color-mix(in srgb, var(--ew-line-strong) 50%, transparent), color-mix(in srgb, var(--ew-line-strong) 50%, transparent)) left 0 top 4px / 100% 1px no-repeat`,
+      trim: `${edgeRule('top', 0, 2)}, ${edgeRule('top', 3, 1, 'color-mix(in srgb, var(--ew-line-strong) 50%, transparent)')}`,
     },
   },
 
