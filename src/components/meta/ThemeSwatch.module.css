@@ -70,16 +70,27 @@
   color: var(--ew-ink-bright);
 }
 
-/* The theme's corner glyph, in its own strong line colour. Lifted toward the
-   ink a little: on the CURRENT room's panel, a dark theme's strong line can
-   sit almost on top of the card it is printed on. */
+/* The previewed theme's corner glyph, in that theme's strong line colour
+   (`--swatch-strong`, set inline by the component). It is printed on the
+   CURRENT room's card, though, where a strong line chosen for its own room can
+   all but vanish — a dark indigo on a grey card, a slate on the cream one. So
+   it is mixed toward the current room's bright ink, the colour of the name
+   beside it: that lifts it in a dark room and darkens it in the light one,
+   where a brightness filter only ever lifted and pushed the greys into the
+   cream.
+
+   60% keeps the previewed hue in the majority and still clears 3:1 (WCAG 2.1
+   SC 1.4.11, non-text contrast) for every theme previewed in every room, on
+   the card, its hover and its worn state. ThemeSwatch.test.tsx reads the mix
+   off this file and sweeps every pair, and refuses a filter here, which would
+   paint a colour the sweep cannot see. */
 .glyph {
   flex: none;
   width: 0.75em;
   height: 0.75em;
   /* (line-height 1.15em − 0.75em) / 2: centred on the first line box. */
   margin-top: 0.2em;
-  filter: brightness(1.6) saturate(1.1);
+  background-color: color-mix(in srgb, var(--swatch-strong) 60%, var(--ew-ink-bright));
   -webkit-mask-size: contain;
   mask-size: contain;
   -webkit-mask-repeat: no-repeat;

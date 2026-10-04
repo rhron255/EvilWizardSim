@@ -143,10 +143,11 @@ describe('ThemeScreen · the swatch preview', () => {
     // The wallpaper is what a room is recognised by; four bands of near-black
     // told the dark themes apart badly. Each swatch masks with ITS OWN shape,
     // not the worn theme's — a swatch that showed the current room's
-    // wallpaper twenty times would be the same defect again.
+    // wallpaper twenty times would be the same defect again. Every theme has a
+    // wallpaper, so every swatch shows one.
     const { container } = show();
     const motifs = [...container.querySelectorAll<HTMLElement>('[data-part="motif"]')];
-    expect(motifs).toHaveLength(THEMES.filter((t) => t.ornament.motif !== 'none').length);
+    expect(motifs).toHaveLength(THEMES.length);
     const masks = motifs.map((m) => m.style.maskImage || m.style.getPropertyValue('-webkit-mask-image'));
     for (const theme of THEMES) expect(masks).toContain(theme.ornament.motif);
   });

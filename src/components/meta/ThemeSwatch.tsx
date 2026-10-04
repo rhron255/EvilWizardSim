@@ -16,9 +16,12 @@
  * the bands and its glyph sits beside the name, each painted in the theme's
  * own strong line colour through the theme's own mask. Four bands of
  * near-black told two dark rooms apart badly; the wallpaper is what a player
- * actually recognises a room by.
+ * actually recognises a room by. The glyph alone is printed on the CURRENT
+ * room's card rather than on its own palette, so the stylesheet mixes its
+ * colour toward the current ink until it reads there (`.glyph`).
  */
 
+import type { CSSProperties } from 'react';
 import type { ThemeId } from '../../types';
 import type { ThemeDef } from '../../theme/themes';
 import { swatchBands } from '../../theme/themes';
@@ -32,6 +35,13 @@ import styles from './ThemeSwatch.module.css';
 function previewTile(size: string): string {
   return size.replace(/([\d.]+)px/g, (_, px: string) => `${Number(px) / 2}px`);
 }
+
+/**
+ * The glyph's inline style. Its colour goes in as `--swatch-strong` rather than
+ * as `backgroundColor`: an inline background would beat the stylesheet's mix
+ * toward the current room's ink, and that mix is what keeps it readable.
+ */
+type GlyphStyle = CSSProperties & { '--swatch-strong': string };
 
 export type ThemeSwatchProps = {
   theme: ThemeDef;
@@ -58,6 +68,12 @@ export function ThemeSwatch({ theme, unlocked, selected, hint, onSelect }: Theme
   ]
     .filter(Boolean)
     .join(' ');
+
+  const glyphStyle: GlyphStyle = {
+    '--swatch-strong': bands.lineStrong,
+    WebkitMaskImage: ornament.pip,
+    maskImage: ornament.pip,
+  };
 
   return (
     <button
@@ -105,11 +121,7 @@ export function ThemeSwatch({ theme, unlocked, selected, hint, onSelect }: Theme
               className={styles.glyph}
               data-part="glyph"
               aria-hidden
-              style={{
-                backgroundColor: bands.lineStrong,
-                WebkitMaskImage: ornament.pip,
-                maskImage: ornament.pip,
-              }}
+              style={glyphStyle}
             />
             {theme.name}
           </span>
