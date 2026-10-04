@@ -64,15 +64,19 @@
 
 /* --- unseen --------------------------------------------------------------- */
 
+/* Every state that repaints the slot leads with the trim, as `.slot` does, or
+   the door you have not opened keeps its corner glyphs and loses its trim. The
+   panel and void are the room's own, thinned: a fixed rgba here was the
+   default room's panel, worn into every other room. */
 .unseen {
-  background: rgba(19, 17, 14, 0.35);
+  background: var(--ew-trim, none), color-mix(in srgb, var(--ew-panel) 35%, transparent);
   border-style: dashed;
   box-shadow: none;
 }
 
 .unseen .well {
   border-style: dashed;
-  background: rgba(11, 10, 9, 0.6);
+  background: color-mix(in srgb, var(--ew-void) 60%, transparent);
 }
 
 .unseen .glyph {
@@ -107,7 +111,7 @@
 
 .current {
   border-color: color-mix(in srgb, var(--ew-tier) 45%, var(--ew-line));
-  background: color-mix(in srgb, var(--ew-tier) 4%, var(--ew-panel));
+  background: var(--ew-trim, none), color-mix(in srgb, var(--ew-tier) 4%, var(--ew-panel));
 }
 
 .current .well {

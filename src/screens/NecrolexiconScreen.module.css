@@ -148,11 +148,13 @@
   gap: var(--ew-space-5);
 }
 
+/* The plate, its corner glyphs and its trim all come from `trimmedPlate`, and
+   this rule sets no background of its own: composing `plate` and overriding
+   `background` here lost to craft.module.css in the production build, and the
+   plate wore no trim under any theme. */
 .factionEntry {
-  composes: plate from '../components/meta/craft.module.css';
-  composes: pips from '../components/meta/craft.module.css';
+  composes: trimmedPlate from '../components/meta/craft.module.css';
   padding: var(--ew-space-5);
-  background: var(--ew-trim, none), var(--ew-panel);
 }
 
 .factionHead {

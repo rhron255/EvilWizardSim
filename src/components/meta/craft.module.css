@@ -91,20 +91,37 @@
 
 /* --------------------------------------------------------------------------
    Surfaces
+
+   A surface is a frame and a fill, kept as separate classes. A card that wants
+   a fill of its own composes a FRAME and paints its own background; it never
+   composes a filled class and then overrides `background`. Two rules of equal
+   specificity in different modules are ordered by the bundle, not by either
+   file — and the production build put this file after the Ending and
+   Necrolexicon screens' own, so the override silently lost: the ending card
+   shipped without its tier wash, and the faction plate without its trim.
+   `src/components/cascade.test.ts` fails on the pattern.
    -------------------------------------------------------------------------- */
 
-.plate {
+.plateFrame {
   position: relative;
-  background: var(--ew-panel);
   border: 1px solid var(--ew-line);
   border-radius: var(--ew-radius-md);
   box-shadow: var(--ew-lip), var(--ew-shadow-card);
 }
 
+.plate {
+  composes: plateFrame;
+  background: var(--ew-panel);
+}
+
+/* (`trimmedPlate`, a plate that wears the room's ornament, sits under "Card
+   ornament" below: a class can only compose one declared above it.) */
+
 /* The printed-certificate frame: an outer hairline, a channel of void, and an
-   inner hairline. One declaration, and the whole card stops reading like a div. */
-.plateDouble {
-  composes: plate;
+   inner hairline. One declaration, and the whole card stops reading like a div.
+   A frame only — the one card that wears it, the ending card, paints its own fill. */
+.plateDoubleFrame {
+  composes: plateFrame;
   border-color: var(--ew-line-strong);
   box-shadow:
     inset 0 0 0 5px var(--ew-void),
@@ -242,10 +259,12 @@
 }
 
 /* The wallpaper — the theme's pattern, painted in its own strong line colour
-   through a colourless mask (src/theme/ornaments.ts). Opacity is capped per
-   theme by the ink floor (themes.test.ts), because text sits straight on the
-   void on several screens. Scrolls with the page: `background-attachment:
-   fixed` repaints on every frame on a phone. */
+   through a colourless mask (src/theme/ornaments.ts). Text sits straight on
+   the room on several screens, with no panel behind it, so each theme's
+   opacity is capped: its whole room — void, key light and wallpaper included —
+   must read at least as well as the default room does (themes.test.ts).
+   Scrolls with the page: `background-attachment: fixed` repaints on every
+   frame on a phone. */
 .screen::before,
 .wallpaper::before {
   content: '';
@@ -304,6 +323,15 @@
   mask-repeat: no-repeat;
 }
 
+/* A plate that wears the room: the theme's glyph at each corner, and its card
+   trim over the panel (CLAUDE.md styling rule 5). The plate's frame and this
+   fill, in one class, so no consumer has to set `background` over a composed
+   one (see "Surfaces" above). */
+.trimmedPlate {
+  composes: plateFrame pips;
+  background: var(--ew-trim, none), var(--ew-panel);
+}
+
 /* A section's closing rule with the theme's glyph set into its middle.
 
    The rule is painted, not bordered: the element keeps a transparent 1px
@@ -336,6 +364,28 @@
   background: var(--ew-line-strong);
   -webkit-mask: var(--ew-pip, linear-gradient(transparent, transparent)) center / contain no-repeat;
   mask: var(--ew-pip, linear-gradient(transparent, transparent)) center / contain no-repeat;
+}
+
+/* Forced colours (a Windows contrast theme, or any user palette). The browser
+   drops gradient backgrounds and repaints every background colour in the
+   system's own, so the painted section rule is gone, and whether the
+   transparent border under it gets repainted is up to the engine — Chromium
+   does, nothing promises the rest will. The rule is named in the system's text
+   colour instead. The ornament steps aside: each piece is a mask filled with a
+   background colour, which a forced palette turns into a hole in whatever it
+   overlaps — the section glyph cut a notch out of the very rule it sits on. */
+@media (forced-colors: active) {
+  .sectionRule {
+    border-bottom-color: CanvasText;
+    background: none;
+  }
+
+  .sectionRule::after,
+  .pips::after,
+  .screen::before,
+  .wallpaper::before {
+    display: none;
+  }
 }
 
 .srOnly {
