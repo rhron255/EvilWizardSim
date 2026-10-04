@@ -17,6 +17,7 @@
  */
 import { chromium } from 'playwright';
 import { openApp } from './first-run.mjs';
+import { themeEndingIds } from './theme-ids.mjs';
 import { mkdir } from 'node:fs/promises';
 
 const arg = (flag, fallback) => {
@@ -53,7 +54,10 @@ page.on('console', (m) => {
 console.log(`\n▸ ${URL}  @${WIDTH}×${HEIGHT}\n`);
 
 /**
- * Seed a collection with every ending seen, so all eight themes are unlocked.
+ * Seed a collection with every ending seen, so every theme is unlocked. The
+ * endings are read off `THEMES` (qa/theme-ids.mjs), not hand-copied: the copy
+ * that used to sit here still listed the first seven and called it "all eight
+ * themes" against twenty.
  *
  * ONLY IF ABSENT. `addInitScript` runs before EVERY navigation, not once — an
  * unconditional write re-seeds on reload and silently reverts whatever the
@@ -65,22 +69,14 @@ console.log(`\n▸ ${URL}  @${WIDTH}×${HEIGHT}\n`);
  * `COLLECTION_VERSION` is 3; if this drifts the app migrates it and the probe
  * reports zero unlocked themes, which is a loud failure rather than a quiet one.
  */
-await page.addInitScript(() => {
+await page.addInitScript((endings) => {
   if (localStorage.getItem('evil-wizard-sim:collection')) return;
   localStorage.setItem(
     'evil-wizard-sim:collection',
     JSON.stringify({
       version: 3,
       discoveredArtifactIds: [],
-      endingsSeen: [
-        'slain_by_chosen_one',
-        'sealed_in_gem',
-        'betrayed_by_apprentice',
-        'lichdom',
-        'retired_to_swamp',
-        'consumed_by_pact',
-        'ascension',
-      ],
+      endingsSeen: endings,
       runsCompleted: 9,
       bestNotoriety: 88,
       tutorialSeen: true,
@@ -88,7 +84,7 @@ await page.addInitScript(() => {
       selectedThemeId: 'default',
     }),
   );
-});
+}, themeEndingIds());
 
 await openApp(page, URL);
 

@@ -26,6 +26,7 @@
  */
 import { chromium } from 'playwright';
 import { openApp } from './first-run.mjs';
+import { themeEndingIds, themeIds } from './theme-ids.mjs';
 
 const arg = (flag, fallback) => {
   const i = process.argv.indexOf(flag);
@@ -48,21 +49,28 @@ const ONLY = arg('--only', '393,320,1280').split(',');
  */
 const MIN_CLEARANCE = 4;
 /**
- * A pixel counts as ornament only if some channel moved by at least this much.
- * Atmospheric trims (a soft vignette, a 6% frost) are meant to sit behind
- * text and move a channel by a handful of levels; a rule, a hem, a glyph or a
- * perforation moves it by dozens.
+ * A pixel counts as ornament only if some channel moved by at least this many
+ * levels over the panel with the ornament switched off.
+ *
+ * This number IS the line between the two kinds of card trim (CLAUDE.md,
+ * styling rule 5). A MARK — a rule, a hem, a glyph, a perforation — moves a
+ * channel by dozens of levels, is counted here, and must keep its clearance
+ * from content. A WASH — a soft vignette, a frost — moves no channel this far,
+ * may sit behind text, and answers instead to the ink's panel contrast floor
+ * at its strongest stop. `src/theme/themes.test.ts` reads this constant off
+ * disk to sort every theme's trim into one kind or the other, so the probe and
+ * the unit test cannot disagree about which kind a trim is. Keep the
+ * declaration on one line, exactly as it is.
  */
 const DRAWN = 24;
 
-const ALL_THEMES = [
-  'default', 'slain_by_chosen_one', 'sealed_in_gem', 'betrayed_by_apprentice', 'lichdom',
-  'retired_to_swamp', 'consumed_by_pact', 'ascension', 'eternally_repurposed', 'liquidated',
-  'turned_to_fertilizer', 'exiled_and_overrun', 'consumed', 'contract_writer', 'grand_arbiter',
-  'archmage', 'archdruid', 'overthrown_the_kingdom', 'good_wizard', 'arch_lich',
-];
+// Read off `THEMES` in src/theme/themes.ts, never hand-copied: a copy drifts.
+const ALL_THEMES = themeIds();
+const ENDINGS = themeEndingIds();
 const THEMES = arg('--themes', '') ? arg('--themes', '').split(',') : ALL_THEMES;
-const ENDINGS = ALL_THEMES.filter((t) => t !== 'default');
+const unknown = THEMES.filter((t) => !ALL_THEMES.includes(t));
+if (unknown.length) throw new Error(`--themes names no such theme: ${unknown.join(', ')}`);
+console.log(`  ${ALL_THEMES.length} themes in src/theme/themes.ts; measuring ${THEMES.length}`);
 
 const OFF = '--ew-trim: none; --ew-pip: linear-gradient(transparent, transparent);';
 
@@ -75,16 +83,26 @@ const browser = await chromium.launch({
   executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined,
 });
 
-/** Paint `theme` onto the screen root, exactly as `themeAttr` does. */
+/**
+ * Wear `theme` where the app wears it. Every screen spreads `themeAttr`
+ * (src/components/meta/themeAttr.ts) onto its own outermost element, the one
+ * App renders straight into `#root`. On most screens that is a `<main>`, but
+ * the run screen's is the `.screen` div around its `<main>`, and that div
+ * hangs the key light and the wallpaper. Setting the attribute on `<main>`
+ * there re-themes the cards and leaves the room in the old theme. The default
+ * theme sets no attribute at all, so it is removed, never set to 'default'.
+ * (ChangelogPopup wears the theme on its own scrim too, but `openApp` has
+ * dismissed it before anything here runs.)
+ */
 async function wear(page, theme) {
-  await page.evaluate((theme) => {
-    const root = document.querySelector('main')?.closest('[class]') ?? document.querySelector('main');
-    for (const el of [document.querySelector('main'), root]) {
-      if (!el) continue;
-      if (theme === 'default') el.removeAttribute('data-theme');
-      else el.setAttribute('data-theme', theme);
-    }
+  const worn = await page.evaluate((theme) => {
+    const root = document.getElementById('root')?.firstElementChild;
+    if (!root) return false;
+    if (theme === 'default') root.removeAttribute('data-theme');
+    else root.setAttribute('data-theme', theme);
+    return true;
   }, theme);
+  if (!worn) throw new Error(`wear(${theme}): no screen root under #root`);
   await page.waitForTimeout(30);
 }
 

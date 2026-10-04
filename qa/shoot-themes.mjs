@@ -15,6 +15,7 @@
 import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
 import { openApp, dismissFirstRunGuide } from './first-run.mjs';
+import { themeEndingIds, themeIds } from './theme-ids.mjs';
 
 const arg = (flag, fallback) => {
   const i = process.argv.indexOf(flag);
@@ -27,33 +28,15 @@ const HEIGHT = Number(arg('--height', '852'));
 const OUT = arg('--out', 'qa/screenshots/themes');
 const ONLY = arg('--only', '');
 
-// The ids, not imported: this runs under plain node against a dev server, and
-// a hand list that drifts from `THEMES` fails loudly below (an id the app does
-// not know falls back to the default, and the `data-theme` check catches it).
-const ALL = [
-  'default',
-  'slain_by_chosen_one',
-  'sealed_in_gem',
-  'betrayed_by_apprentice',
-  'lichdom',
-  'retired_to_swamp',
-  'consumed_by_pact',
-  'ascension',
-  'eternally_repurposed',
-  'liquidated',
-  'turned_to_fertilizer',
-  'exiled_and_overrun',
-  'consumed',
-  'contract_writer',
-  'grand_arbiter',
-  'archmage',
-  'archdruid',
-  'overthrown_the_kingdom',
-  'good_wizard',
-  'arch_lich',
-];
+// Read off `THEMES` in src/theme/themes.ts (qa/theme-ids.mjs), never
+// hand-copied: a hand list missed a new theme without a word, because a probe
+// cannot photograph a theme it was never told about.
+const ALL = themeIds();
+const ENDINGS = themeEndingIds();
 const THEMES = ONLY ? ALL.filter((id) => ONLY.split(',').includes(id)) : ALL;
-const ENDINGS = ALL.filter((id) => id !== 'default');
+const unknown = ONLY ? ONLY.split(',').filter((id) => !ALL.includes(id)) : [];
+if (unknown.length) throw new Error(`--only names no such theme: ${unknown.join(', ')}`);
+console.log(`  ${ALL.length} themes in src/theme/themes.ts; shooting ${THEMES.length}`);
 
 await mkdir(OUT, { recursive: true });
 const problems = [];
