@@ -16,6 +16,7 @@
     "sim": "tsx scripts/simulate.ts",
     "gate": "node scripts/gate.mjs",
     "assets": "tsx scripts/build-static-assets.ts",
+    "ornaments": "tsx scripts/build-ornaments.ts",
     "content-review": "tsx tools/content-review/server.ts"
   },
   "overrides": {

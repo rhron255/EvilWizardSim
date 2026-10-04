@@ -13,6 +13,7 @@
  */
 
 import type { Tier, TierId } from '../types';
+import { shapeRef, tileSize } from './ornaments';
 
 // ---------------------------------------------------------------------------
 // Surfaces & ink — deliberately desaturated. Warm black, not blue black.
@@ -213,6 +214,45 @@ export const motion = {
   setpiece: '900ms',
   ease: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
   easeIn: 'cubic-bezier(0.4, 0, 1, 1)',
+} as const;
+
+// ---------------------------------------------------------------------------
+// Ornament — what a room is decorated with, as distinct from what colour it is
+// ---------------------------------------------------------------------------
+
+/**
+ * The default room's ornament. Every theme overrides all six (`themes.ts`).
+ *
+ * None of these can introduce a colour. The two shape tokens name a colourless
+ * mask from `ornaments.ts` and are painted in `--ew-line-strong`; `light` and
+ * `trim` are gradient layers, and the ones that are not plain white/black
+ * light read their colour from surface tokens via `var()`.
+ */
+export const ornament = {
+  /**
+   * The key light: background-image layer(s) laid over `--ew-void` on every
+   * screen. `none` is a flat wash.
+   */
+  light: 'radial-gradient(90% 55% at 50% -10%, rgba(255, 246, 224, 0.045), transparent 68%)',
+  /** Wallpaper tiled behind every screen: a `pattern` shape, or `none`. */
+  motif: shapeRef('masonry'),
+  /** One tile of the wallpaper, as a `background-size`. */
+  motifSize: tileSize('masonry'),
+  /**
+   * How strongly the wallpaper is drawn, 0–1, over `--ew-void`.
+   *
+   * Capped by the ink contrast floor, not by taste: `themes.test.ts` composites
+   * `--ew-line-strong` over `--ew-void` at this opacity and requires the ink to
+   * read on the result as well as it reads on a panel.
+   */
+  motifOpacity: 0.15,
+  /** The corner glyph on cards and the centre of section rules: a `glyph` shape. */
+  pip: shapeRef('star'),
+  /**
+   * Extra background layers drawn over a card's own surface — a hairline, a
+   * perforation, a double rule. `none` for a plain card.
+   */
+  trim: 'none',
 } as const;
 
 // ---------------------------------------------------------------------------

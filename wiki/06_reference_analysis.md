@@ -64,7 +64,10 @@ That last figure is the design working as intended.
    badge being the thing the run pays you. A theme is not paid out by a
    run, it is chosen between them, and it is forbidden from touching
    `--ew-tier`. What would break the pillar is a *second rationed reward
-   inside a career*; a wardrobe is not that.
+   inside a career*; a wardrobe is not that. The same goes for the
+   ornament each theme carries (wallpaper, corner glyphs, card trims): it
+   is painted only in the theme's own line colour, so it decorates the
+   room without adding a colour to it.
 7. **Flip the motivation late.** Early: chase upside. Late: a stat starts
    eroding and the player is defending what they built. Loss aversion
    outlasts hope, and the reference game delivers both inside three

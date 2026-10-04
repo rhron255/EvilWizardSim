@@ -222,19 +222,117 @@
 }
 
 /* --------------------------------------------------------------------------
-   Screen shell — every set piece sits on the same warm void with a vignette
-   whose center carries a breath of the tier color.
+   Screen shell — every set piece sits on the theme's void, under the theme's
+   key light, with a vignette whose center carries a breath of the tier color.
    -------------------------------------------------------------------------- */
 
 .screen {
   position: relative;
   min-height: 100%;
   background:
+    var(--ew-light, none),
     radial-gradient(120% 80% at 50% -10%, color-mix(in srgb, var(--ew-tier) 5%, transparent), transparent 60%),
     radial-gradient(100% 60% at 50% 110%, rgba(0, 0, 0, 0.6), transparent 70%),
     var(--ew-void);
   color: var(--ew-ink);
   overflow-x: hidden;
+  /* A stacking context of its own, so the wallpaper below can sit at
+     z-index -1: above this element's background, beneath every child. */
+  isolation: isolate;
+}
+
+/* The wallpaper — the theme's pattern, painted in its own strong line colour
+   through a colourless mask (src/theme/ornaments.ts). Opacity is capped per
+   theme by the ink floor (themes.test.ts), because text sits straight on the
+   void on several screens. Scrolls with the page: `background-attachment:
+   fixed` repaints on every frame on a phone. */
+.screen::before,
+.wallpaper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--ew-line-strong);
+  opacity: var(--ew-motif-opacity, 0);
+  /* The fallback is a fully transparent mask: if a theme ever named a shape
+     that does not exist, the wallpaper vanishes rather than the whole layer
+     painting solid. */
+  -webkit-mask-image: var(--ew-motif, linear-gradient(transparent, transparent));
+  mask-image: var(--ew-motif, linear-gradient(transparent, transparent));
+  -webkit-mask-size: var(--ew-motif-size, auto);
+  mask-size: var(--ew-motif-size, auto);
+  -webkit-mask-repeat: repeat;
+  mask-repeat: repeat;
+  -webkit-mask-position: 0 0;
+  mask-position: 0 0;
+}
+
+/* --------------------------------------------------------------------------
+   Card ornament — the theme's glyph at the four corners of a card.
+
+   Composed onto a card by name (`composes: pips from …`). Uses ::after, so a
+   card that already spends its ::after on something else must not compose it.
+   Same transparent-mask fallback as the wallpaper, for the same reason.
+   -------------------------------------------------------------------------- */
+
+.pips::after {
+  content: '';
+  position: absolute;
+  /* 3px in and 8px across: clear of the narrowest card padding this is used
+     with (OptionCard's 8px × 12px at phone width), so a glyph never touches a
+     keycap or a line of text. */
+  inset: 3px;
+  pointer-events: none;
+  border-radius: inherit;
+  background: var(--ew-line-strong);
+  opacity: 0.9;
+  -webkit-mask-image:
+    var(--ew-pip, linear-gradient(transparent, transparent)), var(--ew-pip, linear-gradient(transparent, transparent)),
+    var(--ew-pip, linear-gradient(transparent, transparent)), var(--ew-pip, linear-gradient(transparent, transparent));
+  mask-image:
+    var(--ew-pip, linear-gradient(transparent, transparent)), var(--ew-pip, linear-gradient(transparent, transparent)),
+    var(--ew-pip, linear-gradient(transparent, transparent)), var(--ew-pip, linear-gradient(transparent, transparent));
+  -webkit-mask-position: left top, right top, left bottom, right bottom;
+  mask-position: left top, right top, left bottom, right bottom;
+  -webkit-mask-size: 8px 8px;
+  mask-size: 8px 8px;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+/* A section's closing rule with the theme's glyph set into its middle.
+
+   The rule is painted, not bordered: the element keeps a transparent 1px
+   bottom border — so the layout is exactly what a plain border gave it — and a
+   background layer draws the line in that border's place, broken where the
+   glyph sits. The composing element must be `position: relative` and must not
+   spend its ::after elsewhere. */
+.sectionRule {
+  border-bottom: 1px solid transparent;
+  background:
+    linear-gradient(
+        90deg,
+        var(--ew-line) calc(50% - 14px),
+        transparent calc(50% - 14px),
+        transparent calc(50% + 14px),
+        var(--ew-line) calc(50% + 14px)
+      )
+      left bottom / 100% 1px no-repeat border-box;
+}
+
+.sectionRule::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -6.5px;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  pointer-events: none;
+  background: var(--ew-line-strong);
+  -webkit-mask: var(--ew-pip, linear-gradient(transparent, transparent)) center / contain no-repeat;
+  mask: var(--ew-pip, linear-gradient(transparent, transparent)) center / contain no-repeat;
 }
 
 .srOnly {

@@ -21,6 +21,15 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-10-04T11:59:44Z': {
+    summary: 'Every theme now decorates its room, and no two themes look alike any more.',
+    details: [
+      'Every theme has its own wallpaper, an emblem at each card corner, and its own card edging.',
+      'Themes that were nearly the same colour have been pulled apart.',
+      'The theme picker previews each room’s wallpaper and emblem, not just its colours.',
+      'Text is exactly as readable as before under every theme.',
+    ],
+  },
   '2026-09-29T13:06:47Z': {
     summary: 'Closing the update popup now returns keyboard focus to Begin a Career.',
     details: [

@@ -11,12 +11,27 @@
  * applying `data-theme` to itself, because a `[data-theme]` element inside a
  * themed page would override the tokens for its whole subtree — the preview
  * would work and the card around it would change colour with it.
+ *
+ * It previews the theme's ornament the same way: its wallpaper is laid over
+ * the bands and its glyph sits beside the name, each painted in the theme's
+ * own strong line colour through the theme's own mask. Four bands of
+ * near-black told two dark rooms apart badly; the wallpaper is what a player
+ * actually recognises a room by.
  */
 
 import type { ThemeId } from '../../types';
 import type { ThemeDef } from '../../theme/themes';
 import { swatchBands } from '../../theme/themes';
 import styles from './ThemeSwatch.module.css';
+
+/**
+ * The wallpaper's tile at half the size the room draws it. A room tile is
+ * sized for a 393px-wide screen; at full size a 46px strip shows a fragment of
+ * one sword or one fleur, which is not enough to recognise a room by.
+ */
+function previewTile(size: string): string {
+  return size.replace(/([\d.]+)px/g, (_, px: string) => `${Number(px) / 2}px`);
+}
 
 export type ThemeSwatchProps = {
   theme: ThemeDef;
@@ -34,6 +49,7 @@ export type ThemeSwatchProps = {
 
 export function ThemeSwatch({ theme, unlocked, selected, hint, onSelect }: ThemeSwatchProps) {
   const bands = swatchBands(theme);
+  const { ornament } = theme;
 
   const classes = [
     styles.swatch,
@@ -63,15 +79,42 @@ export function ThemeSwatch({ theme, unlocked, selected, hint, onSelect }: Theme
           these are DATA — eight themes' worth of colours cannot live in a
           stylesheet without restating every palette a second time. */}
       <span className={styles.bands} aria-hidden>
-        <span className={styles.band} style={{ background: bands.void }} />
-        <span className={styles.band} style={{ background: bands.panel }} />
-        <span className={styles.band} style={{ background: bands.line }} />
-        <span className={styles.band} style={{ background: bands.ink }} />
+        <span className={styles.band} data-part="band" style={{ background: bands.void }} />
+        <span className={styles.band} data-part="band" style={{ background: bands.panel }} />
+        <span className={styles.band} data-part="band" style={{ background: bands.line }} />
+        <span className={styles.band} data-part="band" style={{ background: bands.ink }} />
+        {ornament.motif !== 'none' ? (
+          <span
+            className={styles.motif}
+            data-part="motif"
+            style={{
+              backgroundColor: bands.lineStrong,
+              WebkitMaskImage: ornament.motif,
+              maskImage: ornament.motif,
+              WebkitMaskSize: previewTile(ornament.motifSize),
+              maskSize: previewTile(ornament.motifSize),
+            }}
+          />
+        ) : null}
       </span>
 
       <span className={styles.body}>
         {unlocked ? (
-          <span className={styles.name}>{theme.name}</span>
+          <span className={styles.name}>
+            {/* The glyph is part of the room's identity, so a locked swatch
+                withholds it along with the name. */}
+            <span
+              className={styles.glyph}
+              data-part="glyph"
+              aria-hidden
+              style={{
+                backgroundColor: bands.lineStrong,
+                WebkitMaskImage: ornament.pip,
+                maskImage: ornament.pip,
+              }}
+            />
+            {theme.name}
+          </span>
         ) : (
           <span className={styles.redaction} aria-hidden />
         )}

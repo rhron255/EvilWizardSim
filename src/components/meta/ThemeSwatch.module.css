@@ -22,6 +22,7 @@
 /* --- the palette ----------------------------------------------------------- */
 
 .bands {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   height: 46px;
@@ -35,6 +36,17 @@
   height: 100%;
 }
 
+/* The theme's wallpaper laid across its own palette — over the void and panel
+   bands only, where it hangs in the room itself. Drawn stronger than the room
+   draws it: at the room's own opacity a 46px strip shows nothing at all. */
+.motif {
+  position: absolute;
+  inset: 0 50% 0 0;
+  opacity: 0.55;
+  -webkit-mask-repeat: repeat;
+  mask-repeat: repeat;
+}
+
 /* --- text ------------------------------------------------------------------ */
 
 .body {
@@ -45,11 +57,30 @@
 }
 
 .name {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
   font-family: var(--ew-font-display);
   font-size: var(--ew-size-md);
   font-weight: 600;
   line-height: 1.15;
   color: var(--ew-ink-bright);
+}
+
+/* The theme's corner glyph, in its own strong line colour. Lifted toward the
+   ink a little: on the CURRENT room's panel, a dark theme's strong line can
+   sit almost on top of the card it is printed on. */
+.glyph {
+  flex: none;
+  width: 0.75em;
+  height: 0.75em;
+  filter: brightness(1.6) saturate(1.1);
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
 }
 
 .blurb {

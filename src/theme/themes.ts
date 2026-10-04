@@ -17,19 +17,34 @@
  *    `surface` and `ink` below are keyed off the token objects in `tokens.ts`,
  *    neither of which has a tier key, so a theme reaching for the scarce
  *    colour does not compile. `themes.test.ts` sweeps the CSS too, because the
- *    stylesheet is hand-written and the compiler cannot see it.
+ *    stylesheet is hand-written and the compiler cannot see it — and sweeps
+ *    each theme's `light` and `trim` strings, the two ornament tokens that
+ *    hold free CSS.
  * 2. Near-monochrome WITHIN a theme. One hue family each; a theme is a hue and
  *    temperature rotation of the same warm-dark structure, not a colourful
  *    skin.
  * 3. Same tokens, same names. No component learns about themes — a theme is a
- *    token-override block and nothing else.
+ *    token-override block and nothing else. That now includes its ornament:
+ *    the key light, wallpaper, corner glyph and card trim are tokens too
+ *    (constraint 7), so no stylesheet anywhere needs a `[data-theme='…']`
+ *    selector outside `tokens.css`.
  * 4. Layout and information hierarchy never change. Ornament, palette and
- *    typographic treatment only.
+ *    typographic treatment only — every ornament is a background layer, a mask
+ *    or an absolutely positioned pseudo-element, none of which takes space.
  * 5. Ink contrast floor: `ink` against `panel` at or above what the default
  *    palette achieves (13.80:1). Asserted in `themes.test.ts` with real
  *    contrast maths, never by eye.
  * 6. `--ew-legendary` is pinned in every theme. It is absent from the
  *    overridable surface here, which is how it stays pinned.
+ * 7. Ornament never brings a colour of its own, and never costs the ink its
+ *    floor. Shapes are colourless masks (`ornaments.ts`) painted in
+ *    `--ew-line-strong`, so the wallpaper of a violet room is violet. The
+ *    wallpaper's opacity is capped by constraint 5: `--ew-line-strong`
+ *    composited over `--ew-void` at `motifOpacity` must still carry the ink at
+ *    the floor, because text sits straight on the void on several screens.
+ * 8. No two rooms look alike. Every pair of themes sits at least 1.5
+ *    just-noticeable differences apart in OKLab — see the distinctness block
+ *    in `themes.test.ts` for the measure and where its numbers come from.
  *
  * ## Keeping this in step with tokens.css
  *
@@ -38,10 +53,23 @@
  * agree token for token — the CSS is a separate artifact the TypeScript does
  * not generate, so it is a real anchor rather than the implementation grading
  * its own homework (CLAUDE.md failure mode 11).
+ *
+ * ## Where the palettes came from
+ *
+ * Issue #15 set the hue families; a player then reported that too many rooms
+ * looked the same, and measuring bore it out — five themes in one red-brown
+ * band, four in one blue-violet band, four greens, thirteen pairs closer than
+ * 1.5 just-noticeable differences and the closest (Good Ground and The Eldest
+ * Oak) 0.015 apart in OKLab, under one. Every palette except
+ * the default and Ordinary Weather was regenerated from an OKLCH spec — a hue,
+ * a chroma and a lightness ladder — with the hues spread round the wheel and
+ * faction pairs kept in one family, then the ink lifted until it cleared the
+ * floor. The hue comments below are OKLCH degrees, not HSV.
  */
 
 import type { EndingId, ThemeId } from '../types';
-import { ink, radius, surface } from './tokens';
+import { shapeRef, tileSize, type GlyphId, type PatternId, type ShapeRef } from './ornaments';
+import { ink, ornament, radius, surface } from './tokens';
 
 /**
  * The overridable slice of the design tokens.
@@ -56,6 +84,29 @@ import { ink, radius, surface } from './tokens';
 export type SurfaceOverrides = { [K in keyof typeof surface]?: string };
 export type InkOverrides = { [K in keyof typeof ink]?: string };
 export type RadiusOverrides = { [K in keyof typeof radius]?: string };
+
+/**
+ * How a room is decorated. Required, and complete, on every theme: a theme
+ * that left its wallpaper unset would inherit the default's masonry, which is
+ * exactly the "looks like the regular one" report this exists to answer.
+ */
+export type ThemeOrnament = {
+  [K in keyof typeof ornament]: K extends 'motif'
+    ? ShapeRef<PatternId> | 'none'
+    : K extends 'pip'
+      ? ShapeRef<GlyphId>
+      : K extends 'motifOpacity'
+        ? number
+        : string;
+};
+
+/**
+ * A theme's wallpaper: the pattern, its natural tile, and how strongly it is
+ * drawn. One call so the tile size is always the pattern's own.
+ */
+function wallpaper(id: PatternId, opacity: number) {
+  return { motif: shapeRef(id), motifSize: tileSize(id), motifOpacity: opacity } as const;
+}
 
 export type ThemeDef = {
   id: ThemeId;
@@ -80,7 +131,17 @@ export type ThemeDef = {
    * component change (constraint 3).
    */
   font?: { display?: string; ui?: string };
+  ornament: ThemeOrnament;
 };
+
+/**
+ * Shared ornament fragments. Strings, because they are CSS — but every colour
+ * in them is a `var()` of a surface or ink token, or plain white/black light,
+ * so they cannot introduce a hue (constraint 7).
+ */
+const LIGHT_FROM_ABOVE = 'radial-gradient(90% 55% at 50% -10%, rgba(255, 246, 224, 0.045), transparent 68%)';
+/** A solid rule in the strong line colour, as a gradient layer. */
+const RULE = 'linear-gradient(var(--ew-line-strong), var(--ew-line-strong))';
 
 /** `default` first; the rest follow the ending order in `src/content/endings.ts`. */
 export const THEMES: ThemeDef[] = [
@@ -91,9 +152,11 @@ export const THEMES: ThemeDef[] = [
     blurb: 'Warm dark, one light from above. The room you started in.',
     // The shipped palette. Spelled out rather than left empty so the selector
     // can draw its swatch from the same source as every other theme, and so
-    // the contrast floor has something to measure the others against.
+    // the contrast floor has something to measure the others against. Its
+    // ornament is the tower's own stonework, drawn at the edge of perception.
     surface: { ...surface },
     ink: { ...ink },
+    ornament: { ...ornament },
   },
 
   {
@@ -101,23 +164,32 @@ export const THEMES: ThemeDef[] = [
     name: 'The Sword',
     endingId: 'slain_by_chosen_one',
     blurb: 'The warm dark, with an edge in it.',
-    // A red-brown room with the hero's own `--ew-danger` promoted, unmuted,
-    // to the strong rule. That colour was always in the palette; this theme
-    // just lets it draw the borders.
+    // Blood red (27°), the most saturated warm room, with the hero's own
+    // `--ew-danger` red promoted to the strong rule. Ornament, per issue #15:
+    // "one hard steel-white highlight on interactive edges" — a bright
+    // hairline along the top of every card — plus blades laid on the walls
+    // and a glint crossing the light.
     surface: {
-      void: '#1a0f0d',
-      panel: '#2b1915',
-      raised: '#38211c',
-      hover: '#462823',
-      line: '#55312a',
-      lineStrong: '#b4453c',
+      void: '#1f0705',
+      panel: '#300f0c',
+      raised: '#3b1714',
+      hover: '#48211d',
+      line: '#512925',
+      lineStrong: '#af3d36',
     },
     ink: {
-      bright: '#f8f7f7',
-      base: '#efece9',
-      dim: '#a6988c',
-      faint: '#786a5e',
-      ghost: '#4f4740',
+      bright: '#fdf7f6',
+      base: '#f8edec',
+      dim: '#b79e9a',
+      faint: '#866e6b',
+      ghost: '#564644',
+    },
+    ornament: {
+      light:
+        'radial-gradient(90% 55% at 50% -10%, rgba(255, 228, 220, 0.05), transparent 68%), linear-gradient(115deg, transparent 42%, rgba(255, 240, 236, 0.025) 50%, transparent 58%)',
+      ...wallpaper('swords', 0.2),
+      pip: shapeRef('hilt'),
+      trim: 'linear-gradient(90deg, transparent, color-mix(in srgb, var(--ew-ink-bright) 55%, transparent) 50%, transparent) top / 100% 1px no-repeat',
     },
   },
 
@@ -127,28 +199,41 @@ export const THEMES: ThemeDef[] = [
     endingId: 'sealed_in_gem',
     blurb: 'The Academy’s violet, seen from inside the stone.',
     /**
-     * The most saturated `lineStrong` of any theme — every edge is a facet.
+     * The most saturated room of the twenty (322°), and the most saturated
+     * `lineStrong` — every edge is a facet.
      *
      * The issue asked for ink at "slightly lower contrast — read through
      * stone", which collides head-on with constraint 5. The constraint wins,
      * because it is the testable one: the ink stays above the floor and the
      * "seen through stone" reading is carried by the violet cast of the
      * surfaces instead, which is where it belongs anyway.
+     *
+     * Issue #15's "card corners cut with `clip-path`" would have clipped the
+     * border and shadow along with the corner; the trim tints each card's
+     * corners as facets instead, and the walls are a triangular lattice.
      */
     surface: {
-      void: '#170c1a',
-      panel: '#26142c',
-      raised: '#321a3a',
-      hover: '#3e2048',
-      line: '#4c2858',
-      lineStrong: '#78338f',
+      void: '#1d0621',
+      panel: '#2c0e31',
+      raised: '#38173d',
+      hover: '#432049',
+      line: '#4c2851',
+      lineStrong: '#83349a',
     },
     ink: {
-      bright: '#f8f7f8',
-      base: '#eeebf0',
-      dim: '#9f8ca6',
-      faint: '#715e78',
-      ghost: '#4b404f',
+      bright: '#fbf7fb',
+      base: '#f4edf5',
+      dim: '#af9eb1',
+      faint: '#7e6e80',
+      ghost: '#514652',
+    },
+    ornament: {
+      // Two offset sources, refracted through the stone.
+      light:
+        'radial-gradient(60% 40% at 28% -8%, rgba(216, 198, 255, 0.055), transparent 66%), radial-gradient(52% 38% at 74% -4%, rgba(178, 156, 224, 0.04), transparent 62%)',
+      ...wallpaper('facets', 0.14),
+      pip: shapeRef('gem'),
+      trim: 'linear-gradient(135deg, color-mix(in srgb, var(--ew-line-strong) 40%, transparent) 0 9px, transparent 9px) top left / 18px 18px no-repeat, linear-gradient(315deg, color-mix(in srgb, var(--ew-line-strong) 40%, transparent) 0 9px, transparent 9px) bottom right / 18px 18px no-repeat',
     },
   },
 
@@ -157,28 +242,35 @@ export const THEMES: ThemeDef[] = [
     name: 'New Management',
     endingId: 'betrayed_by_apprentice',
     blurb: 'The same tower, under someone else’s hand.',
-    // The joke is that almost nothing has changed: the same warm neutral
-    // room, a desaturated `danger` at the strong rule, and the headings
-    // dropped from the display serif to the UI sans. The FONT is what carries
-    // this theme — it is the one whose identity is not a hue, which is why it
-    // is the least saturated of the seven and allowed to be.
+    // The same stone walls as the Tower — the masonry is the joke, almost
+    // nothing structural has changed — but the apprentice has redecorated in
+    // a khaki-grey (100°, low chroma) the Tower never wore, run a rust-red
+    // letterhead bar across the top of every card, changed the locks (the
+    // glyph is somebody else's key), and dropped the headings from the
+    // display serif to the UI sans. The FONT is still what carries it most.
     surface: {
-      void: '#17120f',
-      panel: '#261e1a',
-      raised: '#322822',
-      hover: '#3f312a',
-      line: '#4d3c33',
-      lineStrong: '#8a4f45',
+      void: '#14130b',
+      panel: '#201e13',
+      raised: '#2a281c',
+      hover: '#343225',
+      line: '#3c3a2d',
+      lineStrong: '#77463e',
     },
     ink: {
-      bright: '#f8f7f7',
-      base: '#f0edeb',
-      dim: '#a69b8c',
-      faint: '#786d5e',
-      ghost: '#4f4840',
+      bright: '#f9f8f7',
+      base: '#f1f0ed',
+      dim: '#a6a59d',
+      faint: '#76756d',
+      ghost: '#4b4a46',
     },
     font: {
       display: "'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif",
+    },
+    ornament: {
+      light: LIGHT_FROM_ABOVE,
+      ...wallpaper('masonry', 0.16),
+      pip: shapeRef('key'),
+      trim: `${RULE} top / 100% 2px no-repeat`,
     },
   },
 
@@ -197,32 +289,31 @@ export const THEMES: ThemeDef[] = [
      * read anything. It is NOT the Kingdom-Level tier violet (#9B6BE8): that
      * hue means a rank, and undeath is not a rank.
      *
-     * NOT the shipped `data-lich` values. That block was authored as a tint
-     * you were meant to notice only subliminally, mid-run, on a screen you
-     * were already looking at. As a THEME it has a second job — being picked
-     * out of a grid of eight swatches — and at its original near-black it
-     * failed that badly enough to be reported: the themes were "hard to tell
-     * apart from the regular one". So the whole ramp is lifted and saturated,
-     * roughly 1.5x the old panel luminance.
-     *
-     * The ink moved with it, and had to: at the default ink the shipped panel
-     * sat EXACTLY on the contrast floor, so there was no headroom to brighten
-     * a surface without brightening what sits on it. See `themes.test.ts`.
+     * 295°, deliberately between The Chair's blue (262°) and Kept Vigil's
+     * lighter violet (300°) and darker than both — those three were one blur
+     * before the palettes were spread. The key light goes blue-white as the
+     * room cools, and frost has got onto the walls.
      */
     surface: {
-      void: '#0f0b1b',
-      panel: '#18132d',
-      raised: '#20193b',
-      hover: '#281f49',
-      line: '#302659',
-      lineStrong: '#3f3078',
+      void: '#0e071e',
+      panel: '#1a102f',
+      raised: '#23193b',
+      hover: '#2d2247',
+      line: '#352a50',
+      lineStrong: '#4c3b77',
     },
     ink: {
-      bright: '#f7f7f8',
-      base: '#eae9ef',
-      dim: '#908ca6',
-      faint: '#635e78',
-      ghost: '#42404f',
+      bright: '#f9f8fd',
+      base: '#f0eff8',
+      dim: '#a6a1b8',
+      faint: '#757186',
+      ghost: '#4b4856',
+    },
+    ornament: {
+      light: 'radial-gradient(90% 55% at 50% -10%, rgba(214, 224, 255, 0.05), transparent 68%)',
+      ...wallpaper('frost', 0.34),
+      pip: shapeRef('snowflake'),
+      trim: 'linear-gradient(180deg, color-mix(in srgb, var(--ew-ink-bright) 6%, transparent), transparent 10px)',
     },
   },
 
@@ -231,28 +322,35 @@ export const THEMES: ThemeDef[] = [
     name: 'Peat',
     endingId: 'retired_to_swamp',
     blurb: 'Nothing dramatic is happening. That was the point.',
-    // The warmest theme, and the softest. Deep brown surfaces and every radius
-    // one step rounder. Its ornament is an absence: no background gradient at
-    // all, just a flat wash — see `RunScreen.module.css`.
+    // The warmest theme (68°, a true brown), and the softest: every radius one
+    // step rounder, and no key light at all — a flat wash, because nothing
+    // dramatic is happening and the light should not imply otherwise. The
+    // wallpaper is bulrushes; the glyph is three bubbles, in no hurry.
     surface: {
-      void: '#160e08',
-      panel: '#25180e',
-      raised: '#322013',
-      hover: '#3f2917',
-      line: '#4e321d',
-      lineStrong: '#6f4520',
+      void: '#170a00',
+      panel: '#261400',
+      raised: '#321c02',
+      hover: '#3d2508',
+      line: '#462e11',
+      lineStrong: '#6f491b',
     },
     ink: {
-      bright: '#f7f6f5',
-      base: '#eceae6',
-      dim: '#a69a8c',
-      faint: '#786c5e',
-      ghost: '#4f4840',
+      bright: '#fbf8f4',
+      base: '#f5efe8',
+      dim: '#b1a293',
+      faint: '#807264',
+      ghost: '#52493f',
     },
     radius: {
       sm: '5px',
       md: '8px',
       lg: '12px',
+    },
+    ornament: {
+      light: 'none',
+      ...wallpaper('reeds', 0.28),
+      pip: shapeRef('bubbles'),
+      trim: 'none',
     },
   },
 
@@ -261,23 +359,32 @@ export const THEMES: ThemeDef[] = [
     name: 'Settled Account',
     endingId: 'consumed_by_pact',
     blurb: 'Ash, filed correctly. The account balances.',
-    // Covenant ash, but ORDERED. The one theme that raises contrast rather
-    // than lowering it: every rule at full strength, ink at `bright`
-    // throughout, and no ornament whatsoever — the absence is the joke.
+    // Covenant ash, but ORDERED: the one truly neutral room, and the lightest
+    // dark one the ink floor allows. No mood lighting — a flat, evenly lit
+    // filing room — and no flourish anywhere. Its ornament is administrative
+    // rather than decorative, which is the joke kept rather than dropped: the
+    // walls are graph paper and every card corner carries a printer's
+    // registration mark.
     surface: {
-      void: '#151513',
-      panel: '#242321',
-      raised: '#302f2c',
-      hover: '#3c3a37',
-      line: '#484641',
-      lineStrong: '#6c6860',
+      void: '#181818',
+      panel: '#232323',
+      raised: '#2d2d2d',
+      hover: '#373737',
+      line: '#404040',
+      lineStrong: '#696969',
     },
     ink: {
-      bright: '#f8f8f7',
-      base: '#f5f4f2',
-      dim: '#a69d8c',
-      faint: '#786f5e',
-      ghost: '#4f4a40',
+      bright: '#fafafa',
+      base: '#f2f2f2',
+      dim: '#a4a4a4',
+      faint: '#747474',
+      ghost: '#4a4a4a',
+    },
+    ornament: {
+      light: 'none',
+      ...wallpaper('grid', 0.13),
+      pip: shapeRef('registration'),
+      trim: 'none',
     },
   },
 
@@ -286,72 +393,79 @@ export const THEMES: ThemeDef[] = [
     name: 'Wrong Colour',
     endingId: 'ascension',
     blurb: 'A green that is not on any chart. You are past the frame.',
-    // The void goes deep wrong-green/teal and the ink near-white. The only
-    // theme permitted a second light source — its gradient sits ABOVE the
-    // frame at high spread, light arriving from outside the room. Still may
-    // not touch `--ew-tier`, and does not.
+    // A cyan-teal (196°) pushed to where sRGB has no red left in it at all.
+    // The only theme permitted a second light source — its gradient sits
+    // ABOVE the frame at high spread, light arriving from outside the room,
+    // with a second, fainter one from below. The walls are a sky that is not
+    // this one. Still may not touch `--ew-tier`, and does not.
     surface: {
-      void: '#081614',
-      panel: '#0e2521',
-      raised: '#13322d',
-      hover: '#183f38',
-      line: '#1d4e46',
-      lineStrong: '#22705f',
+      void: '#001717',
+      panel: '#012424',
+      raised: '#022e2f',
+      hover: '#023a3a',
+      line: '#014344',
+      lineStrong: '#02736e',
     },
     ink: {
-      bright: '#f7f8f8',
-      base: '#eef2f1',
-      dim: '#8ca6a1',
-      faint: '#5e7873',
-      ghost: '#404f4c',
+      bright: '#f4fafa',
+      base: '#e7f3f3',
+      dim: '#8fabab',
+      faint: '#607a7a',
+      ghost: '#3d4e4e',
+    },
+    ornament: {
+      light:
+        'radial-gradient(120% 70% at 50% -22%, rgba(180, 255, 236, 0.07), transparent 74%), radial-gradient(80% 50% at 50% 104%, rgba(120, 220, 200, 0.035), transparent 70%)',
+      ...wallpaper('stars', 0.17),
+      pip: shapeRef('sparkle'),
+      trim: 'radial-gradient(70% 100% at 50% 0%, color-mix(in srgb, var(--ew-line-strong) 28%, transparent), transparent) top / 100% 16px no-repeat',
     },
   },
 
   // ---------------------------------------------------------------------------
   // The five faction reprisals (issue #14 slice 1, recoloured for issue #15
-  // track C2).
+  // track C2), and the five leaderships below them.
   //
-  // These five shipped as a SIDE EFFECT of #14: `themes.test.ts` fails the
-  // moment an ending has no theme, so each reprisal got a generated palette —
-  // one hue per theme, no relation to the faction it belonged to — the day its
-  // ending landed, months before C2 was scheduled to give them one on purpose.
-  // That palette is what #15 C2 actually specifies: "faction pairs share a hue
-  // family and differ in treatment; leadership is the faction ascendant,
-  // reprisal is the faction's process applied to you." Four of these five
-  // hues did not agree with their pair (`turned_to_fertilizer` already landed
-  // in the Verdant Choir's own green and needed no change; the family
-  // reassignment below is what C2 is actually for).
-  //
-  // Same generation recipe as before — one hue per theme at a fixed
-  // lightness/saturation ladder, the panel and ink nudged until the default
-  // palette's 13.80:1 clears on `base`, `bright`, and against `void` — with
-  // the hue itself now chosen to MATCH the leadership half of the pair below,
-  // not merely to look distinct from its neighbours.
+  // C2's rule: "faction pairs share a hue family and differ in treatment;
+  // leadership is the faction ascendant, reprisal is the faction's process
+  // applied to you." Each pair below still shares its family. What changed is
+  // the TREATMENT: issue #15 specified an ornament for every one of these
+  // (perforated edges, a ghost rule, a broken header rule, a marginal rule…)
+  // and none of it had been built, so a pair differed only by a few points of
+  // lightness and read as one room twice. The ornament is what tells them
+  // apart now, as the brief always intended.
   // ---------------------------------------------------------------------------
 
   {
     id: 'eternally_repurposed',
     name: 'Requisition',
     endingId: 'eternally_repurposed',
-    blurb: 'Ash and old brass. Stock, correctly filed.',
-    // Ashen Covenant, paired with `contract_writer` below: the same
-    // near-black ember hue, gone cold. Saturation drops from Pact Master's
-    // ~22% toward ~12% — "desaturated toward neutral grey" — and `base` sits
-    // two steps closer to `faint` than the usual ink recipe, per the brief.
+    blurb: 'Cold ash and carbon copies. Stock, correctly filed.',
+    // Ashen Covenant, paired with `contract_writer`: the same ash, gone cold —
+    // a slate blue-grey (238°, chroma held near neutral) where its partner
+    // still glows red. Issue #15's ornament, built: "panel edges perforated —
+    // a form to be torn along", the light rising from below ("a requisition
+    // form is filled out from the bottom up"), and walls of boxes to tick.
     surface: {
-      void: '#0f0d0c',
-      panel: '#1d1917',
-      raised: '#292320',
-      hover: '#352d29',
-      line: '#403632',
-      lineStrong: '#4c423e',
+      void: '#0b151c',
+      panel: '#14212a',
+      raised: '#1d2b34',
+      hover: '#26353f',
+      line: '#2e3d48',
+      lineStrong: '#495b67',
     },
     ink: {
-      bright: '#f8f8f8',
-      base: '#eae7e6',
-      dim: '#998780',
-      faint: '#71615b',
-      ghost: '#4b423f',
+      bright: '#f7f9fa',
+      base: '#edf1f3',
+      dim: '#9da6ac',
+      faint: '#6d767c',
+      ghost: '#464b4f',
+    },
+    ornament: {
+      light: 'radial-gradient(90% 55% at 50% 110%, rgba(214, 228, 240, 0.04), transparent 68%)',
+      ...wallpaper('form', 0.17),
+      pip: shapeRef('checkbox'),
+      trim: 'radial-gradient(circle, var(--ew-void) 1.3px, transparent 1.8px) left 2px top 2px / 7px 6px repeat-x, radial-gradient(circle, var(--ew-void) 1.3px, transparent 1.8px) left 2px bottom 2px / 7px 6px repeat-x',
     },
   },
 
@@ -360,26 +474,32 @@ export const THEMES: ThemeDef[] = [
     name: 'Assets Realised',
     endingId: 'liquidated',
     blurb: 'The same green-black ledger room, emptied.',
-    // Gilded Hand, paired with `grand_arbiter` below. Previously a
-    // counting-house BLUE with no relation to its partner's gold-on-green —
-    // the brief's own "same green-black" was not optional. `raised` is
-    // deliberately equal to `panel` ("raised drops a step, so surfaces are
-    // literally emptied") and `line`/`lineStrong` desaturate toward grey
-    // rather than carrying the brass forward.
+    // Gilded Hand, paired with `grand_arbiter`: the same baize (168°), darker
+    // and drained. `raised` is deliberately equal to `panel` ("raised drops a
+    // step, so surfaces are literally emptied") and the brass rule reverts to
+    // bare grey. Issue #15's ornament, built: "a ghost of the brass rule left
+    // where it was, plus a faint diagonal hatch" — here a cancellation hatch
+    // across the bottom of every card, and on the walls.
     surface: {
-      void: '#0c1309',
-      panel: '#172410',
-      raised: '#172410',
-      hover: '#223319',
-      line: '#2e372a',
-      lineStrong: '#3b4536',
+      void: '#020d08',
+      panel: '#061912',
+      raised: '#061912',
+      hover: '#0c231b',
+      line: '#1e352c',
+      lineStrong: '#424a46',
     },
     ink: {
-      bright: '#f8f8f8',
-      base: '#edefec',
-      dim: '#8b9b83',
-      faint: '#5d6c56',
-      ghost: '#3e463a',
+      bright: '#f6f9f8',
+      base: '#ecf2ef',
+      dim: '#9ba8a3',
+      faint: '#6c7873',
+      ghost: '#444d49',
+    },
+    ornament: {
+      light: 'radial-gradient(90% 55% at 50% -10%, rgba(220, 240, 230, 0.025), transparent 68%)',
+      ...wallpaper('hatch', 0.22),
+      pip: shapeRef('nil'),
+      trim: 'repeating-linear-gradient(-45deg, color-mix(in srgb, var(--ew-line-strong) 45%, transparent) 0 1px, transparent 1px 6px) bottom / 100% 8px no-repeat',
     },
   },
 
@@ -388,25 +508,32 @@ export const THEMES: ThemeDef[] = [
     name: 'Good Ground',
     endingId: 'turned_to_fertilizer',
     blurb: 'Everything in this room is growing. Some of it is you.',
-    // The darkest panel of the twelve: green sits high in the luminance
-    // formula, so the same lightness step that reads as a room in blue reads
-    // as a lawn here, and the ink loses its floor. Verdant Choir, paired with
-    // `archdruid` — this one already shared the family when it shipped under
-    // #14, so C2 leaves it untouched.
+    // Verdant Choir, paired with `archdruid`: "the same green pushed
+    // brown-black and wetter" — a dark olive (115°) where the Oak is leaf
+    // green. These two were the closest pair in the set before the spread
+    // (0.015 apart in OKLab, under one just-noticeable difference). Ornament, per issue #15: "borders soften and blur at the
+    // corners" — every card's edges darken softly into the wet — and "a slow
+    // dark bloom centred low"; roots on the walls.
     surface: {
-      void: '#091208',
-      panel: '#132410',
-      raised: '#1a3216',
-      hover: '#21401d',
-      line: '#294e23',
-      lineStrong: '#2e6a25',
+      void: '#080900',
+      panel: '#121500',
+      raised: '#1b1e02',
+      hover: '#252808',
+      line: '#2c3011',
+      lineStrong: '#444d14',
     },
     ink: {
-      bright: '#f8f8f8',
-      base: '#ecefec',
-      dim: '#91a48e',
-      faint: '#62775f',
-      ghost: '#434e41',
+      bright: '#f8f9f5',
+      base: '#f0f1ea',
+      dim: '#a4a795',
+      faint: '#747666',
+      ghost: '#4a4c41',
+    },
+    ornament: {
+      light: 'radial-gradient(70% 55% at 50% 78%, rgba(160, 200, 110, 0.045), transparent 72%)',
+      ...wallpaper('roots', 0.34),
+      pip: shapeRef('sprout'),
+      trim: 'radial-gradient(130% 140% at 50% 40%, transparent 60%, rgba(0, 0, 0, 0.28))',
     },
   },
 
@@ -415,29 +542,36 @@ export const THEMES: ThemeDef[] = [
     name: 'Past the Border',
     endingId: 'exiled_and_overrun',
     blurb: 'The same purple the Crown wears, gone slate and cold.',
-    // Crownlands, paired with `overthrown_the_kingdom` below. Previously a
-    // warm rose unrelated to the King's palette; now the same indigo-violet
-    // family, desaturated and cooled ("gone slate and colder"). `raised`
-    // flattens to `panel`'s own step, matching Liquidated's move, and
-    // `lineStrong` breaks from the family hue toward a low-presence
-    // danger-red rather than carrying the King's gold rule forward — the
-    // brief's "the gold rule becomes `--ew-danger` at low opacity", read as a
-    // hue swap rather than a literal alpha channel (every token here is an
-    // opaque hex; `contrastRatio` assumes it).
+    // Crownlands, paired with `overthrown_the_kingdom`: the King's plum gone
+    // slate-mauve (325°, a third of the chroma). `raised` flattens to
+    // `panel`, and the strong rule breaks from the family hue toward a
+    // low-presence danger-red — the brief's "the gold rule becomes
+    // `--ew-danger` at low opacity", read as a hue swap rather than a literal
+    // alpha channel (every token is an opaque hex; `contrastRatio` assumes
+    // it). Ornament, per issue #15: "the header rule is BROKEN — a gap in
+    // the middle", on every card; the light comes from outside the frame,
+    // offset to one edge; the walls are a map border with you on the wrong
+    // side of it.
     surface: {
-      void: '#130c13',
-      panel: '#221622',
-      raised: '#221622',
-      hover: '#2f202f',
-      line: '#3b293b',
-      lineStrong: '#56342e',
+      void: '#160d16',
+      panel: '#231723',
+      raised: '#231723',
+      hover: '#2d202e',
+      line: '#403141',
+      lineStrong: '#683834',
     },
     ink: {
-      bright: '#f8f8f8',
-      base: '#efecef',
-      dim: '#998099',
-      faint: '#6c566c',
-      ghost: '#463a46',
+      bright: '#faf8fa',
+      base: '#f2eff3',
+      dim: '#aaa1aa',
+      faint: '#7a717a',
+      ghost: '#4e484e',
+    },
+    ornament: {
+      light: 'radial-gradient(80% 60% at 92% 6%, rgba(224, 190, 200, 0.045), transparent 70%)',
+      ...wallpaper('border', 0.26),
+      pip: shapeRef('pennant'),
+      trim: 'linear-gradient(90deg, var(--ew-line-strong) 0 38%, transparent 38% 62%, var(--ew-line-strong) 62%) top / 100% 1px no-repeat',
     },
   },
 
@@ -446,73 +580,68 @@ export const THEMES: ThemeDef[] = [
     name: 'Underneath',
     endingId: 'consumed',
     blurb: 'The same violet as the cold room, dropped nearly to black.',
-    // Worm Below, paired with `lichdom` ("Cold Room") above — same ~253°
-    // blue-violet hue `lichdom` claims, not the unrelated teal this shipped
-    // with under #14. `void` and `panel` sit one lightness step apart instead
-    // of the usual two ("almost converge"), and `line` desaturates hard
-    // relative to its neighbours ("barely visible") while `lineStrong` stays
-    // saturated enough to clear its own reason for existing.
+    // Worm Below, paired with `lichdom`: the same violet (290°), dropped to
+    // the darkest room in the set. `void` and `panel` sit one step apart
+    // instead of two ("almost converge"), and `line` all but disappears into
+    // them. The light comes from below, very low — whatever is down there is
+    // patient — and every card darkens toward its foot, as if the frame were
+    // closing. Issue #15 asked for the column itself to narrow; on a 393px
+    // phone that is width the choice cards cannot spare, so the closing-in is
+    // painted rather than laid out (constraint 4).
     surface: {
-      void: '#0b0814',
-      panel: '#0e0b19',
-      raised: '#151125',
-      hover: '#1b162f',
-      line: '#231f30',
-      lineStrong: '#2b224f',
+      void: '#080614',
+      panel: '#0c091c',
+      raised: '#151126',
+      hover: '#1e1a31',
+      line: '#25223a',
+      lineStrong: '#2e2553',
     },
     ink: {
-      bright: '#f8f8f8',
-      base: '#e4e3e8',
-      dim: '#88839b',
-      faint: '#5b566c',
-      ghost: '#3c3a46',
+      bright: '#f8f8fc',
+      base: '#f0eff6',
+      dim: '#a4a3b2',
+      faint: '#747381',
+      ghost: '#4a4953',
+    },
+    ornament: {
+      light: 'radial-gradient(70% 40% at 50% 118%, rgba(150, 140, 224, 0.035), transparent 66%)',
+      ...wallpaper('burrows', 0.6),
+      pip: shapeRef('spiral'),
+      trim: 'linear-gradient(180deg, transparent 55%, rgba(0, 0, 0, 0.25))',
     },
   },
-
-  // ---------------------------------------------------------------------------
-  // The five faction leadership endings (issue #14, slice 2), recoloured for
-  // issue #15 track C2. `lichdom` above is the Worm Below's sixth and already
-  // has its theme, "Cold Room".
-  //
-  // Same generation recipe as the reprisals above: one hue per theme, held at
-  // a fixed lightness ladder, panel and ink nudged until the default
-  // palette's 13.80:1 clears on `base`, `bright`, and against `void`.
-  //
-  // `contract_writer` shipped under #14 in the SAME olive `archdruid` and
-  // `turned_to_fertilizer` already occupy — a generated hue with no relation
-  // to "Ashen Covenant", chosen before C2 existed to give it one. It moves to
-  // the ember-red family it shares with `eternally_repurposed` above; that
-  // frees the olive/gold-green band for the Verdant Choir pair alone, so
-  // `grand_arbiter` no longer needs the crowded, over-saturated compromise
-  // its comment used to describe. It now reads as what the brief actually
-  // asks for — green-black "baize" surfaces with a `lineStrong` bent toward
-  // brass — shared with `liquidated` above, and the two are the pair the
-  // rest of the ramp keeps in lockstep with (`liquidated`'s `raised` is
-  // literally `grand_arbiter`'s `panel` value).
-  // ---------------------------------------------------------------------------
 
   {
     id: 'contract_writer',
     name: 'Correspondence',
     endingId: 'contract_writer',
     blurb: 'Ash over banked embers. The ink is still fresh.',
-    // Ashen Covenant, paired with `eternally_repurposed` above: the same
-    // near-black ember hue at roughly double its saturation — "ash-grey
-    // panels" with a red undertone the reprisal has already lost.
+    // Ashen Covenant, paired with `eternally_repurposed`: ash-grey panels with
+    // a red undertone (30°) and the brightest ember of any `lineStrong`.
+    // Issue #15's ornament, built: "hairlines that read as ruled ledger lines"
+    // — writing paper on the walls, a ruled double header on every card —
+    // and the embers banked below the frame.
     surface: {
-      void: '#100b0a',
-      panel: '#1f1714',
-      raised: '#2c201c',
-      hover: '#392a24',
-      line: '#46322b',
-      lineStrong: '#703c29',
+      void: '#120a08',
+      panel: '#201412',
+      raised: '#2a1d1a',
+      hover: '#342624',
+      line: '#3d2e2b',
+      lineStrong: '#913d26',
     },
     ink: {
-      bright: '#f8f8f8',
-      base: '#efedec',
-      dim: '#a4948e',
-      faint: '#77665f',
-      ghost: '#4e4441',
+      bright: '#faf8f7',
+      base: '#f3efee',
+      dim: '#aba2a0',
+      faint: '#7b7271',
+      ghost: '#4f4948',
+    },
+    ornament: {
+      light:
+        'radial-gradient(90% 55% at 50% -10%, rgba(255, 240, 230, 0.035), transparent 68%), radial-gradient(80% 45% at 50% 112%, rgba(255, 120, 70, 0.05), transparent 70%)',
+      ...wallpaper('ruled', 0.18),
+      pip: shapeRef('nib'),
+      trim: `${RULE} left 14px top 3px / calc(100% - 28px) 1px no-repeat, ${RULE} left 14px top 6px / calc(100% - 28px) 1px no-repeat`,
     },
   },
 
@@ -521,28 +650,35 @@ export const THEMES: ThemeDef[] = [
     name: 'The Final Number',
     endingId: 'grand_arbiter',
     blurb: 'Green-black ledger surfaces, ruled in brass.',
-    // Gilded Hand, paired with `liquidated` above: "deep green-black
-    // surfaces, lineStrong in brass" — the brief names the base hue and the
-    // accent as two different colours on purpose, so `lineStrong` alone
-    // breaks toward gold (hue ~48° against the ramp's ~100°). The gap is
-    // held under the near-monochrome ceiling (spread ~53° of the allowed
-    // 90°) rather than reaching for a fully saturated gold, which is what
-    // "brass" over "baize" means anyway — a warm accent on a green room, not
-    // a second hue family.
+    // Gilded Hand, paired with `liquidated`: "deep green-black surfaces,
+    // lineStrong in brass" — the brief names the base hue and the accent as
+    // two different colours on purpose, so `lineStrong` alone breaks toward
+    // an olive-gold. The gap is held under the near-monochrome ceiling (spread
+    // ~85° of the allowed 90°) rather than reaching for a fully saturated
+    // gold, which is what "brass" over "baize" means anyway. Issue #15's
+    // ornament, built: "a thin double rule" — the accountant's double
+    // underline at the foot of every card — under a lamp, with coin on the
+    // walls.
     surface: {
-      void: '#0c1309',
-      panel: '#172410',
-      raised: '#203317',
-      hover: '#29411d',
-      line: '#325022',
-      lineStrong: '#73621f',
+      void: '#011407',
+      panel: '#03210f',
+      raised: '#0b2b18',
+      hover: '#143621',
+      line: '#1d3e29',
+      lineStrong: '#7d7c2d',
     },
     ink: {
-      bright: '#f8f8f8',
-      base: '#edefec',
-      dim: '#95a48e',
-      faint: '#67775f',
-      ghost: '#454e41',
+      bright: '#f5faf7',
+      base: '#ebf2ed',
+      dim: '#98aa9d',
+      faint: '#68796d',
+      ghost: '#424e45',
+    },
+    ornament: {
+      light: 'radial-gradient(90% 55% at 50% -10%, rgba(255, 236, 170, 0.05), transparent 68%)',
+      ...wallpaper('coins', 0.16),
+      pip: shapeRef('coin'),
+      trim: `${RULE} left 14px bottom 6px / calc(100% - 28px) 1px no-repeat, ${RULE} left 14px bottom 3px / calc(100% - 28px) 1px no-repeat`,
     },
   },
 
@@ -551,20 +687,30 @@ export const THEMES: ThemeDef[] = [
     name: 'The Chair',
     endingId: 'archmage',
     blurb: 'A pale, cold blue. The disclaimer used to live here.',
+    // Pale Academy, paired with `sealed_in_gem`: navy surfaces (262°) with a
+    // chalk-pale `lineStrong`. Issue #15's ornament, built: "a marginal rule
+    // down the left of each card — a cited page"; the walls are a blackboard
+    // of compass-and-straightedge constructions, and the Academy is watching.
     surface: {
-      void: '#090c15',
-      panel: '#111527',
-      raised: '#171d36',
-      hover: '#1d2544',
-      line: '#232d52',
-      lineStrong: '#25346f',
+      void: '#050e1f',
+      panel: '#0c1930',
+      raised: '#14223c',
+      hover: '#1d2c48',
+      line: '#253451',
+      lineStrong: '#6d81a5',
     },
     ink: {
-      bright: '#f8f8f8',
-      base: '#ececef',
-      dim: '#8e92a4',
-      faint: '#5f6477',
-      ghost: '#41444e',
+      bright: '#f6f8fd',
+      base: '#ecf0f8',
+      dim: '#9ba5b6',
+      faint: '#6c7585',
+      ghost: '#444b56',
+    },
+    ornament: {
+      light: 'radial-gradient(70% 50% at 50% -10%, rgba(220, 232, 255, 0.06), transparent 70%)',
+      ...wallpaper('diagram', 0.15),
+      pip: shapeRef('eye'),
+      trim: `${RULE} left 6px top 16px / 1px calc(100% - 32px) no-repeat`,
     },
   },
 
@@ -573,20 +719,30 @@ export const THEMES: ThemeDef[] = [
     name: 'The Eldest Oak',
     endingId: 'archdruid',
     blurb: 'Gold-green, the colour of a grove that voted without meeting.',
+    // Verdant Choir, paired with `turned_to_fertilizer`: leaf green (132°),
+    // the living half of the pair. Growth, not light — the gradient rises from
+    // the bottom edge, and moss creeps up the foot of every card; leaves on
+    // the wind across the walls.
     surface: {
-      void: '#07100a',
-      panel: '#0f2215',
-      raised: '#15301d',
-      hover: '#1b3e26',
-      line: '#214d2f',
-      lineStrong: '#236939',
+      void: '#091601',
+      panel: '#122202',
+      raised: '#1a2d08',
+      hover: '#233711',
+      line: '#2b3f19',
+      lineStrong: '#436b17',
     },
     ink: {
-      bright: '#f8f8f8',
-      base: '#ecefed',
-      dim: '#8ea495',
-      faint: '#5f7767',
-      ghost: '#414e45',
+      bright: '#f7f9f5',
+      base: '#edf2e9',
+      dim: '#9da994',
+      faint: '#6d7965',
+      ghost: '#464d40',
+    },
+    ornament: {
+      light: 'radial-gradient(85% 60% at 50% 108%, rgba(150, 224, 160, 0.05), transparent 70%)',
+      ...wallpaper('leaves', 0.19),
+      pip: shapeRef('acorn'),
+      trim: 'linear-gradient(0deg, color-mix(in srgb, var(--ew-line-strong) 16%, transparent), transparent 14px)',
     },
   },
 
@@ -595,28 +751,33 @@ export const THEMES: ThemeDef[] = [
     name: 'The Crown',
     endingId: 'overthrown_the_kingdom',
     blurb: 'Royal purple, kept by someone the Crownlands did not choose.',
-    // Crownlands, paired with `exiled_and_overrun` above: the same
-    // indigo-violet family, with `lineStrong` bent toward a restrained gold —
-    // "a single gold rule" — the same accent-not-family-shift `grand_arbiter`
-    // uses above, for the same reason: true spectral gold (~45°) sits well
-    // outside 90° of true indigo (~250°), so the rule reads warm relative to
-    // the room rather than literally gold. The constraint wins, because it is
-    // the testable one (`sealed_in_gem`'s comment above gives the general
-    // case).
+    // Crownlands, paired with `exiled_and_overrun`: a royal plum (345°), with
+    // `lineStrong` bent toward a restrained gold — "a single gold rule" — the
+    // same accent-not-family-shift `grand_arbiter` uses, for the same reason:
+    // true gold sits outside 90° of the room's hue, so the rule reads warm
+    // relative to the room rather than literally gold. Issue #15's ornament,
+    // built: "a full-width rule above the header — a banner hem", at the top
+    // of every card; fleurs-de-lis on the walls.
     surface: {
-      void: '#150911',
-      panel: '#27111f',
-      raised: '#35182a',
-      hover: '#431e35',
-      line: '#512440',
-      lineStrong: '#705629',
+      void: '#1d0413',
+      panel: '#2d0a20',
+      raised: '#39132a',
+      hover: '#451c35',
+      line: '#4e243d',
+      lineStrong: '#98742b',
     },
     ink: {
-      bright: '#f8f8f8',
-      base: '#efecee',
-      dim: '#a48e9c',
-      faint: '#775f6e',
-      ghost: '#4e4149',
+      bright: '#fcf7f9',
+      base: '#f7edf2',
+      dim: '#b59da9',
+      faint: '#836d79',
+      ghost: '#54454d',
+    },
+    ornament: {
+      light: 'radial-gradient(90% 55% at 50% -10%, rgba(255, 226, 180, 0.05), transparent 68%)',
+      ...wallpaper('fleur', 0.18),
+      pip: shapeRef('crown'),
+      trim: `${RULE} top / 100% 2px no-repeat, linear-gradient(color-mix(in srgb, var(--ew-line-strong) 50%, transparent), color-mix(in srgb, var(--ew-line-strong) 50%, transparent)) left 0 top 4px / 100% 1px no-repeat`,
     },
   },
 
@@ -629,8 +790,9 @@ export const THEMES: ThemeDef[] = [
   // monochrome within a theme) and constraint 5 (the ink floor) are still
   // measured, not waived: `ink` simply inverts direction here, dark warm
   // brown-black read against a pale cream ramp rather than pale parchment
-  // read against a warm black one. Neither token object has a tier key, so
-  // constraint 1 holds the same way it does for every other theme.
+  // read against a warm black one. Its light is sunlight — white, which on
+  // cream raises the contrast rather than lowering it — and there are daisies
+  // in the lawn.
   // ---------------------------------------------------------------------------
 
   {
@@ -653,20 +815,22 @@ export const THEMES: ThemeDef[] = [
       faint: '#6b5726',
       ghost: '#8f7b4a',
     },
+    ornament: {
+      light: 'radial-gradient(100% 60% at 50% -10%, rgba(255, 255, 255, 0.55), transparent 70%)',
+      ...wallpaper('daisies', 0.12),
+      pip: shapeRef('sun'),
+      trim: 'linear-gradient(180deg, rgba(255, 255, 255, 0.35), transparent 14px)',
+    },
   },
 
   // ---------------------------------------------------------------------------
   // Arch-Lich (issue #25).
   //
   // Not a rotation of "Cold Room" — a theme keyed to `arch_lich` earns its own
-  // block regardless of how close the two endings sit, the same way `good_
-  // wizard` above earns one distinct from every dark theme it sits beside.
-  // Still the SAME violet-undeath family `lichdom` claims (constraint 2 is
-  // measured per theme, not against a sibling, so there is no rule forcing
-  // distance from it) — this one is simply lit from something `lichdom`
-  // doesn't have: a shade warmer and several steps brighter, a candle in the
-  // cold room rather than the cold room itself. Dark, unlike `good_wizard`;
-  // near-monochrome within itself, unlike nothing — every theme is.
+  // block regardless of how close the two endings sit. Still the SAME violet-
+  // undeath family `lichdom` claims, lit from something `lichdom` doesn't
+  // have: a shade warmer (300°) and the lightest dark room the ink floor
+  // allows, a candle in the cold room rather than the cold room itself.
   // ---------------------------------------------------------------------------
 
   {
@@ -675,19 +839,26 @@ export const THEMES: ThemeDef[] = [
     endingId: 'arch_lich',
     blurb: 'The same cold room. Somebody left a candle burning in it anyway.',
     surface: {
-      void: '#130e1a',
-      panel: '#20142e',
-      raised: '#2b1c3d',
-      hover: '#35234a',
-      line: '#432c5e',
-      lineStrong: '#573a76',
+      void: '#1b1329',
+      panel: '#281d3a',
+      raised: '#322746',
+      hover: '#3d3053',
+      line: '#45395c',
+      lineStrong: '#6e519d',
     },
     ink: {
-      bright: '#fbf5ff',
-      base: '#f1e7f8',
-      dim: '#b39dc5',
-      faint: '#8472a1',
-      ghost: '#5d5077',
+      bright: '#fbf9fe',
+      base: '#f3f0f9',
+      dim: '#a7a1b5',
+      faint: '#777184',
+      ghost: '#4c4855',
+    },
+    ornament: {
+      light:
+        'radial-gradient(60% 40% at 50% -6%, rgba(255, 224, 196, 0.04), transparent 70%), radial-gradient(90% 55% at 50% -10%, rgba(236, 220, 255, 0.04), transparent 68%)',
+      ...wallpaper('candles', 0.15),
+      pip: shapeRef('flame'),
+      trim: 'radial-gradient(50% 100% at 50% 0%, color-mix(in srgb, var(--ew-line-strong) 24%, transparent), transparent) top / 100% 14px no-repeat',
     },
   },
 ];
@@ -768,6 +939,15 @@ export const FONT_VARS = {
   ui: '--ew-font-ui',
 } as const;
 
+export const ORNAMENT_VARS: Record<keyof typeof ornament, string> = {
+  light: '--ew-light',
+  motif: '--ew-motif',
+  motifSize: '--ew-motif-size',
+  motifOpacity: '--ew-motif-opacity',
+  pip: '--ew-pip',
+  trim: '--ew-trim',
+};
+
 /**
  * Every custom property a theme sets, as `{ '--ew-…': value }`.
  *
@@ -788,11 +968,16 @@ export function themeVars(theme: ThemeDef): Record<string, string> {
   for (const [key, value] of Object.entries(theme.font ?? {})) {
     if (value) out[FONT_VARS[key as keyof typeof FONT_VARS]] = value;
   }
+  for (const [key, value] of Object.entries(theme.ornament)) {
+    out[ORNAMENT_VARS[key as keyof typeof ornament]] = String(value);
+  }
   return out;
 }
 
 /**
- * The four bands the selector draws, resolved against the default.
+ * The four bands the selector draws, resolved against the default — plus the
+ * strong line colour, which the swatch paints the theme's own wallpaper and
+ * glyph in, exactly as the room itself does.
  *
  * A theme that does not override `ink` still needs an ink band, so every
  * lookup falls back to the shipped token rather than rendering a hole.
@@ -802,11 +987,13 @@ export function swatchBands(theme: ThemeDef): {
   panel: string;
   line: string;
   ink: string;
+  lineStrong: string;
 } {
   return {
     void: theme.surface.void ?? surface.void,
     panel: theme.surface.panel ?? surface.panel,
     line: theme.surface.line ?? surface.line,
     ink: theme.ink?.base ?? ink.base,
+    lineStrong: theme.surface.lineStrong ?? surface.lineStrong,
   };
 }

@@ -42,15 +42,15 @@ constraints below exist, and is the thing to read before relaxing any of them.
 |---|---|
 | `src/types.ts` | **The frozen contract.** Every module is written against it. |
 | `src/version.ts` | `BUILD_VERSION` — bump it and add a `src/content/changelog.ts` entry on every player-visible change (issue #67). |
-| `src/theme/` | Design tokens (`tokens.ts` for JS, `tokens.css` for `--ew-*`). |
+| `src/theme/` | Design tokens (`tokens.ts` for JS, `tokens.css` for `--ew-*`), the theme catalog (`themes.ts`), and the ornament shapes (`ornaments.ts`, generated into `ornaments.css` by `npm run ornaments`). |
 | `src/engine/` | Run state, offer sampling, resolution, endings, persistence. |
 | `src/content/` | Factions, artifacts, lairs, origins, endings, epithets, 155 offers, the changelog. |
 | `src/components/run/` | The run loop: masthead, faction standings, decision and offer panels, resolution overlay, relic page, notoriety badge. |
 | `src/components/meta/` | Set-piece parts: lair grid, artifact grid, sigil. |
 | `src/screens/` | Screen composition. |
-| `scripts/` | `validate-content.ts`, `simulate.ts` (balance harness), `balance-report.ts` (renders the PR comment), `build-static-assets.ts` (`npm run assets`). |
+| `scripts/` | `validate-content.ts`, `simulate.ts` (balance harness), `balance-report.ts` (renders the PR comment), `build-static-assets.ts` (`npm run assets`), `build-ornaments.ts` (`npm run ornaments`). |
 | `public/` | Favicon, touch/install icons, manifest and the link-preview image — generated from the game's own sigil by `npm run assets` and committed. |
-| `qa/` | Playwright probes. `sweep-layout.mjs` plays many careers and audits every state; `probe-late-game.mjs` and `probe-era-scroll.mjs` cover the worst-case header and the scroll reset; `probe-keyboard.mjs` plays a whole career with no mouse. Screenshots are gitignored. |
+| `qa/` | Playwright probes. `sweep-layout.mjs` plays many careers and audits every state; `probe-late-game.mjs` and `probe-era-scroll.mjs` cover the worst-case header and the scroll reset; `probe-keyboard.mjs` plays a whole career with no mouse; `probe-themes.mjs` measures the themes and `shoot-themes.mjs` photographs all twenty side by side. Screenshots are gitignored. |
 | `wiki/` | Design intent and rationale. |
 
 ## Commands
@@ -153,6 +153,14 @@ These come from a game that worked at scale. They look arbitrary in isolation.
    structure, near-monochrome within itself, and it clears the default
    palette's ink-on-panel contrast. The distinction to keep: **the game
    colours what you did; the player colours the room.**
+   *Ornament follows the same rule.* A theme also decorates its room — a key
+   light, a wallpaper, a corner glyph, a card trim — and all four are tokens
+   in its `tokens.css` block, never a `[data-theme]` selector in a component
+   stylesheet. The shapes are colourless masks (`src/theme/ornaments.ts`)
+   painted in the theme's own `--ew-line-strong`, so ornament can never bring
+   a hue the palette does not already have; the wallpaper's strength is
+   capped by the same ink floor; and every pair of themes must sit at least
+   1.5 just-noticeable differences apart (all measured in `themes.test.ts`).
 4. **Comedy in the text, never in the numbers.**
 5. **No fail state, and no doom meter.** Every ending is a biography. The decline
    works because a number quietly goes the wrong way. Note this bans *announcing
@@ -181,8 +189,11 @@ that followed it.
 1. **Adjacent sections get a border, not just a gap.** A flex `gap` alone reads
    as one undifferentiated block once a screen has more than one section
    stacked on it. Close a section the way `Masthead`'s `.header` does —
-   `padding-bottom: var(--ew-space-4); border-bottom: 1px solid var(--ew-line);`
-   — so the eye can tell where one section ends and the next begins.
+   `padding-bottom: var(--ew-space-4)` and `composes: sectionRule` from
+   `craft.module.css` (a 1px bottom border as far as layout goes, with the
+   rule painted into it and the theme's glyph set in its middle; the element
+   must be `position: relative`) — so the eye can tell where one section ends
+   and the next begins.
    `FactionStandings.module.css`'s `.section` follows the same rule for
    exactly this reason: it sits between the masthead and the decision content
    and needs to read as its own thing, not a continuation of either.
@@ -214,6 +225,13 @@ that followed it.
    setting and no disclosure *because* it carries no information — the moment a
    beat means something a player could miss, it is a disclosure and rule 1
    applies. See `src/components/meta/haptics.ts`.
+5. **A card wears the room's ornament through two tokens, not a theme
+   selector.** `composes: pips` from `craft.module.css` puts the theme's glyph
+   at its corners (it spends the card's `::after`), and `var(--ew-trim, none)`
+   goes first in its `background` list — in the hover and active states too,
+   or the trim vanishes under a finger. The `none` fallback matters: an
+   undefined custom property invalidates the whole `background` declaration
+   and the card renders transparent. See `OptionCard.module.css`.
 
 ## Failure modes this repo has actually produced
 

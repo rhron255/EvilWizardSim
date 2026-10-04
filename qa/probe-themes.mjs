@@ -37,7 +37,10 @@ const note = (ok, label, detail) => {
   if (!ok) problems.push(label);
 };
 
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({
+  headless: true,
+  executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined,
+});
 const page = await browser.newPage({
   viewport: { width: WIDTH, height: HEIGHT },
   deviceScaleFactor: 2,
@@ -197,6 +200,53 @@ const contrast = await page.evaluate(() => {
   return (hi + 0.05) / (lo + 0.05);
 });
 note(contrast >= 13.8, 'ink clears the contrast floor in the browser', `${contrast.toFixed(2)}:1`);
+
+// --- ornament: does the room's decoration actually draw? ---------------------
+// Every shape is a data-URI SVG used as a mask. One that fails to parse is not
+// an error anywhere — the mask is just empty and the wallpaper silently is not
+// there, which is how eight shapes once shipped invisible past a green unit
+// suite. So decode every one in a real browser, and read the worn theme's
+// wallpaper layer off the live DOM.
+const ornament = await page.evaluate(async () => {
+  const rootStyle = getComputedStyle(document.documentElement);
+  const names = [...document.styleSheets]
+    .flatMap((sheet) => {
+      try {
+        return [...sheet.cssRules];
+      } catch {
+        return [];
+      }
+    })
+    .flatMap((rule) => (rule.style ? [...rule.style] : []))
+    .filter((name) => name.startsWith('--ew-shape-'));
+  const failed = [];
+  for (const name of new Set(names)) {
+    const src = rootStyle.getPropertyValue(name).trim().match(/^url\("(.*)"\)$/)?.[1];
+    const img = new Image();
+    img.src = src ?? '';
+    const ok = await img.decode().then(() => img.naturalWidth > 0, () => false);
+    if (!ok) failed.push(name);
+  }
+  const main = document.querySelector('main');
+  const wall = getComputedStyle(main, '::before');
+  return {
+    shapes: new Set(names).size,
+    failed,
+    wallMask: (wall.maskImage || wall.webkitMaskImage || 'none').slice(0, 30),
+    wallOpacity: Number(wall.opacity),
+    theme: main.getAttribute('data-theme'),
+  };
+});
+note(
+  ornament.shapes >= 20 && ornament.failed.length === 0,
+  'every ornament shape decodes in the browser',
+  ornament.failed.length ? `broken: ${ornament.failed.join(', ')}` : `${ornament.shapes} shapes`,
+);
+note(
+  ornament.wallMask.startsWith('url(') && ornament.wallOpacity > 0,
+  'the worn theme hangs its wallpaper',
+  `${ornament.theme} · opacity ${ornament.wallOpacity}`,
+);
 
 // --- persistence: does the choice survive a reload? --------------------------
 const chosen = await readVars();

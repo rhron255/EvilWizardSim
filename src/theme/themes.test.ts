@@ -17,23 +17,26 @@
  *     default silently strand every theme above it.
  */
 
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { EndingId } from '../types';
 import { endings } from '../content/endings';
 import { contrastRatio } from './contrast';
+import { deltaEOK, JND_OK, over } from './oklab';
+import { shapeKind, SHAPE_IDS, type ShapeId } from './ornaments';
 import {
   DEFAULT_THEME_ID,
   isThemeId,
   isThemeUnlocked,
+  ORNAMENT_VARS,
   THEMES,
   themeFor,
   themeVars,
   unlockedThemeIds,
   swatchBands,
 } from './themes';
-import { ink, surface } from './tokens';
+import { ink, ornament, surface } from './tokens';
 
 /**
  * Read off disk, not imported.
@@ -59,9 +62,16 @@ const ENDING_IDS: EndingId[] = endings.map((e) => e.id);
 function cssBlockFor(id: string): Record<string, string> | null {
   const start = CSS.indexOf(`[data-theme='${id}']`);
   if (start === -1) return null;
+  return declarationsFrom(start);
+}
+
+/** The declarations of the first `{ … }` block at or after `start`. */
+function declarationsFrom(start: number): Record<string, string> {
   const open = CSS.indexOf('{', start);
   const close = CSS.indexOf('}', open);
-  const body = CSS.slice(open + 1, close);
+  // Comments out first: :root documents its tokens inline, and a `;` in
+  // prose would otherwise glue a comment onto the next declaration's name.
+  const body = CSS.slice(open + 1, close).replace(/\/\*[\s\S]*?\*\//g, '');
   const out: Record<string, string> = {};
   for (const line of body.split(';')) {
     const [name, ...rest] = line.split(':');
@@ -266,6 +276,163 @@ describe('themes · constraint 2, near-monochrome within a theme', () => {
       // theme spanning more than a quadrant has stopped being one hue.
       expect(spread).toBeLessThanOrEqual(90);
     });
+  }
+});
+
+describe('themes · constraint 7, ornament brings no colour and costs the ink nothing', () => {
+  const FLOOR = contrastRatio(ink.base, surface.panel);
+
+  it('the :root ornament agrees with tokens.ts, as every theme block agrees with its theme', () => {
+    // The default has no block of its own (it IS :root), so the sync test
+    // above never looks at it. Without this, the default's wallpaper could
+    // drift between the two files with nothing failing.
+    const root = declarationsFrom(CSS.indexOf(':root {'));
+    for (const [key, name] of Object.entries(ORNAMENT_VARS)) {
+      expect(root[name], name).toBe(String(ornament[key as keyof typeof ornament]));
+    }
+  });
+
+  for (const theme of THEMES) {
+    it(`${theme.name}'s wallpaper leaves the ink as readable as a panel would`, () => {
+      // The wallpaper is `--ew-line-strong` drawn over `--ew-void` at
+      // `motifOpacity`, and text sits straight on the void on the run screen
+      // and the title. At the pattern's densest pixel the room is that
+      // composite, so that is the colour the ink is measured against.
+      const { motif, motifOpacity } = theme.ornament;
+      const voidc = theme.surface.void ?? surface.void;
+      const strong = theme.surface.lineStrong ?? surface.lineStrong;
+      const base = theme.ink?.base ?? ink.base;
+      if (motif === 'none') return;
+      expect(motifOpacity).toBeGreaterThan(0);
+      expect(contrastRatio(base, over(voidc, strong, motifOpacity))).toBeGreaterThanOrEqual(FLOOR);
+    });
+
+    it(`${theme.name}'s light and trim never reach for the scarce colours`, () => {
+      // `light` and `trim` are free CSS, which is the one place a theme could
+      // name `--ew-tier` without the type system noticing.
+      for (const css of [theme.ornament.light, theme.ornament.trim]) {
+        expect(css).not.toMatch(/--ew-tier|--ew-legendary|--ew-danger/);
+        expect(css, 'a hex literal is a colour the palette does not own').not.toMatch(/#[0-9a-f]{3,8}\b/i);
+      }
+    });
+
+    it(`${theme.name}'s card trim colours itself from tokens or plain light and shade`, () => {
+      // A trim sits on every card, so it is held tighter than the key light:
+      // any rgba() in it must be black or white, never a tint.
+      for (const rgba of theme.ornament.trim.match(/rgba?\([^)]*\)/g) ?? []) {
+        expect(rgba).toMatch(/^rgba?\(\s*(0,\s*0,\s*0|255,\s*255,\s*255)\s*[,)]/);
+      }
+    });
+
+    it(`${theme.name}'s key light stays a breath, not a lamp`, () => {
+      // 0.07 is the brightest light any theme shipped with before ornament
+      // became a token (Wrong Colour's, from outside the frame). White on the
+      // one light room is the exception: it RAISES that room's contrast.
+      for (const rgba of theme.ornament.light.match(/rgba\([^)]*\)/g) ?? []) {
+        const alpha = Number(rgba.slice(rgba.lastIndexOf(',') + 1, -1));
+        const isWhite = /^rgba\(255,\s*255,\s*255,/.test(rgba);
+        const voidc = theme.surface.void ?? surface.void;
+        const lightRoom = contrastRatio(voidc, '#000000') > contrastRatio(voidc, '#ffffff');
+        if (isWhite && lightRoom) continue;
+        expect(alpha, rgba).toBeLessThanOrEqual(0.07);
+      }
+    });
+  }
+
+  it('names only shapes that exist, and of the right kind', () => {
+    // The compiler holds this for themes.ts (`ShapeRef<PatternId>`); the CSS
+    // has no compiler, and a shape named there but never generated would
+    // paint a transparent mask — no wallpaper, and nothing failing.
+    const named = [...CSS.matchAll(/var\(--ew-shape-([a-z0-9-]+)\)/g)].map((m) => m[1]);
+    expect(named.length).toBeGreaterThan(THEMES.length);
+    for (const id of named) expect(SHAPE_IDS, id).toContain(id);
+    for (const theme of THEMES) {
+      const motif = theme.ornament.motif.match(/--ew-shape-([a-z0-9-]+)/)?.[1] as ShapeId | undefined;
+      const pip = theme.ornament.pip.match(/--ew-shape-([a-z0-9-]+)/)?.[1] as ShapeId;
+      if (motif) expect(shapeKind(motif)).toBe('pattern');
+      expect(shapeKind(pip)).toBe('glyph');
+    }
+  });
+
+  it('gives every room a glyph of its own', () => {
+    const pips = THEMES.map((t) => t.ornament.pip);
+    expect(new Set(pips).size).toBe(THEMES.length);
+  });
+
+  it('gives every room its own wallpaper, but for the one shared on purpose', () => {
+    // New Management keeps the Tower's stonework — the joke is that almost
+    // nothing structural changed. That is the only pair allowed to share.
+    const byMotif = new Map<string, string[]>();
+    for (const t of THEMES) byMotif.set(t.ornament.motif, [...(byMotif.get(t.ornament.motif) ?? []), t.id]);
+    const shared = [...byMotif.values()].filter((ids) => ids.length > 1);
+    expect(shared).toEqual([['default', 'betrayed_by_apprentice']]);
+  });
+
+  it('keeps theme selectors out of every stylesheet but tokens.css', () => {
+    // Constraint 3, now that ornament is a token: the last per-theme rules
+    // (the key lights in RunScreen.module.css) are gone, and a new one
+    // appearing anywhere means a component has started to know about themes.
+    const root = resolve(process.cwd(), 'src');
+    const offenders: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = resolve(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (entry.name.endsWith('.css') && entry.name !== 'tokens.css') {
+          const code = readFileSync(full, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+          if (/\[data-theme/.test(code)) offenders.push(full);
+        }
+      }
+    };
+    walk(root);
+    expect(offenders).toEqual([]);
+  });
+});
+
+describe('themes · constraint 8, no two rooms look alike', () => {
+  /**
+   * How different two rooms look, as one number.
+   *
+   * The mean OKLab distance across the four colours that cover the most
+   * screen, weighted by how much of it they cover: the void and the panel are
+   * most of every screen, the raised step and the strong rule are the edges.
+   */
+  const WEIGHTS = { void: 0.35, panel: 0.35, raised: 0.15, lineStrong: 0.15 } as const;
+  const distance = (a: (typeof THEMES)[number], b: (typeof THEMES)[number]) =>
+    (Object.keys(WEIGHTS) as (keyof typeof WEIGHTS)[]).reduce(
+      (sum, k) => sum + WEIGHTS[k] * deltaEOK(a.surface[k] ?? surface[k], b.surface[k] ?? surface[k]),
+      0,
+    );
+
+  /**
+   * One and a half just-noticeable differences.
+   *
+   * Provenance: CSS Color 4 fixes the OKLab JND at 0.02. A player reported
+   * the themes as hard to tell apart, and by this measure thirteen pairs sat
+   * under 0.030 before the palettes were regenerated — Good Ground and The
+   * Eldest Oak closest, at 0.015, under a single JND. The floor is set just
+   * above the pairs that were reported, not at a number that looked round;
+   * the regenerated set clears it with its closest pair at 0.035.
+   */
+  const FLOOR = 1.5 * JND_OK;
+
+  it('is measuring something: the default and the one light room are far apart', () => {
+    // Guards the guard. A distance function that returned 0 would fail every
+    // pair; one that returned a constant above the floor would pass them all.
+    const def = THEMES.find((t) => t.id === DEFAULT_THEME_ID)!;
+    const light = THEMES.find((t) => t.id === 'good_wizard')!;
+    expect(distance(def, light)).toBeGreaterThan(0.5);
+    expect(distance(def, def)).toBe(0);
+  });
+
+  for (let i = 0; i < THEMES.length; i++) {
+    for (let j = i + 1; j < THEMES.length; j++) {
+      const a = THEMES[i];
+      const b = THEMES[j];
+      it(`${a.name} and ${b.name} are told apart at a glance`, () => {
+        expect(distance(a, b)).toBeGreaterThanOrEqual(FLOOR);
+      });
+    }
   }
 });
 

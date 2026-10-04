@@ -1,11 +1,13 @@
 .slot {
+  /* The theme's glyph at each corner, and its card trim over the panel. */
+  composes: pips from './craft.module.css';
   position: relative;
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: var(--ew-space-4);
   padding: var(--ew-space-4);
-  background: var(--ew-panel);
+  background: var(--ew-trim, none), var(--ew-panel);
   border: 1px solid var(--ew-line);
   border-radius: var(--ew-radius-md);
   box-shadow: var(--ew-lip);

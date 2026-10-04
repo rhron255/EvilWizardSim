@@ -89,376 +89,501 @@
   /* Layout */
   --ew-max-width: 760px;
   --ew-wide-max-width: 960px;
+
+  /* Ornament — what the room is decorated with, as distinct from its colour.
+     Mirrors `ornament` in tokens.ts; every theme block below overrides all six.
+
+     None of these can bring a colour of their own. `--ew-motif` and `--ew-pip`
+     name a colourless MASK shape from ornaments.css (generated from
+     ornaments.ts) and are painted in `--ew-line-strong` by whatever draws
+     them; `--ew-light` and `--ew-trim` are gradient layers whose colours are
+     surface tokens or plain white/black light. So a violet room's wallpaper is
+     violet, and nothing here can compete with `--ew-tier`.
+
+       --ew-light          key light: background layer(s) over --ew-void, or none
+       --ew-motif          wallpaper tiled behind every screen, or none
+       --ew-motif-size     one tile of it
+       --ew-motif-opacity  how strongly it is drawn — capped by the ink floor
+       --ew-pip            glyph at card corners and in section rules
+       --ew-trim           background layer(s) over a card's own surface, or none */
+  --ew-light: radial-gradient(90% 55% at 50% -10%, rgba(255, 246, 224, 0.045), transparent 68%);
+  --ew-motif: var(--ew-shape-masonry);
+  --ew-motif-size: 96px 48px;
+  --ew-motif-opacity: 0.15;
+  --ew-pip: var(--ew-shape-star);
+  --ew-trim: none;
 }
 
 /* --------------------------------------------------------------------------
    Themes — one per ending, chosen by the player, earned across runs.
 
    Each block below MIRRORS an entry in `themes.ts`, which is the JS source of
-   truth; `themes.test.ts` parses this file and fails if the two disagree about
-   any token, so neither half can drift.
+   truth and carries the reasoning for every palette and ornament; this file
+   carries a line each. `themes.test.ts` parses this file and fails if the two
+   disagree about any token, so neither half can drift.
 
-   TWO RULES, both enforced by that test:
+   A theme is its palette AND its ornament: the key light, the wallpaper, the
+   corner glyph and the card trim are tokens like any other, which is why no
+   stylesheet outside this one needs a data-theme selector.
 
-     1. No block here may define `--ew-tier` or `--ew-tier-glow`. Those are set
-        at runtime from the Notoriety tier by `tierVars()`, and a theme
-        touching them would compete with the one reward it is not allowed to
-        compete with.
+   THREE RULES, all enforced by that test:
+
+     1. No block here may define `--ew-tier` or `--ew-tier-glow`, or name them
+        in a value. Those are set at runtime from the Notoriety tier by
+        `tierVars()`, and a theme touching them would compete with the one
+        reward it is not allowed to compete with.
      2. No block here may define `--ew-legendary`. It is pinned to the Legend
         gold for the reason its comment above gives, in every theme.
+     3. One declaration per line: the test compares each value to the
+        TypeScript string exactly, so a value wrapped across lines would read
+        as a different one.
 
    `default` has no block: it IS `:root`. Selecting it removes the attribute
    rather than overriding anything back to where it started.
    -------------------------------------------------------------------------- */
 
-/* The Sword — a red-brown room with an edge in it. The hero's own
-   `--ew-danger` is promoted, unmuted, to the strong rule. */
+/* The Sword — blood red, the hero's `--ew-danger` promoted to the strong
+   rule, a steel hairline along the top of every card, blades on the walls. */
 [data-theme='slain_by_chosen_one'] {
-  --ew-void: #1a0f0d;
-  --ew-panel: #2b1915;
-  --ew-raised: #38211c;
-  --ew-hover: #462823;
-  --ew-line: #55312a;
-  --ew-line-strong: #b4453c;
+  --ew-void: #1f0705;
+  --ew-panel: #300f0c;
+  --ew-raised: #3b1714;
+  --ew-hover: #48211d;
+  --ew-line: #512925;
+  --ew-line-strong: #af3d36;
 
-  --ew-ink-bright: #f8f7f7;
-  --ew-ink: #efece9;
-  --ew-ink-dim: #a6988c;
-  --ew-ink-faint: #786a5e;
-  --ew-ink-ghost: #4f4740;
+  --ew-ink-bright: #fdf7f6;
+  --ew-ink: #f8edec;
+  --ew-ink-dim: #b79e9a;
+  --ew-ink-faint: #866e6b;
+  --ew-ink-ghost: #564644;
+
+  --ew-light: radial-gradient(90% 55% at 50% -10%, rgba(255, 228, 220, 0.05), transparent 68%), linear-gradient(115deg, transparent 42%, rgba(255, 240, 236, 0.025) 50%, transparent 58%);
+  --ew-motif: var(--ew-shape-swords);
+  --ew-motif-size: 120px 120px;
+  --ew-motif-opacity: 0.2;
+  --ew-pip: var(--ew-shape-hilt);
+  --ew-trim: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ew-ink-bright) 55%, transparent) 50%, transparent) top / 100% 1px no-repeat;
 }
 
 /* Amethyst — the Academy's violet, seen from inside the stone. The most
-   saturated `--ew-line-strong` of any theme: every edge is a facet. */
+   saturated room and rule of the twenty; faceted card corners, a lattice
+   on the walls, two offset lights refracted through it. */
 [data-theme='sealed_in_gem'] {
-  --ew-void: #170c1a;
-  --ew-panel: #26142c;
-  --ew-raised: #321a3a;
-  --ew-hover: #3e2048;
-  --ew-line: #4c2858;
-  --ew-line-strong: #78338f;
+  --ew-void: #1d0621;
+  --ew-panel: #2c0e31;
+  --ew-raised: #38173d;
+  --ew-hover: #432049;
+  --ew-line: #4c2851;
+  --ew-line-strong: #83349a;
 
-  --ew-ink-bright: #f8f7f8;
-  --ew-ink: #eeebf0;
-  --ew-ink-dim: #9f8ca6;
-  --ew-ink-faint: #715e78;
-  --ew-ink-ghost: #4b404f;
+  --ew-ink-bright: #fbf7fb;
+  --ew-ink: #f4edf5;
+  --ew-ink-dim: #af9eb1;
+  --ew-ink-faint: #7e6e80;
+  --ew-ink-ghost: #514652;
+
+  --ew-light: radial-gradient(60% 40% at 28% -8%, rgba(216, 198, 255, 0.055), transparent 66%), radial-gradient(52% 38% at 74% -4%, rgba(178, 156, 224, 0.04), transparent 62%);
+  --ew-motif: var(--ew-shape-facets);
+  --ew-motif-size: 40px 70px;
+  --ew-motif-opacity: 0.14;
+  --ew-pip: var(--ew-shape-gem);
+  --ew-trim: linear-gradient(135deg, color-mix(in srgb, var(--ew-line-strong) 40%, transparent) 0 9px, transparent 9px) top left / 18px 18px no-repeat, linear-gradient(315deg, color-mix(in srgb, var(--ew-line-strong) 40%, transparent) 0 9px, transparent 9px) bottom right / 18px 18px no-repeat;
 }
 
-/* New Management — the same tower under someone else's hand. The same warm
-   neutral room, a desaturated `--ew-danger` at the strong rule, and the
-   headings dropped from the display serif to the UI sans. The FONT is what
-   carries this one, which is why it is the least saturated of the seven and
-   is allowed to be. */
+/* New Management — the same stone walls as the Tower, redecorated in khaki
+   grey by someone else: a rust letterhead bar on every card, somebody else's
+   key, and the headings dropped from the display serif to the UI sans. */
 [data-theme='betrayed_by_apprentice'] {
-  --ew-void: #17120f;
-  --ew-panel: #261e1a;
-  --ew-raised: #322822;
-  --ew-hover: #3f312a;
-  --ew-line: #4d3c33;
-  --ew-line-strong: #8a4f45;
+  --ew-void: #14130b;
+  --ew-panel: #201e13;
+  --ew-raised: #2a281c;
+  --ew-hover: #343225;
+  --ew-line: #3c3a2d;
+  --ew-line-strong: #77463e;
 
-  --ew-ink-bright: #f8f7f7;
-  --ew-ink: #f0edeb;
-  --ew-ink-dim: #a69b8c;
-  --ew-ink-faint: #786d5e;
-  --ew-ink-ghost: #4f4840;
+  --ew-ink-bright: #f9f8f7;
+  --ew-ink: #f1f0ed;
+  --ew-ink-dim: #a6a59d;
+  --ew-ink-faint: #76756d;
+  --ew-ink-ghost: #4b4a46;
 
   --ew-font-display: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --ew-light: radial-gradient(90% 55% at 50% -10%, rgba(255, 246, 224, 0.045), transparent 68%);
+  --ew-motif: var(--ew-shape-masonry);
+  --ew-motif-size: 96px 48px;
+  --ew-motif-opacity: 0.16;
+  --ew-pip: var(--ew-shape-key);
+  --ew-trim: linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) top / 100% 2px no-repeat;
 }
 
-/* --------------------------------------------------------------------------
-   Cold Room — undeath, as a temperature.
-
-   The default palette is a WARM dark: every surface has R > G > B. A lich has
-   stopped being warm, so blue lifts above green throughout and the room takes
-   a violet cast you feel before you read anything.
-
-   Not `--ew-tier`, not the delta pair, not `--ew-danger`. A red number still
-   reads as a red number — what changed is the room they sit in.
-
-   It is also NOT the Kingdom-Level tier violet (#9B6BE8). That hue means a
-   rank, and undeath is not a rank.
-
-   Promoted here from `.screen[data-lich]` in `RunScreen.module.css`, where the
-   same six declarations were pasted three times over — once at top level and
-   once inside each of two media queries, though custom properties do not vary
-   by viewport.
-
-   The VALUES are not that block's. Those were tuned to be noticed
-   subliminally, mid-run, on a screen the player was already looking at; a
-   theme also has to be picked out of a grid of eight swatches, and at the old
-   near-black these were reported as hard to tell apart from the default. The
-   whole ramp is lifted and saturated, and the ink lifted with it — at the
-   default ink the shipped panel sat exactly on the contrast floor, so there
-   was no headroom to brighten a surface without brightening its text too.
-   -------------------------------------------------------------------------- */
+/* Cold Room — undeath, as a temperature. Blue lifts above green in every
+   surface, the key light goes blue-white as the room cools, frost on the
+   walls. A lich wears this whatever theme they chose: RunScreen forces it,
+   because there it reports a state rather than a taste. */
 [data-theme='lichdom'] {
-  --ew-void: #0f0b1b;
-  --ew-panel: #18132d;
-  --ew-raised: #20193b;
-  --ew-hover: #281f49;
-  --ew-line: #302659;
-  --ew-line-strong: #3f3078;
+  --ew-void: #0e071e;
+  --ew-panel: #1a102f;
+  --ew-raised: #23193b;
+  --ew-hover: #2d2247;
+  --ew-line: #352a50;
+  --ew-line-strong: #4c3b77;
 
-  --ew-ink-bright: #f7f7f8;
-  --ew-ink: #eae9ef;
-  --ew-ink-dim: #908ca6;
-  --ew-ink-faint: #635e78;
-  --ew-ink-ghost: #42404f;
+  --ew-ink-bright: #f9f8fd;
+  --ew-ink: #f0eff8;
+  --ew-ink-dim: #a6a1b8;
+  --ew-ink-faint: #757186;
+  --ew-ink-ghost: #4b4856;
+
+  --ew-light: radial-gradient(90% 55% at 50% -10%, rgba(214, 224, 255, 0.05), transparent 68%);
+  --ew-motif: var(--ew-shape-frost);
+  --ew-motif-size: 100px 100px;
+  --ew-motif-opacity: 0.34;
+  --ew-pip: var(--ew-shape-snowflake);
+  --ew-trim: linear-gradient(180deg, color-mix(in srgb, var(--ew-ink-bright) 6%, transparent), transparent 10px);
 }
 
-/* Peat — the warmest theme, and the softest. Deep brown surfaces and every
-   radius one step rounder. Its ornament is an absence: no background gradient
-   anywhere, just a flat wash. Nothing dramatic is happening, which is the
-   ending. */
+/* Peat — the warmest and softest room: true brown, every radius one step
+   rounder, no key light at all (a flat wash), bulrushes on the walls.
+   Nothing dramatic is happening, which is the ending. */
 [data-theme='retired_to_swamp'] {
-  --ew-void: #160e08;
-  --ew-panel: #25180e;
-  --ew-raised: #322013;
-  --ew-hover: #3f2917;
-  --ew-line: #4e321d;
-  --ew-line-strong: #6f4520;
+  --ew-void: #170a00;
+  --ew-panel: #261400;
+  --ew-raised: #321c02;
+  --ew-hover: #3d2508;
+  --ew-line: #462e11;
+  --ew-line-strong: #6f491b;
 
-  --ew-ink-bright: #f7f6f5;
-  --ew-ink: #eceae6;
-  --ew-ink-dim: #a69a8c;
-  --ew-ink-faint: #786c5e;
-  --ew-ink-ghost: #4f4840;
+  --ew-ink-bright: #fbf8f4;
+  --ew-ink: #f5efe8;
+  --ew-ink-dim: #b1a293;
+  --ew-ink-faint: #807264;
+  --ew-ink-ghost: #52493f;
 
   --ew-radius-sm: 5px;
   --ew-radius-md: 8px;
   --ew-radius-lg: 12px;
+
+  --ew-light: none;
+  --ew-motif: var(--ew-shape-reeds);
+  --ew-motif-size: 120px 100px;
+  --ew-motif-opacity: 0.28;
+  --ew-pip: var(--ew-shape-bubbles);
+  --ew-trim: none;
 }
 
-/* Settled Account — Covenant ash, but ORDERED. The one theme that raises
-   contrast rather than lowering it: every rule at full strength, ink at bright
-   throughout. Bureaucratically legible. No ornament at all — the absence is
-   the joke. */
+/* Settled Account — Covenant ash, but ORDERED. The one neutral room, evenly
+   lit, no flourish: graph paper on the walls and a registration mark at
+   every card corner. Bureaucratically legible. */
 [data-theme='consumed_by_pact'] {
-  --ew-void: #151513;
-  --ew-panel: #242321;
-  --ew-raised: #302f2c;
-  --ew-hover: #3c3a37;
-  --ew-line: #484641;
-  --ew-line-strong: #6c6860;
+  --ew-void: #181818;
+  --ew-panel: #232323;
+  --ew-raised: #2d2d2d;
+  --ew-hover: #373737;
+  --ew-line: #404040;
+  --ew-line-strong: #696969;
 
-  --ew-ink-bright: #f8f8f7;
-  --ew-ink: #f5f4f2;
-  --ew-ink-dim: #a69d8c;
-  --ew-ink-faint: #786f5e;
-  --ew-ink-ghost: #4f4a40;
+  --ew-ink-bright: #fafafa;
+  --ew-ink: #f2f2f2;
+  --ew-ink-dim: #a4a4a4;
+  --ew-ink-faint: #747474;
+  --ew-ink-ghost: #4a4a4a;
+
+  --ew-light: none;
+  --ew-motif: var(--ew-shape-grid);
+  --ew-motif-size: 100px 100px;
+  --ew-motif-opacity: 0.13;
+  --ew-pip: var(--ew-shape-registration);
+  --ew-trim: none;
 }
 
-/* Wrong Colour — a green that is not on any chart. The void goes deep
-   wrong-green/teal and the ink near-white. The only theme permitted a second
-   light source: its gradient sits ABOVE the frame at high spread, light
-   arriving from outside the room. Still may not touch `--ew-tier`. */
+/* Wrong Colour — a teal with no red left in it. The only theme permitted a
+   second light source, the first sitting ABOVE the frame: light arriving
+   from outside the room. A sky that is not this one on the walls. */
 [data-theme='ascension'] {
-  --ew-void: #081614;
-  --ew-panel: #0e2521;
-  --ew-raised: #13322d;
-  --ew-hover: #183f38;
-  --ew-line: #1d4e46;
-  --ew-line-strong: #22705f;
+  --ew-void: #001717;
+  --ew-panel: #012424;
+  --ew-raised: #022e2f;
+  --ew-hover: #023a3a;
+  --ew-line: #014344;
+  --ew-line-strong: #02736e;
 
-  --ew-ink-bright: #f7f8f8;
-  --ew-ink: #eef2f1;
-  --ew-ink-dim: #8ca6a1;
-  --ew-ink-faint: #5e7873;
-  --ew-ink-ghost: #404f4c;
+  --ew-ink-bright: #f4fafa;
+  --ew-ink: #e7f3f3;
+  --ew-ink-dim: #8fabab;
+  --ew-ink-faint: #607a7a;
+  --ew-ink-ghost: #3d4e4e;
+
+  --ew-light: radial-gradient(120% 70% at 50% -22%, rgba(180, 255, 236, 0.07), transparent 74%), radial-gradient(80% 50% at 50% 104%, rgba(120, 220, 200, 0.035), transparent 70%);
+  --ew-motif: var(--ew-shape-stars);
+  --ew-motif-size: 110px 110px;
+  --ew-motif-opacity: 0.17;
+  --ew-pip: var(--ew-shape-sparkle);
+  --ew-trim: radial-gradient(70% 100% at 50% 0%, color-mix(in srgb, var(--ew-line-strong) 28%, transparent), transparent) top / 100% 16px no-repeat;
 }
 
 /* --------------------------------------------------------------------------
-   The five faction reprisals (issue #14 slice 1), recoloured for issue #15
-   track C2.
-
-   These shipped as a side effect of #14 — `themes.test.ts` requires every
-   ending to have a theme — with one generated hue per theme and no relation
-   to the faction it belonged to. C2 is what actually asks for "faction pairs
-   share a hue family and differ in treatment", so four of the five move to
-   match their leadership half below; `turned_to_fertilizer` already shared
-   the Verdant Choir's green when it shipped and is unchanged. Every block
-   below is the machine-generated twin of its `ThemeDef` in `themes.ts`, and
-   `themes.test.ts` diffs the two token for token.
+   The faction pairs (issue #14, recoloured for issue #15 track C2): "pairs
+   share a hue family and differ in treatment". The treatment is the ornament
+   — the perforations, ghost rule, broken rule and marginal rule issue #15
+   specified for these, built at last — which is what tells a pair apart.
    -------------------------------------------------------------------------- */
 
-/* Requisition — Ashen Covenant, paired with `contract_writer` below: the
-   same near-black ember hue, gone cold and desaturated toward neutral grey. */
+/* Requisition — Ashen Covenant, paired with `contract_writer`: the same ash
+   gone cold, slate blue-grey. Every card perforated top and bottom, a form
+   to be torn along; the light rises from below. */
 [data-theme='eternally_repurposed'] {
-  --ew-void: #0f0d0c;
-  --ew-panel: #1d1917;
-  --ew-raised: #292320;
-  --ew-hover: #352d29;
-  --ew-line: #403632;
-  --ew-line-strong: #4c423e;
+  --ew-void: #0b151c;
+  --ew-panel: #14212a;
+  --ew-raised: #1d2b34;
+  --ew-hover: #26353f;
+  --ew-line: #2e3d48;
+  --ew-line-strong: #495b67;
 
-  --ew-ink-bright: #f8f8f8;
-  --ew-ink: #eae7e6;
-  --ew-ink-dim: #998780;
-  --ew-ink-faint: #71615b;
-  --ew-ink-ghost: #4b423f;
+  --ew-ink-bright: #f7f9fa;
+  --ew-ink: #edf1f3;
+  --ew-ink-dim: #9da6ac;
+  --ew-ink-faint: #6d767c;
+  --ew-ink-ghost: #464b4f;
+
+  --ew-light: radial-gradient(90% 55% at 50% 110%, rgba(214, 228, 240, 0.04), transparent 68%);
+  --ew-motif: var(--ew-shape-form);
+  --ew-motif-size: 120px 48px;
+  --ew-motif-opacity: 0.17;
+  --ew-pip: var(--ew-shape-checkbox);
+  --ew-trim: radial-gradient(circle, var(--ew-void) 1.3px, transparent 1.8px) left 2px top 2px / 7px 6px repeat-x, radial-gradient(circle, var(--ew-void) 1.3px, transparent 1.8px) left 2px bottom 2px / 7px 6px repeat-x;
 }
 
-/* Assets Realised — Gilded Hand, paired with `grand_arbiter` below: the same
-   green-black ledger room, emptied. `raised` equals `panel`, and the brass
-   line reverts to plain grey rather than carrying the gilt forward. */
+/* Assets Realised — Gilded Hand, paired with `grand_arbiter`: the same
+   baize, drained. `raised` equals `panel`, the brass reverts to grey, and a
+   cancellation hatch runs along the foot of every card and across the walls. */
 [data-theme='liquidated'] {
-  --ew-void: #0c1309;
-  --ew-panel: #172410;
-  --ew-raised: #172410;
-  --ew-hover: #223319;
-  --ew-line: #2e372a;
-  --ew-line-strong: #3b4536;
+  --ew-void: #020d08;
+  --ew-panel: #061912;
+  --ew-raised: #061912;
+  --ew-hover: #0c231b;
+  --ew-line: #1e352c;
+  --ew-line-strong: #424a46;
 
-  --ew-ink-bright: #f8f8f8;
-  --ew-ink: #edefec;
-  --ew-ink-dim: #8b9b83;
-  --ew-ink-faint: #5d6c56;
-  --ew-ink-ghost: #3e463a;
+  --ew-ink-bright: #f6f9f8;
+  --ew-ink: #ecf2ef;
+  --ew-ink-dim: #9ba8a3;
+  --ew-ink-faint: #6c7873;
+  --ew-ink-ghost: #444d49;
+
+  --ew-light: radial-gradient(90% 55% at 50% -10%, rgba(220, 240, 230, 0.025), transparent 68%);
+  --ew-motif: var(--ew-shape-hatch);
+  --ew-motif-size: 14px 14px;
+  --ew-motif-opacity: 0.22;
+  --ew-pip: var(--ew-shape-nil);
+  --ew-trim: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--ew-line-strong) 45%, transparent) 0 1px, transparent 1px 6px) bottom / 100% 8px no-repeat;
 }
 
-/* Good Ground — the darkest green the ink will sit on. Everything is
-   growing. Verdant Choir, paired with `archdruid`; already shared the family
-   under #14 and is unchanged by C2. */
+/* Good Ground — Verdant Choir, paired with `archdruid`: the green pushed
+   olive-black and wetter. Card edges darken softly, a slow bloom sits low,
+   roots run down the walls. */
 [data-theme='turned_to_fertilizer'] {
-  --ew-void: #091208;
-  --ew-panel: #132410;
-  --ew-raised: #1a3216;
-  --ew-hover: #21401d;
-  --ew-line: #294e23;
-  --ew-line-strong: #2e6a25;
+  --ew-void: #080900;
+  --ew-panel: #121500;
+  --ew-raised: #1b1e02;
+  --ew-hover: #252808;
+  --ew-line: #2c3011;
+  --ew-line-strong: #444d14;
 
-  --ew-ink-bright: #f8f8f8;
-  --ew-ink: #ecefec;
-  --ew-ink-dim: #91a48e;
-  --ew-ink-faint: #62775f;
-  --ew-ink-ghost: #434e41;
+  --ew-ink-bright: #f8f9f5;
+  --ew-ink: #f0f1ea;
+  --ew-ink-dim: #a4a795;
+  --ew-ink-faint: #747666;
+  --ew-ink-ghost: #4a4c41;
+
+  --ew-light: radial-gradient(70% 55% at 50% 78%, rgba(160, 200, 110, 0.045), transparent 72%);
+  --ew-motif: var(--ew-shape-roots);
+  --ew-motif-size: 100px 100px;
+  --ew-motif-opacity: 0.34;
+  --ew-pip: var(--ew-shape-sprout);
+  --ew-trim: radial-gradient(130% 140% at 50% 40%, transparent 60%, rgba(0, 0, 0, 0.28));
 }
 
-/* Past the Border — Crownlands, paired with `overthrown_the_kingdom` below:
-   the same indigo-violet the King wears, gone slate and cold. `raised`
-   flattens to `panel`, and the strong rule breaks from the family hue toward
-   a low-presence danger-red rather than carrying the gold forward. */
+/* Past the Border — Crownlands, paired with `overthrown_the_kingdom`: the
+   King's plum gone slate-mauve. `raised` flattens to `panel`, the gold rule
+   turns danger-red and is BROKEN in the middle on every card; the light is
+   offset to one edge, from outside the frame. */
 [data-theme='exiled_and_overrun'] {
-  --ew-void: #130c13;
-  --ew-panel: #221622;
-  --ew-raised: #221622;
-  --ew-hover: #2f202f;
-  --ew-line: #3b293b;
-  --ew-line-strong: #56342e;
+  --ew-void: #160d16;
+  --ew-panel: #231723;
+  --ew-raised: #231723;
+  --ew-hover: #2d202e;
+  --ew-line: #403141;
+  --ew-line-strong: #683834;
 
-  --ew-ink-bright: #f8f8f8;
-  --ew-ink: #efecef;
-  --ew-ink-dim: #998099;
-  --ew-ink-faint: #6c566c;
-  --ew-ink-ghost: #463a46;
+  --ew-ink-bright: #faf8fa;
+  --ew-ink: #f2eff3;
+  --ew-ink-dim: #aaa1aa;
+  --ew-ink-faint: #7a717a;
+  --ew-ink-ghost: #4e484e;
+
+  --ew-light: radial-gradient(80% 60% at 92% 6%, rgba(224, 190, 200, 0.045), transparent 70%);
+  --ew-motif: var(--ew-shape-border);
+  --ew-motif-size: 96px 64px;
+  --ew-motif-opacity: 0.26;
+  --ew-pip: var(--ew-shape-pennant);
+  --ew-trim: linear-gradient(90deg, var(--ew-line-strong) 0 38%, transparent 38% 62%, var(--ew-line-strong) 62%) top / 100% 1px no-repeat;
 }
 
-/* Underneath — Worm Below, paired with `lichdom` ("Cold Room") above: the
-   same blue-violet hue, dropped nearly to black. `void` and `panel` sit one
-   step apart instead of two, and `line` all but disappears into them. */
+/* Underneath — Worm Below, paired with `lichdom`: the same violet dropped
+   to the darkest room in the set. Light from below, very low; every card
+   darkens toward its foot; burrows in the walls. */
 [data-theme='consumed'] {
-  --ew-void: #0b0814;
-  --ew-panel: #0e0b19;
-  --ew-raised: #151125;
-  --ew-hover: #1b162f;
-  --ew-line: #231f30;
-  --ew-line-strong: #2b224f;
+  --ew-void: #080614;
+  --ew-panel: #0c091c;
+  --ew-raised: #151126;
+  --ew-hover: #1e1a31;
+  --ew-line: #25223a;
+  --ew-line-strong: #2e2553;
 
-  --ew-ink-bright: #f8f8f8;
-  --ew-ink: #e4e3e8;
-  --ew-ink-dim: #88839b;
-  --ew-ink-faint: #5b566c;
-  --ew-ink-ghost: #3c3a46;
+  --ew-ink-bright: #f8f8fc;
+  --ew-ink: #f0eff6;
+  --ew-ink-dim: #a4a3b2;
+  --ew-ink-faint: #747381;
+  --ew-ink-ghost: #4a4953;
+
+  --ew-light: radial-gradient(70% 40% at 50% 118%, rgba(150, 140, 224, 0.035), transparent 66%);
+  --ew-motif: var(--ew-shape-burrows);
+  --ew-motif-size: 120px 120px;
+  --ew-motif-opacity: 0.6;
+  --ew-pip: var(--ew-shape-spiral);
+  --ew-trim: linear-gradient(180deg, transparent 55%, rgba(0, 0, 0, 0.25));
 }
 
-/* Correspondence — Ashen Covenant, paired with `eternally_repurposed` above:
-   ash over banked embers, at roughly double its reprisal's saturation. */
+/* Correspondence — Ashen Covenant, paired with `eternally_repurposed`: ash
+   over banked embers, the brightest ember rule of any theme. Writing paper
+   on the walls and a ruled double header on every card. */
 [data-theme='contract_writer'] {
-  --ew-void: #100b0a;
-  --ew-panel: #1f1714;
-  --ew-raised: #2c201c;
-  --ew-hover: #392a24;
-  --ew-line: #46322b;
-  --ew-line-strong: #703c29;
+  --ew-void: #120a08;
+  --ew-panel: #201412;
+  --ew-raised: #2a1d1a;
+  --ew-hover: #342624;
+  --ew-line: #3d2e2b;
+  --ew-line-strong: #913d26;
 
-  --ew-ink-bright: #f8f8f8;
-  --ew-ink: #efedec;
-  --ew-ink-dim: #a4948e;
-  --ew-ink-faint: #77665f;
-  --ew-ink-ghost: #4e4441;
+  --ew-ink-bright: #faf8f7;
+  --ew-ink: #f3efee;
+  --ew-ink-dim: #aba2a0;
+  --ew-ink-faint: #7b7271;
+  --ew-ink-ghost: #4f4948;
+
+  --ew-light: radial-gradient(90% 55% at 50% -10%, rgba(255, 240, 230, 0.035), transparent 68%), radial-gradient(80% 45% at 50% 112%, rgba(255, 120, 70, 0.05), transparent 70%);
+  --ew-motif: var(--ew-shape-ruled);
+  --ew-motif-size: 40px 26px;
+  --ew-motif-opacity: 0.18;
+  --ew-pip: var(--ew-shape-nib);
+  --ew-trim: linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) left 14px top 3px / calc(100% - 28px) 1px no-repeat, linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) left 14px top 6px / calc(100% - 28px) 1px no-repeat;
 }
 
-/* The Final Number — Gilded Hand, paired with `liquidated` above: deep
-   green-black surfaces with `--ew-line-strong` bent toward brass, a warm
-   accent rather than a second hue family (spread ~53° of the 90° ceiling). */
+/* The Final Number — Gilded Hand, paired with `liquidated`: green-black
+   baize ruled in brass (spread ~85° of the 90° ceiling), the accountant's
+   double underline at the foot of every card, coin on the walls. */
 [data-theme='grand_arbiter'] {
-  --ew-void: #0c1309;
-  --ew-panel: #172410;
-  --ew-raised: #203317;
-  --ew-hover: #29411d;
-  --ew-line: #325022;
-  --ew-line-strong: #73621f;
+  --ew-void: #011407;
+  --ew-panel: #03210f;
+  --ew-raised: #0b2b18;
+  --ew-hover: #143621;
+  --ew-line: #1d3e29;
+  --ew-line-strong: #7d7c2d;
 
-  --ew-ink-bright: #f8f8f8;
-  --ew-ink: #edefec;
-  --ew-ink-dim: #95a48e;
-  --ew-ink-faint: #67775f;
-  --ew-ink-ghost: #454e41;
+  --ew-ink-bright: #f5faf7;
+  --ew-ink: #ebf2ed;
+  --ew-ink-dim: #98aa9d;
+  --ew-ink-faint: #68796d;
+  --ew-ink-ghost: #424e45;
+
+  --ew-light: radial-gradient(90% 55% at 50% -10%, rgba(255, 236, 170, 0.05), transparent 68%);
+  --ew-motif: var(--ew-shape-coins);
+  --ew-motif-size: 80px 80px;
+  --ew-motif-opacity: 0.16;
+  --ew-pip: var(--ew-shape-coin);
+  --ew-trim: linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) left 14px bottom 6px / calc(100% - 28px) 1px no-repeat, linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) left 14px bottom 3px / calc(100% - 28px) 1px no-repeat;
 }
 
-/* The Chair — a pale, cold blue. The disclaimer used to live here. */
+/* The Chair — Pale Academy, paired with `sealed_in_gem`: navy and chalk. A
+   marginal rule down every card, as on a cited page; constructions on a
+   blackboard behind. */
 [data-theme='archmage'] {
-  --ew-void: #090c15;
-  --ew-panel: #111527;
-  --ew-raised: #171d36;
-  --ew-hover: #1d2544;
-  --ew-line: #232d52;
-  --ew-line-strong: #25346f;
+  --ew-void: #050e1f;
+  --ew-panel: #0c1930;
+  --ew-raised: #14223c;
+  --ew-hover: #1d2c48;
+  --ew-line: #253451;
+  --ew-line-strong: #6d81a5;
 
-  --ew-ink-bright: #f8f8f8;
-  --ew-ink: #ececef;
-  --ew-ink-dim: #8e92a4;
-  --ew-ink-faint: #5f6477;
-  --ew-ink-ghost: #41444e;
+  --ew-ink-bright: #f6f8fd;
+  --ew-ink: #ecf0f8;
+  --ew-ink-dim: #9ba5b6;
+  --ew-ink-faint: #6c7585;
+  --ew-ink-ghost: #444b56;
+
+  --ew-light: radial-gradient(70% 50% at 50% -10%, rgba(220, 232, 255, 0.06), transparent 70%);
+  --ew-motif: var(--ew-shape-diagram);
+  --ew-motif-size: 140px 140px;
+  --ew-motif-opacity: 0.15;
+  --ew-pip: var(--ew-shape-eye);
+  --ew-trim: linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) left 6px top 16px / 1px calc(100% - 32px) no-repeat;
 }
 
-/* The Eldest Oak — gold-green, the colour of a grove that voted without meeting. */
+/* The Eldest Oak — Verdant Choir, paired with `turned_to_fertilizer`: leaf
+   green. Growth, not light — the gradient rises from the bottom edge and
+   moss creeps up the foot of every card. */
 [data-theme='archdruid'] {
-  --ew-void: #07100a;
-  --ew-panel: #0f2215;
-  --ew-raised: #15301d;
-  --ew-hover: #1b3e26;
-  --ew-line: #214d2f;
-  --ew-line-strong: #236939;
+  --ew-void: #091601;
+  --ew-panel: #122202;
+  --ew-raised: #1a2d08;
+  --ew-hover: #233711;
+  --ew-line: #2b3f19;
+  --ew-line-strong: #436b17;
 
-  --ew-ink-bright: #f8f8f8;
-  --ew-ink: #ecefed;
-  --ew-ink-dim: #8ea495;
-  --ew-ink-faint: #5f7767;
-  --ew-ink-ghost: #414e45;
+  --ew-ink-bright: #f7f9f5;
+  --ew-ink: #edf2e9;
+  --ew-ink-dim: #9da994;
+  --ew-ink-faint: #6d7965;
+  --ew-ink-ghost: #464d40;
+
+  --ew-light: radial-gradient(85% 60% at 50% 108%, rgba(150, 224, 160, 0.05), transparent 70%);
+  --ew-motif: var(--ew-shape-leaves);
+  --ew-motif-size: 100px 100px;
+  --ew-motif-opacity: 0.19;
+  --ew-pip: var(--ew-shape-acorn);
+  --ew-trim: linear-gradient(0deg, color-mix(in srgb, var(--ew-line-strong) 16%, transparent), transparent 14px);
 }
 
-/* The Crown — royal purple, kept by someone the Crownlands did not choose.
-   Paired with `exiled_and_overrun` above; `--ew-line-strong` bends toward a
-   restrained gold rule, the same accent-not-family-shift `grand_arbiter`
-   above uses and for the same reason (see `sealed_in_gem`'s comment). */
+/* The Crown — Crownlands, paired with `exiled_and_overrun`: royal plum with
+   `--ew-line-strong` bent toward a restrained gold — a banner hem across
+   the top of every card, fleurs-de-lis on the walls. */
 [data-theme='overthrown_the_kingdom'] {
-  --ew-void: #150911;
-  --ew-panel: #27111f;
-  --ew-raised: #35182a;
-  --ew-hover: #431e35;
-  --ew-line: #512440;
-  --ew-line-strong: #705629;
+  --ew-void: #1d0413;
+  --ew-panel: #2d0a20;
+  --ew-raised: #39132a;
+  --ew-hover: #451c35;
+  --ew-line: #4e243d;
+  --ew-line-strong: #98742b;
 
-  --ew-ink-bright: #f8f8f8;
-  --ew-ink: #efecee;
-  --ew-ink-dim: #a48e9c;
-  --ew-ink-faint: #775f6e;
-  --ew-ink-ghost: #4e4149;
+  --ew-ink-bright: #fcf7f9;
+  --ew-ink: #f7edf2;
+  --ew-ink-dim: #b59da9;
+  --ew-ink-faint: #836d79;
+  --ew-ink-ghost: #54454d;
+
+  --ew-light: radial-gradient(90% 55% at 50% -10%, rgba(255, 226, 180, 0.05), transparent 68%);
+  --ew-motif: var(--ew-shape-fleur);
+  --ew-motif-size: 56px 56px;
+  --ew-motif-opacity: 0.18;
+  --ew-pip: var(--ew-shape-crown);
+  --ew-trim: linear-gradient(var(--ew-line-strong), var(--ew-line-strong)) top / 100% 2px no-repeat, linear-gradient(color-mix(in srgb, var(--ew-line-strong) 50%, transparent), color-mix(in srgb, var(--ew-line-strong) 50%, transparent)) left 0 top 4px / 100% 1px no-repeat;
 }
 
+/* Ordinary Weather — the one light room (issue #23): cream and gold,
+   sunlight from above, daisies in the lawn. The ink inverts direction and
+   is measured against the same floor. */
 [data-theme='good_wizard'] {
   --ew-void: #fbf4df;
   --ew-panel: #f3e7c4;
@@ -472,24 +597,38 @@
   --ew-ink-dim: #4a3814;
   --ew-ink-faint: #6b5726;
   --ew-ink-ghost: #8f7b4a;
+
+  --ew-light: radial-gradient(100% 60% at 50% -10%, rgba(255, 255, 255, 0.55), transparent 70%);
+  --ew-motif: var(--ew-shape-daisies);
+  --ew-motif-size: 90px 90px;
+  --ew-motif-opacity: 0.12;
+  --ew-pip: var(--ew-shape-sun);
+  --ew-trim: linear-gradient(180deg, rgba(255, 255, 255, 0.35), transparent 14px);
 }
 
-/* Kept Vigil — Arch-Lich (issue #25). The same violet undeath family as Cold
-   Room, lit a shade warmer and several steps brighter: a candle in the cold
-   room, not the cold room itself. */
+/* Kept Vigil — Arch-Lich (issue #25). The same violet undeath family as
+   Cold Room, lit a shade warmer and several steps brighter: a candle in the
+   cold room, not the cold room itself. */
 [data-theme='arch_lich'] {
-  --ew-void: #130e1a;
-  --ew-panel: #20142e;
-  --ew-raised: #2b1c3d;
-  --ew-hover: #35234a;
-  --ew-line: #432c5e;
-  --ew-line-strong: #573a76;
+  --ew-void: #1b1329;
+  --ew-panel: #281d3a;
+  --ew-raised: #322746;
+  --ew-hover: #3d3053;
+  --ew-line: #45395c;
+  --ew-line-strong: #6e519d;
 
-  --ew-ink-bright: #fbf5ff;
-  --ew-ink: #f1e7f8;
-  --ew-ink-dim: #b39dc5;
-  --ew-ink-faint: #8472a1;
-  --ew-ink-ghost: #5d5077;
+  --ew-ink-bright: #fbf9fe;
+  --ew-ink: #f3f0f9;
+  --ew-ink-dim: #a7a1b5;
+  --ew-ink-faint: #777184;
+  --ew-ink-ghost: #4c4855;
+
+  --ew-light: radial-gradient(60% 40% at 50% -6%, rgba(255, 224, 196, 0.04), transparent 70%), radial-gradient(90% 55% at 50% -10%, rgba(236, 220, 255, 0.04), transparent 68%);
+  --ew-motif: var(--ew-shape-candles);
+  --ew-motif-size: 100px 110px;
+  --ew-motif-opacity: 0.15;
+  --ew-pip: var(--ew-shape-flame);
+  --ew-trim: radial-gradient(50% 100% at 50% 0%, color-mix(in srgb, var(--ew-line-strong) 24%, transparent), transparent) top / 100% 14px no-repeat;
 }
 
 /* --------------------------------------------------------------------------

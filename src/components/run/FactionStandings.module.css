@@ -1,12 +1,14 @@
 .section {
+  /* Same rhythm the masthead's own `.header` closes on — this section sits
+     between the masthead and the decision content below, and a bare flex gap
+     read as one undifferentiated block rather than three. The rule carries
+     the theme's glyph, like the masthead's; see `sectionRule` in craft. */
+  composes: sectionRule from '../meta/craft.module.css';
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--ew-space-3);
-  /* Same rhythm the masthead's own `.header` closes on — this section sits
-     between the masthead and the decision content below, and a bare flex gap
-     read as one undifferentiated block rather than three. */
   padding-bottom: var(--ew-space-4);
-  border-bottom: 1px solid var(--ew-line);
 }
 
 /* --------------------------------------------------------------------------

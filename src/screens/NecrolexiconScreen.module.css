@@ -150,7 +150,9 @@
 
 .factionEntry {
   composes: plate from '../components/meta/craft.module.css';
+  composes: pips from '../components/meta/craft.module.css';
   padding: var(--ew-space-5);
+  background: var(--ew-trim, none), var(--ew-panel);
 }
 
 .factionHead {
