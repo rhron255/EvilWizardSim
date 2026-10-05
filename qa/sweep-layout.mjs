@@ -20,8 +20,10 @@
  *              any deliberate scroller
  *   clip       text cut by `overflow: hidden`, an ellipsis, or a line clamp
  *   tap        an interactive control whose HIT AREA is under 44x44 CSS px
- *   overlap    two controls' hit areas cross, or one's hit area lies over
- *              another's own box (it would take that control's taps)
+ *   overlap    two controls' hit areas cross within one layer (a sticky or
+ *              fixed bar and the page scrolling under it are two layers),
+ *              or one's hit area lies over another's own box, in any layer
+ *              (it would take that control's taps)
  *   fold       (decision only) is card 1 fully on screen; how many are
  *
  * The hit area is what a finger actually lands on, not the element's box: a
@@ -31,9 +33,12 @@
  * page — `document.elementFromPoint` along the control's centre lines, across
  * its box and any absolutely positioned pseudo-element it extends itself by —
  * so whatever covers or clips it counts the way it counts for a thumb. A
- * control whose own centre belongs to something else (the run screen under
- * the resolution overlay's scrim) cannot be tapped at all right now, and is
- * skipped rather than reported as zero pixels tall.
+ * control whose own centre belongs to something else is first scrolled clear
+ * of any in-page sticky bar (the Necrolexicon's head) and measured there; one
+ * still covered after that (the run screen under the resolution overlay's
+ * scrim) cannot be tapped at all right now, and is skipped rather than
+ * reported as zero pixels tall. The summary counts the skips, so a state
+ * that skipped everything cannot read as a clean one.
  *
  * The first occurrence of each distinct finding is screenshot to `--out`, and
  * a transcript of every decision card seen is written to `transcript.json` so
@@ -176,6 +181,13 @@ function auditInPage() {
     return n;
   };
 
+  /** The sticky or fixed box a control is pinned in, or null for the page. */
+  const layerOf = (el) => {
+    for (let p = el; p && p !== document.documentElement; p = p.parentElement)
+      if (/^(sticky|fixed)$/.test(getComputedStyle(p).position)) return p;
+    return null;
+  };
+
   const controls = [];
   for (const el of document.querySelectorAll(INTERACTIVE)) {
     if (el.closest('[aria-hidden="true"]') || el.closest('[inert]')) continue;
@@ -187,6 +199,7 @@ function auditInPage() {
   }
   const hitFindings = [];
   const live = [];
+  let skipped = 0;
   for (const c of controls) {
     // elementFromPoint sees the viewport only: bring the whole hit area into
     // it — through every scroller it sits in, not just the page (the
@@ -211,18 +224,46 @@ function auditInPage() {
         } else window.scrollTo({ left: x, top: y, behavior: 'instant' });
       }
     };
-    const hit = declaredHit(c.el);
-    const own = c.el.getBoundingClientRect();
-    const cx = Math.min(Math.max(own.left + own.width / 2, 0.5), vw - 0.5);
-    const cy = Math.min(Math.max(own.top + own.height / 2, 0.5), vh - 0.5);
-    if (ownerAt(cx, cy) !== c.el) {
-      putBack();
-      continue; // covered (a modal's scrim) — not a target at all right now
+    let hit = declaredHit(c.el);
+    let own = c.el.getBoundingClientRect();
+    let cx = Math.min(Math.max(own.left + own.width / 2, 0.5), vw - 0.5);
+    let cy = Math.min(Math.max(own.top + own.height / 2, 0.5), vh - 0.5);
+    const coverAt = ownerAt(cx, cy);
+    if (coverAt !== c.el) {
+      // Under an in-page sticky bar (a filter the last tab's scroll left
+      // beneath the Necrolexicon's head)? Bring it clear and measure there.
+      // A modal scrim is fixed too, but covers wherever the control is put.
+      const pinned = coverAt && layerOf(coverAt);
+      if (pinned && !pinned.contains(c.el)) {
+        if (!restore.length) {
+          for (let p = c.el.parentElement; p; p = p.parentElement)
+            if (p.scrollHeight > p.clientHeight || p.scrollWidth > p.clientWidth) restore.push([p, p.scrollLeft, p.scrollTop]);
+          restore.push([null, window.scrollX, window.scrollY]);
+        }
+        c.el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+        hit = declaredHit(c.el);
+        own = c.el.getBoundingClientRect();
+        cx = Math.min(Math.max(own.left + own.width / 2, 0.5), vw - 0.5);
+        cy = Math.min(Math.max(own.top + own.height / 2, 0.5), vh - 0.5);
+      }
+      if (ownerAt(cx, cy) !== c.el) {
+        skipped++;
+        putBack();
+        continue; // covered (a modal's scrim) — not a target at all right now
+      }
     }
     const h = runThrough(c.el, Math.max(hit.top - 4, 0), Math.min(hit.bottom + 4, vh), cx, (v, x) => [x, v]);
     const w = runThrough(c.el, Math.max(hit.left - 4, 0), Math.min(hit.right + 4, vw), cy, (v, y) => [v, y]);
-    if (h < TAP || w < TAP) {
-      hitFindings.push({ kind: 'tap', what: label(c.el), text: text(c.el), detail: `hit ${w}x${h} (box ${Math.round(own.width)}x${Math.round(own.height)})` });
+    // Sampled at whole pixels, a box on fractional edges still counts up to a
+    // pixel more than it covers (one from 642.48 to 685.62 answers at 642
+    // through 685: 44 samples for 43.14px), so the declared geometry has to
+    // clear the floor as well. The samples catch what geometry cannot: a
+    // pseudo-element clipped by a scroller, or a hit area painted over.
+    const gw = hit.right - hit.left;
+    const gh = hit.bottom - hit.top;
+    if (h < TAP || w < TAP || gh < TAP - 0.01 || gw < TAP - 0.01) {
+      const geom = gh < TAP - 0.01 || gw < TAP - 0.01 ? `, geometry ${gw.toFixed(2)}x${gh.toFixed(2)}` : '';
+      hitFindings.push({ kind: 'tap', what: label(c.el), text: text(c.el), detail: `hit ${w}x${h}${geom} (box ${Math.round(own.width)}x${Math.round(own.height)})` });
     }
     // Anything else answering inside this control's own box: a neighbour's
     // extended hit area laid over it, taking taps meant for it.
@@ -246,11 +287,6 @@ function auditInPage() {
   // the tabs — and there the pinned layer paints over and takes the strip by
   // design. Whatever it takes from the other's visible box is still caught,
   // by the in-box check above.
-  const layerOf = (el) => {
-    for (let p = el; p && p !== document.documentElement; p = p.parentElement)
-      if (/^(sticky|fixed)$/.test(getComputedStyle(p).position)) return p;
-    return null;
-  };
   for (const c of live) c.layer = layerOf(c.el);
   for (let i = 0; i < live.length; i++)
     for (let j = i + 1; j < live.length; j++) {
@@ -304,7 +340,7 @@ function auditInPage() {
         fullyVisible: options.filter((o) => o.getBoundingClientRect().bottom <= vh).length,
       }
     : null;
-  return { found, fold, docWidth: document.documentElement.scrollWidth, vw };
+  return { found, fold, skipped, docWidth: document.documentElement.scrollWidth, vw };
 }
 
 const findings = new Map(); // signature -> { first, count, runs:Set, shot }
@@ -313,8 +349,12 @@ const transcript = [];
 const problems = [];
 let shotCount = 0;
 
+/** Controls skipped as covered, per state: a state that skipped everything is not a clean one. */
+const skippedByState = new Map();
+
 async function audit(page, state, runNo, era) {
   const res = await page.evaluate(auditInPage);
+  if (res.skipped) skippedByState.set(state, (skippedByState.get(state) ?? 0) + res.skipped);
   if (res.docWidth > res.vw + 1) {
     res.found.push({ kind: 'overflow', what: 'document', text: '', detail: `scrollWidth ${res.docWidth} > ${res.vw}` });
   }
@@ -453,6 +493,11 @@ async function playOne(browser, runNo) {
         const name = ((await tab.textContent()) ?? `tab${t}`).trim().toLowerCase();
         await tab.click();
         await page.mouse.move(0, 0); // no hover state left on the tab just pressed
+        // A new tab keeps the last one's scroll (the view opens scrolled to the
+        // ending just reached), which can leave this tab's controls under the
+        // sticky head. Start every tab from the top, as a player switching
+        // tabs sees it.
+        await page.evaluate(() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' }));
         await page.waitForTimeout(300);
         await audit(page, `lexicon-${name}`, runNo, era);
       }
@@ -477,6 +522,10 @@ await browser.close();
 // ---- Report ----------------------------------------------------------------
 const rows = [...findings.values()].sort((a, b) => b.count - a.count);
 console.log(`\n  LAYOUT FINDINGS (${rows.length} distinct)\n`);
+if (skippedByState.size) {
+  const list = [...skippedByState].map(([state, n]) => `${state} ${n}`).join(' · ');
+  console.log(`  covered controls skipped (a modal over them, not measurable): ${list}\n`);
+}
 for (const f of rows) {
   console.log(
     `  [${f.kind.padEnd(8)}] ${f.state.padEnd(17)} ${f.what.padEnd(46)} x${String(f.count).padEnd(3)} runs=${f.runs.size}  ${f.detail}  "${f.text}"`,
