@@ -10,6 +10,7 @@
  *   node qa/sweep-layout.mjs [--width 393] [--height 852] [--runs 6]
  *                            [--seed 1] [--out qa/screenshots/sweep]
  *                            [--url http://localhost:5173]
+ *                            [--career-seed 7]
  *
  * Every state it reaches — decision, resolution overlay, the relic page,
  * prophecy, ending — is audited for:
@@ -17,12 +18,32 @@
  *   overflow   an element whose box leaves the viewport horizontally, outside
  *              any deliberate scroller
  *   clip       text cut by `overflow: hidden`, an ellipsis, or a line clamp
- *   tap        an interactive control under 40x40 CSS px
+ *   tap        an interactive control whose HIT AREA is under 44x44 CSS px
+ *   overlap    two controls' hit areas cross, or one's hit area lies over
+ *              another's own box (it would take that control's taps)
  *   fold       (decision only) is card 1 fully on screen; how many are
+ *
+ * The hit area is what a finger actually lands on, not the element's box: a
+ * compact pill extends it with a transparent `::after` (FactionStandings'
+ * toggle, the stat buttons, the Relics pill), so the box alone under-reports
+ * it and was flagging all three as too small. It is measured by asking the
+ * page — `document.elementFromPoint` along the control's centre lines, across
+ * its box and any absolutely positioned pseudo-element it extends itself by —
+ * so whatever covers or clips it counts the way it counts for a thumb. A
+ * control whose own centre belongs to something else (the run screen under
+ * the resolution overlay's scrim) cannot be tapped at all right now, and is
+ * skipped rather than reported as zero pixels tall.
  *
  * The first occurrence of each distinct finding is screenshot to `--out`, and
  * a transcript of every decision card seen is written to `transcript.json` so
  * the copy can be read the way a player reads it.
+ *
+ * The sweep's own coin is seeded, but the game rolls its careers from the
+ * clock, so two sweeps meet different offers and their FOLD numbers differ by
+ * tens of pixels with nothing changed. `--career-seed` pins the game's dice
+ * too (`Math.random` and `Date.now`, before the app loads), so the same
+ * careers replay card for card: run it against a build before and after a
+ * change, and every first-card top that moved is the change.
  *
  * Exit code is non-zero if any run threw, stalled, or logged a console error.
  * Layout findings are REPORTED, not failed on — the point is a list to read,
@@ -44,6 +65,7 @@ const HEIGHT = Number(arg('--height', '852'));
 const RUNS = Number(arg('--runs', '6'));
 const SEED = Number(arg('--seed', '1'));
 const OUT = arg('--out', 'qa/screenshots/sweep');
+const CAREER_SEED = arg('--career-seed', null);
 
 await mkdir(OUT, { recursive: true });
 // Same stale-shot trap `playthrough.mjs` documents: a leftover PNG from an
@@ -88,7 +110,134 @@ function auditInPage() {
     return false;
   };
 
-  const found = [];
+  // ---- hit areas ----------------------------------------------------------
+  // WCAG 2.5.5's 44px, the figure every hit-area comment in the run screen
+  // cites (Apple's HIG uses the same 44pt). It used to be 40 here, which a
+  // 43px Relics pill passed.
+  const TAP = 44;
+  const INTERACTIVE = 'button, a[href], input, select, textarea, [role="button"], summary';
+  const ownerAt = (x, y) => document.elementFromPoint(x, y)?.closest(INTERACTIVE) ?? null;
+
+  /** The nearest box an absolutely positioned child of `el` is placed against: its padding box. */
+  const containingBlock = (el) => {
+    for (let p = el; p && p !== document.documentElement; p = p.parentElement) {
+      const cs = getComputedStyle(p);
+      if (cs.position !== 'static' || cs.transform !== 'none' || cs.filter !== 'none' || cs.containerType !== 'normal' || /paint|layout|strict|content/.test(cs.contain)) {
+        const r = p.getBoundingClientRect();
+        return { left: r.left + p.clientLeft, top: r.top + p.clientTop };
+      }
+    }
+    return { left: -window.scrollX, top: -window.scrollY };
+  };
+
+  /** The control's box, grown by any absolutely positioned pseudo-element that takes pointer events. */
+  const declaredHit = (el) => {
+    const r = el.getBoundingClientRect();
+    const box = { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+    for (const which of ['::before', '::after']) {
+      const ps = getComputedStyle(el, which);
+      if (ps.content === 'none' || ps.content === 'normal' || ps.display === 'none') continue;
+      if (ps.pointerEvents === 'none' || ps.visibility === 'hidden') continue;
+      if (ps.position !== 'absolute') continue; // an in-flow one sits inside the box already
+      // A positioned box's insets and size resolve to their used pixels.
+      const cb = containingBlock(el);
+      const left = cb.left + parseFloat(ps.left);
+      const top = cb.top + parseFloat(ps.top);
+      const w = parseFloat(ps.width);
+      const h = parseFloat(ps.height);
+      if (![left, top, w, h].every(Number.isFinite)) continue;
+      box.left = Math.min(box.left, left);
+      box.top = Math.min(box.top, top);
+      box.right = Math.max(box.right, left + w);
+      box.bottom = Math.max(box.bottom, top + h);
+    }
+    return box;
+  };
+
+  /** The run of points along one line, through `from`, that land on `el`. */
+  const runThrough = (el, from, to, at, point) => {
+    let n = 0;
+    for (let v = Math.floor(from) + 0.5; v < to; v += 1) if (ownerAt(...point(v, at)) === el) n++;
+    return n;
+  };
+
+  const controls = [];
+  for (const el of document.querySelectorAll(INTERACTIVE)) {
+    if (el.closest('[aria-hidden="true"]') || el.closest('[inert]')) continue;
+    const cs = getComputedStyle(el);
+    if (cs.display === 'none' || cs.visibility === 'hidden' || cs.pointerEvents === 'none') continue;
+    const r = el.getBoundingClientRect();
+    if (r.width <= 2 || r.height <= 2) continue; // srOnly radios behind their labels
+    controls.push({ el, hit: declaredHit(el) });
+  }
+  const hitFindings = [];
+  const live = [];
+  for (const c of controls) {
+    // elementFromPoint sees the viewport only: bring the whole hit area into
+    // it — through every scroller it sits in, not just the page (the
+    // resolution card scrolls inside a fixed scrim, and its Continue button
+    // read 6px short at 320 while half of it was below the fold) — and put
+    // every one of them back afterwards, so the fold below reads the page as
+    // the player left it.
+    const r0 = c.hit;
+    const moved = r0.top < 0 || r0.bottom > vh || r0.left < 0 || r0.right > vw;
+    const restore = [];
+    if (moved) {
+      for (let p = c.el.parentElement; p; p = p.parentElement)
+        if (p.scrollHeight > p.clientHeight || p.scrollWidth > p.clientWidth) restore.push([p, p.scrollLeft, p.scrollTop]);
+      restore.push([null, window.scrollX, window.scrollY]);
+      c.el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+    }
+    const putBack = () => {
+      for (const [p, x, y] of restore) {
+        if (p) {
+          p.scrollLeft = x;
+          p.scrollTop = y;
+        } else window.scrollTo({ left: x, top: y, behavior: 'instant' });
+      }
+    };
+    const hit = declaredHit(c.el);
+    const own = c.el.getBoundingClientRect();
+    const cx = Math.min(Math.max(own.left + own.width / 2, 0.5), vw - 0.5);
+    const cy = Math.min(Math.max(own.top + own.height / 2, 0.5), vh - 0.5);
+    if (ownerAt(cx, cy) !== c.el) {
+      putBack();
+      continue; // covered (a modal's scrim) — not a target at all right now
+    }
+    const h = runThrough(c.el, Math.max(hit.top - 4, 0), Math.min(hit.bottom + 4, vh), cx, (v, x) => [x, v]);
+    const w = runThrough(c.el, Math.max(hit.left - 4, 0), Math.min(hit.right + 4, vw), cy, (v, y) => [v, y]);
+    if (h < TAP || w < TAP) {
+      hitFindings.push({ kind: 'tap', what: label(c.el), text: text(c.el), detail: `hit ${w}x${h} (box ${Math.round(own.width)}x${Math.round(own.height)})` });
+    }
+    // Anything else answering inside this control's own box: a neighbour's
+    // extended hit area laid over it, taking taps meant for it.
+    const thieves = new Set();
+    const step = 4;
+    for (let y = Math.max(own.top, 0) + 1; y < Math.min(own.bottom, vh) - 0.5; y += step)
+      for (let x = Math.max(own.left, 0) + 1; x < Math.min(own.right, vw) - 0.5; x += step) {
+        const o = ownerAt(x, y);
+        if (o && o !== c.el && !c.el.contains(o) && !o.contains(c.el)) thieves.add(o);
+      }
+    for (const t of thieves) hitFindings.push({ kind: 'overlap', what: `${label(t)} over ${label(c.el)}`.slice(0, 60), text: text(c.el), detail: 'takes taps inside its box' });
+    // Geometry for the crossing check below is taken from the first pass,
+    // before anything scrolled, so every control is in the same frame.
+    live.push(c);
+    putBack();
+  }
+  // Two hit areas that cross: whichever paints later takes the shared strip.
+  for (let i = 0; i < live.length; i++)
+    for (let j = i + 1; j < live.length; j++) {
+      const a = live[i];
+      const b = live[j];
+      if (a.el.contains(b.el) || b.el.contains(a.el)) continue;
+      const x = Math.min(a.hit.right, b.hit.right) - Math.max(a.hit.left, b.hit.left);
+      const y = Math.min(a.hit.bottom, b.hit.bottom) - Math.max(a.hit.top, b.hit.top);
+      if (x > 0.5 && y > 0.5) {
+        hitFindings.push({ kind: 'overlap', what: `${label(a.el)} × ${label(b.el)}`.slice(0, 60), text: text(b.el), detail: `${x.toFixed(1)}x${y.toFixed(1)} shared` });
+      }
+    }
+
+  const found = [...hitFindings];
   for (const el of document.querySelectorAll('body *')) {
     if (el.closest('[aria-hidden="true"]')) continue;
     const cs = getComputedStyle(el);
@@ -115,11 +264,6 @@ function auditInPage() {
       if (clipsX || ellipsis || clamp) {
         found.push({ kind: 'clip', what: label(el), text: text(el), detail: `${el.scrollWidth}x${el.scrollHeight} in ${el.clientWidth}x${el.clientHeight}` });
       }
-    }
-    const interactive = el.matches('button, a[href], input, select, textarea, [role="button"], summary');
-    if (interactive && (r.height < 40 || r.width < 40)) {
-      // Inline text links inside prose are exempt from a target size rule.
-      found.push({ kind: 'tap', what: label(el), text: text(el), detail: `${Math.round(r.width)}x${Math.round(r.height)}` });
     }
   }
 
@@ -170,6 +314,21 @@ async function playOne(browser, runNo) {
     if (m.type() === 'error') problems.push(`run ${runNo}: console.error: ${m.text()}`);
   });
   page.on('pageerror', (e) => problems.push(`run ${runNo}: pageerror: ${e.message}`));
+  if (CAREER_SEED !== null) {
+    await page.addInitScript((seed) => {
+      let a = seed >>> 0;
+      Math.random = () => {
+        a = (a + 0x6d2b79f5) >>> 0;
+        let t = a;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+      const t0 = 1_700_000_000_000 + seed;
+      let tick = 0;
+      Date.now = () => t0 + tick++;
+    }, Number(CAREER_SEED) * 1000 + runNo);
+  }
 
   await page.goto(URL, { waitUntil: 'networkidle' });
   await dismissChangelogPopup(page).catch(() => {});
@@ -289,7 +448,7 @@ if (folds.length) {
 
 await writeFile(
   path.join(OUT, `${WIDTH}w-transcript.json`),
-  JSON.stringify({ width: WIDTH, height: HEIGHT, seed: SEED, transcript, findings: rows.map((f) => ({ ...f, runs: [...f.runs] })) }, null, 1),
+  JSON.stringify({ width: WIDTH, height: HEIGHT, seed: SEED, careerSeed: CAREER_SEED, folds, transcript, findings: rows.map((f) => ({ ...f, runs: [...f.runs] })) }, null, 1),
 );
 console.log(`\n  transcript: ${path.join(OUT, `${WIDTH}w-transcript.json`)} (${transcript.length} decisions)`);
 
