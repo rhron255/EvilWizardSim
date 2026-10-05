@@ -25,7 +25,10 @@
 .back {
   composes: btnQuiet from '../components/meta/craft.module.css';
   justify-self: start;
-  min-height: 36px;
+  /* No min-height of its own: `.btn`'s 44px is the tap target. This rule
+     used to set 36px, which the production build quietly ignored while a
+     copy of craft landed after it; now that screen rules win as written,
+     a 36px Back would ship under the 44px every other control keeps. */
   padding: 0 var(--ew-space-3);
   font-size: var(--ew-size-xs);
   letter-spacing: 0.12em;
