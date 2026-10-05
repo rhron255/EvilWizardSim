@@ -13,13 +13,18 @@
  * read off disk:
  *   - `src/theme/ornaments.css` and `src/theme/tokens.css`, whole, with the
  *     theme selected by `data-theme`, exactly as the app selects it;
- *   - the two screen stacks: `.screen`'s `background` from
- *     `src/screens/RunScreen.module.css` (the run screen) and from
- *     `src/components/meta/craft.module.css` (every set piece), each over a
- *     box the size of the viewport;
+ *   - the three screen stacks: `.screen`'s `background` from
+ *     `src/screens/RunScreen.module.css` (the run screen), from
+ *     `src/components/meta/craft.module.css` (every set piece, its foot shade
+ *     included) and from `src/screens/ProphecyInterstitial.module.css` (the
+ *     Prophecy), each over a box the size of the viewport;
  *   - the wallpaper: craft's `.screen::before, .wallpaper::before` rule
  *     verbatim — `--ew-line-strong` through the theme's mask at
- *     `--ew-motif-opacity` — which both stacks wear;
+ *     `--ew-motif-opacity` — which the run screen and the set pieces wear and
+ *     the Prophecy does not;
+ *   - the Prophecy's shaft of light: its `.shaft` rule verbatim, on an
+ *     element inside that room, at full strength (the state the reveal ends
+ *     in);
  *   - `--ew-tier` set to every tier colour, read from `src/theme/tokens.ts`.
  *
  * Each room is shot at 393×852 (the reference phone) and 320×568, at device
@@ -27,18 +32,16 @@
  * `--ew-ink` with the WCAG contrast formula. A theme's score is its worst
  * pixel anywhere on the screen, as though a line of text fell exactly there.
  *
- * Three measures, and which of them gate:
- *   - `room` (gates): the wallpaper through its real mask.
- *   - `solid` (gates): the wallpaper with its mask lifted, so it covers every
- *     pixel at full `--ew-motif-opacity` — what the model assumes, and what a
- *     glyph's solid core is wherever the mask is fully on.
- *   - `painted` (reported only): the set-piece stack with its black foot
- *     vignette left in. The settled bare-room model (D1) deliberately omits
- *     that layer, so `room` and `solid` drop it from the set-piece stack to
- *     match. In a dark room it only darkens the backdrop behind pale ink, so
- *     the omission is the harder case. In Ordinary Weather — dark ink on a
- *     light void — it is the darkest layer of the room and is NOT measured
- *     by the gate: a known, pre-existing issue, printed here so it stays seen.
+ * Two measures, and both gate:
+ *   - `room`: every stack as the browser paints it, the wallpaper through its
+ *     real mask.
+ *   - `solid`: the run screen and the set pieces with the wallpaper's mask
+ *     lifted, so it covers every pixel at full `--ew-motif-opacity` — what the
+ *     model assumes, and what a glyph's solid core is wherever the mask is
+ *     fully on.
+ * Every layer is counted, the shade at a set piece's foot included: in a dark
+ * room it only darkens the backdrop behind pale ink, and in Ordinary Weather,
+ * the one light room, it is the room's own warm shade rather than black.
  *
  * A theme FAILS if its `room` or `solid` worst, at any size and ratio, is
  * below the default room's worst for the same measure. Exit 1 on any failure.
@@ -170,11 +173,15 @@ function screenBackground(css, file) {
 
 const RUN_CSS = read('src/screens/RunScreen.module.css');
 const CRAFT_CSS = read('src/components/meta/craft.module.css');
+const PROPHECY_CSS = read('src/screens/ProphecyInterstitial.module.css');
 
 const RUN_BACKGROUND = screenBackground(RUN_CSS, 'RunScreen.module.css');
 const CRAFT_BACKGROUND = screenBackground(CRAFT_CSS, 'craft.module.css');
+const PROPHECY_BACKGROUND = screenBackground(PROPHECY_CSS, 'ProphecyInterstitial.module.css');
 /** The wallpaper rule's body, verbatim. `composes` is CSS Modules', not CSS. */
 const WALLPAPER = theRule(CRAFT_CSS, ['.screen::before', '.wallpaper::before'], 'opacity', 'craft.module.css');
+/** The Prophecy's shaft of light, verbatim. */
+const SHAFT = theRule(PROPHECY_CSS, ['.shaft'], 'background', 'ProphecyInterstitial.module.css');
 
 /** A background value split on its top-level commas: one entry per layer. */
 function layersOf(css) {
@@ -194,17 +201,20 @@ function layersOf(css) {
 }
 
 /**
- * The set-piece stack without its black foot vignette — the layer D1 leaves
- * out. Found by what it is (a gradient whose only colour is black), not by
- * position, and required to be exactly one layer.
+ * Every layer of a stack comes from the room's tokens: a colour written into
+ * the stylesheet is the same colour in every room, which is how a black foot
+ * and a #060505 Prophecy once sat under the light room's dark ink.
  */
-const CRAFT_LAYERS = layersOf(CRAFT_BACKGROUND);
-const FOOT = CRAFT_LAYERS.filter((l) => {
-  const calls = l.match(/\brgba?\([^)]*\)/g) ?? [];
-  return calls.length === 1 && /^rgba?\(\s*0[\s,]+0[\s,]+0[\s,/]/.test(calls[0]) && !/var\(/.test(l);
-});
-if (FOOT.length !== 1) throw new Error(`craft.module.css: expected one black foot vignette in .screen, found ${FOOT.length}`);
-const CRAFT_D1 = CRAFT_LAYERS.filter((l) => l !== FOOT[0]).join(', ');
+for (const [file, value] of [
+  ['RunScreen.module.css', RUN_BACKGROUND],
+  ['craft.module.css', CRAFT_BACKGROUND],
+  ['ProphecyInterstitial.module.css', PROPHECY_BACKGROUND],
+  ['ProphecyInterstitial.module.css .shaft', declaration(SHAFT, 'background')],
+]) {
+  if (/\brgba?\(|#[\da-f]{3,8}\b|\b(?:black|white)\b/i.test(value)) {
+    throw new Error(`${file}: a screen layer paints a colour of its own rather than the room's: ${value}`);
+  }
+}
 
 /** Every tier colour, read from tokens.ts. */
 const TIER_COLOURS = [
@@ -224,11 +234,14 @@ ${read('src/theme/tokens.css')}
 html, body { margin: 0; padding: 0; overflow: hidden; }
 .room { position: absolute; inset: 0; isolation: isolate; overflow: hidden; }
 .room.run { background: ${RUN_BACKGROUND}; }
-.room.craft { background: ${CRAFT_D1}; }
-.room.painted { background: ${CRAFT_BACKGROUND}; }
+.room.craft { background: ${CRAFT_BACKGROUND}; }
+.room.prophecy { background: ${PROPHECY_BACKGROUND}; }
 .room::before { ${WALLPAPER} }
 .room.solid::before { -webkit-mask-image: none; mask-image: none; }
-</style></head><body><div class="room"></div></body></html>`;
+.room.prophecy::before { display: none; }
+.shaft { ${SHAFT} }
+.room:not(.prophecy) .shaft { display: none; }
+</style></head><body><div class="room"><span class="shaft"></span></div></body></html>`;
 
 const SIZES = [
   [393, 852],
@@ -283,14 +296,14 @@ async function measureTheme(page, decoder, theme) {
     else document.documentElement.setAttribute('data-theme', theme);
   }, theme);
   const ink = hexToRgb(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--ew-ink')));
-  const out = { room: { worst: Infinity }, solid: { worst: Infinity }, painted: { worst: Infinity } };
+  const out = { room: { worst: Infinity }, solid: { worst: Infinity } };
   const shots = [
     ['room', 'run', null],
     ['solid', 'run solid', null],
+    ['room', 'prophecy', null],
     ...TIER_COLOURS.flatMap((tier) => [
       ['room', 'craft', tier],
       ['solid', 'craft solid', tier],
-      ['painted', 'painted', tier],
     ]),
   ];
   for (const [measure, cls, tier] of shots) {
@@ -320,8 +333,9 @@ async function measureTheme(page, decoder, theme) {
  *
  * The model composites each room in exact arithmetic. Chromium dithers every
  * gradient and lands every layer on an 8-bit level, so what it paints strays
- * from that. This samples a grid of points on every room — every tier, both
- * stacks, the wallpaper solid so its layer covers each point — computes the
+ * from that. This samples a grid of points on every room — every tier, the
+ * run screen and the set pieces (the foot shade included), the wallpaper
+ * solid so its layer covers each point — computes the
  * exact composite at each pixel's centre from the theme's own computed
  * tokens, and reports how far the painted channel lies from it. A theme whose
  * key light has a layer other than a plain radial (the Sword's linear glint)
@@ -329,6 +343,8 @@ async function measureTheme(page, decoder, theme) {
  */
 const RADIAL_LAYER =
   /^radial-gradient\(\s*([\d.]+)%\s+([\d.]+)%\s+at\s+(-?[\d.]+)%\s+(-?[\d.]+)%\s*,\s*rgba\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*\)\s*,\s*transparent\s+([\d.]+)%\s*\)$/;
+const FOOT_LAYER =
+  /radial-gradient\(\s*([\d.]+)%\s+([\d.]+)%\s+at\s+(-?[\d.]+)%\s+(-?[\d.]+)%\s*,\s*color-mix\(in srgb,\s*var\(--ew-shade\)\s*([\d.]+)%\s*,\s*transparent\)\s*,\s*transparent\s+([\d.]+)%\s*\)/;
 const TIER_LAYER =
   /radial-gradient\(\s*([\d.]+)%\s+([\d.]+)%\s+at\s+(-?[\d.]+)%\s+(-?[\d.]+)%\s*,\s*color-mix\(in srgb,\s*var\(--ew-tier\)\s*([\d.]+)%\s*,\s*transparent\)\s*,\s*transparent\s+([\d.]+)%\s*\)/;
 
@@ -355,10 +371,14 @@ async function pixelsAt(decoder, png, points) {
 }
 
 async function measureSpread(themes) {
-  const t = CRAFT_D1.match(TIER_LAYER);
-  if (!t) throw new Error('craft.module.css: no tier vignette in .screen to model');
-  const [rx, ry, cx, cy, mix, stop] = t.slice(1).map((n) => parseFloat(n) / 100);
-  const tierShape = { rx, ry, cx, cy, stop, alpha: mix };
+  const shapeOf = (pattern, what) => {
+    const m = CRAFT_BACKGROUND.replace(/\s+/g, ' ').match(pattern);
+    if (!m) throw new Error(`craft.module.css: no ${what} in .screen to model`);
+    const [rx, ry, cx, cy, mix, stop] = m.slice(1).map((n) => parseFloat(n) / 100);
+    return { rx, ry, cx, cy, stop, alpha: mix };
+  };
+  const tierShape = shapeOf(TIER_LAYER, 'tier vignette');
+  const footShape = shapeOf(FOOT_LAYER, 'foot shade');
   const FX = [0.02, 0.15, 0.3, 0.45, 0.5, 0.55, 0.7, 0.85, 0.98];
   const FY = [0.001, 0.01, 0.03, 0.1, 0.2, 0.35, 0.5, 0.65, 0.8, 0.9, 0.97, 0.999];
   const skipped = new Set();
@@ -377,7 +397,13 @@ async function measureSpread(themes) {
           else document.documentElement.setAttribute('data-theme', theme);
           const cs = getComputedStyle(document.documentElement);
           const get = (name) => cs.getPropertyValue(name).trim();
-          return { void: get('--ew-void'), line: get('--ew-line-strong'), light: get('--ew-light'), opacity: Number(get('--ew-motif-opacity')) };
+          return {
+            void: get('--ew-void'),
+            shade: get('--ew-shade'),
+            line: get('--ew-line-strong'),
+            light: get('--ew-light'),
+            opacity: Number(get('--ew-motif-opacity')),
+          };
         }, theme);
         const lights = [];
         for (const layer of tokens.light === 'none' ? [] : layersOf(tokens.light)) {
@@ -401,9 +427,11 @@ async function measureSpread(themes) {
           points.forEach(([px, py], k) => {
             const x = (px + 0.5) / (width * dpr);
             const y = (py + 0.5) / (height * dpr);
-            // Bottom first: the tier vignette, the light's layers (listed top
-            // first, so reversed), then the wallpaper over everything.
+            // Bottom first: the foot shade and the tier vignette (set pieces
+            // only), the light's layers (listed top first, so reversed), then
+            // the wallpaper over everything.
             const layers = [
+              ...(tier ? [{ colour: hexToRgb(tokens.shade), alpha: radialAt(footShape, x, y) }] : []),
               ...(tier ? [{ colour: hexToRgb(tier), alpha: radialAt(tierShape, x, y) }] : []),
               ...[...lights].reverse().map((g) => ({ colour: g.colour, alpha: radialAt(g, x, y) })),
               { colour: hexToRgb(tokens.line), alpha: tokens.opacity },
@@ -472,8 +500,8 @@ const fmt = (n) => n.toFixed(3).padStart(7);
 const where = (h) => `${h.size} ${h.stack}${h.tier ? ` ${h.tier}` : ''} rgb(${h.at.slice(0, 3)}) at ${Math.round(h.at[3] * 100)}%,${Math.round(h.at[4] * 100)}%`;
 
 console.log(`Bare-room contrast in Chromium: worst pixel against --ew-ink, ${SIZES.map((s) => s.join('x')).join(' and ')}, DPR ${RATIOS.join(' and ')}.`);
-console.log('`room` and `solid` gate against the default; `painted` keeps the foot vignette D1 omits and is reported only.\n');
-console.log(`${'theme'.padEnd(24)} ${'room'.padStart(7)} ${'margin'.padStart(7)} ${'solid'.padStart(7)} ${'margin'.padStart(7)} ${'painted'.padStart(7)}  worst room pixel`);
+console.log('Run screen, set pieces (foot shade included) and the Prophecy; `room` and `solid` both gate against the default.\n');
+console.log(`${'theme'.padEnd(24)} ${'room'.padStart(7)} ${'margin'.padStart(7)} ${'solid'.padStart(7)} ${'margin'.padStart(7)}  worst room pixel`);
 const failures = [];
 for (const theme of THEMES) {
   const r = results.get(theme);
@@ -482,7 +510,7 @@ for (const theme of THEMES) {
   const fail = mRoom < 0 || mSolid < 0;
   if (fail) failures.push(theme);
   console.log(
-    `${theme.padEnd(24)} ${fmt(r.room.worst)} ${fmt(mRoom)} ${fmt(r.solid.worst)} ${fmt(mSolid)} ${fmt(r.painted.worst)}  ${where(r.room)}${fail ? '  FAIL' : ''}`,
+    `${theme.padEnd(24)} ${fmt(r.room.worst)} ${fmt(mRoom)} ${fmt(r.solid.worst)} ${fmt(mSolid)}  ${where(r.room)}${fail ? '  FAIL' : ''}`,
   );
 }
 console.log('');

@@ -199,11 +199,13 @@ function notNull<T>(value: T | null): value is T {
  * The bare room, modelled (constraints 5 and 7).
  *
  * Text that sits straight on a screen — the title's epigraph, the run screen's
- * quiet line — has no panel behind it. It sits on `--ew-void` with every
- * screen-wide layer painted over that: the key light, the tier vignette on
- * the set-piece screens, and the wallpaper. The model below rebuilds that
- * stack from the stylesheets themselves, each layer at the strongest it is
- * ever drawn on screen, and measures the ink against it.
+ * quiet line, the whole Prophecy — has no panel behind it. It sits on
+ * `--ew-void` with every screen-wide layer painted over that: the key light,
+ * the tier vignette and the room's shade at the foot on the set-piece
+ * screens, and the wallpaper; or, on the Prophecy, on the void mixed toward
+ * that shade under a shaft of the room's bright ink. The model below rebuilds
+ * each stack from the stylesheets themselves, each layer at the strongest it
+ * is ever drawn on screen, and measures the ink against it.
  *
  * It is a model, and `qa/probe-room-contrast.mjs` is what it answers to: the
  * same stacks painted by Chromium and scored pixel by pixel.
@@ -372,14 +374,39 @@ const RUN_STACK = screenLayers('src/screens/RunScreen.module.css');
 
 /**
  * The set-piece screens (title, ending, theme selector, changelog…): the key
- * light over a vignette tinted with the tier colour, over a black vignette at
- * the foot, over the void.
+ * light over a vignette tinted with the tier colour, over the room's shade
+ * pooled at the foot, over the void.
  */
 const SET_PIECE_STACK = screenLayers('src/components/meta/craft.module.css');
+
+/**
+ * The Prophecy: one flat colour, the void mixed toward the room's shade, with
+ * a shaft of the room's bright ink down its centre (`PROPHECY_SHAFT`). It
+ * wears the player's theme, but neither the key light nor the wallpaper.
+ */
+const PROPHECY_CSS = 'src/screens/ProphecyInterstitial.module.css';
+const PROPHECY_STACK = screenLayers(PROPHECY_CSS);
 
 /** `radial-gradient(… , color-mix(in srgb, var(--ew-tier) N%, transparent), transparent STOP%)`. */
 const TIER_VIGNETTE =
   /^radial-gradient\(([\d.]+)% ([\d.]+)% at (-?[\d.]+)% (-?[\d.]+)%, color-mix\(in srgb, var\(--ew-tier\) ([\d.]+)%, transparent\), transparent ([\d.]+)%\)$/;
+
+/** `color-mix(in srgb, var(--ew-…) N%, transparent)`: one of the room's tokens at N% alpha. */
+const TOKEN_TINT = /^color-mix\(in srgb, var\((--ew-[\w-]+)\) ([\d.]+)%, transparent\)$/;
+
+/** `radial-gradient(RX% RY% at X% Y%, <TOKEN_TINT>, transparent STOP%)`: the foot's shape. */
+const TOKEN_RADIAL =
+  /^radial-gradient\(([\d.]+)% ([\d.]+)% at (-?[\d.]+)% (-?[\d.]+)%, (color-mix\(in srgb, var\(--ew-[\w-]+\) [\d.]+%, transparent\)), transparent ([\d.]+)%\)$/;
+
+/** `color-mix(in srgb, var(--ew-A) P%, var(--ew-B))`: two of the room's tokens, mixed. */
+const TOKEN_MIX = /^color-mix\(in srgb, var\((--ew-[\w-]+)\) ([\d.]+)%, var\((--ew-[\w-]+)\)\)$/;
+
+/** A theme's colour for one of its own tokens, or a throw: a colour the model cannot read is one it is not measuring. */
+function tokenColour(theme: ThemeDef, name: string): string {
+  const colour = paletteOf(theme).get(name);
+  if (!colour) throw new Error(`the room model cannot read ${name} as one of the room's colours`);
+  return colour;
+}
 
 /** The tier vignette's alpha at its peak, read from the set-piece stack. */
 function tierVignettePeak(): number {
@@ -388,6 +415,58 @@ function tierVignettePeak(): number {
   const [rx, ry, cx, cy, mix, stop] = m.slice(1).map((n) => parseFloat(n) / 100);
   // color-mix() with `transparent` keeps the tier's hue at `mix` alpha.
   return mix * peakFactor({ rx, ry, cx, cy, stop });
+}
+
+/**
+ * The shade pooled at the foot of a set piece, in this theme's own
+ * `--ew-shade`, at its peak — read from the set-piece stack's third layer.
+ */
+function footLayer(theme: ThemeDef): RoomLayer {
+  const m = SET_PIECE_STACK[2]?.match(TOKEN_RADIAL);
+  if (!m) throw new Error(`the set-piece stack's third layer is not a foot the model can read: ${SET_PIECE_STACK[2]}`);
+  const [rx, ry, cx, cy] = m.slice(1, 5).map((n) => parseFloat(n) / 100);
+  const [, name, mix] = m[5].match(TOKEN_TINT)!;
+  const factor = peakFactor({ rx, ry, cx, cy, stop: parseFloat(m[6]) / 100 });
+  return { colour: tokenColour(theme, name), alpha: (parseFloat(mix) / 100) * factor, factor };
+}
+
+/** The Prophecy's ground: its one background layer, two of the room's tokens mixed. */
+function prophecyGround(theme: ThemeDef): Rgb {
+  const m = PROPHECY_STACK.length === 1 ? PROPHECY_STACK[0].match(TOKEN_MIX) : null;
+  if (!m) throw new Error(`the Prophecy's background is not a mix the model can read: ${PROPHECY_STACK.join(', ')}`);
+  // color-mix(in srgb, A P%, B) is A at P% over B.
+  return overRgb(parseHex(tokenColour(theme, m[3])), parseHex(tokenColour(theme, m[1])), parseFloat(m[2]) / 100);
+}
+
+/**
+ * The Prophecy's shaft of light, `.shaft`'s background read off disk: one
+ * radial gradient, every stop the same token at a falling alpha, ending in
+ * transparent. Exactly one rule may paint it.
+ */
+const SHAFT_RULES = rulesIn(PROPHECY_CSS).filter(
+  (r) => r.selector.split(',').some((sel) => sel.trim() === '.shaft') && declared(r.body, 'background') !== null,
+);
+
+/** The shaft at its peak. Its centre lies inside its own box, so the peak is its first stop. */
+function shaftLayer(theme: ThemeDef): RoomLayer {
+  const value = SHAFT_RULES.length === 1 ? declared(SHAFT_RULES[0].body, 'background')! : '';
+  const inner = value.match(/^radial-gradient\((.*)\)$/)?.[1];
+  if (!inner) throw new Error(`the Prophecy's shaft is not a radial gradient the model can read: ${value}`);
+  const [shape, ...stops] = layersOf(inner);
+  const centre = shape.match(/at (-?[\d.]+)% (-?[\d.]+)%$/);
+  if (!centre || [centre[1], centre[2]].some((n) => parseFloat(n) < 0 || parseFloat(n) > 100)) {
+    throw new Error(`the Prophecy's shaft is centred off its own box: ${shape}`);
+  }
+  const tints = stops.slice(0, -1).map((stop) => stop.replace(/\s+[\d.]+%$/, '').match(TOKEN_TINT));
+  if (!/^transparent\b/.test(stops[stops.length - 1] ?? '') || tints.length === 0 || tints.some((t) => !t)) {
+    throw new Error(`the Prophecy's shaft has a stop the model cannot read: ${value}`);
+  }
+  const names = new Set(tints.map((t) => t![1]));
+  const alphas = tints.map((t) => parseFloat(t![2]) / 100);
+  if (names.size !== 1 || alphas.some((a, i) => i > 0 && a > alphas[i - 1])) {
+    throw new Error(`the Prophecy's shaft is not one token fading out from its centre: ${value}`);
+  }
+  return { colour: tokenColour(theme, [...names][0]), alpha: alphas[0], factor: 1 };
 }
 
 /** How many 8-bit levels a room's every channel is moved, by direction. */
@@ -436,33 +515,35 @@ function towardInk(backdrop: Rgb, text: Rgb, slack: Slack): Rgb {
   return [at(0), at(1), at(2)];
 }
 
+/** The three screens text sits straight on, each a stack of its own. */
+type Stack = 'run' | 'setPiece' | 'prophecy';
+const STACKS: Stack[] = ['run', 'setPiece', 'prophecy'];
+
 /**
- * The ink's worst contrast anywhere on a theme's bare room, with the room's
- * every channel moved toward the ink by `slack` (`PAINT_SLACK` for a theme,
- * `EXACT` for the Tower's floor).
+ * The ink's worst contrast anywhere on one of a theme's bare screens, with the
+ * room's every channel moved toward the ink by `slack` (`PAINT_SLACK` for a
+ * theme, `EXACT` for the Tower's floor).
  *
- * The layers are stacked bottom-up on the void, in exact arithmetic — the
- * tier vignette in every tier colour (set-piece screens only), the key light,
- * then the wallpaper, `--ew-line-strong` at `motifOpacity` — each at its peak,
- * as though every peak fell on the same pixel. Text can also sit where any
- * layer has faded to nothing, so every subset of the layers is measured and
- * the worst is kept. Each layer moves the backdrop monotonically as it
- * strengthens, so the extremes are at the subsets. In a dark room the worst
- * is every layer at once; in a light one the worst is whichever subset leaves
- * the backdrop darkest, which is why a white light on cream never counts
- * against it — the unlit room under the wallpaper does.
+ * The layers are stacked bottom-up on the ground, in exact arithmetic, each
+ * at its peak, as though every peak fell on the same pixel. On the run screen
+ * and the set pieces the ground is the void, and over it go the room's shade
+ * at the foot and the tier vignette in every tier colour (set pieces only),
+ * the key light, then the wallpaper, `--ew-line-strong` at `motifOpacity`. On
+ * the Prophecy the ground is its own mix of the void and the shade, and the
+ * one layer over it is the shaft. Text can also sit where any layer has faded
+ * to nothing, so every subset of the layers is measured and the worst is
+ * kept. Each layer moves the backdrop monotonically as it strengthens, so the
+ * extremes are at the subsets. In a dark room the worst is every lightening
+ * layer at once, and the shade at the foot, which only darkens, never counts
+ * against it; in a light one the worst is whichever subset leaves the
+ * backdrop darkest, which is why a white light on cream never counts against
+ * it — the unlit room under the wallpaper does, and a black foot would have
+ * (4.6:1 in Chromium, before the shade became the room's own).
  *
- * The black vignette at the foot of the set-piece screens is not modelled:
- * that is the settled bare-room model, and the stack-shape test pins the
- * layer's existence so the omission stays deliberate. Behind pale ink on a
- * dark room it only darkens the backdrop, which raises the contrast, so
- * leaving it out is the harder case there. Ordinary Weather is the exception
- * — dark ink on a light void, where that vignette is the darkest layer in the
- * room and goes unmeasured here. Chromium puts its foot at 4.6:1
- * (`qa/probe-room-contrast.mjs`, the `painted` column), against 13.7 for the
- * rest of that room: a known issue that predates the themes' ornament.
+ * The Prophecy's sigil halo is not a layer here: it is a drawn figure, like
+ * the text itself, at 9% opacity behind it.
  */
-function roomContrast(theme: ThemeDef, setPiece: boolean, slack: Slack): number {
+function roomContrast(theme: ThemeDef, stack: Stack, slack: Slack): number {
   const voidc = parseHex(theme.surface.void ?? surface.void);
   const base = parseHex(theme.ink?.base ?? ink.base);
   const wallpaper = {
@@ -471,18 +552,23 @@ function roomContrast(theme: ThemeDef, setPiece: boolean, slack: Slack): number 
     factor: 1,
   };
   const tierAlpha = tierVignettePeak();
-  const tints: (string | null)[] = setPiece ? Object.values(tierColor) : [null];
+  const tints: (string | null)[] = stack === 'setPiece' ? Object.values(tierColor) : [null];
   let worst = Infinity;
   for (const tint of tints) {
-    const layers: RoomLayer[] = [
-      ...(tint ? [{ colour: tint, alpha: tierAlpha, factor: 1 }] : []),
-      ...keyLight(theme.ornament.light),
-      wallpaper,
-    ];
+    const ground = stack === 'prophecy' ? prophecyGround(theme) : voidc;
+    const layers: RoomLayer[] =
+      stack === 'prophecy'
+        ? [shaftLayer(theme)]
+        : [
+            ...(stack === 'setPiece' ? [footLayer(theme)] : []),
+            ...(tint ? [{ colour: tint, alpha: tierAlpha, factor: 1 }] : []),
+            ...keyLight(theme.ornament.light),
+            wallpaper,
+          ];
     for (let subset = 0; subset < 1 << layers.length; subset++) {
       const backdrop = layers.reduce<Rgb>(
         (colour, layer, i) => (subset & (1 << i) ? overRgb(colour, parseHex(layer.colour), layer.alpha) : colour),
-        voidc,
+        ground,
       );
       worst = Math.min(worst, contrastRatioRgb(base, towardInk(backdrop, base, slack)));
     }
@@ -490,9 +576,9 @@ function roomContrast(theme: ThemeDef, setPiece: boolean, slack: Slack): number 
   return worst;
 }
 
-/** Worst over both stacks: the run screen and the set pieces. */
+/** Worst over every stack: the run screen, the set pieces and the Prophecy. */
 const roomFloorOf = (theme: ThemeDef, slack: Slack = PAINT_SLACK) =>
-  Math.min(roomContrast(theme, false, slack), roomContrast(theme, true, slack));
+  Math.min(...STACKS.map((stack) => roomContrast(theme, stack, slack)));
 
 /*
  * The vocabulary a key light or card trim may be written in (constraint 7).
@@ -685,6 +771,37 @@ describe('themes · constraint 5, the ink contrast floor', () => {
     expect(FLOOR).toBeGreaterThanOrEqual(7);
   });
 
+  /**
+   * The same promise on the other two surfaces a card is drawn on. OptionCard
+   * at rest and the lair plates are a gradient from `--ew-raised` to the
+   * panel, and a card under a finger is `--ew-hover`, so the ink is read on
+   * both as often as on the panel. Each surface's floor is the default's ink
+   * on the default's version of it — computed, never quoted — and, as on the
+   * panel, `bright` is held to the same floor as `base`.
+   */
+  const SURFACE_FLOORS = {
+    raised: contrastRatio(ink.base, surface.raised),
+    hover: contrastRatio(ink.base, surface.hover),
+  };
+
+  /**
+   * How far a hover must step from its panel: the default's own step, in
+   * OKLab (about 0.059, three just-noticeable differences — `JND_OK`). It is
+   * the hover players have always read as "under a finger", so it is the
+   * provenance; a theme that bought its ink contrast by flattening its hover
+   * into its panel would pass the floors above and lose the feedback.
+   */
+  const HOVER_STEP = deltaEOK(surface.hover, surface.panel);
+
+  it('steps its floors down with the surfaces, and its hover step is one the eye can see', () => {
+    // The default's surfaces lighten panel -> raised -> hover behind pale
+    // ink, so each floor sits under the last; all of them still clear AAA.
+    expect(SURFACE_FLOORS.raised).toBeLessThan(FLOOR);
+    expect(SURFACE_FLOORS.hover).toBeLessThan(SURFACE_FLOORS.raised);
+    expect(SURFACE_FLOORS.hover).toBeGreaterThanOrEqual(7);
+    expect(HOVER_STEP).toBeGreaterThan(2 * JND_OK);
+  });
+
   for (const theme of THEMES) {
     it(`${theme.name} reads at least as well as the default`, () => {
       const bands = swatchBands(theme);
@@ -698,6 +815,21 @@ describe('themes · constraint 5, the ink contrast floor', () => {
       const panel = theme.surface.panel ?? surface.panel;
       const bright = theme.ink?.bright ?? ink.bright;
       expect(contrastRatio(bright, panel)).toBeGreaterThanOrEqual(FLOOR);
+    });
+
+    for (const step of ['raised', 'hover'] as const) {
+      it(`${theme.name}'s ink and bright ink read on its ${step} as well as the default's ink does on the default's`, () => {
+        const backdrop = theme.surface[step] ?? surface[step];
+        for (const text of [theme.ink?.base ?? ink.base, theme.ink?.bright ?? ink.bright]) {
+          expect(contrastRatio(text, backdrop), `${text} on ${backdrop}`).toBeGreaterThanOrEqual(SURFACE_FLOORS[step]);
+        }
+      });
+    }
+
+    it(`${theme.name}'s hover steps away from its panel at least as far as the default's`, () => {
+      const panel = theme.surface.panel ?? surface.panel;
+      const hover = theme.surface.hover ?? surface.hover;
+      expect(deltaEOK(hover, panel)).toBeGreaterThanOrEqual(HOVER_STEP);
     });
 
     it(`${theme.name} keeps its ink readable on the void as well as the panel`, () => {
@@ -756,20 +888,32 @@ describe('themes · constraints 5 and 7, the bare room reads as well as the Towe
     expect(SET_PIECE_STACK[0]).toBe('var(--ew-light, none)');
     expect(SET_PIECE_STACK[1]).toMatch(TIER_VIGNETTE);
     expect(SET_PIECE_STACK[3]).toBe('var(--ew-void)');
-    // The layer the model leaves out (the settled bare-room model) must stay
-    // black. In a dark room that only darkens the backdrop behind pale ink;
-    // in the one light room it is the unmeasured darkest layer — see
-    // `roomContrast`.
-    const vignette = rgbCalls(SET_PIECE_STACK[2]);
-    expect(vignette).toHaveLength(1);
-    expect(channels(vignette[0]).slice(0, 3)).toEqual([0, 0, 0]);
+    // The foot is the room's own shade, not a colour of the stylesheet's.
+    expect(SET_PIECE_STACK[2]).toMatch(TOKEN_RADIAL);
+    expect(SET_PIECE_STACK[2]).toContain('var(--ew-shade)');
+    expect(PROPHECY_STACK).toHaveLength(1);
+    expect(PROPHECY_STACK[0]).toMatch(TOKEN_MIX);
+    expect(SHAFT_RULES.map((r) => [r.atRule, r.selector])).toEqual([[null, '.shaft']]);
+  });
+
+  it('paints every bare screen from the room, with no colour of its own', () => {
+    // A black written into a stack is black in the light room too: the foot
+    // that put Ordinary Weather's ink at 4.6:1, and the Prophecy's #060505
+    // under that room's dark ink. Every colour a stack paints comes from a
+    // token, so it moves with the room.
+    const shaft = declared(SHAFT_RULES[0].body, 'background')!;
+    for (const layer of [...RUN_STACK, ...SET_PIECE_STACK, ...PROPHECY_STACK, shaft]) {
+      expect(rgbCalls(layer), layer).toEqual([]);
+      expect(layer.match(/#[\da-f]{3,8}\b/gi) ?? [], layer).toEqual([]);
+      expect(layer, layer).not.toMatch(/\b(?:black|white)\b/i);
+    }
   });
 
   it('reads the one rule that paints each screen, with no breakpoint repainting it', () => {
     // The model reads the first `.screen` background it finds. A second one —
     // most easily an `@media` override — would be a room the browser paints
     // and the model never sees.
-    for (const path of ['src/screens/RunScreen.module.css', 'src/components/meta/craft.module.css']) {
+    for (const path of ['src/screens/RunScreen.module.css', 'src/components/meta/craft.module.css', PROPHECY_CSS]) {
       const rules = screenBackgroundRules(path);
       expect(
         rules.map((r) => `${r.atRule ?? ''} ${r.selector}`.trim()),
@@ -834,8 +978,8 @@ describe('themes · constraints 5 and 7, the bare room reads as well as the Towe
     });
     const white: Rgb = [255, 255, 255];
     const level = 51 + PAINT_SLACK.lighter;
-    expect(roomContrast(room, false, PAINT_SLACK)).toBeCloseTo(contrastRatioRgb(white, [level, level, level]), 10);
-    expect(roomContrast(room, false, EXACT)).toBeCloseTo(contrastRatioRgb(white, [51, 51, 51]), 10);
+    expect(roomContrast(room, 'run', PAINT_SLACK)).toBeCloseTo(contrastRatioRgb(white, [level, level, level]), 10);
+    expect(roomContrast(room, 'run', EXACT)).toBeCloseTo(contrastRatioRgb(white, [51, 51, 51]), 10);
   });
 
   it('scores a room where every layer helps the ink at its bare void', () => {
@@ -849,7 +993,7 @@ describe('themes · constraints 5 and 7, the bare room reads as well as the Towe
       ornament: { light: 'none', motifOpacity: 0.5 },
     });
     const level = 51 + PAINT_SLACK.lighter;
-    expect(roomContrast(room, false, PAINT_SLACK)).toBeCloseTo(contrastRatioRgb([255, 255, 255], [level, level, level]), 10);
+    expect(roomContrast(room, 'run', PAINT_SLACK)).toBeCloseTo(contrastRatioRgb([255, 255, 255], [level, level, level]), 10);
   });
 
   it('tries the tier vignette in every tier colour, not only the first', () => {
@@ -869,7 +1013,7 @@ describe('themes · constraints 5 and 7, the bare room reads as well as the Towe
     });
     const worst = Math.min(...scores);
     expect(scores.indexOf(worst), 'the worst tier must not be the first, or this pins nothing').toBeGreaterThan(0);
-    expect(roomContrast(room, true, PAINT_SLACK)).toBeCloseTo(worst, 10);
+    expect(roomContrast(room, 'setPiece', PAINT_SLACK)).toBeCloseTo(worst, 10);
   });
 
   it('finds a light room at its unlit wallpaper, not its sunlit one', () => {
@@ -888,8 +1032,8 @@ describe('themes · constraints 5 and 7, the bare room reads as well as the Towe
     });
     const level = 216 - PAINT_SLACK.darker;
     const expected = contrastRatioRgb([0, 0, 0], [level, level, level]);
-    expect(roomContrast(lit, false, PAINT_SLACK)).toBeCloseTo(expected, 10);
-    expect(roomContrast(lit, false, PAINT_SLACK)).toBe(roomContrast(unlit, false, PAINT_SLACK));
+    expect(roomContrast(lit, 'run', PAINT_SLACK)).toBeCloseTo(expected, 10);
+    expect(roomContrast(lit, 'run', PAINT_SLACK)).toBe(roomContrast(unlit, 'run', PAINT_SLACK));
   });
 
   it('counts every layer it claims to: the wallpaper, the light and the tier vignette', () => {
@@ -907,7 +1051,59 @@ describe('themes · constraints 5 and 7, the bare room reads as well as the Towe
     });
     expect(roomFloorOf(lamp)).toBeLessThanOrEqual(contrastRatio(ink.base, '#ffffff'));
     expect(roomFloorOf(lamp)).toBeLessThan(ROOM_FLOOR);
-    expect(roomContrast(TOWER, true, EXACT)).toBeLessThan(roomContrast(TOWER, false, EXACT));
+    expect(roomContrast(TOWER, 'setPiece', EXACT)).toBeLessThan(roomContrast(TOWER, 'run', EXACT));
+  });
+
+  it("reads the foot in the room's own shade, at its peak", () => {
+    // Worked by hand from craft's foot: black at 60%, centred 10% below a box
+    // whose vertical radius is 60% of it, so the bottom edge is 10/60 of a
+    // radius out, and the colour runs out at 70% of a radius.
+    const peak = 0.6 * (1 - 10 / 60 / 0.7);
+    expect(footLayer(TOWER).colour).toBe('#000000');
+    expect(footLayer(TOWER).alpha).toBeCloseTo(peak, 10);
+    const weather = THEMES.find((t) => t.id === 'good_wizard')!;
+    expect(footLayer(weather).colour).toBe(weather.surface.shade);
+    expect(footLayer(weather).colour).not.toBe('#000000');
+  });
+
+  it('reads the Prophecy as the void mixed toward the shade, under a shaft of bright ink', () => {
+    // The Tower's void (11, 10, 9) at 54% over black is (5.94, 5.4, 4.86),
+    // which is the #060505 the screen was painted before it wore the room.
+    const ground = prophecyGround(TOWER);
+    [5.94, 5.4, 4.86].forEach((level, i) => expect(ground[i]).toBeCloseTo(level, 10));
+    expect(shaftLayer(TOWER)).toEqual({ colour: ink.bright, alpha: 0.09, factor: 1 });
+    // A grey void of 100, white ink and a black shade: the ground is 54, the
+    // shaft lays white at 0.09 over it, 54 × 0.91 + 255 × 0.09 = 72.09, and
+    // PAINT_SLACK.lighter on top of that is what the browser may paint.
+    const room = variant(TOWER, {
+      surface: { void: '#646464', shade: '#000000' },
+      ink: { base: '#ffffff', bright: '#ffffff' },
+    });
+    const level = 54 * 0.91 + 255 * 0.09 + PAINT_SLACK.lighter;
+    expect(roomContrast(room, 'prophecy', PAINT_SLACK)).toBeCloseTo(contrastRatioRgb([255, 255, 255], [level, level, level]), 10);
+  });
+
+  it('counts the shade against a light room, and never against a dark one', () => {
+    // Ordinary Weather in the dark rooms' black: the foot alone, black at its
+    // peak over the cream void, is already far under the Tower, so a model
+    // that left the foot out would pass it — as the old one did. So would
+    // one that skipped the Prophecy, mixed 46% toward black.
+    const weather = THEMES.find((t) => t.id === 'good_wizard')!;
+    const black = variant(weather, { surface: { shade: '#000000' } });
+    const inkRgb = parseHex(weather.ink!.base!);
+    const voidRgb = parseHex(weather.surface.void!);
+    const footOnly = contrastRatioRgb(inkRgb, overRgb(voidRgb, [0, 0, 0], 0.6 * (1 - 10 / 60 / 0.7)));
+    expect(footOnly).toBeLessThan(ROOM_FLOOR);
+    expect(roomContrast(black, 'setPiece', EXACT)).toBeLessThanOrEqual(footOnly);
+    expect(roomContrast(black, 'prophecy', EXACT)).toBeLessThan(ROOM_FLOOR);
+    // And the floor a theme is held to is the worst of all three screens,
+    // named here rather than read from the list the floor itself walks.
+    const each = (['run', 'setPiece', 'prophecy'] as const).map((stack) => roomContrast(weather, stack, PAINT_SLACK));
+    expect(roomFloorOf(weather)).toBe(Math.min(...each));
+    // Behind pale ink the shade only darkens, so the Tower scores the same
+    // with its foot as with none at all — its shade set to its own void.
+    const footless = variant(TOWER, { surface: { shade: surface.void } });
+    expect(roomContrast(TOWER, 'setPiece', EXACT)).toBeCloseTo(roomContrast(footless, 'setPiece', EXACT), 10);
   });
 
   it('holds a theme to the Tower with a margin the browser cannot eat', () => {
@@ -1068,7 +1264,7 @@ describe('themes · constraint 7, ornament brings no colour', () => {
         String(ornament[k as keyof typeof ornament]),
       ]),
     ];
-    expect(expected).toHaveLength(6 + 5 + 6);
+    expect(expected).toHaveLength(7 + 5 + 6);
     for (const [name, value] of expected) {
       expect(normaliseHex(root[name] ?? ''), name).toBe(normaliseHex(value));
     }
@@ -1610,29 +1806,23 @@ describe('themes · card trims are marks or washes', () => {
   const stop = (colour: string, alpha: number, at: At[] = []): Stop => ({ colour, alpha, at });
 
   /**
-   * What a wash must leave `text` reading at over one surface: the default's
+   * What a wash must leave the ink reading at over one surface: the default's
    * ink on the default's version of that surface — the panel floor, on the
-   * panel. Where a palette's own surface already reads below that, as many
-   * hover and raised steps do (a palette shortfall that predates trims and is
-   * not a trim's to fix), the wash may cost nothing at all: the floor is then
-   * the bare surface. Panels never take that branch; the ink contrast block holds
-   * every panel to the floor on its own.
+   * panel. Every palette's own ink already reads at least that well on every
+   * surface a trim is laid over (the ink contrast block holds panel, raised
+   * and hover), so a wash may cost the ink only what that margin allows.
    */
-  const washFloor = (text: string, bare: string, name: string) =>
-    Math.min(contrastRatio(ink.base, surfaceOf(TOWER, name)), contrastRatio(text, bare));
+  const washFloor = (name: string) => contrastRatio(ink.base, surfaceOf(TOWER, name));
 
-  it('holds a wash to the default surface, or to the bare one where the palette is already below it', () => {
+  it('holds a wash to the default ink on the default surface, which every palette clears bare', () => {
     // Anchored to tokens.ts, not to the floor function: the default's ink on
     // its own panel, raised step and hover.
-    expect(washFloor(ink.base, surface.panel, '--ew-panel')).toBe(contrastRatio(ink.base, surface.panel));
-    expect(washFloor('#ffffff', '#000000', '--ew-hover')).toBe(contrastRatio(ink.base, surface.hover));
-    // A hover that already reads worse than the default's: the floor is the
-    // hover itself, so a lightening wash on it fails and a darkening one passes.
-    const dim = '#3a3a3a';
-    const floor = washFloor(ink.base, dim, '--ew-hover');
-    expect(floor).toBe(contrastRatio(ink.base, dim));
-    expect(worstUnderWashes(dim, [[stop('#ffffff', 0.02)]], ink.base)).toBeLessThan(floor);
-    expect(worstUnderWashes(dim, [[stop('#000000', 0.2)]], ink.base)).toBeGreaterThanOrEqual(floor);
+    expect(washFloor('--ew-panel')).toBe(contrastRatio(ink.base, surface.panel));
+    expect(washFloor('--ew-raised')).toBe(contrastRatio(ink.base, surface.raised));
+    expect(washFloor('--ew-hover')).toBe(contrastRatio(ink.base, surface.hover));
+    // A single floor is sound only while every surface a trim is laid over
+    // is one the ink contrast block measures each palette's ink on.
+    expect(TRIM_SURFACES.every((name) => ['--ew-panel', '--ew-raised', '--ew-hover'].includes(name))).toBe(true);
   });
 
   it("reads the probe's own DRAWN, and it is a sane threshold", () => {
@@ -1849,12 +2039,12 @@ describe('themes · card trims are marks or washes', () => {
 
   it('calls a layer a mark when it is drawn hard on any one surface', () => {
     // Requisition's perforation is the void punched through the card: 14
-    // levels on its panel, 24 on its raised step and 35 under a finger. A
-    // classifier that only looked at the panel would call it a wash.
+    // levels on its panel, 23 on its raised step and 29 under a finger. A
+    // classifier that only looked at the card at rest would call it a wash.
     const form = byId('eternally_repurposed');
     const [layer] = trimLayers(form);
-    expect(isMark([surfaceOf(form, '--ew-panel')], layer.stops)).toBe(false);
-    expect(isMark([surfaceOf(form, '--ew-raised')], layer.stops)).toBe(true);
+    expect(isMark([surfaceOf(form, '--ew-panel'), surfaceOf(form, '--ew-raised')], layer.stops)).toBe(false);
+    expect(isMark([surfaceOf(form, '--ew-hover')], layer.stops)).toBe(true);
     expect(isMark(TRIM_SURFACES.map((s) => surfaceOf(form, s)), layer.stops)).toBe(true);
   });
 
@@ -1903,7 +2093,7 @@ describe('themes · card trims are marks or washes', () => {
           expect(
             worstUnderWashes(bare, washes, text),
             `${theme.id}: ${text} on ${name} under its washes`,
-          ).toBeGreaterThanOrEqual(washFloor(text, bare, name));
+          ).toBeGreaterThanOrEqual(washFloor(name));
         }
       }
     });

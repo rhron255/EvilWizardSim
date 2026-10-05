@@ -31,11 +31,18 @@
  * 4. Layout and information hierarchy never change. Ornament, palette and
  *    typographic treatment only — every ornament is a background layer, a mask
  *    or an absolutely positioned pseudo-element, none of which takes space.
- * 5. Ink contrast floor, set by what the default achieves. On a panel, `ink`
- *    against `panel` at or above the default's 13.80:1. On the bare room —
- *    text with no panel behind it — at or above the Tower's own worst, with
- *    the void, key light, tier vignette and wallpaper all counted at their
- *    brightest, and each theme's room pushed toward its ink by more than the
+ * 5. Ink contrast floor, set by what the default achieves. On every surface
+ *    a card is drawn on, `ink` and `bright` both read at or above the
+ *    default's `ink` on the default's version of it: 13.80:1 on the panel,
+ *    13.09 on the raised step and 12.15 on the hover, as the default's own
+ *    palette computes them. The hover keeps at least the default's own step
+ *    from its panel (about three just-noticeable differences in OKLab), so
+ *    no theme buys its contrast by flattening the feedback under a finger.
+ *    On the bare room — text with no panel behind it, on the run screen, the
+ *    set pieces and the Prophecy — at or above the Tower's own worst, with
+ *    the void, key light, tier vignette, the shade at the foot, the
+ *    Prophecy's shaft and the wallpaper all counted at their strongest, and
+ *    each theme's room pushed toward its ink by more than the
  *    browser was measured to stray from the exact composite — it dithers
  *    gradients and rounds every layer (`PAINT_SLACK` in `themes.test.ts`).
  *    Asserted there with real contrast maths, never by eye, and in Chromium's
@@ -78,6 +85,16 @@
  * a chroma and a lightness ladder — with the hues spread round the wheel and
  * faction pairs kept in one family, then the ink lifted until it cleared the
  * floor. The hue comments below are OKLCH degrees, not HSV.
+ *
+ * Constraint 5 then grew from the panel to the raised step and the hover,
+ * where most palettes had stepped about 0.08 from their panel against the
+ * default's 0.059 and left the ink up to a point and a half under the
+ * default's on a card under a finger. Those steps were brought in toward the
+ * panel, no closer than the default's, and where that was not enough (New
+ * Management, by one level; Settled Account, Wrong Colour, Requisition,
+ * Ordinary Weather, Kept Vigil) the ink was lifted too. The two rooms that
+ * flatten `raised` (Assets Realised, Past the Border) had stepped their hover
+ * under the default's, and step it out to it now.
  */
 
 import type { EndingId, ThemeId } from '../types';
@@ -254,7 +271,7 @@ export const THEMES: ThemeDef[] = [
       void: '#1f0705',
       panel: '#300f0c',
       raised: '#3b1714',
-      hover: '#48211d',
+      hover: '#47211d',
       line: '#512925',
       lineStrong: '#af3d36',
     },
@@ -302,7 +319,7 @@ export const THEMES: ThemeDef[] = [
       void: '#1d0621',
       panel: '#2c0e31',
       raised: '#38173d',
-      hover: '#432049',
+      hover: '#411e47',
       line: '#4c2851',
       lineStrong: '#83349a',
     },
@@ -342,14 +359,14 @@ export const THEMES: ThemeDef[] = [
     surface: {
       void: '#14130b',
       panel: '#201e13',
-      raised: '#2a281c',
-      hover: '#343225',
+      raised: '#29271c',
+      hover: '#2f2d20',
       line: '#3c3a2d',
       lineStrong: '#77463e',
     },
     ink: {
       bright: '#f9f8f7',
-      base: '#f1f0ed',
+      base: '#f1f0ee',
       dim: '#a6a59d',
       faint: '#76756d',
       ghost: '#4b4a46',
@@ -477,14 +494,14 @@ export const THEMES: ThemeDef[] = [
     surface: {
       void: '#181818',
       panel: '#232323',
-      raised: '#2d2d2d',
-      hover: '#373737',
+      raised: '#2c2c2c',
+      hover: '#323232',
       line: '#404040',
       lineStrong: '#696969',
     },
     ink: {
-      bright: '#fafafa',
-      base: '#f2f2f2',
+      bright: '#fdfdfd',
+      base: '#f9f9f9',
       dim: '#a4a4a4',
       faint: '#747474',
       ghost: '#4a4a4a',
@@ -511,13 +528,13 @@ export const THEMES: ThemeDef[] = [
       void: '#001717',
       panel: '#012424',
       raised: '#022e2f',
-      hover: '#023a3a',
+      hover: '#023434',
       line: '#014344',
       lineStrong: '#02736e',
     },
     ink: {
-      bright: '#f4fafa',
-      base: '#e7f3f3',
+      bright: '#f5fbfb',
+      base: '#eaf5f5',
       dim: '#8fabab',
       faint: '#607a7a',
       ghost: '#3d4e4e',
@@ -567,14 +584,14 @@ export const THEMES: ThemeDef[] = [
     surface: {
       void: '#0b151c',
       panel: '#14212a',
-      raised: '#1d2b34',
-      hover: '#26353f',
+      raised: '#1d2a33',
+      hover: '#213039',
       line: '#2e3d48',
       lineStrong: '#495b67',
     },
     ink: {
-      bright: '#f7f9fa',
-      base: '#edf1f3',
+      bright: '#f8fafb',
+      base: '#eff3f4',
       dim: '#9da6ac',
       faint: '#6d767c',
       ghost: '#464b4f',
@@ -607,7 +624,7 @@ export const THEMES: ThemeDef[] = [
       void: '#020d08',
       panel: '#061912',
       raised: '#061912',
-      hover: '#0c231b',
+      hover: '#0f281f',
       line: '#1e352c',
       lineStrong: '#424a46',
     },
@@ -686,7 +703,7 @@ export const THEMES: ThemeDef[] = [
       void: '#160d16',
       panel: '#231723',
       raised: '#231723',
-      hover: '#2d202e',
+      hover: '#322534',
       line: '#403141',
       lineStrong: '#683834',
     },
@@ -798,7 +815,7 @@ export const THEMES: ThemeDef[] = [
       void: '#011407',
       panel: '#03210f',
       raised: '#0b2b18',
-      hover: '#143621',
+      hover: '#12331f',
       line: '#1d3e29',
       lineStrong: '#7d7c2d',
     },
@@ -866,8 +883,8 @@ export const THEMES: ThemeDef[] = [
     surface: {
       void: '#091601',
       panel: '#122202',
-      raised: '#1a2d08',
-      hover: '#233711',
+      raised: '#1a2c08',
+      hover: '#1f320d',
       line: '#2b3f19',
       lineStrong: '#436b17',
     },
@@ -945,14 +962,21 @@ export const THEMES: ThemeDef[] = [
     surface: {
       void: '#fbf4df',
       panel: '#f3e7c4',
-      raised: '#ecdba8',
-      hover: '#e4cd8a',
+      raised: '#edddac',
+      hover: '#e8d59b',
       line: '#d6b667',
       lineStrong: '#b98b2e',
+      // Daylight casts a faint warm shade, not a dark one: halfway from the
+      // void to the panel, pooled at the foot of a set piece and mixed into
+      // the Prophecy's room. Black, the dark rooms' shade, took the ink at the
+      // foot to 4.6:1 against 15.6 on the bare room, and put it on near-black
+      // in the Prophecy. The Prophecy is the tighter of the two: its shaft of
+      // the room's own bright ink is a shadow here, laid over the shade.
+      shade: '#f7eed2',
     },
     ink: {
-      bright: '#1c1300',
-      base: '#241a05',
+      bright: '#191100',
+      base: '#201704',
       dim: '#4a3814',
       faint: '#6b5726',
       ghost: '#8f7b4a',
@@ -986,14 +1010,14 @@ export const THEMES: ThemeDef[] = [
     surface: {
       void: '#1b1329',
       panel: '#281d3a',
-      raised: '#322746',
-      hover: '#3d3053',
+      raised: '#312645',
+      hover: '#382b4d',
       line: '#45395c',
       lineStrong: '#6e519d',
     },
     ink: {
-      bright: '#fbf9fe',
-      base: '#f3f0f9',
+      bright: '#fdfcfe',
+      base: '#f8f7fc',
       dim: '#a7a1b5',
       faint: '#777184',
       ghost: '#4c4855',
@@ -1075,6 +1099,7 @@ export const SURFACE_VARS: Record<keyof typeof surface, string> = {
   hover: '--ew-hover',
   line: '--ew-line',
   lineStrong: '--ew-line-strong',
+  shade: '--ew-shade',
 };
 
 export const INK_VARS: Record<keyof typeof ink, string> = {

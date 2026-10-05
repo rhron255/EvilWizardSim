@@ -12,6 +12,10 @@
   --ew-hover: #221e17;
   --ew-line: #282219;
   --ew-line-strong: #3c3427;
+  /* What the room deepens into, away from its light: the foot of every set
+     piece and the Prophecy's darker room. Black in a dark room; a light room
+     sets its own (tokens.ts). */
+  --ew-shade: #000000;
 
   /* Ink */
   --ew-ink-bright: #f2ecdd;
@@ -165,7 +169,7 @@
   --ew-void: #1f0705;
   --ew-panel: #300f0c;
   --ew-raised: #3b1714;
-  --ew-hover: #48211d;
+  --ew-hover: #47211d;
   --ew-line: #512925;
   --ew-line-strong: #af3d36;
 
@@ -190,7 +194,7 @@
   --ew-void: #1d0621;
   --ew-panel: #2c0e31;
   --ew-raised: #38173d;
-  --ew-hover: #432049;
+  --ew-hover: #411e47;
   --ew-line: #4c2851;
   --ew-line-strong: #83349a;
 
@@ -214,13 +218,13 @@
 [data-theme='betrayed_by_apprentice'] {
   --ew-void: #14130b;
   --ew-panel: #201e13;
-  --ew-raised: #2a281c;
-  --ew-hover: #343225;
+  --ew-raised: #29271c;
+  --ew-hover: #2f2d20;
   --ew-line: #3c3a2d;
   --ew-line-strong: #77463e;
 
   --ew-ink-bright: #f9f8f7;
-  --ew-ink: #f1f0ed;
+  --ew-ink: #f1f0ee;
   --ew-ink-dim: #a6a59d;
   --ew-ink-faint: #76756d;
   --ew-ink-ghost: #4b4a46;
@@ -300,13 +304,13 @@
 [data-theme='consumed_by_pact'] {
   --ew-void: #181818;
   --ew-panel: #232323;
-  --ew-raised: #2d2d2d;
-  --ew-hover: #373737;
+  --ew-raised: #2c2c2c;
+  --ew-hover: #323232;
   --ew-line: #404040;
   --ew-line-strong: #696969;
 
-  --ew-ink-bright: #fafafa;
-  --ew-ink: #f2f2f2;
+  --ew-ink-bright: #fdfdfd;
+  --ew-ink: #f9f9f9;
   --ew-ink-dim: #a4a4a4;
   --ew-ink-faint: #747474;
   --ew-ink-ghost: #4a4a4a;
@@ -327,12 +331,12 @@
   --ew-void: #001717;
   --ew-panel: #012424;
   --ew-raised: #022e2f;
-  --ew-hover: #023a3a;
+  --ew-hover: #023434;
   --ew-line: #014344;
   --ew-line-strong: #02736e;
 
-  --ew-ink-bright: #f4fafa;
-  --ew-ink: #e7f3f3;
+  --ew-ink-bright: #f5fbfb;
+  --ew-ink: #eaf5f5;
   --ew-ink-dim: #8fabab;
   --ew-ink-faint: #607a7a;
   --ew-ink-ghost: #3d4e4e;
@@ -358,13 +362,13 @@
 [data-theme='eternally_repurposed'] {
   --ew-void: #0b151c;
   --ew-panel: #14212a;
-  --ew-raised: #1d2b34;
-  --ew-hover: #26353f;
+  --ew-raised: #1d2a33;
+  --ew-hover: #213039;
   --ew-line: #2e3d48;
   --ew-line-strong: #495b67;
 
-  --ew-ink-bright: #f7f9fa;
-  --ew-ink: #edf1f3;
+  --ew-ink-bright: #f8fafb;
+  --ew-ink: #eff3f4;
   --ew-ink-dim: #9da6ac;
   --ew-ink-faint: #6d767c;
   --ew-ink-ghost: #464b4f;
@@ -384,7 +388,7 @@
   --ew-void: #020d08;
   --ew-panel: #061912;
   --ew-raised: #061912;
-  --ew-hover: #0c231b;
+  --ew-hover: #0f281f;
   --ew-line: #1e352c;
   --ew-line-strong: #424a46;
 
@@ -435,7 +439,7 @@
   --ew-void: #160d16;
   --ew-panel: #231723;
   --ew-raised: #231723;
-  --ew-hover: #2d202e;
+  --ew-hover: #322534;
   --ew-line: #403141;
   --ew-line-strong: #683834;
 
@@ -510,7 +514,7 @@
   --ew-void: #011407;
   --ew-panel: #03210f;
   --ew-raised: #0b2b18;
-  --ew-hover: #143621;
+  --ew-hover: #12331f;
   --ew-line: #1d3e29;
   --ew-line-strong: #7d7c2d;
 
@@ -560,8 +564,8 @@
 [data-theme='archdruid'] {
   --ew-void: #091601;
   --ew-panel: #122202;
-  --ew-raised: #1a2d08;
-  --ew-hover: #233711;
+  --ew-raised: #1a2c08;
+  --ew-hover: #1f320d;
   --ew-line: #2b3f19;
   --ew-line-strong: #436b17;
 
@@ -607,17 +611,19 @@
 /* Ordinary Weather — the one light room (issue #23): cream and gold,
    sunlight from above, a faint sheen across the top of every card, daisies
    in the lawn. The ink inverts direction and is measured against the same
-   floor. */
+   floor, and the room's shade is a faint warm cream rather than black, at
+   the foot of a set piece and in the Prophecy's room alike. */
 [data-theme='good_wizard'] {
   --ew-void: #fbf4df;
   --ew-panel: #f3e7c4;
-  --ew-raised: #ecdba8;
-  --ew-hover: #e4cd8a;
+  --ew-raised: #edddac;
+  --ew-hover: #e8d59b;
   --ew-line: #d6b667;
   --ew-line-strong: #b98b2e;
+  --ew-shade: #f7eed2;
 
-  --ew-ink-bright: #1c1300;
-  --ew-ink: #241a05;
+  --ew-ink-bright: #191100;
+  --ew-ink: #201704;
   --ew-ink-dim: #4a3814;
   --ew-ink-faint: #6b5726;
   --ew-ink-ghost: #8f7b4a;
@@ -637,13 +643,13 @@
 [data-theme='arch_lich'] {
   --ew-void: #1b1329;
   --ew-panel: #281d3a;
-  --ew-raised: #322746;
-  --ew-hover: #3d3053;
+  --ew-raised: #312645;
+  --ew-hover: #382b4d;
   --ew-line: #45395c;
   --ew-line-strong: #6e519d;
 
-  --ew-ink-bright: #fbf9fe;
-  --ew-ink: #f3f0f9;
+  --ew-ink-bright: #fdfcfe;
+  --ew-ink: #f8f7fc;
   --ew-ink-dim: #a7a1b5;
   --ew-ink-faint: #777184;
   --ew-ink-ghost: #4c4855;

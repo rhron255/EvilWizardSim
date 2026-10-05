@@ -241,7 +241,12 @@
 
 /* --------------------------------------------------------------------------
    Screen shell — every set piece sits on the theme's void, under the theme's
-   key light, with a vignette whose center carries a breath of the tier color.
+   key light, with a vignette whose center carries a breath of the tier color,
+   and the room's shade pooled at its foot. The shade is a token: black in a
+   dark room, and the light room's own (`--ew-shade`, tokens.ts), because
+   black there is the one layer that moves the room toward its dark ink.
+   Every layer, the foot included, is counted by the bare-room floor
+   (themes.test.ts, qa/probe-room-contrast.mjs).
    -------------------------------------------------------------------------- */
 
 .screen {
@@ -250,7 +255,7 @@
   background:
     var(--ew-light, none),
     radial-gradient(120% 80% at 50% -10%, color-mix(in srgb, var(--ew-tier) 5%, transparent), transparent 60%),
-    radial-gradient(100% 60% at 50% 110%, rgba(0, 0, 0, 0.6), transparent 70%),
+    radial-gradient(100% 60% at 50% 110%, color-mix(in srgb, var(--ew-shade) 60%, transparent), transparent 70%),
     var(--ew-void);
   color: var(--ew-ink);
   overflow-x: hidden;
@@ -262,7 +267,7 @@
 /* The wallpaper — the theme's pattern, painted in its own strong line colour
    through a colourless mask (src/theme/ornaments.ts). Text sits straight on
    the room on several screens, with no panel behind it, so each theme's
-   opacity is capped: its whole room — void, key light and wallpaper included —
+   opacity is capped: its whole room — void, key light, foot and wallpaper —
    must read at least as well as the default room does (themes.test.ts).
    Scrolls with the page: `background-attachment: fixed` repaints on every
    frame on a phone. */

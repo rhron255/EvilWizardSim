@@ -32,6 +32,16 @@ export const surface = {
   line: '#282219',
   /** Stronger border on focus/active. */
   lineStrong: '#3C3427',
+  /**
+   * What the room deepens into, away from its light: the shade pooled at the
+   * foot of every set piece, and what the Prophecy's darker room is mixed
+   * toward. Black in every dark room, where it only ever deepens the backdrop
+   * behind pale ink. A light room overrides it (`themes.ts`), because there
+   * black is the one colour that moves the room toward its ink. Never a
+   * surface text sits on by itself; the bare-room model in `themes.test.ts`
+   * counts it in both stacks it is painted in.
+   */
+  shade: '#000000',
 } as const;
 
 export const ink = {
