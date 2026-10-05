@@ -27,7 +27,7 @@ import { render } from '@testing-library/react';
 import { contrastRatio } from '../../theme/contrast';
 import { over } from '../../theme/oklab';
 import { DEFAULT_THEME_ID, THEMES, swatchBands, themeFor, themeVars } from '../../theme/themes';
-import { tierColor } from '../../theme/tokens';
+import { font, size, tierColor } from '../../theme/tokens';
 import { ThemeSwatch } from './ThemeSwatch';
 import styles from './ThemeSwatch.module.css';
 
@@ -553,6 +553,122 @@ describe('ThemeSwatch · a long name stays inside its card', () => {
             if (pinned.includes(longhand)) problems.push(`${sel} { ${decl.prop} } sets .${own}'s ${longhand} past the rule read for it`);
         }
       }
+    expect(problems).toEqual([]);
+  });
+});
+
+/*
+ * The longest word on a line of its own still has to fit the card.
+ *
+ * The rules above drop a word that will not fit beside the glyph to its own
+ * line, and break one wider than the whole card inside it. A 320px card is
+ * 114px across its content box, and "Correspondence" in Inter, New
+ * Management's display face, is 8.11em: at the full 17px it was wider than
+ * the card, and it split ("Corresponde" / "nce"). So the name's size follows
+ * the card it sits in.
+ *
+ * Anchoring (failure mode 11): the advance widths below were MEASURED, not
+ * derived from the stylesheet — every word of every theme name, in each face a
+ * theme can wear, at the name's weight (600), in Chromium with the real
+ * webfonts, rounded up to the next hundredth of an em. The two card widths are
+ * the content boxes measured at 320 and 393. The size rule is read off disk
+ * and the size tokens come from the token table; which face each theme wears
+ * comes from the theme table. A name with a word not measured here, or a
+ * theme wearing a face not measured here, fails until it is measured.
+ */
+
+/** Advance width in em at weight 600, per face, per word of every theme name. */
+const WORD_EM: Record<string, Record<string, number>> = {
+  'Cormorant Garamond': {
+    Account: 3.38, Amethyst: 3.85, Assets: 2.47, Border: 2.72, Chair: 2.25, Cold: 1.95, Colour: 2.8,
+    Correspondence: 6.43, Crown: 2.73, Eldest: 2.42, Final: 2, Good: 2.22, Ground: 3.11, Kept: 1.89,
+    Management: 5.1, New: 1.82, Number: 3.29, Oak: 1.68, Ordinary: 3.65, Past: 1.62, Peat: 1.7,
+    Realised: 3.29, Requisition: 4.57, Room: 2.42, Settled: 2.78, Sword: 2.55, The: 1.45, Tower: 2.51,
+    Underneath: 4.68, Vigil: 1.89, Weather: 3.31, Wrong: 2.66, the: 1.26,
+  },
+  Inter: {
+    Account: 4.05, Amethyst: 4.65, Assets: 3.3, Border: 3.26, Chair: 2.58, Cold: 2.23, Colour: 3.23,
+    Correspondence: 8.11, Crown: 3.16, Eldest: 2.98, Final: 2.29, Good: 2.59, Ground: 3.58, Kept: 2.22,
+    Management: 6.34, New: 2.17, Number: 3.88, Oak: 1.91, Ordinary: 4.22, Past: 2.11, Peat: 2.16,
+    Realised: 4.09, Requisition: 5.36, Room: 2.76, Settled: 3.4, Sword: 3.08, The: 1.86, Tower: 2.98,
+    Underneath: 5.71, Vigil: 2.14, Weather: 4.09, Wrong: 3.22, the: 1.55,
+  },
+};
+
+/** A swatch's content box, measured: the narrowest phone, and the reference device. */
+const CARD_PX = { narrowest: 114, reference: 150.5 } as const;
+
+const REM_PX = 16;
+
+/** A `var(--ew-size-…)` token, in px, from the token table. */
+function sizePx(value: string): number {
+  const name = /^var\(--ew-size-([\w-]+)\)$/.exec(value)?.[1];
+  const rem = name && (size as Record<string, string>)[name];
+  if (!rem) throw new Error(`\`${value}\` is not a size token the test can resolve`);
+  return parseFloat(rem) * REM_PX;
+}
+
+/** The first family in a `font-family` list, unquoted. */
+const firstFamily = (list: string) => list.split(',')[0].trim().replace(/^['"]|['"]$/g, '');
+
+describe('ThemeSwatch · the longest word fits a card of its own', () => {
+  const declared = valueOf('.name', 'font-size') ?? '';
+  const CLAMP = /^clamp\(\s*(var\(--ew-size-[\w-]+\))\s*,\s*([\d.]+)cqi\s*,\s*(var\(--ew-size-[\w-]+\))\s*\)$/;
+  const parts = CLAMP.exec(declared);
+
+  it('sizes the name against the card, between two size steps', () => {
+    expect(parts, `.name { font-size: ${declared} } is not clamp(var(--ew-size-…), Ncqi, var(--ew-size-…))`).not.toBeNull();
+    // `cqi` is a share of the nearest size container: that has to be the card
+    // itself, not a box inside it, or the share is of something narrower.
+    const containers = DECLS.filter((d) => d.prop === 'container-type' || d.prop === 'container');
+    expect(
+      containers.map((d) => `${d.selectors.join(', ')} { ${d.prop}: ${d.value} }`),
+      'the card, and only the card, is the size container',
+    ).toEqual(['.swatch { container-type: inline-size }']);
+    // The only rule that sizes the name: a later one would win unread.
+    const sized = DECLS.filter((d) => d.prop === 'font-size' || d.prop === 'font');
+    expect(sized.flatMap((d) => d.selectors).filter((sel) => /\.(name|nameText|body)(?![\w-])/.test(sel))).toEqual(['.name']);
+  });
+
+  it('keeps the full size on the reference phone, and the size it always had', () => {
+    const [, , , max] = parts ?? [];
+    // The cap is the size the name had before it followed the card.
+    expect(max).toBe('var(--ew-size-md)');
+    // On a 393 card the share is at least the cap, so nothing there changed.
+    expect((Number(parts?.[2]) / 100) * CARD_PX.reference).toBeGreaterThanOrEqual(sizePx(max));
+  });
+
+  it('fits every word of every name, in every face a room can wear, at every card width', () => {
+    const [, min, cqi] = parts ?? [];
+    const share = Number(cqi) / 100;
+    // Every name is set in the face of the room being WORN, not the one it
+    // names: "Correspondence" split while New Management was on.
+    const faces = new Set(THEMES.map((theme) => firstFamily(theme.font?.display ?? font.display)));
+    // Guards the guard: the two faces the selector shipped with.
+    expect([...faces].sort()).toEqual(expect.arrayContaining(['Cormorant Garamond', 'Inter']));
+    const words = new Set(THEMES.flatMap((theme) => theme.name.split(' ')));
+    const problems: string[] = [];
+    for (const face of faces) {
+      const widths = WORD_EM[face];
+      if (!widths) {
+        problems.push(`a room wears ${face}, which has not been measured`);
+        continue;
+      }
+      for (const word of words) {
+        const em = widths[word];
+        if (em === undefined) {
+          problems.push(`"${word}" has not been measured in ${face}`);
+          continue;
+        }
+        // Above the floor the size is at most a share of the card (the cap
+        // only ever makes it smaller), so the word is at most that share of
+        // the card times its own width in em, at any card width.
+        if (share * em > 1) problems.push(`"${word}" in ${face} is ${(share * em * 100).toFixed(1)}% of the card`);
+        // At the floor it stops shrinking with the card, so it must still
+        // fit the narrowest one.
+        if (sizePx(min) * em > CARD_PX.narrowest) problems.push(`"${word}" in ${face} at the floor is wider than the 320 card`);
+      }
+    }
     expect(problems).toEqual([]);
   });
 });

@@ -1,4 +1,8 @@
+/* A size container, so the name can be sized against the card it sits in
+   (`cqi` on `.name` below). The grid gives every card its width, so nothing
+   in the card ever needed to set it. */
 .swatch {
+  container-type: inline-size;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -63,14 +67,25 @@
    A word that cannot fit beside the glyph at all drops to the line below it
    instead of running out of the card: "Correspondence" in a 320px card, and
    in New Management's wider sans even at 393. Measured against every card's
-   content box, wearing the default and New Management at 320 and 393. */
+   content box, wearing the default and New Management at 320 and 393.
+
+   On its own line it still has to fit. In Inter, New Management's display
+   face, "Correspondence" is 8.11em wide, wider than a 320px card's 114px at
+   the full size, and it split mid-word ("Corresponde" / "nce"). So the size
+   follows the card: 12cqi is 12% of the card's content width, and a word of
+   up to 8.33em fits in that, in either face. It never grows past the size it
+   had (a 393 card is 150px wide, so 12cqi there is 18px and the cap holds),
+   and never drops below the small step, which still fits the 320 card.
+   CSS cannot tell which face it is setting, so the 320 card scales the
+   Garamond names too, which fit there at full size. ThemeSwatch.test.tsx
+   holds every word of every name, in every face a room wears, to this. */
 .name {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
   gap: 0 0.4em;
   font-family: var(--ew-font-display);
-  font-size: var(--ew-size-md);
+  font-size: clamp(var(--ew-size-sm), 12cqi, var(--ew-size-md));
   font-weight: 600;
   line-height: 1.15;
   color: var(--ew-ink-bright);
