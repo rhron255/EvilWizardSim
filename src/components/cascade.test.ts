@@ -6,26 +6,29 @@
  *   1. The Necrolexicon's faction plate composed craft's old `plate` (which
  *      set `background: var(--ew-panel)`) and then set its own trimmed
  *      `background` at the same specificity. Which one wins is decided by the
- *      order the two modules land in the bundle, not by either file — and in
- *      the production build `craft.module.css` lands LATER, so the plate wore
- *      no trim under any theme while the source read as if it did.
+ *      order the two modules land in the bundle, not by either file — and the
+ *      production build put `craft.module.css` LATER, so the plate wore no trim
+ *      under any theme while the source read as if it did. The same order lost
+ *      every other property a screen overrode on a class it composes from
+ *      craft, about eighty-six of them.
  *   2. An ending slot leads its `background` with `var(--ew-trim, none)`, and
  *      its `.current` and `.unseen` states replaced the whole `background`
  *      without it. The slot just reached, and every slot not yet reached, kept
  *      their corner glyphs and lost their trim (CLAUDE.md styling rule 5).
+ *
+ * The first is now held by construction rather than by a list of clashes:
+ * craft is loaded once, from `src/main.tsx`, after tokens.css and before App,
+ * and `composes` no longer pastes a copy of it into each module that composes
+ * from it (`scripts/composesLoader.ts`). So craft comes before every screen in
+ * dev and in the build, and a screen's override at equal specificity wins.
+ * The checks below hold the source half of that; `cssOrder.test.ts` reads the
+ * order off a real build.
  *
  * The third is forced colours: the section rule is drawn as a gradient over a
  * transparent border, which a forced palette drops, so the rule has to name a
  * real border colour for that case itself; and each ornament is a mask filled
  * with a background colour, which a forced palette turns into a hole in
  * whatever it overlaps, so each one steps aside.
- *
- * What the bundle-order check does NOT cover: it reads `background` and
- * nothing else, because that is where both shipped losses were. Every other
- * property a class sets over one it composes from another file is decided by
- * bundle order in exactly the same way — more than eighty such pairs when this
- * was written, the Prophecy continue button's height and padding among them.
- * Those are a known open issue; a green run here says nothing about them.
  *
  * Everything here is read off disk — the stylesheets and the components that
  * apply their classes — so the rules are checked against what ships, not
@@ -205,10 +208,6 @@ function closure(start: Composed): Composed[] {
   return [...seen.values()];
 }
 
-const isBackground = (prop: string) => prop === 'background' || prop.startsWith('background-');
-/** Two declarations fight over the same longhand: a shorthand fights every longhand. */
-const overlaps = (a: string, b: string) => a === b || a === 'background' || b === 'background';
-
 // --- the trim --------------------------------------------------------------
 
 const TRIM_LEAD = /^var\(\s*--ew-trim\s*,\s*none\s*\)/;
@@ -296,68 +295,42 @@ function coApplied(): Map<string, Set<string>> {
 
 // --- the checks ------------------------------------------------------------
 
-// Background only: see the header for what this leaves open.
-describe('CSS modules · a composed background is never fought over', () => {
-  /** Every cross-file composition that pulls in a background, and every clash over one. */
-  const scan = () => {
-    const clashes: string[] = [];
-    const pulled: string[] = [];
-    for (const [file, rules] of MODULES) {
-      for (const rule of rules) {
-        const imported = composesOf(file, rule.decls).filter((c) => c.file !== file);
-        if (imported.length === 0) continue;
-        // `composes` is only legal on a lone class selector.
-        const own = rule.selectors[0].slice(1);
-        const mine = rulesFor(file, own).flatMap((r) => r.decls.filter((d) => isBackground(d.prop)));
-        for (const start of imported) {
-          for (const c of closure(start)) {
-            const theirs = rulesFor(c.file, c.name).flatMap((r) => r.decls.filter((d) => isBackground(d.prop)));
-            if (theirs.length > 0) pulled.push(`${rel(file)} .${own} <- ${rel(c.file)} .${c.name}`);
-            for (const t of theirs)
-              for (const m of mine)
-                if (overlaps(t.prop, m.prop))
-                  clashes.push(`${rel(file)} .${own} sets ${m.prop}, and composes .${c.name} from ${rel(c.file)}, which sets ${t.prop}`);
-          }
-        }
-      }
-    }
-    return { clashes: [...new Set(clashes)], pulled };
+describe('CSS modules · craft is loaded first, and once', () => {
+  const MAIN = resolve(SRC, 'main.tsx');
+  const CRAFT = resolve(SRC, 'components/meta/craft.module.css');
+
+  /** The module specifiers main.tsx imports, in order, resolved to files where they are relative. */
+  const mainImports = () => {
+    const source = ts.createSourceFile(MAIN, readFileSync(MAIN, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    return source.statements
+      .filter(ts.isImportDeclaration)
+      .map((s) => (s.moduleSpecifier as ts.StringLiteral).text)
+      .map((spec) => (spec.startsWith('.') ? resolve(SRC, spec) : spec));
   };
 
-  /**
-   * Found by this test, and left for the change that owns the file. In the
-   * production build the Prophecy's continue button loses EVERY override it
-   * sets to `.btn`, not just the fill this line names: its 52px height,
-   * padding, colour, border colour and panel fill all go to `.btn`'s, and its
-   * `:hover` loses to `.btn:hover:not(:disabled)` on specificity in any bundle
-   * order. (The fill is also the default room's panel as a fixed rgba.) Only
-   * the background is listed because only the background is checked. Listed,
-   * not ignored: fixing it without deleting the line here fails the test just
-   * as a new clash does.
-   */
-  const PENDING = [
-    'screens/ProphecyInterstitial.module.css .continue sets background, and composes .btn from components/meta/craft.module.css, which sets background',
-  ];
-
-  it('is checking something: it sees the compositions that pull in a background', () => {
-    // Guards the guard: a parser that missed every `composes:` would pass the
-    // test below having checked nothing. Anchored to compositions no fix here
-    // touches — every set piece takes its shell, void and key light from
-    // craft's `.screen`, and the plain buttons take their fill from `.btn`.
-    const { pulled } = scan();
-    expect(pulled).toContain('screens/TitleScreen.module.css .screen <- components/meta/craft.module.css .screen');
-    expect(pulled).toContain('screens/EndingScreen.module.css .screen <- components/meta/craft.module.css .screen');
-    expect(pulled).toContain('screens/ChangelogScreen.module.css .bottomBack <- components/meta/craft.module.css .btn');
+  it('imports craft.module.css after tokens.css and before App', () => {
+    // A screen class that composes from craft and overrides one of its
+    // properties wins only by coming later at equal specificity. main.tsx is
+    // what places craft: before App (and so before every screen module App
+    // reaches) and after tokens.css, whose custom properties it reads.
+    const order = mainImports();
+    const at = (file: string) => order.indexOf(file);
+    expect(at(CRAFT), 'main.tsx imports craft.module.css').toBeGreaterThanOrEqual(0);
+    expect(at(resolve(SRC, 'theme/tokens.css')), 'tokens.css').toBeGreaterThanOrEqual(0);
+    expect(at(resolve(SRC, 'App')), './App').toBeGreaterThanOrEqual(0);
+    expect(at(CRAFT)).toBeGreaterThan(at(resolve(SRC, 'theme/tokens.css')));
+    expect(at(CRAFT)).toBeLessThan(at(resolve(SRC, 'App')));
   });
 
-  it('never sets a background on a class that composes one from another file', () => {
-    // Which of two equal-specificity rules wins is decided by the order the
-    // two modules land in the bundle — not by either file, and not the same
-    // order in dev as in the build. A class that needs a background of its own
-    // composes a FRAME (`plateFrame`, `plateDoubleFrame` in craft.module.css)
-    // or a class that already carries that background (`trimmedPlate`).
-    // Every other property has the same hazard and is not checked here.
-    expect(scan().clashes).toEqual(PENDING);
+  it('composes from no other file: the one main.tsx loads is the one the build keeps', () => {
+    // `composes: x from` no longer pastes the named file's CSS into the module
+    // that composes from it (scripts/composesLoader.ts), so a file composed
+    // from must be in the bundle on its own. craft is, from main.tsx; a second
+    // shared sheet would need the same import, and the same place in it.
+    const targets = new Set<string>();
+    for (const [file, rules] of MODULES)
+      for (const rule of rules) for (const c of composesOf(file, rule.decls)) if (c.file !== file) targets.add(rel(c.file));
+    expect([...targets]).toEqual([rel(CRAFT)]);
   });
 });
 
