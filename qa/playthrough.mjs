@@ -253,7 +253,7 @@ if (sawEnding) {
 
   await shot('ending');
   // Peek at the collection from the ending card.
-  if (await clickByName(/collection/i, { optional: true })) {
+  if (await clickByName(/necrolexicon/i, { optional: true })) {
     await page.waitForTimeout(500);
     await shot('collection');
   }

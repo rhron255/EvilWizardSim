@@ -21,8 +21,12 @@
  * is read from the ornament's own CSS (failure mode 11). Themes are swapped by
  * setting `data-theme` on the screen root, which is all the app itself does.
  *
+ * The career it plays is a fixed one (`--seed`, see RUN_SEED), and the run
+ * screen is measured only once a gamble's odds rail is on it (see RAIL).
+ *
  *   node qa/probe-ornament-spacing.mjs [--url http://localhost:5173]
  *                                      [--only 393,320,1280] [--themes a,b]
+ *                                      [--seed 1]
  */
 import { chromium } from 'playwright';
 import { openApp } from './first-run.mjs';
@@ -40,6 +44,34 @@ const SIZES = {
   1280: [1280, 900],
 };
 const ONLY = arg('--only', '393,320,1280').split(',');
+/*
+ * RUN_SEED — which career the probe plays.
+ *
+ * The app seeds a career from `Math.random()` and `Date.now()` (`randomSeed`,
+ * src/engine/rng.ts) and from nothing else; every draw after that derives from
+ * the run's own seed. So pinning those two in the page pins the career: the
+ * same era-one offer, the same rolls, the same ending, every run of the probe.
+ * Before this, the run-screen pass measured whatever era-one offer came up,
+ * and in five passes of six that offer had no gamble on it, so the tightest
+ * clearance in the game (a card's bottom mark against the odds rail under it)
+ * was never measured and the probe printed ✓ anyway. A seed makes a finding
+ * reproducible; RAIL below is what makes the pass measure the rail at all.
+ */
+const RUN_SEED = Number(arg('--seed', '1'));
+if (!Number.isInteger(RUN_SEED)) throw new Error(`--seed must be an integer, got ${arg('--seed', '1')}`);
+/*
+ * RAIL — the content the tightest ornament in the game sits nearest to.
+ *
+ * A gamble card ends in its odds rail, a drawn bar along the card's bottom
+ * padding, so a card trim's bottom mark comes closer to it than to any line of
+ * text: Assets Realised's measured 4.6-4.9px from it, against the 4px floor.
+ * An era-one offer often has no gamble at all, so the run is played forward,
+ * first choice each era, until one is on screen (at most RAIL_ERAS eras), and
+ * the probe ASSERTS that a rail was measured against ornament at every width.
+ * A pass with no rail in it is a finding, not a quieter ✓.
+ */
+const RAIL = 'button[data-option-index] [class*="_rail_"]';
+const RAIL_ERAS = 12;
 
 /**
  * Clearance below this, in CSS px, between an ornament and content, is a
@@ -102,6 +134,15 @@ const OFF = '--ew-trim: none; --ew-pip: linear-gradient(transparent, transparent
 
 const findings = [];
 const worst = new Map();
+/**
+ * Per width: how many odds rails were measured against ornament, the nearest
+ * approach, and the themes whose card drew no ornament to measure (`bare`).
+ */
+const rails = new Map();
+const railRecord = (size) => {
+  if (!rails.has(size)) rails.set(size, { count: 0, min: Infinity, theme: null, bare: new Set() });
+  return rails.get(size);
+};
 let measured = 0;
 
 /*
@@ -234,7 +275,12 @@ async function measure(page, handle, { size, kind, theme, index }, { extend = 0,
   );
 
   measured++;
-  if (!result.pts.length) return;
+  if (!result.pts.length) {
+    // A rail on a card that drew no ornament at all is not a rail measured;
+    // it is named in the summary so the count there adds up. See RAIL.
+    if (kind === 'option card' && result.rects.some((r) => r[4] === 'rail')) railRecord(size).bare.add(theme);
+    return;
+  }
   let min = Infinity;
   let hit = null;
   let overlap = 0;
@@ -253,6 +299,17 @@ async function measure(page, handle, { size, kind, theme, index }, { extend = 0,
   const key = `${size} ${kind}`;
   const prev = worst.get(key);
   if (!prev || min < prev.min) worst.set(key, { min, theme, hit });
+  // A rail counts as measured only inside an option card that drew ornament:
+  // a theme with no trim measures nothing against it, and the standings rule
+  // also sees the cards below it (`alsoNext`) but not their trims. See RAIL.
+  for (const [l, t, r, b, what] of result.rects) {
+    if (kind !== 'option card' || what !== 'rail') continue;
+    let d = Infinity;
+    for (const [x, y] of result.pts) d = Math.min(d, Math.hypot(Math.max(l - x, 0, x - r), Math.max(t - y, 0, y - b)));
+    const rail = railRecord(size);
+    rail.count++;
+    if (d < rail.min) Object.assign(rail, { min: d, theme });
+  }
   if (overlap > 0 || min < MIN_CLEARANCE) {
     findings.push(`${label}: ${overlap ? `${overlap} ornament px ON ${hit}` : `${min.toFixed(1)}px from ${hit}`}`);
   }
@@ -270,13 +327,28 @@ async function measureAll(page, selector, where, opts, limit = Infinity) {
 }
 
 /**
- * A fresh context whose collection has seen `endings`, opened on the title.
- * The seed is written ONLY IF ABSENT: `addInitScript` runs before every
+ * A fresh context whose collection has seen `endings`, opened on the title,
+ * with the career's randomness pinned to RUN_SEED.
+ * The collection is written ONLY IF ABSENT: `addInitScript` runs before every
  * navigation, and the Necrolexicon pass re-opens the app mid-context.
  */
 async function seeded(width, height, endings) {
   const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1, reducedMotion: 'reduce' });
   const page = await context.newPage();
+  // The only two inputs to a career's seed (`randomSeed`), so the only two
+  // pinned. mulberry32, the generator the engine itself uses.
+  await page.addInitScript((seed) => {
+    let a = seed >>> 0;
+    Math.random = () => {
+      a = (a + 0x6d2b79f5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    const now = Date.UTC(2026, 0, 1);
+    Date.now = () => now;
+  }, RUN_SEED);
   await page.addInitScript((endings) => {
     if (localStorage.getItem('evil-wizard-sim:collection')) return;
     localStorage.setItem(
@@ -299,8 +371,57 @@ async function seeded(width, height, endings) {
   return { context, page };
 }
 
+// Offer options are the only buttons carrying `data-option-index`; anything
+// else enabled is a flow control (continue, return to your work, play again).
+const OPTION = 'button[data-option-index]:not([disabled])';
+const FLOW = 'button:not([data-option-index]):not([disabled])';
+
+const atEnding = (page) =>
+  page.getByRole('button', { name: /play again|another career|new run/i }).first().isVisible().catch(() => false);
+
 /**
- * Does each swatch's glyph sit where the selector puts it?
+ * One click forward: the first choice when one is offered, otherwise the last
+ * enabled flow control (the earlier ones are back-style escapes). False when
+ * nothing is left to click.
+ */
+async function playStep(page) {
+  const option = page.locator(OPTION).first();
+  if (await option.isVisible().catch(() => false)) {
+    await option.click();
+    await page.waitForTimeout(80);
+    return true;
+  }
+  const flow = page.locator(FLOW);
+  const n = await flow.count();
+  if (!n) return false;
+  await flow.nth(n - 1).click();
+  await page.waitForTimeout(80);
+  return true;
+}
+
+/**
+ * Play the career forward, first choice each era, until a card with an odds
+ * rail is on screen with nothing over it, or RAIL_ERAS eras have gone by.
+ * Returns the era it stopped on; the caller asserts a rail was measured.
+ */
+async function playToRail(page) {
+  let era = 1;
+  while (era < RAIL_ERAS && !(await page.locator(RAIL).count())) {
+    await page.locator(OPTION).first().click();
+    era++;
+    // The resolution, perhaps the prophecy, then the next era's choices.
+    for (let i = 0; i < 20; i++) {
+      await page.waitForTimeout(80);
+      if (await atEnding(page)) return era;
+      if (await page.locator(OPTION).first().isVisible().catch(() => false)) break;
+      if (!(await playStep(page))) return era;
+    }
+  }
+  return era;
+}
+
+/**
+ * Does each swatch's name sit where the selector puts it, glyph and all?
  *
  * A locked swatch withholds its glyph along with its name, so this runs in a
  * collection that has seen EVERY ending: under the run's own nine-ending seed
@@ -314,6 +435,24 @@ async function seeded(width, height, endings) {
  * the name starting below it. Each worn theme is measured, because the name is
  * set in the WORN room's display face (one theme changes it), not the
  * previewed one's.
+ *
+ * Where the glyph sits is half of it. The name itself must also read as
+ * words, and stay in its card, so for every swatch:
+ *
+ *   - no word is split across two lines. A split is the layout a glyph check
+ *     cannot see: shrink the name's box below its longest word (a stray
+ *     `min-width: 0` on `.nameText` does it) and the glyph stays beside a
+ *     first line that ends "Correspon-". The ONE split allowed is a word wider
+ *     than the card's whole content box, which has nowhere else to go; once
+ *     names scale down to fit their card (so that even Correspondence in Inter
+ *     at 320 fits), that allowance should never be used, and the summary line
+ *     prints how often it was;
+ *   - the name's rightmost text rect ends inside the card's content box (its
+ *     border box less border and padding), so no letter runs into the padding
+ *     or out of the card.
+ *
+ * Both are read off the text the browser laid out (a Range over each word),
+ * never off the stylesheet that is supposed to produce it (failure mode 11).
  */
 async function measureSwatches(size, width, height) {
   const { context, page } = await seeded(width, height, ENDINGS);
@@ -321,15 +460,19 @@ async function measureSwatches(size, width, height) {
   await page.waitForTimeout(150);
   let beside = 0;
   let above = 0;
+  /** Words split only because they are wider than the whole card: word → times. */
+  const wideSplits = new Map();
   for (const theme of THEMES) {
     await wear(page, theme);
     const swatchGlyphs = await page.evaluate(() =>
       [...document.querySelectorAll('[data-part="glyph"]')].map((g) => {
         const name = g.parentElement;
         const text = name.lastChild;
+        const node = text.nodeType === Node.TEXT_NODE ? text : document.createTreeWalker(text, NodeFilter.SHOW_TEXT).nextNode();
         const range = document.createRange();
-        range.selectNodeContents(text);
-        const first = range.getClientRects()[0];
+        range.selectNodeContents(node);
+        const lines = [...range.getClientRects()].filter((r) => r.width > 0);
+        const first = lines[0];
         const gr = g.getBoundingClientRect();
         // The name's own box starts at the top of its first LINE BOX. The text
         // rect above starts at the top of the font's content area, which in a
@@ -338,6 +481,28 @@ async function measureSwatches(size, width, height) {
         // would read a cleanly dropped name as overlapping the glyph. A name
         // that is bare text, with no box of its own, cannot drop at all.
         const lineTop = text.nodeType === Node.ELEMENT_NODE ? text.getBoundingClientRect().top : first.top;
+
+        // The card's content box: its border box less border and padding.
+        const card = g.closest('button');
+        const cs = getComputedStyle(card);
+        const cr = card.getBoundingClientRect();
+        const contentLeft = cr.left + parseFloat(cs.borderLeftWidth) + parseFloat(cs.paddingLeft);
+        const contentRight = cr.right - parseFloat(cs.borderRightWidth) - parseFloat(cs.paddingRight);
+
+        // Each word's own rects: more than one line top is a word split across
+        // lines. Its whole width is the sum of its pieces, the width it would
+        // need on one line.
+        const splits = [];
+        for (const m of node.data.matchAll(/\S+/g)) {
+          const word = document.createRange();
+          word.setStart(node, m.index);
+          word.setEnd(node, m.index + m[0].length);
+          const pieces = [...word.getClientRects()].filter((r) => r.width > 0);
+          const tops = pieces.map((r) => r.top);
+          if (Math.max(...tops) - Math.min(...tops) > 1) {
+            splits.push({ word: m[0], width: pieces.reduce((w, r) => w + r.width, 0) });
+          }
+        }
         return {
           name: name.textContent,
           // Dropped: the name's first line starts below the glyph's middle,
@@ -347,6 +512,9 @@ async function measureSwatches(size, width, height) {
           off: (gr.top + gr.bottom) / 2 - (first.top + first.bottom) / 2,
           gap: first.left - gr.right,
           below: lineTop - gr.bottom,
+          content: contentRight - contentLeft,
+          overrun: Math.max(...lines.map((r) => r.right)) - contentRight,
+          splits,
         };
       }),
     );
@@ -362,9 +530,17 @@ async function measureSwatches(size, width, height) {
         beside++;
         if (Math.abs(s.off) > 2 || s.gap < 3) findings.push(`${size} swatch "${s.name}" · ${theme}: glyph ${s.off.toFixed(1)}px off its first line, ${s.gap.toFixed(1)}px from the name`);
       }
+      for (const split of s.splits) {
+        // Allowed only for a word that cannot fit on any one line of the card.
+        if (split.width > s.content) wideSplits.set(split.word, (wideSplits.get(split.word) ?? 0) + 1);
+        else findings.push(`${size} swatch "${s.name}" · ${theme}: "${split.word}" split across two lines, though it is ${split.width.toFixed(1)}px and the card's content box is ${s.content.toFixed(1)}px`);
+      }
+      if (s.overrun > 0.1) findings.push(`${size} swatch "${s.name}" · ${theme}: the name runs ${s.overrun.toFixed(1)}px past the card's content box`);
     }
   }
   console.log(`  swatches   ${beside + above} glyphs under ${THEMES.length} worn theme(s): ${beside} beside the name's first line, ${above} on a line of their own`);
+  const wide = [...wideSplits].map(([word, n]) => `"${word}" ×${n}`).join(', ');
+  console.log(`  swatches   every name checked for a mid-word split and an overrun; split only where a word is wider than its whole card: ${wide || 'none'}`);
   await context.close();
 }
 
@@ -383,7 +559,9 @@ for (const size of ONLY) {
   await page.getByRole('button', { name: /begin a career/i }).click();
   await page.getByRole('button', { name: /begin the career/i }).click();
   await page.waitForSelector('button[data-option-index]');
+  const era = await playToRail(page);
   await page.mouse.move(1, 1);
+  console.log(`  run screen at era ${era} (seed ${RUN_SEED}): ${await page.locator(RAIL).count()} odds rail(s) on screen`);
   for (const theme of THEMES) {
     await wear(page, theme);
     await measureAll(page, 'button[data-option-index]', { size, theme, kind: 'option card' });
@@ -391,21 +569,18 @@ for (const size of ONLY) {
     await measureAll(page, 'main > section', { size, theme, kind: 'standings rule' }, { extend: 10, alsoNext: true });
   }
   console.log(`  run screen measured under ${THEMES.length} themes`);
+  const rail = rails.get(size);
+  if (!rail?.count) {
+    findings.push(`${size} option card: no odds rail measured against ornament (seed ${RUN_SEED}, stopped at era ${era} of at most ${RAIL_ERAS}), so the tightest clearance in the game went unchecked`);
+  } else {
+    const bare = rail.bare.size ? `; no ornament drawn on its card under ${[...rail.bare].join(', ')}` : '';
+    console.log(`  odds rail  ${rail.count} measured; nearest ornament ${rail.min.toFixed(1)}px, under ${rail.theme}${bare}`);
+  }
 
   // --- play to the ending screen (lair cards), first option every time
   for (let step = 0; step < 160; step++) {
-    if (await page.getByRole('button', { name: /play again|another career|new run/i }).first().isVisible().catch(() => false)) break;
-    const option = page.locator('button[data-option-index]:not([disabled])').first();
-    if (await option.isVisible().catch(() => false)) {
-      await option.click();
-      await page.waitForTimeout(80);
-      continue;
-    }
-    const flow = page.locator('button:not([data-option-index]):not([disabled])');
-    const n = await flow.count();
-    if (!n) break;
-    await flow.nth(n - 1).click();
-    await page.waitForTimeout(80);
+    if (await atEnding(page)) break;
+    if (!(await playStep(page))) break;
   }
   await page.mouse.move(1, 1);
   const lairs = (await page.$$('[class*="_card_"][class*="_pips_"]')).length;
