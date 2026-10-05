@@ -103,6 +103,39 @@ export class ComposesWithoutCopyLoader {
 }
 
 /**
+ * Tells Vite that a module which composes from another file depends on it.
+ *
+ * A composed class name is hashed from the composed FILE's content, so when
+ * craft.module.css changes, every module composing from it must be scoped
+ * again or it keeps naming classes craft no longer has. The default loader
+ * hid that in dev: each composing module carried its own pasted copy of craft,
+ * so a stale name still matched a stale copy. With nothing pasted, a stale
+ * name matches nothing, and editing craft during `npm run dev` silently
+ * stripped every composed style (buttons, plates, the wallpaper) from every
+ * screen until the server restarted. Vite turns a postcss `dependency`
+ * message into a watched dependency of the module that emitted it, so the
+ * composing module is re-scoped along with craft.
+ */
+export function composesDependencies(): AcceptedPlugin {
+  return {
+    postcssPlugin: 'evil-wizard:composes-dependencies',
+    Declaration: {
+      composes(decl, { result }) {
+        const from = decl.value.match(/\sfrom\s+(['"])(.+?)\1\s*$/)?.[2];
+        const importer = result.opts.from;
+        if (!from || !importer) return;
+        result.messages.push({
+          type: 'dependency',
+          plugin: 'evil-wizard:composes-dependencies',
+          file: resolvePath(dirname(importer), from),
+          parent: importer,
+        });
+      },
+    },
+  };
+}
+
+/**
  * The plugin that puts the above into effect, and keeps the one copy of the
  * shared sheet in the build.
  *
@@ -118,7 +151,12 @@ export function composesWithoutCopy({ shared }: { shared: string }): Plugin {
   return {
     name: 'evil-wizard:composes-without-copy',
     enforce: 'post',
-    config: () => ({ css: { modules: { Loader: ComposesWithoutCopyLoader } as never } }),
+    config: () => ({
+      css: {
+        modules: { Loader: ComposesWithoutCopyLoader } as never,
+        postcss: { plugins: [composesDependencies()] },
+      },
+    }),
     configResolved: (config) => {
       sheet = resolvePath(config.root, shared);
     },
