@@ -343,6 +343,22 @@
   background: var(--ew-danger);
 }
 
+/* Forced colours: the rail and its fill are background colours, which a
+   forced palette repaints as Canvas, so the hero's distance vanished and left
+   only the two numbers. Outlined and filled in the system's text colour
+   instead, the way `FactionStandings` draws its meters there. */
+@media (forced-colors: active) {
+  .siegeRail {
+    outline: 1px solid CanvasText;
+  }
+
+  .siegeFill,
+  .siege[data-tone] .siegeFill {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+}
+
 .siegeSentence {
   margin: var(--ew-space-1) 0 0;
   font-size: var(--ew-size-xs);
