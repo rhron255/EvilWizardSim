@@ -10,12 +10,10 @@
      relative TO — so the sticky head just scrolled away with the page instead
      of pinning to the viewport. `.top`'s own `overflow: hidden` below takes
      over the one thing this clip was actually protecting on this screen (see
-     its comment), so lifting the clip here is safe.
-     !important because `craft.module.css`'s `.screen` rule sets `overflow-x`
-     at the same selector specificity and, empirically, later in the bundled
-     cascade — a plain override here still lost the x-axis, which is what
-     left overflow-y stuck on the forced `auto` this whole comment describes. */
-  overflow: visible !important;
+     its comment), so lifting the clip here is safe. A plain override is
+     enough: `src/main.tsx` loads craft before every screen, so this rule
+     comes later at the same specificity and wins. */
+  overflow: visible;
 }
 
 .inner {
@@ -405,6 +403,11 @@
     flex-wrap: nowrap;
     overflow-x: auto;
     scroll-snap-type: x proximity;
+    /* Snap to the gutter, not the screen edge. Without it the first chip's
+       `scroll-snap-align: start` lands on the scrollport's own edge, so the
+       strip opened scrolled 16px in: flush with the left of the screen, with
+       the padding below spent on the wrong side. */
+    scroll-padding-inline: var(--ew-space-4);
     scrollbar-width: none;
     padding-bottom: var(--ew-space-4);
     margin: 0 calc(-1 * var(--ew-space-4));
