@@ -418,6 +418,16 @@
     padding: var(--ew-space-4) var(--ew-space-4) var(--ew-space-7);
   }
 
+  /* The tab and filter strips scroll sideways here, which clips them on both
+     axes, and their pills sit flush with each strip's top edge — so the
+     global ring, drawn 2px OUTSIDE the pill, lost its top arc to the clip
+     (and, for a filter, to the sticky head painted over it). Drawn inside
+     the pill instead, it is whole, and nothing moves. */
+  .tab:focus-visible,
+  .filter:focus-visible {
+    outline-offset: -2px;
+  }
+
   /* A sticky bar earns its keep by staying small — it now occupies screen
      budget on every scroll position, not just the first one. */
   .stickyHead {
