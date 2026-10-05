@@ -94,18 +94,14 @@
 
    A surface is a frame and a fill, kept as separate classes. A card that wants
    a fill of its own composes a FRAME and paints its own background; one that
-   wears the room's trimmed panel composes `trimmedPlate`. Nothing composes a
-   filled class and then overrides `background`: two rules of equal
-   specificity in different modules are ordered by the bundle, not by either
-   file — and the production build put this file after the Ending and
-   Necrolexicon screens' own, so the override silently lost: the ending card
-   shipped without its tier wash, and the faction plate without its trim.
+   wears the room's trimmed panel composes `trimmedPlate`.
 
-   `src/components/cascade.test.ts` fails on that pattern for `background`
-   ONLY. Any other property a module sets over a class it composes from here
-   loses to this file in the build just the same — the Prophecy's continue
-   button loses its height, padding, colour and border to `.btn` along with its
-   fill — and those clashes are a known open issue that no test covers yet.
+   A module that composes a class from here and sets one of the same
+   properties wins: this file is loaded once, first, from `src/main.tsx`, and
+   `composes` does not paste a copy of it into the module that composes from
+   it (`scripts/composesLoader.ts`), so every screen's rules come after these
+   at the same specificity. `src/components/cascade.test.ts` holds the import
+   order; `src/components/cssOrder.test.ts` reads it off a real build.
    -------------------------------------------------------------------------- */
 
 .plateFrame {

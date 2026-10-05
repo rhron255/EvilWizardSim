@@ -52,8 +52,7 @@
 
 .card {
   /* The double FRAME, not a filled plate: the background below is this card's
-     own, and a fill composed from craft would win or lose it by bundle order
-     (it lost — see "Surfaces" in craft.module.css). */
+     own (see "Surfaces" in craft.module.css). */
   composes: plateDoubleFrame from '../components/meta/craft.module.css';
   composes: grain from '../components/meta/craft.module.css';
   position: relative;

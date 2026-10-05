@@ -48,9 +48,9 @@ constraints below exist, and is the thing to read before relaxing any of them.
 | `src/components/run/` | The run loop: masthead, faction standings, decision and offer panels, resolution overlay, relic page, notoriety badge. |
 | `src/components/meta/` | Set-piece parts: lair grid, artifact grid, sigil. |
 | `src/screens/` | Screen composition. |
-| `scripts/` | `validate-content.ts`, `simulate.ts` (balance harness), `balance-report.ts` (renders the PR comment), `build-static-assets.ts` (`npm run assets`), `build-ornaments.ts` (`npm run ornaments`). |
+| `scripts/` | `validate-content.ts`, `simulate.ts` (balance harness), `balance-report.ts` (renders the PR comment), `build-static-assets.ts` (`npm run assets`), `build-ornaments.ts` (`npm run ornaments`), `composesLoader.ts` (keeps `craft.module.css` to one copy in the bundle; styling rule 6), `check-css-order.ts` (`npx tsx scripts/check-css-order.ts` after `npm run build`: craft before every screen in the built CSS). |
 | `public/` | Favicon, touch/install icons, manifest and the link-preview image — generated from the game's own sigil by `npm run assets` and committed. |
-| `qa/` | Playwright probes. `sweep-layout.mjs` plays many careers and audits every state; `probe-late-game.mjs` and `probe-era-scroll.mjs` cover the worst-case header and the scroll reset; `probe-keyboard.mjs` plays a whole career with no mouse; `probe-themes.mjs` measures the themes, `probe-ornament-spacing.mjs` measures how close every theme's ornament sits to content, `probe-room-contrast.mjs` paints every theme's bare room and scores its text against the default's, and `shoot-themes.mjs` photographs all twenty side by side. Every probe that lists themes reads them from `THEMES` through `qa/theme-ids.mjs`. Screenshots are gitignored. |
+| `qa/` | Playwright probes. `sweep-layout.mjs` plays many careers and audits every state — it measures each control's hit area as a finger meets it (including a transparent `::after` extension) against 44px, and `--career-seed N` replays the same careers so a before/after fold comparison is exact; `probe-late-game.mjs` and `probe-era-scroll.mjs` cover the worst-case header and the scroll reset; `probe-keyboard.mjs` plays a whole career with no mouse; `probe-themes.mjs` measures the themes, `probe-ornament-spacing.mjs` measures how close every theme's ornament sits to content (on a seeded career, played forward until a gamble's odds rail is on screen, and it fails if no rail was measured), `probe-room-contrast.mjs` paints every theme's bare room (run screen, set pieces, Prophecy) and scores its text against the default's, and `shoot-themes.mjs` photographs all twenty side by side. Every probe that lists themes reads them from `THEMES` through `qa/theme-ids.mjs`. Screenshots are gitignored. |
 | `wiki/` | Design intent and rationale. |
 
 ## Commands
@@ -168,8 +168,9 @@ These come from a game that worked at scale. They look arbitrary in isolation.
    and every pair of themes must sit at least 1.5 just-noticeable differences
    apart (all measured in `themes.test.ts`). The room floor holds in the
    browser's own pixels too: after touching a theme's key light, wallpaper
-   opacity, void or ink, run `node qa/probe-room-contrast.mjs`, which paints
-   every room in Chromium and fails if any reads worse than the default
+   opacity, void, shade or ink, run `node qa/probe-room-contrast.mjs`, which
+   paints every room in Chromium — the run screen, the set pieces with their
+   foot shade, and the Prophecy — and fails if any reads worse than the default
    (`--themes a,b` checks one retune; the full set takes about five minutes).
 4. **Comedy in the text, never in the numbers.**
 5. **No fail state, and no doom meter.** Every ending is a biography. The decline
@@ -260,14 +261,26 @@ that followed it.
    *wash* — a soft tint — stays under `DRAWN` on every surface, alone and
    stacked with the room's other washes, and may sit behind text, so
    over each surface the ink must read at least as well as the default ink on
-   the default's version of it (the panel floor, on the panel; on any surface
-   where a palette already reads lower than the default's — several hovers
-   and raised steps do — the wash may cost nothing), and no wash may move a
+   the default's version of it (the panel floor on the panel, and the
+   default's own floors on its raised step and hover — every palette's bare
+   ink clears all three, by constraint 5), and no wash may move a
    card toward its ink. `themes.test.ts` sorts every layer over every surface the stylesheets lay a
    trim on and asserts both.
    `node qa/probe-ornament-spacing.mjs` measures every theme's glyphs and
    marks against every keycap, rail and line of text, at 393, 320 and 1280
    wide; run it after touching a trim, a glyph, or a card's padding.
+6. **`craft.module.css` is loaded once, and first.** `src/main.tsx` imports
+   it after `tokens.css` and before `App`, and `composes: x from
+   '…/craft.module.css'` resolves the class names without pasting a copy of
+   craft into the composing module (`scripts/composesLoader.ts`, wired in
+   `vite.config.ts`). That is what lets a screen override a property it
+   composes from craft — `.continue`'s 52px over `.btn`'s 44px — by plain
+   cascade order, the same in dev and in the build. With a pasted copy in
+   every composing module, the production minifier kept the last one, after
+   nearly every screen, and about eighty-six such overrides lost in production
+   while winning in dev. Compose from no other file unless it is loaded the
+   same way: `cascade.test.ts` fails if you do, and `cssOrder.test.ts` builds
+   the app and reads the order off the emitted CSS.
 
 ## Failure modes this repo has actually produced
 
@@ -313,7 +326,10 @@ then open the file for the story and the exact check.
    afterthought; 320px is where a row that fit there runs out of room.
    A layout change also gets `node qa/sweep-layout.mjs` at both widths — a
    random playthrough almost never reaches the longest lair name or the
-   tallest card, and the sweep does.
+   tallest card, and the sweep does. To show a change did not move the fold,
+   sweep the base and the change with the same `--career-seed` and compare
+   the per-decision folds; unseeded sweeps differ by tens of pixels with
+   nothing changed.
    **Opening or updating a PR for a visual change always attaches the
    screenshot(s) that prove it** — the same PNGs this step already produces,
    not a fresh round taken just for the PR. A reviewer approving a UI change
