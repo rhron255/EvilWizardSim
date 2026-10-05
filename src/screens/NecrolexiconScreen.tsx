@@ -22,9 +22,17 @@
  * undisclosed-secret rule extends to this screen, not just to the grid).
  */
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
-import type { Artifact, Collection, Ending, Faction, FactionId, Mechanic } from '../types';
+import type {
+  Artifact,
+  Collection,
+  Ending,
+  EndingId,
+  Faction,
+  FactionId,
+  Mechanic,
+} from '../types';
 import { ArtifactGrid, EndingSlot, FactionGlyph, themeAttr, tierVars } from '../components/meta';
 import styles from './NecrolexiconScreen.module.css';
 
@@ -55,6 +63,17 @@ export type NecrolexiconScreenProps = {
   factions: Faction[];
   endings: Ending[];
   mechanics: Mechanic[];
+  /**
+   * The ending of the career the player has just finished, when they came
+   * here from its ending card; null from the title.
+   *
+   * When set, the screen opens on the Endings tab with that slot marked and
+   * brought into view — the player has just been told what this life
+   * concluded as, and this is where it now sits among the rest. Required, so
+   * no caller can forget it the way `EndingSlot`'s `current` was once
+   * forgotten by every caller.
+   */
+  justReached: EndingId | null;
   onBack(): void;
   onViewThemes(): void;
 };
@@ -75,11 +94,36 @@ export function NecrolexiconScreen({
   factions,
   endings,
   mechanics,
+  justReached,
   onBack,
   onViewThemes,
 }: NecrolexiconScreenProps) {
-  const [category, setCategory] = useState<Category>('factions');
+  const [category, setCategory] = useState<Category>(justReached ? 'endings' : 'factions');
   const [filter, setFilter] = useState<Filter>('all');
+
+  /**
+   * Bring the just-reached slot into view, once, on arrival.
+   *
+   * With nineteen slots it is below the fold at 393px more often than not,
+   * and a mark nobody scrolls to is not much of one. A frame late on purpose:
+   * `App` resets the scroll to the top whenever the screen changes, and its
+   * effect runs AFTER this one (a parent's effects follow its children's), so
+   * scrolling here synchronously would be undone at once. Centred, so the
+   * sticky header never covers it; instant, so there is nothing to reduce
+   * for reduced motion.
+   */
+  const endingsRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!justReached) return;
+    const frame = window.requestAnimationFrame(() => {
+      const slot = endingsRef.current?.querySelector('[data-current-label]')?.closest('article');
+      slot?.scrollIntoView?.({ block: 'center' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+    // Arrival only. `justReached` is fixed for as long as this screen is up,
+    // and switching tabs and back does not re-run this, so the page is never
+    // yanked a second time.
+  }, [justReached]);
 
   /**
    * Roving tabindex for the category strip (WAI-ARIA APG's tablist pattern).
@@ -299,9 +343,14 @@ export function NecrolexiconScreen({
               </div>
             </header>
 
-            <div className={styles.endings}>
+            <div className={styles.endings} ref={endingsRef}>
               {endings.map((ending) => (
-                <EndingSlot key={ending.id} ending={ending} seen={seenEndings.has(ending.id)} />
+                <EndingSlot
+                  key={ending.id}
+                  ending={ending}
+                  seen={seenEndings.has(ending.id)}
+                  current={ending.id === justReached}
+                />
               ))}
             </div>
 

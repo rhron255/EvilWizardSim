@@ -236,6 +236,12 @@ export default function App() {
           factions={factions}
           endings={endings}
           mechanics={mechanics}
+          // The ending card's "View Necrolexicon" is the only door here that
+          // still has a run behind it: the reducer keeps the finished run on
+          // the way in and drops it on the way back to the title, so a
+          // finished run here IS the career whose ending was just reached.
+          // From the title `run` is null and nothing is marked.
+          justReached={run?.ending ?? null}
           onBack={game.backToTitle}
           onViewThemes={game.viewThemes}
         />

@@ -122,6 +122,16 @@
   color: var(--ew-tier);
 }
 
+/* The same news in words. Untinted on purpose: the tier border and glyph are
+   the one colour the slot spends, and this is the cue that does not depend on
+   telling it from the line colour. Brighter than the rarity caption beside it,
+   because it is the first thing on the card the player is looking for. */
+.currentLabel {
+  composes: label from './craft.module.css';
+  margin: 0 0 var(--ew-space-2);
+  color: var(--ew-ink-dim);
+}
+
 @media (max-width: 520px) {
   .slot {
     grid-template-columns: auto 1fr;
