@@ -9,7 +9,8 @@
  *   - selecting a theme changes `--ew-panel` on the screen root, and the
  *     change survives a navigation and a reload (it is persisted);
  *   - `--ew-tier` is IDENTICAL under every theme, which is the whole
- *     constraint the amended pillar rests on;
+ *     constraint the amended pillar rests on. EVERY theme: each one in
+ *     `THEMES` is selected by name through the selector, not a sample;
  *   - the selector fits the reference device without a horizontal scrollbar
  *     and every swatch is a real touch target.
  *
@@ -17,7 +18,7 @@
  */
 import { chromium } from 'playwright';
 import { openApp } from './first-run.mjs';
-import { themeEndingIds, themeIds, themes } from './theme-ids.mjs';
+import { themeEndingIds, themes } from './theme-ids.mjs';
 import { mkdir } from 'node:fs/promises';
 
 const arg = (flag, fallback) => {
@@ -98,7 +99,8 @@ await page.addInitScript(
   },
   [themeEndingIds(), SEED_VERSION],
 );
-const THEME_COUNT = themeIds().length;
+const ALL_THEMES = themes();
+const THEME_COUNT = ALL_THEMES.length;
 
 await openApp(page, URL);
 
@@ -149,83 +151,125 @@ await page.screenshot({ path: `${OUT}/themes-selector.png` });
 console.log(`  shot  ${OUT}/themes-selector.png`);
 
 // --- does selecting one actually change the room? ----------------------------
-const readVars = () =>
+// Every theme but the default, each selected by its NAME through the selector,
+// the way a player does it, in `THEMES` order (qa/theme-ids.mjs). This loop
+// used to hand-list four themes, so every check below that reads "every
+// theme" read five rooms of twenty: the scarce colour could have moved under
+// any of the other fifteen and this probe would still have said it held.
+//
+// Read per room: what the THEME makes `--ew-tier` and its glow (see below),
+// the ink-on-panel contrast in the browser's own colours (through a probe
+// element, so they are real rgb(), not the raw custom-property text), and the
+// wallpaper the room hangs on its `::before`.
+//
+// The tier is NOT read off the screen root. Every screen pins `--ew-tier` and
+// `--ew-tier-glow` inline on its root (`tierVars`, or RunScreen's own), and an
+// inline declaration beats a `[data-theme]` rule, so reading `main` reads the
+// pin: with `--ew-tier: #f00` added to a theme's block in tokens.css, this
+// check, reading `main`, still printed one tier for every room and passed. So
+// the tier is read off a bare element that wears the same `data-theme` and
+// nothing else, which resolves what the theme's own stylesheet says, the
+// value anything outside a pinned root would paint.
+const readRoom = () =>
   page.evaluate(() => {
     const root = document.querySelector('main');
     const cs = getComputedStyle(root);
+    const bare = document.createElement('div');
+    if (root.hasAttribute('data-theme')) bare.setAttribute('data-theme', root.getAttribute('data-theme'));
+    document.body.appendChild(bare);
+    const themed = getComputedStyle(bare);
+    const own = {
+      tier: themed.getPropertyValue('--ew-tier').trim(),
+      tierGlow: themed.getPropertyValue('--ew-tier-glow').trim(),
+      legendary: themed.getPropertyValue('--ew-legendary').trim(),
+    };
+    bare.remove();
+    const lin = (c) => {
+      c /= 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    };
+    const lum = (rgb) => {
+      const [r, g, b] = rgb.match(/\d+/g).map(Number);
+      return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    };
+    const probe = document.createElement('span');
+    probe.style.color = cs.getPropertyValue('--ew-ink');
+    probe.style.backgroundColor = cs.getPropertyValue('--ew-panel');
+    root.appendChild(probe);
+    const p = getComputedStyle(probe);
+    const [hi, lo] = [lum(p.color), lum(p.backgroundColor)].sort((a, b) => b - a);
+    probe.remove();
+    const wall = getComputedStyle(root, '::before');
     return {
       theme: root.getAttribute('data-theme'),
       panel: cs.getPropertyValue('--ew-panel').trim(),
-      void: cs.getPropertyValue('--ew-void').trim(),
-      ink: cs.getPropertyValue('--ew-ink').trim(),
-      tier: cs.getPropertyValue('--ew-tier').trim(),
-      tierGlow: cs.getPropertyValue('--ew-tier-glow').trim(),
-      legendary: cs.getPropertyValue('--ew-legendary').trim(),
+      ...own,
+      contrast: (hi + 0.05) / (lo + 0.05),
+      wallMask: (wall.maskImage || wall.webkitMaskImage || 'none').slice(0, 30),
+      wallOpacity: Number(wall.opacity),
     };
   });
 
-const before = await readVars();
-note(before.theme === null, 'default sets no data-theme attribute', `panel ${before.panel}`);
+const [DEFAULT_THEME, ...EARNED_THEMES] = [
+  ...ALL_THEMES.filter((t) => t.endingId === null),
+  ...ALL_THEMES.filter((t) => t.endingId !== null),
+];
+if (DEFAULT_THEME?.endingId !== null || EARNED_THEMES.some((t) => t.endingId === null)) {
+  throw new Error('probe-themes: expected exactly one theme with no ending (the default) in THEMES');
+}
 
-const seen = [before];
-for (const name of ['Amethyst', 'Wrong Colour', 'Peat', 'Settled Account']) {
-  await page.getByRole('button', { name: new RegExp(`^${name}`) }).click();
-  await page.waitForTimeout(120);
-  const after = await readVars();
-  seen.push(after);
+const before = await readRoom();
+note(before.theme === null, `the default (${DEFAULT_THEME.name}) sets no data-theme attribute`, `panel ${before.panel}`);
+
+const seen = [{ name: DEFAULT_THEME.name, ...before }];
+const started = Date.now();
+for (const { id, name } of EARNED_THEMES) {
+  // `exact`: the accessible name is the theme's name, plus ", currently worn"
+  // once it is the worn one, so no prefix of one name can select another.
+  await page.getByRole('button', { name, exact: true }).click();
+  await page
+    .waitForFunction((id) => document.querySelector('main')?.getAttribute('data-theme') === id, id, { timeout: 2000 })
+    .catch(() => {});
+  const after = await readRoom();
+  seen.push({ name, ...after });
   note(
-    after.theme !== null && after.panel !== before.panel,
+    after.theme === id && after.panel !== before.panel,
     `${name} repaints the room`,
     `data-theme=${after.theme} panel ${after.panel}`,
   );
 }
+console.log(`  (${EARNED_THEMES.length} themes selected by name in ${((Date.now() - started) / 1000).toFixed(1)}s)`);
 
 // --- THE constraint: the scarce colour never moves ---------------------------
 const tiers = new Set(seen.map((s) => s.tier));
 const glows = new Set(seen.map((s) => s.tierGlow));
 const legendaries = new Set(seen.map((s) => s.legendary));
 note(
-  tiers.size === 1,
+  seen.length === THEME_COUNT && tiers.size === 1 && !tiers.has(''),
   'every theme leaves --ew-tier untouched',
-  [...tiers].join(' | ') || '(empty)',
+  `${seen.length} of ${THEME_COUNT} rooms: ${[...tiers].join(' | ') || '(empty)'}`,
 );
-note(glows.size === 1, 'every theme leaves --ew-tier-glow untouched', [...glows].join(' | '));
+note(
+  seen.length === THEME_COUNT && glows.size === 1 && !glows.has(''),
+  'every theme leaves --ew-tier-glow untouched',
+  `${seen.length} of ${THEME_COUNT} rooms: ${[...glows].join(' | ')}`,
+);
 note(legendaries.size === 1, '--ew-legendary stays pinned', [...legendaries].join(' | '));
 
 // --- ink contrast, measured on the real rendered colours ---------------------
-const contrast = await page.evaluate(() => {
-  const lin = (c) => {
-    c /= 255;
-    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-  };
-  const lum = (rgb) => {
-    const [r, g, b] = rgb.match(/\d+/g).map(Number);
-    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-  };
-  const root = document.querySelector('main');
-  const cs = getComputedStyle(root);
-  // Resolve through a probe element so the values are real rgb(), not the
-  // raw custom-property text.
-  const probe = document.createElement('span');
-  probe.style.color = cs.getPropertyValue('--ew-ink');
-  probe.style.backgroundColor = cs.getPropertyValue('--ew-panel');
-  root.appendChild(probe);
-  const p = getComputedStyle(probe);
-  const a = lum(p.color);
-  const b = lum(p.backgroundColor);
-  probe.remove();
-  const hi = Math.max(a, b);
-  const lo = Math.min(a, b);
-  return (hi + 0.05) / (lo + 0.05);
-});
-note(contrast >= 13.8, 'ink clears the contrast floor in the browser', `${contrast.toFixed(2)}:1`);
+const dimmest = seen.reduce((a, b) => (b.contrast < a.contrast ? b : a));
+note(
+  dimmest.contrast >= 13.8,
+  'ink clears the contrast floor in the browser, in every room',
+  `lowest ${dimmest.contrast.toFixed(2)}:1, under ${dimmest.name}`,
+);
 
 // --- ornament: does the room's decoration actually draw? ---------------------
 // Every shape is a data-URI SVG used as a mask. One that fails to parse is not
 // an error anywhere — the mask is just empty and the wallpaper silently is not
 // there, which is how eight shapes once shipped invisible past a green unit
-// suite. So decode every one in a real browser, and read the worn theme's
-// wallpaper layer off the live DOM.
+// suite. So decode every one in a real browser, and read each room's
+// wallpaper layer off the live DOM (`--ew-motif` is never none).
 const ornament = await page.evaluate(async () => {
   const rootStyle = getComputedStyle(document.documentElement);
   const names = [...document.styleSheets]
@@ -246,29 +290,22 @@ const ornament = await page.evaluate(async () => {
     const ok = await img.decode().then(() => img.naturalWidth > 0, () => false);
     if (!ok) failed.push(name);
   }
-  const main = document.querySelector('main');
-  const wall = getComputedStyle(main, '::before');
-  return {
-    shapes: new Set(names).size,
-    failed,
-    wallMask: (wall.maskImage || wall.webkitMaskImage || 'none').slice(0, 30),
-    wallOpacity: Number(wall.opacity),
-    theme: main.getAttribute('data-theme'),
-  };
+  return { shapes: new Set(names).size, failed };
 });
 note(
   ornament.shapes >= 20 && ornament.failed.length === 0,
   'every ornament shape decodes in the browser',
   ornament.failed.length ? `broken: ${ornament.failed.join(', ')}` : `${ornament.shapes} shapes`,
 );
+const unhung = seen.filter((s) => !(s.wallMask.startsWith('url(') && s.wallOpacity > 0));
 note(
-  ornament.wallMask.startsWith('url(') && ornament.wallOpacity > 0,
-  'the worn theme hangs its wallpaper',
-  `${ornament.theme} · opacity ${ornament.wallOpacity}`,
+  unhung.length === 0,
+  'every room hangs its wallpaper',
+  unhung.length ? `none under ${unhung.map((s) => s.name).join(', ')}` : `${seen.length} rooms`,
 );
 
 // --- persistence: does the choice survive a reload? --------------------------
-const chosen = await readVars();
+const chosen = await readRoom();
 await page.reload({ waitUntil: 'networkidle' });
 const persisted = await page.evaluate(() =>
   JSON.parse(localStorage.getItem('evil-wizard-sim:collection')).selectedThemeId,
@@ -295,7 +332,6 @@ console.log(`  shot  ${OUT}/themes-creation-themed.png`);
 // (qa/theme-ids.mjs) rather than hand-listed, so a theme added tomorrow is
 // checked tomorrow.
 const EARNED = 'retired_to_swamp';
-const ALL_THEMES = themes();
 const shown = ALL_THEMES.filter((t) => t.endingId === null || t.endingId === EARNED).map((t) => t.name);
 const secret = ALL_THEMES.map((t) => t.name).filter((name) => !shown.includes(name));
 if (shown.length !== 2) {
