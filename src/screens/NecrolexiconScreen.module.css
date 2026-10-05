@@ -68,7 +68,9 @@
 .back {
   composes: btnQuiet from '../components/meta/craft.module.css';
   justify-self: start;
-  min-height: 36px;
+  /* No min-height of its own: `.btn`'s 44px is the tap target. A 36px
+     override here lost to craft in every production build until craft was
+     loaded first, so 44px is also what this button always shipped at. */
   padding: 0 var(--ew-space-3);
   font-size: var(--ew-size-xs);
   letter-spacing: 0.12em;
