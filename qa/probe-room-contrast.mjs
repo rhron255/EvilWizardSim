@@ -73,7 +73,8 @@ const stripComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
 
 /**
  * Every rule in a stylesheet as `{ selector, body, media }`, rules inside an
- * `@media` block included and tagged with its condition.
+ * `@media` (or any other block at-rule, such as `@supports`) included and
+ * tagged with it, as the unit test's `rulesOf` does.
  */
 function rulesOf(css) {
   const out = [];
@@ -90,7 +91,7 @@ function rulesOf(css) {
         if (text[j] === '}') depth--;
       }
       const body = text.slice(open + 1, j - 1);
-      if (selector.startsWith('@media')) walk(body, selector);
+      if (selector.startsWith('@')) walk(body, selector);
       else out.push({ selector, body, media });
       i = j;
     }
@@ -127,11 +128,51 @@ function theRule(css, selectors, prop, file) {
   return plain[0].body;
 }
 
+/**
+ * Whether any selector in a list paints the `.screen` element itself, rather
+ * than a pseudo-element of it — the same reading as `targetsScreen` in
+ * `src/theme/themes.test.ts`, so `.wallpaper, .screen` and `main .screen`
+ * count and `.screen::before` does not.
+ */
+function targetsScreen(selectorList) {
+  return selectorList.split(',').some((selector) => {
+    const last = selector.trim().split(/[\s>+~]+/).pop() ?? '';
+    return /(?:^|[^\w-])\.screen(?![\w-])/.test(last) && !/::|:(?:before|after)\b/.test(last);
+  });
+}
+
+/**
+ * The `background` of the one rule that paints `.screen`, read the way the
+ * unit test reads it. Any rule that sets `.screen`'s `background`,
+ * `background-color` or `background-image` counts, under whatever selector
+ * reaches the element; there must be exactly one, a plain `.screen` rule
+ * setting the shorthand alone, and an `@media` override throws as `theRule`
+ * does. Otherwise the probe would paint a room the browser never shows.
+ */
+function screenBackground(css, file) {
+  const SETS = /(?:^|;)\s*background(?:-color|-image)?\s*:/;
+  const setting = rulesOf(css).filter((r) => targetsScreen(r.selector) && SETS.test(r.body));
+  const media = setting.filter((r) => r.media && !/forced-colors/.test(r.media));
+  if (media.length) throw new Error(`${file}: ${media[0].media} overrides .screen's background`);
+  const plain = setting.filter((r) => !r.media);
+  const names = plain.map((r) => r.selector.replace(/\s+/g, ' ').trim());
+  if (plain.length !== 1 || names[0] !== '.screen') {
+    throw new Error(`${file}: expected one .screen rule setting its background, found ${names.join(' | ') || 'none'}`);
+  }
+  const body = plain[0].body;
+  if (/(?:^|;)\s*background-(?:color|image)\s*:/.test(body)) {
+    throw new Error(`${file}: .screen sets background-color or background-image beside its background`);
+  }
+  const value = declaration(body, 'background');
+  if (value === null) throw new Error(`${file}: .screen paints its background without the background shorthand`);
+  return value;
+}
+
 const RUN_CSS = read('src/screens/RunScreen.module.css');
 const CRAFT_CSS = read('src/components/meta/craft.module.css');
 
-const RUN_BACKGROUND = declaration(theRule(RUN_CSS, ['.screen'], 'background', 'RunScreen.module.css'), 'background');
-const CRAFT_BACKGROUND = declaration(theRule(CRAFT_CSS, ['.screen'], 'background', 'craft.module.css'), 'background');
+const RUN_BACKGROUND = screenBackground(RUN_CSS, 'RunScreen.module.css');
+const CRAFT_BACKGROUND = screenBackground(CRAFT_CSS, 'craft.module.css');
 /** The wallpaper rule's body, verbatim. `composes` is CSS Modules', not CSS. */
 const WALLPAPER = theRule(CRAFT_CSS, ['.screen::before', '.wallpaper::before'], 'opacity', 'craft.module.css');
 

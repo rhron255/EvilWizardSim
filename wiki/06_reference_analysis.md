@@ -69,8 +69,9 @@ That last figure is the design working as intended.
    trims): its shapes are painted in the theme's own line colour, its light
    and trims only in the room's own surface and ink or plain white or
    black, and only the key light may carry a faint tint of its own, within
-   the room's hue family. It decorates the room without adding a second
-   colour to it.
+   the room's hue family — the same quadrant as its surfaces and ink. It
+   decorates the room without adding a second colour to it: the key light
+   may add one faint tint, but only within the room's own quadrant.
 7. **Flip the motivation late.** Early: chase upside. Late: a stat starts
    eroding and the player is defending what they built. Loss aversion
    outlasts hope, and the reference game delivers both inside three

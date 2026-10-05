@@ -24,7 +24,7 @@ export const CHANGELOG: Changelog = {
   '2026-10-04T11:59:44Z': {
     summary: 'Every theme now decorates its room, and no two themes look alike any more.',
     details: [
-      'Each theme now decorates its room with a wallpaper and an emblem at every card corner, and most edge their cards in their own way.',
+      'Each theme now decorates its room with a wallpaper and its own emblem on cards and dividers, and most edge their cards in their own way.',
       'Themes that were nearly the same colour have been pulled apart.',
       'The theme picker previews each room’s wallpaper and emblem, not just its colours.',
       'Fixed the ending card not showing your Notoriety glow.',

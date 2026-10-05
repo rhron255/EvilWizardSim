@@ -825,15 +825,51 @@ describe('themes · constraints 5 and 7, the bare room reads as well as the Towe
   it('scores a dark room at its wallpaper, pushed toward the ink, by hand', () => {
     // Black void, white ink, white wallpaper at 0.2 and no light: the worst
     // backdrop is 0.2 × 255 = 51 in every channel, and PAINT_SLACK.lighter levels
-    // lighter than that is what the browser may paint.
+    // lighter than that is what the browser may paint. Worked in numbers, not
+    // hex: the slack need not be a whole level.
     const room = variant(TOWER, {
       surface: { void: '#000000', lineStrong: '#ffffff' },
       ink: { base: '#ffffff' },
       ornament: { light: 'none', motifOpacity: 0.2 },
     });
-    const level = (51 + PAINT_SLACK.lighter).toString(16).padStart(2, '0');
-    expect(roomContrast(room, false, PAINT_SLACK)).toBeCloseTo(contrastRatio('#ffffff', `#${level.repeat(3)}`), 10);
-    expect(roomContrast(room, false, EXACT)).toBeCloseTo(contrastRatio('#ffffff', '#333333'), 10);
+    const white: Rgb = [255, 255, 255];
+    const level = 51 + PAINT_SLACK.lighter;
+    expect(roomContrast(room, false, PAINT_SLACK)).toBeCloseTo(contrastRatioRgb(white, [level, level, level]), 10);
+    expect(roomContrast(room, false, EXACT)).toBeCloseTo(contrastRatioRgb(white, [51, 51, 51]), 10);
+  });
+
+  it('scores a room where every layer helps the ink at its bare void', () => {
+    // A #333333 void, white ink, a black wallpaper at 0.5 and no light. The
+    // wallpaper only darkens the backdrop (51 -> 25.5), so the worst place for
+    // the ink is where it has faded out: the void alone, the subset with no
+    // layer in it.
+    const room = variant(TOWER, {
+      surface: { void: '#333333', lineStrong: '#000000' },
+      ink: { base: '#ffffff' },
+      ornament: { light: 'none', motifOpacity: 0.5 },
+    });
+    const level = 51 + PAINT_SLACK.lighter;
+    expect(roomContrast(room, false, PAINT_SLACK)).toBeCloseTo(contrastRatioRgb([255, 255, 255], [level, level, level]), 10);
+  });
+
+  it('tries the tier vignette in every tier colour, not only the first', () => {
+    // A black void, white ink, no light and no wallpaper: on a set piece the
+    // backdrop is the tier vignette alone, each tier colour at the vignette's
+    // peak alpha over black. Behind white ink the worst is the brightest of
+    // them — Legend's gold, the last in the table, not the first.
+    const room = variant(TOWER, {
+      surface: { void: '#000000' },
+      ink: { base: '#ffffff' },
+      ornament: { light: 'none', motifOpacity: 0 },
+    });
+    const peak = tierVignettePeak();
+    const scores = Object.values(tierColor).map((hex) => {
+      const lit = parseHex(hex).map((c) => c * peak + PAINT_SLACK.lighter) as unknown as Rgb;
+      return contrastRatioRgb([255, 255, 255], lit);
+    });
+    const worst = Math.min(...scores);
+    expect(scores.indexOf(worst), 'the worst tier must not be the first, or this pins nothing').toBeGreaterThan(0);
+    expect(roomContrast(room, true, PAINT_SLACK)).toBeCloseTo(worst, 10);
   });
 
   it('finds a light room at its unlit wallpaper, not its sunlit one', () => {
@@ -850,7 +886,8 @@ describe('themes · constraints 5 and 7, the bare room reads as well as the Towe
     const lit = variant(unlit, {
       ornament: { light: 'radial-gradient(80% 80% at 50% 50%, rgba(255, 255, 255, 0.5), transparent 70%)' },
     });
-    const expected = contrastRatio('#000000', `#${(216 - PAINT_SLACK.darker).toString(16).repeat(3)}`);
+    const level = 216 - PAINT_SLACK.darker;
+    const expected = contrastRatioRgb([0, 0, 0], [level, level, level]);
     expect(roomContrast(lit, false, PAINT_SLACK)).toBeCloseTo(expected, 10);
     expect(roomContrast(lit, false, PAINT_SLACK)).toBe(roomContrast(unlit, false, PAINT_SLACK));
   });
@@ -929,8 +966,12 @@ describe('themes · constraint 3, the CSS mirrors the TypeScript', () => {
 
 describe('themes · constraint 2, near-monochrome within a theme', () => {
   for (const theme of THEMES) {
-    it(`${theme.name}'s surfaces sit in one hue family`, () => {
-      const hues = Object.values(theme.surface).map(hue).filter(notNull);
+    it(`${theme.name}'s surfaces and ink sit in one hue family`, () => {
+      // The ink counts as much as the surfaces: a card trim may be drawn in
+      // any ink token, so an ink from outside the room's quadrant would be a
+      // hue that ornament brings in. Unset tokens are the default's, as the
+      // browser paints them.
+      const hues = [...paletteOf(theme).values()].map(hue).filter(notNull);
       expect(hueSpread(hues)).toBeLessThanOrEqual(HUE_FAMILY);
     });
   }
@@ -1156,11 +1197,12 @@ describe('themes · constraint 7, ornament brings no colour', () => {
  *     laid on. The probe can see it, so it has to keep out of the content's
  *     way by geometry: an edge band in the outer 4px between the corner
  *     glyphs, or a corner form that keeps 4px from where content starts.
- *   - A WASH moves none by that much over ANY of them. It may sit behind
- *     text, so it is held by strength instead: over each surface, the ink
- *     reads at least as well as the default ink does on the default's
- *     version of that surface — the bare-room promise (D1) applied to a card.
- *     On the panel that is the 13.80 panel floor.
+ *   - A WASH moves none by that much over ANY of them, alone or stacked with
+ *     the room's other washes (`sortTrim`). It may sit behind text, so it is
+ *     held by strength instead: it never moves a card toward its ink, and
+ *     over each surface the ink reads at least as well as the default ink
+ *     does on the default's version of that surface — the bare-room promise
+ *     (D1) applied to a card. On the panel that is the 13.80 panel floor.
  *
  * Geometry is measured inside the card's border — from the padding box, where
  * a background layer is positioned and where the corner glyphs sit. The
@@ -1221,9 +1263,17 @@ const HAIRLINE = Math.max(
  * `background: var(--ew-trim, none), …` names the surface tokens under it.
  * OptionCard at rest is raised-to-panel and the panel under a press, and
  * `--ew-hover` under a finger; the lair plates are raised-to-panel; the other
- * plates and ending slots the panel (one tinted 4% toward the tier, one at
- * 35% over the room — both nearer the void than the panel, which a dark room
- * reads better on).
+ * plates and ending slots the panel.
+ *
+ * Two ending-slot surfaces are mixes of the panel, and neither is modelled.
+ * The current ending's slot is the panel mixed 4% toward the tier colour,
+ * which LIGHTENS every dark panel — every tier colour is lighter than every
+ * dark room's panel — so its bare surface already reads a little below the
+ * panel. A locked slot is the panel at 35% over the room. What keeps a trim
+ * from costing the ink anything on either is not where those surfaces sit but
+ * what the washes do: no wash moves a card toward its ink (lighter behind
+ * pale ink, darker behind dark), which the 'never moves a card toward its
+ * ink' test below holds. A wash that broke that would have to model both.
  */
 const TRIM_SURFACES: string[] = (() => {
   const found = new Set<string>();
@@ -1435,17 +1485,26 @@ const isMark = (backdrops: string[], stops: Stop[]) =>
  *   - corner: `(top|bottom) (left|right) / Kpx Kpx no-repeat`, every point it
  *     draws within `CORNER_REACH.x` of the side or `.y` of the edge. Two forms
  *     are accepted: any image in a square of side up to the larger reach (8px,
- *     so every point is within 8px of the side), or a hard-stop triangle across
- *     the corner — `linear-gradient(Ddeg, C [0 Spx], transparent Tpx)`, D the
- *     angle pointing away from that corner, hard-edged or fading out by T —
- *     in a square of up to 12px, whose legs, `T × √2`, reach no further than
- *     the two reaches added (12px: a point with x + y ≤ 12 cannot have both
- *     x > 8 and y > 4).
+ *     so every point is within 8px of the side), or a triangle across the
+ *     corner in a square of up to 12px — a `linear-gradient(Ddeg, …)`, D the
+ *     angle pointing away from that corner, whose stops are a run of colours
+ *     and then `transparent` at T px, hard-edged or fading out by T. Its legs,
+ *     the furthest position on it times √2, reach no further than the two
+ *     reaches added (12px: a point with x + y ≤ 12 cannot have both x > 8 and
+ *     y > 4).
+ *
+ * The triangle is read from the layer's PARSED stops, never its text: a `%`
+ * position scales with the gradient line, not with the reach, so a colour at
+ * `0 100%` fills the whole square however early its transparent stop is
+ * written. Every position on a corner triangle must be px. A band or corner
+ * of zero size paints nothing, which a mark may not be, so both must be
+ * larger than zero.
  *
  * Offsets are measured inside the card's border (the padding box). Zero may be
  * written without a unit, as CSS allows; nothing else may.
  */
-function markGeometry(image: string, placement: string): string | null {
+function markGeometry(layer: TrimLayer): string | null {
+  const { placement } = layer;
   const len = '(0|\\d+px)';
   const px = (s: string) => parseFloat(s);
   const span = `calc\\(100% - ${CORNER_SQUARE * 2}px\\)`;
@@ -1453,23 +1512,35 @@ function markGeometry(image: string, placement: string): string | null {
   const vertical = placement.match(new RegExp(`^(?:left|right) ${len} top ${CORNER_SQUARE}px / ${len} ${span} no-repeat$`));
   const band = horizontal ?? vertical;
   if (band) {
+    if (px(band[2]) <= 0) return 'a band 0px thick, which draws nothing';
     const reach = px(band[1]) + px(band[2]);
     return reach <= EDGE_BAND ? null : `reaches ${reach}px in from the edge, past the outer ${EDGE_BAND}px`;
   }
   const corner = placement.match(/^(top|bottom) (left|right) \/ (\d+)px \3px no-repeat$/);
   if (corner) {
     const side = px(corner[3]);
+    if (side <= 0) return 'a 0px corner, which draws nothing';
     if (side <= Math.max(CORNER_REACH.x, CORNER_REACH.y)) return null;
     if (side > CORNER_SQUARE) return `a ${side}px corner, past the ${CORNER_SQUARE}px corner square`;
     const away: Record<string, number> = { 'top left': 135, 'top right': 225, 'bottom right': 315, 'bottom left': 45 };
     const pointing = away[`${corner[1]} ${corner[2]}`];
-    // One colour, then transparent from T px on: everything past T is
-    // transparent, so T (or a later position on the colour, which CSS would
-    // push T out to) is how far along the diagonal it draws.
-    const triangle = image.match(/^linear-gradient\((\d+)deg, (.+?)((?: [\d.]+(?:px)?)*), transparent ([\d.]+)px\)$/);
-    if (!triangle) return `a ${side}px corner filled with something other than a triangle across it`;
-    if (Number(triangle[1]) !== pointing) return `a triangle at ${triangle[1]}deg does not start in the ${corner[1]} ${corner[2]} corner`;
-    const leg = Math.max(...[...triangle[3].split(' '), triangle[4]].filter(Boolean).map(px)) * Math.SQRT2;
+    const deg = layer.prelude?.match(/^(\d+)deg$/)?.[1];
+    if (layer.kind !== 'linear-gradient' || deg === undefined) {
+      return `a ${side}px corner filled with something other than a triangle across it`;
+    }
+    if (Number(deg) !== pointing) return `a triangle at ${deg}deg does not start in the ${corner[1]} ${corner[2]} corner`;
+    // A run of colours, then transparent from T px on. Everything past T is
+    // transparent, so T — or a later position on the run, which CSS would
+    // push T out to — is how far along the diagonal it draws.
+    const run = layer.stops.slice(0, -1);
+    const end = layer.stops[layer.stops.length - 1];
+    if (run.length === 0 || end.alpha !== 0 || end.at.length !== 1) {
+      return `a ${side}px corner that does not end in transparent at one position`;
+    }
+    const positions = layer.stops.flatMap((s) => s.at);
+    const scaled = positions.find((p) => p.unit !== 'px');
+    if (scaled) return `a corner triangle with a stop at ${scaled.value}${scaled.unit}, which scales with the square, not the reach`;
+    const leg = Math.max(...positions.map((p) => p.value)) * Math.SQRT2;
     const most = CORNER_REACH.x + CORNER_REACH.y;
     return leg <= most ? null : `a corner triangle with ${leg.toFixed(1)}px legs, past ${most}px`;
   }
@@ -1491,6 +1562,46 @@ function worstUnderWashes(backdrop: string, washes: Stop[][], text: string): num
   return Math.min(...backdrops.map((b) => contrastRatio(text, b)));
 }
 
+/**
+ * The furthest any channel of `backdrop` moves with every wash laid over it at
+ * once, each at its own strongest stop there, composited bottom-up as a
+ * browser does — as though every peak fell on the same pixel.
+ */
+function stackedMove(backdrop: string, washes: Stop[][]): number {
+  let top = backdrop;
+  for (const stops of [...washes].reverse()) {
+    if (stops.length === 0) continue;
+    const strongest = stops.reduce((a, b) => (moveOver(backdrop, b) > moveOver(backdrop, a) ? b : a));
+    top = over(top, strongest.colour, strongest.alpha);
+  }
+  const lo = parseHex(backdrop);
+  const hi = parseHex(top);
+  return Math.max(...lo.map((c, i) => Math.abs(hi[i] - c)));
+}
+
+/**
+ * A theme's trim layers sorted into marks and washes over `backdrops`.
+ *
+ * Each layer is a mark if it alone is drawn hard enough on some surface. The
+ * washes are then judged together too: several, each under `DRAWN`, can stack
+ * into a composite the probe sees, and if they do, every one of them is held
+ * to a mark's geometry instead of a wash's strength.
+ */
+function sortTrim(theme: ThemeDef, backdrops: string[]): { marks: TrimLayer[]; washes: TrimLayer[] } {
+  const layers = trimLayers(theme);
+  const washes = layers.filter((l) => !isMark(backdrops, l.stops));
+  const stacked = backdrops.some((b) => stackedMove(b, washes.map((w) => w.stops)) >= DRAWN);
+  return stacked ? { marks: layers, washes: [] } : { marks: layers.filter((l) => !washes.includes(l)), washes };
+}
+
+/** Whether a layer's `/ W H` size has a zero in it, so that it draws nothing at all. */
+function zeroSized(placement: string): boolean {
+  const size = placement.split('/')[1];
+  if (size === undefined) return false;
+  const [w, h] = size.trim().match(/calc\([^)]*\)|\S+/g) ?? [];
+  return [w, h].some((d) => d !== undefined && /^-?0*\.?0+(?:px|%)?$/.test(d));
+}
+
 describe('themes · card trims are marks or washes', () => {
   /** The panel floor, as the ink contrast block computes it. */
   const FLOOR = contrastRatio(ink.base, surface.panel);
@@ -1502,9 +1613,9 @@ describe('themes · card trims are marks or washes', () => {
    * What a wash must leave `text` reading at over one surface: the default's
    * ink on the default's version of that surface — the panel floor, on the
    * panel. Where a palette's own surface already reads below that, as many
-   * hover steps do (a palette shortfall that predates trims and is not a
-   * trim's to fix), the wash may cost nothing at all: the floor is then the
-   * bare surface. Panels never take that branch; the ink contrast block holds
+   * hover and raised steps do (a palette shortfall that predates trims and is
+   * not a trim's to fix), the wash may cost nothing at all: the floor is then
+   * the bare surface. Panels never take that branch; the ink contrast block holds
    * every panel to the floor on its own.
    */
   const washFloor = (text: string, bare: string, name: string) =>
@@ -1622,23 +1733,26 @@ describe('themes · card trims are marks or washes', () => {
     expect(peakAlpha(linear([stop('#000000', 0, [{ value: 0, unit: 'px' }, { value: 100, unit: '%' }]), stop('#000000', 0.25, [{ value: 120, unit: '%' }])]))).toBe(0);
   });
 
+  /** `markGeometry` on a layer written as CSS, parsed as a theme's trim is. */
+  const geometry = (image: string, placement: string) => markGeometry(trimLayer(`${image} ${placement}`, TOWER));
+
   it('accepts the edge bands, a small corner square, and a corner triangle up to 12px legs', () => {
     const solid = 'linear-gradient(var(--ew-line-strong), var(--ew-line-strong))';
     const facet = (deg: number, stopPx: number) =>
       `linear-gradient(${deg}deg, var(--ew-line-strong) 0 ${stopPx}px, transparent ${stopPx}px)`;
-    expect(markGeometry(solid, 'left 12px top 0 / calc(100% - 24px) 4px no-repeat')).toBeNull();
-    expect(markGeometry(solid, 'left 12px bottom 3px / calc(100% - 24px) 1px no-repeat')).toBeNull();
-    expect(markGeometry(solid, 'right 3px top 12px / 1px calc(100% - 24px) no-repeat')).toBeNull();
-    expect(markGeometry(solid, 'bottom right / 8px 8px no-repeat')).toBeNull();
+    expect(geometry(solid, 'left 12px top 0 / calc(100% - 24px) 4px no-repeat')).toBeNull();
+    expect(geometry(solid, 'left 12px bottom 3px / calc(100% - 24px) 1px no-repeat')).toBeNull();
+    expect(geometry(solid, 'right 3px top 12px / 1px calc(100% - 24px) no-repeat')).toBeNull();
+    expect(geometry(solid, 'bottom right / 8px 8px no-repeat')).toBeNull();
     // Amethyst's facets: 8px along the diagonal, legs of 11.3px.
-    expect(markGeometry(facet(135, 8), 'top left / 12px 12px no-repeat')).toBeNull();
-    expect(markGeometry(facet(315, 8), 'bottom right / 12px 12px no-repeat')).toBeNull();
-    expect(markGeometry(facet(225, 8), 'top right / 12px 12px no-repeat')).toBeNull();
-    expect(markGeometry(facet(45, 8), 'bottom left / 12px 12px no-repeat')).toBeNull();
+    expect(geometry(facet(135, 8), 'top left / 12px 12px no-repeat')).toBeNull();
+    expect(geometry(facet(315, 8), 'bottom right / 12px 12px no-repeat')).toBeNull();
+    expect(geometry(facet(225, 8), 'top right / 12px 12px no-repeat')).toBeNull();
+    expect(geometry(facet(45, 8), 'bottom left / 12px 12px no-repeat')).toBeNull();
     // Cold Room's rime: the same triangle, fading out rather than hard-edged.
     const rime = 'linear-gradient(135deg, color-mix(in srgb, var(--ew-ink-bright) 25%, transparent), transparent 8px)';
-    expect(markGeometry(rime, 'top left / 12px 12px no-repeat')).toBeNull();
-    expect(markGeometry(rime.replace('8px', '9px'), 'top left / 12px 12px no-repeat')).not.toBeNull();
+    expect(geometry(rime, 'top left / 12px 12px no-repeat')).toBeNull();
+    expect(geometry(rime.replace('8px', '9px'), 'top left / 12px 12px no-repeat')).not.toBeNull();
   });
 
   it('refuses a mark that comes within 4px of content', () => {
@@ -1647,17 +1761,45 @@ describe('themes · card trims are marks or washes', () => {
       `linear-gradient(${deg}deg, var(--ew-line-strong) 0 ${stopPx}px, transparent ${stopPx}px)`;
     // Content starts 12px across and 8px down: a solid 12px corner reaches
     // (12, 8) itself, and the probe measured it 1px from a keycap at 320.
-    expect(markGeometry(solid, 'top left / 12px 12px no-repeat')).not.toBeNull();
-    expect(markGeometry(solid, 'top left / 9px 9px no-repeat')).not.toBeNull();
+    expect(geometry(solid, 'top left / 12px 12px no-repeat')).not.toBeNull();
+    expect(geometry(solid, 'top left / 9px 9px no-repeat')).not.toBeNull();
     // A triangle whose legs pass 12px (9px × √2 = 12.7), or that starts in the
     // wrong corner and so fills the far one.
-    expect(markGeometry(facet(135, 9), 'top left / 12px 12px no-repeat')).not.toBeNull();
-    expect(markGeometry(facet(315, 8), 'top left / 12px 12px no-repeat')).not.toBeNull();
-    expect(markGeometry(facet(135, 8), 'top left / 16px 16px no-repeat')).not.toBeNull();
-    expect(markGeometry(solid, 'left 12px top 3px / calc(100% - 24px) 2px no-repeat')).not.toBeNull();
-    expect(markGeometry(solid, 'left 6px top 16px / 1px calc(100% - 32px) no-repeat')).not.toBeNull();
-    expect(markGeometry(solid, 'top / 100% 1px no-repeat')).not.toBeNull();
-    expect(markGeometry(solid, '')).not.toBeNull();
+    expect(geometry(facet(135, 9), 'top left / 12px 12px no-repeat')).not.toBeNull();
+    expect(geometry(facet(315, 8), 'top left / 12px 12px no-repeat')).not.toBeNull();
+    expect(geometry(facet(135, 8), 'top left / 16px 16px no-repeat')).not.toBeNull();
+    expect(geometry(solid, 'left 12px top 3px / calc(100% - 24px) 2px no-repeat')).not.toBeNull();
+    expect(geometry(solid, 'left 6px top 16px / 1px calc(100% - 32px) no-repeat')).not.toBeNull();
+    expect(geometry(solid, 'top / 100% 1px no-repeat')).not.toBeNull();
+    expect(geometry(solid, '')).not.toBeNull();
+    // A % position scales with the 12px square, not with the reach: a colour
+    // held to 100% fills the whole corner however early the transparent stop
+    // is written (the probe measured this one 0.5px from a keycap), and so
+    // does a colour run that starts part-way along it.
+    const line = 'var(--ew-line-strong)';
+    expect(geometry(`linear-gradient(135deg, ${line} 0 100%, transparent 8px)`, 'top left / 12px 12px no-repeat')).not.toBeNull();
+    expect(
+      geometry(`linear-gradient(135deg, transparent 0 60%, ${line} 60% 100%, transparent 8px)`, 'top left / 12px 12px no-repeat'),
+    ).not.toBeNull();
+    // Any % at all, even one too short to reach content: a corner triangle is
+    // measured in px, the unit the reach is in, or not at all.
+    expect(geometry(`linear-gradient(135deg, ${line} 0 5%, transparent 8px)`, 'top left / 12px 12px no-repeat')).not.toBeNull();
+    // A triangle that never turns transparent, or turns at no stated position.
+    expect(geometry(`linear-gradient(135deg, ${line} 0 8px, ${line} 8px)`, 'top left / 12px 12px no-repeat')).not.toBeNull();
+    expect(geometry(`linear-gradient(135deg, ${line}, transparent)`, 'top left / 12px 12px no-repeat')).not.toBeNull();
+  });
+
+  it('refuses a band or corner of zero size, which draws nothing', () => {
+    const solid = 'linear-gradient(var(--ew-line-strong), var(--ew-line-strong))';
+    expect(geometry(solid, 'left 12px top 0 / calc(100% - 24px) 0 no-repeat')).not.toBeNull();
+    expect(geometry(solid, 'right 0px top 12px / 0px calc(100% - 24px) no-repeat')).not.toBeNull();
+    expect(geometry(solid, 'top left / 0px 0px no-repeat')).not.toBeNull();
+    // And a wash that size, which no geometry is asked of, is caught as
+    // painting nothing.
+    expect(zeroSized('left 12px top 0 / calc(100% - 24px) 0 no-repeat')).toBe(true);
+    expect(zeroSized('top left / 0px 0px no-repeat')).toBe(true);
+    expect(zeroSized('left 12px top 0 / calc(100% - 24px) 1px no-repeat')).toBe(false);
+    expect(zeroSized('')).toBe(false);
   });
 
   it('measures the worst a wash does to the ink, by hand', () => {
@@ -1689,6 +1831,22 @@ describe('themes · card trims are marks or washes', () => {
     expect(trimLayers(wet).filter((l) => !isMark(wetOn, l.stops)).length).toBeGreaterThanOrEqual(1);
   });
 
+  it('calls a stack of washes a mark when together they are drawn', () => {
+    // Ordinary Weather's sheen moves the hover gold under DRAWN on its own;
+    // laid twice it moves it past, and two layers the probe can see are not
+    // a wash, however faint each one is.
+    const weather = byId('good_wizard');
+    const hover = surfaceOf(weather, '--ew-hover');
+    const [sheen] = trimLayers(weather);
+    expect(stackedMove(hover, [sheen.stops])).toBeLessThan(DRAWN);
+    expect(stackedMove(hover, [sheen.stops, sheen.stops])).toBeGreaterThanOrEqual(DRAWN);
+    const doubled = { ...weather, ornament: { ...weather.ornament, trim: `${weather.ornament.trim}, ${weather.ornament.trim}` } };
+    const on = TRIM_SURFACES.map((s) => surfaceOf(weather, s));
+    expect(sortTrim(weather, on).washes).toHaveLength(1);
+    expect(sortTrim(doubled, on).marks).toHaveLength(2);
+    expect(sortTrim(doubled, on).washes).toEqual([]);
+  });
+
   it('calls a layer a mark when it is drawn hard on any one surface', () => {
     // Requisition's perforation is the void punched through the card: 14
     // levels on its panel, 24 on its raised step and 35 under a finger. A
@@ -1704,9 +1862,8 @@ describe('themes · card trims are marks or washes', () => {
     const on = TRIM_SURFACES.map((name) => surfaceOf(theme, name));
 
     it(`${theme.name}'s trim marks keep 4px from content`, () => {
-      const misplaced = trimLayers(theme)
-        .filter((l) => isMark(on, l.stops))
-        .map((l) => [l.image, markGeometry(l.image, l.placement)])
+      const misplaced = sortTrim(theme, on)
+        .marks.map((l) => [l.image, markGeometry(l)])
         .filter(([, why]) => why !== null);
       expect(misplaced, `${theme.id}: marks outside the edge band and corners`).toEqual([]);
     });
@@ -1714,16 +1871,32 @@ describe('themes · card trims are marks or washes', () => {
     it(`${theme.name}'s left edge marks stay apart from the card's own hairline`, () => {
       // Flush against it, a 1px rule and the 2px hover hairline merge into
       // one bar: a mark down the left edge starts at least a pixel past it.
-      for (const layer of trimLayers(theme)) {
+      for (const layer of sortTrim(theme, on).marks) {
         const left = layer.placement.match(/^left (0|\d+px) top /);
-        if (left && isMark(on, layer.stops)) expect(parseFloat(left[1]), layer.image).toBeGreaterThanOrEqual(HAIRLINE + 1);
+        if (left) expect(parseFloat(left[1]), layer.image).toBeGreaterThanOrEqual(HAIRLINE + 1);
+      }
+    });
+
+    it(`${theme.name}'s trim washes never move a card toward its ink`, () => {
+      // Two ending-slot surfaces go unmodelled (see TRIM_SURFACES), and this
+      // is what makes that safe: a wash that only ever moves the card away
+      // from the ink cannot cost the ink anything on any surface.
+      for (const layer of sortTrim(theme, on).washes) {
+        for (const name of TRIM_SURFACES) {
+          const bare = surfaceOf(theme, name);
+          const text = theme.ink?.base ?? ink.base;
+          const paleInk = luminanceOfRgb(parseHex(text)) > luminanceOfRgb(parseHex(bare));
+          for (const s of layer.stops) {
+            const washed = luminanceOfRgb(parseHex(over(bare, s.colour, s.alpha)));
+            const bareLum = luminanceOfRgb(parseHex(bare));
+            expect(paleInk ? washed <= bareLum : washed >= bareLum, `${theme.id}: ${layer.image} on ${name}`).toBe(true);
+          }
+        }
       }
     });
 
     it(`${theme.name}'s trim washes leave the ink reading as well as the default's, on every surface`, () => {
-      const washes = trimLayers(theme)
-        .filter((l) => !isMark(on, l.stops))
-        .map((l) => l.stops);
+      const washes = sortTrim(theme, on).washes.map((l) => l.stops);
       for (const name of TRIM_SURFACES) {
         const bare = surfaceOf(theme, name);
         for (const text of [theme.ink?.base ?? ink.base, theme.ink?.bright ?? ink.bright]) {
@@ -1740,6 +1913,7 @@ describe('themes · card trims are marks or washes', () => {
       // nothing, and an ornament nobody can see is not one.
       for (const layer of trimLayers(theme)) {
         expect(peakAlpha(layer), `${theme.id}: ${layer.image}`).toBeGreaterThan(0);
+        expect(zeroSized(layer.placement), `${theme.id}: ${layer.image} ${layer.placement}`).toBe(false);
       }
     });
   }

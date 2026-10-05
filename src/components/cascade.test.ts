@@ -156,6 +156,22 @@ const subject = (selector: string) => stripGroups(selector).split(/\s*[\s>+~]\s*
 const classesOf = (compound: string) => [...compound.matchAll(/\.(-?[_a-zA-Z][\w-]*)/g)].map((m) => m[1]);
 const isPseudoElement = (compound: string) => /::|:(before|after|first-line|first-letter)\b/.test(compound);
 
+/**
+ * Does this rule apply under forced colours, and only there? It must sit in
+ * `@media (forced-colors: active)` exactly, once whitespace is squashed, and
+ * in no other condition: `not (forced-colors: active)` applies it everywhere
+ * else, and `(forced-colors: active) and (max-width: 0px)`, or an outer
+ * `@media` around it, can leave it applying nowhere. `@layer` orders rules
+ * without conditioning them, so it is let through.
+ */
+const isForcedOnly = (rule: Rule) => {
+  const conditions = rule.atRules.filter((a) => !/^@layer\b/.test(a));
+  return (
+    conditions.length > 0 &&
+    conditions.every((a) => a.replace(/\s*([():])\s*/g, '$1').toLowerCase() === '@media(forced-colors:active)')
+  );
+};
+
 /** Rules in `file` whose selector list includes exactly `.name`, in any at-rule. */
 const rulesFor = (file: string, name: string) =>
   (MODULES.get(file) ?? []).filter((r) => r.selectors.includes(`.${name}`));
@@ -429,7 +445,7 @@ describe('CSS modules · a painted rule survives forced colours', () => {
     for (const { file, rule } of painted()) {
       const restored = (MODULES.get(file) ?? []).some(
         (r) =>
-          r.atRules.some((a) => /forced-colors\s*:\s*active/.test(a)) &&
+          isForcedOnly(r) &&
           r.selectors.some((s) => rule.selectors.includes(s)) &&
           r.decls.some((d) => bordersColour(d) && !hidesBorder(d)),
       );
@@ -440,8 +456,6 @@ describe('CSS modules · a painted rule survives forced colours', () => {
 });
 
 describe('CSS modules · ornament steps aside under forced colours', () => {
-  /** A forced-colours media query, wherever it sits. */
-  const forced = (r: Rule) => r.atRules.some((a) => /forced-colors\s*:\s*active/.test(a));
   /** A mask declaration that cuts a theme ornament's shape (`--ew-pip`, `--ew-motif`). */
   const ornamentMask = (d: Decl) => /^(-webkit-)?mask(-image)?$/.test(d.prop) && /var\(\s*--ew-(pip|motif)\b/.test(d.value);
 
@@ -454,7 +468,7 @@ describe('CSS modules · ornament steps aside under forced colours', () => {
   const masked = () =>
     [...MODULES].flatMap(([file, rules]) =>
       rules
-        .filter((r) => !forced(r) && r.decls.some(ornamentMask))
+        .filter((r) => !isForcedOnly(r) && r.decls.some(ornamentMask))
         .flatMap((r) => r.selectors.map((selector) => ({ file, selector }))),
     );
 
@@ -469,7 +483,7 @@ describe('CSS modules · ornament steps aside under forced colours', () => {
       ({ file, selector }) =>
         !(MODULES.get(file) ?? []).some(
           (r) =>
-            forced(r) &&
+            isForcedOnly(r) &&
             r.selectors.includes(selector) &&
             r.decls.some((d) => d.prop === 'display' && d.value === 'none'),
         ),

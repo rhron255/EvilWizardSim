@@ -181,10 +181,12 @@ export type ThemeDef = {
  *   4px, so `CORNER_CLEAR` in from either end (`edgeRule`, `edgeBand`). A
  *   corner mark (`cornerMark`) keeps every drawn point within 8px of the side
  *   or 4px of the top or bottom — the content box, less 4px — which allows a
- *   solid square of up to 8px, or a hard-edged triangle across the corner with
- *   legs of up to 12px.
+ *   solid square of up to 8px, or a triangle across the corner, hard-edged or
+ *   fading out by its last stop, with legs of up to 12px — every stop placed
+ *   in px, since a % scales with the square rather than the reach.
  * - A WASH is a soft tint that may sit behind text, so it is held by strength
- *   instead: no channel moved by `DRAWN` or more on any surface, and the ink
+ *   instead: no channel moved by `DRAWN` or more on any surface — by any one
+ *   wash, or by the room's washes stacked — never toward the ink, and the ink
  *   over each surface and the wash at its strongest stop reading at least as
  *   well as the default ink on the default's version of that surface.
  *

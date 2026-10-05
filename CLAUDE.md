@@ -161,9 +161,9 @@ These come from a game that worked at scale. They look arbitrary in isolation.
    are coloured only from the room's own surface and ink tokens or plain
    white or black, except that the key light alone may carry a faint tint
    (alpha 0.07 at most) within the room's hue family — the same 90° quadrant
-   as its surfaces, which is looser than near-monochrome. So ornament brings
-   no hue from outside the room's quadrant, and only the key light brings one
-   the palette does not already have. The wallpaper and key light are capped
+   as its surfaces and ink, which is looser than near-monochrome. So
+   ornament brings no hue from outside the room's quadrant, and only the key
+   light brings one the palette does not already have. The wallpaper and key light are capped
    so text on the bare room reads at least as well as in the default room;
    and every pair of themes must sit at least 1.5 just-noticeable differences
    apart (all measured in `themes.test.ts`). The room floor holds in the
@@ -256,12 +256,14 @@ that followed it.
    running only between the corner glyphs, 12px in (`edgeBand` in
    `themes.ts`), or a corner mark (`cornerMark`) every point of which lies
    within 8px of the side or 4px of the edge — a square of at most 8px, or a
-   triangle across the corner with legs of at most 12px. A *wash* — a soft
-   tint — stays under `DRAWN` on every surface and may sit behind text, so
+   triangle across the corner with legs of at most 12px, every stop in px. A
+   *wash* — a soft tint — stays under `DRAWN` on every surface, alone and
+   stacked with the room's other washes, and may sit behind text, so
    over each surface the ink must read at least as well as the default ink on
-   the default's version of it (the panel floor, on the panel; where a
-   palette's own hover already reads lower, the wash may cost nothing).
-   `themes.test.ts` sorts every layer over every surface the stylesheets lay a
+   the default's version of it (the panel floor, on the panel; on any surface
+   where a palette already reads lower than the default's — several hovers
+   and raised steps do — the wash may cost nothing), and no wash may move a
+   card toward its ink. `themes.test.ts` sorts every layer over every surface the stylesheets lay a
    trim on and asserts both.
    `node qa/probe-ornament-spacing.mjs` measures every theme's glyphs and
    marks against every keycap, rail and line of text, at 393, 320 and 1280
