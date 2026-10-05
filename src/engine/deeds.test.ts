@@ -17,7 +17,7 @@
 import { describe, expect, it } from 'vitest';
 import { offers } from '../content';
 import type { Offer, OfferOption } from '../types';
-import { DEED_MAX_LENGTH, deedLineFor, synthesizeDeed } from './deeds';
+import { DEED_MAX_LENGTH, deedLineFor, synthesizeDeed, truncateClause } from './deeds';
 
 /**
  * A real catalog offer and one of its options, by id and exact label. These
@@ -134,5 +134,156 @@ describe('synthesizeDeed', () => {
     );
     expect(line).toBe('The Long Arrangement — accept.');
     expect(line).not.toContain('survived');
+  });
+});
+
+/**
+ * Words a cut line may not end on, written out HERE rather than imported from
+ * `deeds.ts`: a test that read the code's own list would pass whatever that
+ * list said (failure mode 11). These are the four kinds the resolution card
+ * showed hanging off a cut — articles, prepositions, conjunctions and
+ * possessives — and nothing the code is free to treat differently.
+ */
+const FUNCTION_WORDS = new Set([
+  // articles
+  'a', 'an', 'the',
+  // possessives
+  'my', 'your', 'his', 'her', 'its', 'our', 'their', 'whose',
+  // conjunctions
+  'and', 'or', 'but', 'nor', 'yet', 'so', 'then', 'if', 'because', 'although', 'though',
+  'unless', 'whether', 'while', 'until', 'when', 'where', 'as', 'than',
+  // prepositions
+  'of', 'to', 'for', 'with', 'from', 'into', 'onto', 'upon', 'at', 'in', 'on', 'by',
+  'about', 'against', 'among', 'before', 'after', 'between', 'during', 'despite',
+  'toward', 'towards', 'via', 'within', 'without',
+]);
+
+/** Lowercase, punctuation off both ends; the apostrophe stays. */
+const bareWord = (w: string) => w.toLowerCase().replace(/^[^a-z'’]+|[^a-z'’]+$/g, '');
+
+/** Does this word leave the line waiting for another? "The king's." does too. */
+const endsOpen = (word: string) =>
+  FUNCTION_WORDS.has(bareWord(word)) || /['’]s$|s['’]$/.test(bareWord(word));
+
+const wordsOf = (s: string) => s.trim().split(/\s+/);
+
+/**
+ * The shape every cut line must have, checked against the label it came from:
+ * the first words of that label, in order, at least two of them, and the last
+ * one able to end a sentence.
+ */
+function expectCleanCut(cut: string, clause: string): void {
+  const got = wordsOf(cut);
+  const source = wordsOf(clause);
+  expect(got.length, `"${cut}" is a stub of "${clause}"`).toBeGreaterThanOrEqual(2);
+  // Only the last word may have lost its punctuation ("low," → "low").
+  got.forEach((word, i) => {
+    const expected = i === got.length - 1 ? source[i].replace(/[,;:.!?]+$/, '') : source[i];
+    expect(word, `"${cut}" is not a word-for-word cut of "${clause}"`).toBe(expected);
+  });
+  expect(endsOpen(got[got.length - 1]), `"${cut}" ends on a word that promises another`).toBe(
+    false,
+  );
+}
+
+/**
+ * Every option label in the shipped catalog, reduced to the first clause the
+ * synthesizer works from — split here on the same boundaries the label's
+ * author used (a full stop, semicolon, colon or spaced dash), not by calling
+ * the code under test.
+ */
+const clauses: string[] = [
+  ...new Set(
+    offers.flatMap((offer) =>
+      offer.options.map((option) =>
+        option.label
+          .trim()
+          .split(/[.;:]|\s[—–]\s/)[0]
+          .trim()
+          .replace(/[\s,!?—–-]+$/, ''),
+      ),
+    ),
+  ),
+];
+
+describe('a cut line ends on a word that can end it', () => {
+  it('cuts the reported label at its own comma, not mid-way into "in front of the"', () => {
+    // The resolution card printed "Mark one of them very low, in front of
+    // the." — the old cut stopped at the last space that fit and went no
+    // further. The comma is where the label's author ended the phrase.
+    const [offer, option] = real(
+      'any_annual_review',
+      'Mark one of them very low, in front of the others',
+    );
+    expect(option.kind === 'certain' && option.resultText).toBeFalsy();
+
+    const line = deedLineFor(offer, option, 'deterministic');
+    expect(line).toBe('Mark one of them very low.');
+  });
+
+  it('gives back a half-finished clause rather than end on its noun', () => {
+    // "until the terms" ends on a noun and is still missing its verb.
+    const line = synthesizeDeed(
+      ...real('ascent_gilded_indemnity', 'Read the exclusions aloud until the terms improve'),
+    );
+    expect(line).toBe('Read the exclusions aloud.');
+  });
+
+  it('has catalog labels long enough to be cut', () => {
+    // Guards the sweep below against passing because nothing reached the cut.
+    const cut = clauses.filter((c) => `${c}.`.length > DEED_MAX_LENGTH);
+    expect(cut.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('never ends a synthesized line on a function word, for any label in the catalog', () => {
+    // Every label, as if its author had written no resultText — so the sweep
+    // covers gamble labels and authored ones too, not only the handful of
+    // unauthored certain options long enough to be cut today.
+    let cuts = 0;
+    for (const offer of offers) {
+      for (const option of offer.options) {
+        const bare: OfferOption = { kind: 'certain', label: option.label, effects: [] };
+        const line = synthesizeDeed(offer, bare);
+        expect(line.length, line).toBeLessThanOrEqual(DEED_MAX_LENGTH);
+        expect(line).toMatch(/[^.]\.$/);
+
+        const clause = option.label
+          .trim()
+          .split(/[.;:]|\s[—–]\s/)[0]
+          .trim()
+          .replace(/[\s,!?—–-]+$/, '');
+        if (`${clause}.`.length <= DEED_MAX_LENGTH) continue;
+        cuts++;
+        expectCleanCut(line.slice(0, -1), clause);
+      }
+    }
+    expect(cuts).toBeGreaterThanOrEqual(3);
+  });
+
+  it('cuts every catalog label cleanly at every budget, not only the one that ships', () => {
+    // `DEED_MAX_LENGTH` will move one day, and a cut that is only clean at 46
+    // is clean by luck. At every budget from 12 to 60 this is several thousand
+    // cuts across the whole catalog's phrasing.
+    let cuts = 0;
+    for (let budget = 12; budget <= 60; budget++) {
+      for (const clause of clauses) {
+        if (clause.length <= budget || wordsOf(clause).length < 3) continue;
+        const cut = truncateClause(clause, budget);
+        cuts++;
+        expectCleanCut(cut, clause);
+        // Over budget is the stub fallback, for budgets so tight that every
+        // run of words that fits ends on "the" or "to". From two-thirds of the
+        // live budget up, no label in the catalog needs it.
+        if (budget >= 30) expect(cut.length, `"${cut}" at ${budget}`).toBeLessThanOrEqual(budget);
+      }
+    }
+    expect(cuts).toBeGreaterThan(2000);
+  });
+
+  it('runs a word or two over rather than leave a one-word stub', () => {
+    // Every run of words that fits ends on a function word: "Go", "Go to",
+    // "Go to the". The shortest line that does not is a word over budget.
+    expect(truncateClause('Go to the market at dawn', 8)).toBe('Go to the market');
+    expect(truncateClause('Have her escorted from the valley', 14)).toBe('Have her escorted');
   });
 });
