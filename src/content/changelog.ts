@@ -35,7 +35,7 @@ export const CHANGELOG: Changelog = {
       'Opening the Necrolexicon from an ending now takes you to that ending, marked as just reached.',
       'Shortened choice lines no longer trail off on words like “the”.',
       'On the smallest phones the title screen’s buttons fit, long theme names stay whole, and the Necrolexicon tabs start inside the margin.',
-      'The Relics button is easier to tap.',
+      'The Relics button, the creation screen’s choices, and the Necrolexicon’s tabs, filters and theme link are easier to tap.',
     ],
   },
   '2026-09-29T13:06:47Z': {

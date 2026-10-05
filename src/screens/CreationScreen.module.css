@@ -188,6 +188,18 @@
   cursor: pointer;
 }
 
+/* The chip is drawn 38px tall on a phone (42 wider), and the fold budget will
+   not let it grow, so the 44px tap floor is met by a transparent strip 3px
+   above and below it instead — the same split the run screen's Relics pill
+   uses. It belongs to the label, so a tap on it selects the radio. Wrapped
+   rows sit 8px apart: 3px each way leaves 2px between neighbouring rows' hit
+   areas, and nothing extends sideways (every chip is far wider than 44px). */
+.chip::after {
+  content: '';
+  position: absolute;
+  inset: -3px 0;
+}
+
 .chipText {
   display: inline-flex;
   align-items: center;

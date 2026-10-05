@@ -12,8 +12,9 @@
  *                            [--url http://localhost:5173]
  *                            [--career-seed 7]
  *
- * Every state it reaches — decision, resolution overlay, the relic page,
- * prophecy, ending — is audited for:
+ * Every state it reaches — the creation screen, decision, resolution overlay,
+ * the relic page, prophecy, ending, and the Necrolexicon opened from the
+ * ending card (each of its tabs in turn) — is audited for:
  *
  *   overflow   an element whose box leaves the viewport horizontally, outside
  *              any deliberate scroller
@@ -115,7 +116,12 @@ function auditInPage() {
   // cites (Apple's HIG uses the same 44pt). It used to be 40 here, which a
   // 43px Relics pill passed.
   const TAP = 44;
-  const INTERACTIVE = 'button, a[href], input, select, textarea, [role="button"], summary';
+  // A label wrapping a radio or checkbox is the control a finger meets: the
+  // input inside it is a 1px `srOnly` box (skipped below), and the label's box
+  // and any pseudo-element it extends itself by are what select it — the
+  // creation screen's epithet chips, origin cards and length options.
+  const INTERACTIVE =
+    'button, a[href], input, select, textarea, [role="button"], summary, label:has(input[type="radio"], input[type="checkbox"])';
   const ownerAt = (x, y) => document.elementFromPoint(x, y)?.closest(INTERACTIVE) ?? null;
 
   /** The nearest box an absolutely positioned child of `el` is placed against: its padding box. */
@@ -154,10 +160,19 @@ function auditInPage() {
     return box;
   };
 
-  /** The run of points along one line, through `from`, that land on `el`. */
+  /**
+   * The pixels along one line, through `from`, that land on `el`.
+   *
+   * Sampled at whole pixels, not pixel centres. Chromium's `elementFromPoint`
+   * answers for the whole pixel a point starts in: a box from 310 to 348
+   * owns every y in (309, 348), so a sample at 309.5 lands on it, and centre
+   * samples counted every free-standing control one pixel taller and wider
+   * than it is — a 43px hit area passed the 44px floor. At whole pixels the
+   * same box answers at 310 through 347: 38.
+   */
   const runThrough = (el, from, to, at, point) => {
     let n = 0;
-    for (let v = Math.floor(from) + 0.5; v < to; v += 1) if (ownerAt(...point(v, at)) === el) n++;
+    for (let v = Math.floor(from); v < to; v += 1) if (ownerAt(...point(v, at)) === el) n++;
     return n;
   };
 
@@ -225,11 +240,24 @@ function auditInPage() {
     putBack();
   }
   // Two hit areas that cross: whichever paints later takes the shared strip.
+  // Only within one layer, though. A control in a sticky or fixed box (the
+  // Necrolexicon's tab strip) and one in the page scrolling under it cross
+  // wherever the scroll happens to leave them — the relic filters slide under
+  // the tabs — and there the pinned layer paints over and takes the strip by
+  // design. Whatever it takes from the other's visible box is still caught,
+  // by the in-box check above.
+  const layerOf = (el) => {
+    for (let p = el; p && p !== document.documentElement; p = p.parentElement)
+      if (/^(sticky|fixed)$/.test(getComputedStyle(p).position)) return p;
+    return null;
+  };
+  for (const c of live) c.layer = layerOf(c.el);
   for (let i = 0; i < live.length; i++)
     for (let j = i + 1; j < live.length; j++) {
       const a = live[i];
       const b = live[j];
       if (a.el.contains(b.el) || b.el.contains(a.el)) continue;
+      if (a.layer !== b.layer) continue;
       const x = Math.min(a.hit.right, b.hit.right) - Math.max(a.hit.left, b.hit.left);
       const y = Math.min(a.hit.bottom, b.hit.bottom) - Math.max(a.hit.top, b.hit.top);
       if (x > 0.5 && y > 0.5) {
@@ -411,6 +439,26 @@ async function playOne(browser, runNo) {
   if (sawEnding) {
     await page.waitForTimeout(3200); // the card reveals in staged bands
     await audit(page, 'ending', runNo, era);
+    // The ending card's door into the Necrolexicon: every tab, so the relic
+    // tab's faction filters are measured as well as the tab strip itself.
+    const lexicon = page.getByRole('button', { name: /view necrolexicon/i }).first();
+    if (await lexicon.isVisible().catch(() => false)) {
+      await lexicon.click();
+      await page.waitForTimeout(400);
+      const tabs = page.getByRole('tab');
+      const tabCount = await tabs.count();
+      if (!tabCount) problems.push(`run ${runNo}: the Necrolexicon showed no tabs`);
+      for (let t = 0; t < tabCount; t++) {
+        const tab = tabs.nth(t);
+        const name = ((await tab.textContent()) ?? `tab${t}`).trim().toLowerCase();
+        await tab.click();
+        await page.mouse.move(0, 0); // no hover state left on the tab just pressed
+        await page.waitForTimeout(300);
+        await audit(page, `lexicon-${name}`, runNo, era);
+      }
+    } else {
+      problems.push(`run ${runNo}: no View Necrolexicon button on the ending card`);
+    }
   } else {
     problems.push(`run ${runNo}: never reached an ending`);
   }
@@ -431,7 +479,7 @@ const rows = [...findings.values()].sort((a, b) => b.count - a.count);
 console.log(`\n  LAYOUT FINDINGS (${rows.length} distinct)\n`);
 for (const f of rows) {
   console.log(
-    `  [${f.kind.padEnd(8)}] ${f.state.padEnd(10)} ${f.what.padEnd(46)} x${String(f.count).padEnd(3)} runs=${f.runs.size}  ${f.detail}  "${f.text}"`,
+    `  [${f.kind.padEnd(8)}] ${f.state.padEnd(17)} ${f.what.padEnd(46)} x${String(f.count).padEnd(3)} runs=${f.runs.size}  ${f.detail}  "${f.text}"`,
   );
 }
 

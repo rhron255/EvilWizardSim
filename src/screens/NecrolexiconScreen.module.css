@@ -111,6 +111,7 @@
 }
 
 .tab {
+  position: relative;
   display: inline-flex;
   align-items: center;
   min-height: 40px;
@@ -128,6 +129,20 @@
     color var(--ew-fast) var(--ew-ease),
     border-color var(--ew-fast) var(--ew-ease),
     background-color var(--ew-fast) var(--ew-ease);
+}
+
+/* Drawn 40px, so the 44px tap floor is a transparent 4px strip below it, in
+   the strip's own bottom padding. Not split 2px above and below: on a phone
+   `.tabs` is a horizontal scroller, which clips its overflow on both axes at
+   its padding box, and it has no padding on top — a strip above the tab would
+   be cut off and the hit area silently stay 42. Below, wrapped rows (wider
+   screens) are 8px apart, so 4px never reaches the next row's tabs. The
+   inset counts from the padding box, inside the 1px border: -5px is 4px past
+   the drawn edge. */
+.tab::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 -5px;
 }
 
 .tab:hover {
@@ -188,6 +203,7 @@
 }
 
 .filter {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: var(--ew-space-2);
@@ -206,6 +222,18 @@
     color var(--ew-fast) var(--ew-ease),
     border-color var(--ew-fast) var(--ew-ease),
     background-color var(--ew-fast) var(--ew-ease);
+}
+
+/* Drawn 38px; the 44px tap floor is a transparent 6px strip below it, for the
+   same clipping reason as `.tab::after` — and above this row sits the sticky
+   head, which paints over anything reaching up into it, so a strip there would
+   be lost twice over. Wrapped rows are 8px apart, so 6px stops short of the
+   next row. As with `.tab::after`, -7px from inside the border is 6px past
+   the drawn edge. */
+.filter::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 -7px;
 }
 
 .filter:hover {
@@ -346,12 +374,24 @@
 }
 
 .inlineLink {
+  position: relative;
   font: inherit;
   color: var(--ew-ink-bright);
   text-decoration: underline;
   text-underline-offset: 3px;
   text-decoration-color: var(--ew-line-strong);
   transition: text-decoration-color var(--ew-base) var(--ew-ease);
+}
+
+/* One line of small text is 20px tall; the 44px tap floor is a transparent
+   4px above it and 20px below. Mostly below, because on a narrow phone the
+   link wraps under the rest of its sentence, and 12px up would lay it over
+   that line's words. Below is open: this paragraph ends the section, and the
+   footer's Back button is 48px further down. */
+.inlineLink::after {
+  content: '';
+  position: absolute;
+  inset: -4px 0 -20px;
 }
 
 .inlineLink:hover {
