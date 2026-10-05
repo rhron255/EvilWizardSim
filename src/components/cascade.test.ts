@@ -464,3 +464,39 @@ describe('CSS modules · ornament steps aside under forced colours', () => {
     expect(shown.map(({ file, selector }) => `${rel(file)} ${selector}`)).toEqual([]);
   });
 });
+
+describe('CSS modules · a tight line keeps its backplate to itself under forced colours', () => {
+  /**
+   * A forced palette paints a backplate behind every line of text, as tall as
+   * the font's ascent and descent. A line set tighter than that (line-height
+   * under 1) throws its backplate past its own box, over whatever text sits
+   * against it. The Notoriety number did, with its label stacked flush above
+   * it in the header: the backplate cut the bottom off the label's E and the
+   * header read "NOTORIFTY". Seen with `page.emulateMedia({ forcedColors:
+   * 'active' })` at 393; this pins the fix, not the pixels.
+   */
+  const BADGE = resolve(SRC, 'components/run/NotorietyBadge.module.css');
+  const tight = (d: Decl) => d.prop === 'line-height' && /^0?\.\d+$|^0$/.test(d.value);
+
+  it('is checking something: the badge number is set tighter than its font', () => {
+    const rules = (MODULES.get(BADGE) ?? []).filter((r) => r.atRules.length === 0 && r.decls.some(tight));
+    expect(rules.flatMap((r) => r.selectors)).toContain('.value');
+  });
+
+  it('gives every tight line in the badge a normal line height under forced colours', () => {
+    const rules = MODULES.get(BADGE) ?? [];
+    const unlifted = rules
+      .filter((r) => r.atRules.length === 0 && r.decls.some(tight))
+      .flatMap((r) => r.selectors)
+      .filter(
+        (selector) =>
+          !rules.some(
+            (r) =>
+              isForcedOnly(r) &&
+              r.selectors.includes(selector) &&
+              r.decls.some((d) => d.prop === 'line-height' && d.value === 'normal'),
+          ),
+      );
+    expect(unlifted).toEqual([]);
+  });
+});

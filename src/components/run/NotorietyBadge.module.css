@@ -38,6 +38,18 @@
   cursor: default;
 }
 
+/* Under forced colours the browser paints a backplate behind each line of
+   text, as tall as the font's own ascent and descent. At line-height 0.95 the
+   number's line box is shorter than that, so its backplate rose over the
+   bottom of the label above and cut the E out of NOTORIETY. A normal line
+   height gives the backplate the whole line box; outside forced colours the
+   tight stack is unchanged. */
+@media (forced-colors: active) {
+  .value {
+    line-height: normal;
+  }
+}
+
 /* Sizes ------------------------------------------------------------------ */
 
 .badge[data-size='lg'] .value,
