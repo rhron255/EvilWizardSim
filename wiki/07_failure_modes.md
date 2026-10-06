@@ -413,3 +413,103 @@ has no other choice (truly no content in scope) or is a bug like this one.
 Do not trust that a derivation "looks right" from reading a few ids — check
 it against the authored strings for every id the union actually has, the
 same discipline failure mode 13 asks for at a scale's extremes.
+
+### 18. State that outlives the screen that set it
+
+The run screen is one column that scrolls as a whole, and on a phone the
+choice cards run past the fold — all of them fit in under half of the eras
+measured at 393px. So a player scrolls down to reach option 3, taps it, reads
+the result, and continues. Nothing reset the scroll, because the tab split that
+used to (issue #18) went away with issue #36 and took its `scrollIntoView` with
+it. The next era opened wherever the last one had been left: 98px down at 393px,
+275–372px down at 320px, on every era after the first. The wizard's name, the
+standings and sometimes the new offer's own heading were already off the top of
+the screen. The prophecy set piece, and the ending card the whole game exists to
+produce, inherited the same offset from the run screen before them.
+
+It typechecked, passed 812 tests and every screenshot, because each of those
+starts a screen from a fresh page at scroll zero. `playthrough.mjs` clicks with
+Playwright, which scrolls the target into view and then never scrolls back, so
+even the "real browser" probe reproduced the bug in its own captures (a
+first-card top of −106px in the sweep) without anything reading the number. Found
+by a layout sweep that recorded `scrollY` at the start of every decision.
+
+**Check:** any state that lives on something shared across screens — the
+document's scroll position, focus, a `localStorage` key, a CSS custom property
+set on `:root` — needs an owner that resets it on the transition, and a test
+that the transition really happens. For scroll, drive the game the way a thumb
+does, not the way `click()` does: scroll to the LAST card, tap it, continue, and
+read `window.scrollY` at the start of the next era (`node qa/probe-era-scroll.mjs`,
+at 393 AND 320). A screenshot cannot show this; it is a property of a sequence.
+
+### 19. Probes that rotted while the game was fine
+
+A launch changelog popup (issue #67) is modal and appears on every fresh
+profile, so it intercepts every pointer event over the title screen. Eleven
+Playwright probes live in `qa/`; only the ones written or touched after the popup
+landed knew to dismiss it. Seven timed out clicking "Begin a career", and two more
+carried expectations that had quietly gone stale (`probe-themes` asserted "eight
+themes" against twenty; `probe-prophecy` matched a button by a regex containing
+`accept`, which matched the *option card* "Accept the duel" rather than Continue).
+Nothing failed loudly — nobody ran them — so for a stretch the repo's own
+description of its QA ("Playwright probes") was true of four files and false of
+seven, and the relic rework (issue #77) shipped with a relic-page probe that
+could not have caught a regression because it could not start.
+
+The tell is that every one failed the same way, at the same place, before doing
+any of its actual work.
+
+**Check:** a probe is code, and unrun code rots exactly like unrun code anywhere.
+Every probe opens the app through the one shared entry point (`openApp` in
+`qa/first-run.mjs`) so the next modal that greets a fresh profile is fixed once,
+not eleven times. Assert structure, not a count that will change (`locked ===
+total - 2`, not `=== 6`), and never identify a control by a name regex that an
+option card's label can also match — use the same selectors the game exposes
+(`data-option-index` for cards, the negation of it for flow controls). When the
+game changes something every player meets first, run every probe once, and read
+the ones that fail before deciding whether the game or the probe is wrong.
+
+The same discipline applies to the instrument's *environment*. A contrast probe
+reported the pre-fix colour for a CSS change that was demonstrably in the served
+file: the dev server had re-hashed every class in `craft.module.css` and left a
+dependent module (`TitleScreen.module.css`, which `composes` from it) cached
+against the old names, so the button carried a class the new stylesheet no longer
+defined. Production builds do not do this. When a real-browser check says a change
+did not land, compare the element's class hash with the served rule's, and restart
+the dev server, before concluding the change is wrong.
+
+### 20. The card is exact until a random draw lands mid-list
+
+Rule 1 says the card prints what the engine will do. The relic rework (#77) added
+passives that rescale a number — the Gilded Thumb on followers gained, the Second
+Stomach on followers spent, the Footnote That Bites on the standing a favour
+spills onto a faction's rivals — and nobody re-asked the question of every card
+that already existed. Eight effect lists across seven offers put a `loseArtifact`
+BEFORE a `followers` or `standing` effect. Which relic a `loseArtifact` takes is
+random once two or more are held, so the card cannot say; it printed the numbers
+with every relic still in place. If the roll then took the very relic doing the
+rescaling, the outcome was worse than the card: Choir standing printed −4 and
+landed −8, Gilded Thumb followers printed +30 and landed +20, a Second Stomach
+cost printed −11 and landed −15. About 0.2% of resolutions — a specific offer, two
+or more relics, one of them the right one, and the wrong roll — so no player
+report was ever going to isolate it, and `projection.test.ts` (which proves the
+card equals the outcome for the cards it names) could not have.
+
+Found by fuzzing: 2,500 seeded careers (35,000 resolutions) against the real
+catalogue, asserting after every one that no stat or relic changed by more than
+the resolution reported and that the printed effects equal the applied ones.
+Everything else held: no soft-lock, nothing non-finite or out of range, every
+stat and relic change disclosed. The one remaining difference is deliberate and
+one-directional — an `artifactFrom` in the same list is left unresolved on the
+card (resolving it would spoil the reveal), and a drawn relic can only ever help,
+because no double-edged relic is ever drawn — so there the card is the worst case.
+
+**Check:** `src/engine/disclosure.property.test.ts` plays 2,500 seeded careers and
+fails on any unreported change or any card that understates what landed;
+`validate:content` refuses a `loseArtifact` listed before a `followers` or
+`standing` effect, so a new card cannot reintroduce it. When a mechanic starts
+rescaling numbers other effects print (a passive, a multiplier, a clamp), do not
+re-read the old cards — run the property test, because the failure lives in the
+combinations no one thought to name. It went red on the unfixed catalogue and
+green on the fixed one, and goes red if the engine changes a stat without
+reporting it or the card omits an effect.

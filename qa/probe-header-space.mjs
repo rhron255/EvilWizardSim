@@ -19,7 +19,7 @@
  * specifically.
  */
 import { chromium } from 'playwright';
-import { dismissFirstRunGuide } from './first-run.mjs';
+import { dismissFirstRunGuide, openApp } from './first-run.mjs';
 
 const URL = process.env.EWS_URL ?? 'http://localhost:5173';
 const WIDTH = Number(process.env.EWS_WIDTH ?? 393);
@@ -31,7 +31,7 @@ const page = await browser.newPage({
   deviceScaleFactor: 2,
 });
 
-await page.goto(URL, { waitUntil: 'networkidle' });
+await openApp(page, URL);
 await page.getByRole('button', { name: /begin a career/i }).first().click();
 const field = page.getByRole('textbox').first();
 await field.waitFor({ state: 'visible', timeout: 5000 });
@@ -54,10 +54,12 @@ const out = await page.evaluate(() => {
   // All three of these are the masthead's own content and always present —
   // unlike the pre-#18 header, nothing here is conditional, so nothing is
   // silently filtered out if missing: a `null` in this list is a real defect.
+  // (There used to be a third band, the age line. The age now rides the tail of
+  // the name line, so it has no band of its own — a probe still asking for one
+  // reported the masthead's markup as missing a band that was deliberately gone.)
   const bands = [
     ['eyebrow', header.querySelector('p')],
     ['name line', h1?.parentElement],
-    ['age line', h1?.parentElement?.nextElementSibling],
   ];
   const missing = bands.filter(([, el]) => !el).map(([label]) => label);
 

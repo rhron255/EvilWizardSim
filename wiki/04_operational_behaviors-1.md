@@ -9,11 +9,11 @@ description: Dynamic rules — offer generation, odds presentation policy, Notor
 
 | Area | Status | Notes |
 |------|--------|-------|
-| Offer selection | Planned | Weighted-pool approach proposed. |
-| Odds policy | Planned | Rule is firm; implementation is not. |
-| Decay curve | Planned | Formula is a starting guess for tuning. |
-| Hero escalation | Planned | Untuned. |
-| Faction standing | Planned | Effects sketched only. |
+| Offer selection | Built | Weighted pool, filtered then sampled (`src/engine/offers.ts`). |
+| Odds policy | Built | Enforced by types, not convention — see `CLAUDE.md` rule 1. |
+| Decay curve | Built | The formula below, unchanged: `DECAY_BASE 3`, `DECAY_RAMP 0.15`. |
+| Hero escalation | Built and measured | Formulas under § Hero Escalation. |
+| Faction standing | Built | Contagion along `hostileTo`, reprisals, devotion, favors, legendaries. |
 
 ## Odds Presentation Policy
 
@@ -151,6 +151,20 @@ sell.
 value derived from Notoriety, artifacts held, and lair tier. When threat
 exceeds defense, the run ends in *Slain by the Chosen One*.
 
+As built (`src/engine/systems.ts`, constants in `constants.ts`):
+
+```
+threat gained per era = 4 + 2 × erasSinceProphecy + 0.18 × notoriety
+wards (defense)       = 48 + 0.3 × notoriety + relic wards by rarity + 8 × lairTier
+                        (+90 if the wizard is a lich)
+```
+
+Fame dominates the ramp on purpose: a quiet wizard accumulates roughly 55
+threat across a standard decline and a Kingdom-Level one roughly 110, which
+is what makes `retired_to_swamp` a real, legible strategy rather than a
+lottery. The header prints both numbers, the rate, and what the lair
+contributes.
+
 Escalation should be steep enough that survival to the age limit is
 uncommon — the swamp retirement ending should feel earned, not default.
 
@@ -193,9 +207,11 @@ Ascension is the target experience, not a balance failure.
 
 ## Open Tasks
 
-- [ ] Implement weighted offer selection with seen-this-run exclusion.
-- [ ] Enforce the odds-display rule in the offer renderer, not by
-      convention — make an undisclosed effect impossible to author.
-- [ ] Tune decay base and exponent against 100 simulated runs.
-- [ ] Tune hero escalation so age-limit survival is uncommon.
-- [ ] Instrument Ascension rate and hold it in the low single digits.
+- [x] Weighted offer selection with seen-this-run exclusion.
+- [x] Odds-display rule enforced by the type system.
+- [x] Decay base and exponent tuned against simulated runs.
+- [x] Hero escalation tuned so age-limit survival is uncommon.
+- [x] Ascension rate instrumented and held in the low single digits.
+- [ ] Check the "at least one low-risk option every era" guarantee (§ Offer
+      Generation) against the 155-offer catalogue. It is written as a
+      guarantee; `validate:content` should be the thing that says so.

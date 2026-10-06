@@ -20,7 +20,7 @@
  *   node qa/measure-density.mjs [--width 393] [--height 852] [--eras 6]
  */
 import { chromium } from 'playwright';
-import { dismissFirstRunGuide } from './first-run.mjs';
+import { dismissFirstRunGuide, openApp } from './first-run.mjs';
 
 const arg = (flag, fallback) => {
   const i = process.argv.indexOf(flag);
@@ -45,7 +45,7 @@ page.on('console', (m) => {
 const OPTIONS = 'button[data-option-index]:not([disabled])';
 const FLOW = 'button:not([data-option-index]):not([disabled])';
 
-await page.goto(URL, { waitUntil: 'networkidle' });
+await openApp(page, URL);
 await page.getByRole('button', { name: /begin a career/i }).click();
 await page.waitForTimeout(400);
 await page.getByRole('textbox').first().fill('Malachar the Unpaid');

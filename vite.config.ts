@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import { composesWithoutCopy } from './scripts/composesLoader';
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -8,7 +9,11 @@ export default defineConfig({
   // as BASE_PATH; `npm run dev` and `npm run build` locally leave it unset and
   // get the root, which is what the dev server serves from.
   base: process.env.BASE_PATH ?? '/',
-  plugins: [react()],
+  // `composes: x from '…/craft.module.css'` must not paste a copy of craft into
+  // every module that composes from it: the build's minifier keeps the LAST
+  // copy, after the screens, and every screen override of a composed property
+  // loses. Craft is loaded once, first, from src/main.tsx instead.
+  plugins: [react(), composesWithoutCopy({ shared: 'src/components/meta/craft.module.css' })],
   test: {
     globals: true,
     environment: 'jsdom',

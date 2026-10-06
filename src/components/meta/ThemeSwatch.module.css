@@ -1,4 +1,8 @@
+/* A size container, so the name can be sized against the card it sits in
+   (`cqi` on `.name` below). The grid gives every card its width, so nothing
+   in the card ever needed to set it. */
 .swatch {
+  container-type: inline-size;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -22,6 +26,7 @@
 /* --- the palette ----------------------------------------------------------- */
 
 .bands {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   height: 46px;
@@ -35,6 +40,17 @@
   height: 100%;
 }
 
+/* The theme's wallpaper laid across its own palette — over the void and panel
+   bands only, where it hangs in the room itself. Drawn stronger than the room
+   draws it: at the room's own opacity a 46px strip shows nothing at all. */
+.motif {
+  position: absolute;
+  inset: 0 50% 0 0;
+  opacity: 0.55;
+  -webkit-mask-repeat: repeat;
+  mask-repeat: repeat;
+}
+
 /* --- text ------------------------------------------------------------------ */
 
 .body {
@@ -44,12 +60,81 @@
   min-width: 0;
 }
 
+/* The glyph sits on the name's FIRST line: a long name ("New Management",
+   "Settled Account") wraps at phone width, and centring the glyph on the
+   whole block left it floating between the two lines.
+
+   A word that cannot fit beside the glyph at all drops to the line below it
+   instead of running out of the card: "Correspondence" in a 320px card, and
+   in New Management's wider sans even at 393. Measured against every card's
+   content box, wearing the default and New Management at 320 and 393.
+
+   On its own line it still has to fit. In Inter, New Management's display
+   face, "Correspondence" is 8.11em wide, wider than a 320px card's 114px at
+   the full size, and it split mid-word ("Corresponde" / "nce"). So the size
+   follows the card: 12cqi is 12% of the card's content width, and a word of
+   up to 8.33em fits in that, in either face. It never grows past the size it
+   had (a 393 card is 150px wide, so 12cqi there is 18px and the cap holds),
+   and never drops below the small step, which still fits the 320 card.
+   CSS cannot tell which face it is setting, so the 320 card scales the
+   Garamond names too, which fit there at full size. ThemeSwatch.test.tsx
+   holds every word of every name, in every face a room wears, to this. */
 .name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0 0.4em;
   font-family: var(--ew-font-display);
-  font-size: var(--ew-size-md);
+  font-size: clamp(var(--ew-size-sm), 12cqi, var(--ew-size-md));
   font-weight: 600;
   line-height: 1.15;
   color: var(--ew-ink-bright);
+}
+
+/* Its own box, because bare text in a flex row cannot be told to shrink.
+   It asks for no more room than its longest word (a zero basis, plus the
+   automatic minimum), so the row wraps only when that word will not fit
+   beside the glyph, and never for more than the card is wide, so a word wider
+   than the whole card (Correspondence in Inter at 320) breaks inside it.
+
+   `break-word`, not `anywhere`: `anywhere` sizes the longest word as one
+   letter, so the name never drops and splits mid-word beside the glyph
+   instead. No `hyphens: auto`: with a dictionary, a browser hyphenates any
+   word that crosses the line end, and names that now break cleanly at a space
+   would start breaking mid-word. */
+.nameText {
+  flex: 1 1 0%;
+  max-width: 100%;
+  overflow-wrap: break-word;
+}
+
+/* The previewed theme's corner glyph, in that theme's strong line colour
+   (`--swatch-strong`, set inline by the component). It is printed on the
+   CURRENT room's card, though, where a strong line chosen for its own room can
+   all but vanish — a dark indigo on a grey card, a slate on the cream one. So
+   it is mixed toward the current room's bright ink, the colour of the name
+   beside it: that lifts it in a dark room and darkens it in the light one,
+   where a brightness filter only ever lifted and pushed the greys into the
+   cream.
+
+   60% keeps the previewed hue in the majority and still clears 3:1 (WCAG 2.1
+   SC 1.4.11, non-text contrast) for every theme previewed in every room, on
+   the card, its hover and its worn state. ThemeSwatch.test.tsx reads the mix
+   off this file and sweeps every pair, and refuses a filter here, which would
+   paint a colour the sweep cannot see. */
+.glyph {
+  flex: none;
+  width: 0.75em;
+  height: 0.75em;
+  /* (line-height 1.15em − 0.75em) / 2: centred on the first line box. */
+  margin-top: 0.2em;
+  background-color: color-mix(in srgb, var(--swatch-strong) 60%, var(--ew-ink-bright));
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
 }
 
 .blurb {

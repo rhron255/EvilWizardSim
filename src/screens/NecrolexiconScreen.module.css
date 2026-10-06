@@ -10,12 +10,10 @@
      relative TO — so the sticky head just scrolled away with the page instead
      of pinning to the viewport. `.top`'s own `overflow: hidden` below takes
      over the one thing this clip was actually protecting on this screen (see
-     its comment), so lifting the clip here is safe.
-     !important because `craft.module.css`'s `.screen` rule sets `overflow-x`
-     at the same selector specificity and, empirically, later in the bundled
-     cascade — a plain override here still lost the x-axis, which is what
-     left overflow-y stuck on the forced `auto` this whole comment describes. */
-  overflow: visible !important;
+     its comment), so lifting the clip here is safe. A plain override is
+     enough: `src/main.tsx` loads craft before every screen, so this rule
+     comes later at the same specificity and wins. */
+  overflow: visible;
 }
 
 .inner {
@@ -70,7 +68,9 @@
 .back {
   composes: btnQuiet from '../components/meta/craft.module.css';
   justify-self: start;
-  min-height: 36px;
+  /* No min-height of its own: `.btn`'s 44px is the tap target. A 36px
+     override here lost to craft in every production build until craft was
+     loaded first, so 44px is also what this button always shipped at. */
   padding: 0 var(--ew-space-3);
   font-size: var(--ew-size-xs);
   letter-spacing: 0.12em;
@@ -111,6 +111,7 @@
 }
 
 .tab {
+  position: relative;
   display: inline-flex;
   align-items: center;
   min-height: 40px;
@@ -128,6 +129,20 @@
     color var(--ew-fast) var(--ew-ease),
     border-color var(--ew-fast) var(--ew-ease),
     background-color var(--ew-fast) var(--ew-ease);
+}
+
+/* Drawn 40px, so the 44px tap floor is a transparent 4px strip below it, in
+   the strip's own bottom padding. Not split 2px above and below: on a phone
+   `.tabs` is a horizontal scroller, which clips its overflow on both axes at
+   its padding box, and it has no padding on top — a strip above the tab would
+   be cut off and the hit area silently stay 42. Below, wrapped rows (wider
+   screens) are 8px apart, so 4px never reaches the next row's tabs. The
+   inset counts from the padding box, inside the 1px border: -5px is 4px past
+   the drawn edge. */
+.tab::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 -5px;
 }
 
 .tab:hover {
@@ -148,8 +163,12 @@
   gap: var(--ew-space-5);
 }
 
+/* The plate, its corner glyphs and its trim all come from `trimmedPlate`, and
+   this rule sets no background of its own: composing craft's filled plate and
+   overriding `background` here lost to craft.module.css in the production
+   build, and the plate wore no trim under any theme. */
 .factionEntry {
-  composes: plate from '../components/meta/craft.module.css';
+  composes: trimmedPlate from '../components/meta/craft.module.css';
   padding: var(--ew-space-5);
 }
 
@@ -184,6 +203,7 @@
 }
 
 .filter {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: var(--ew-space-2);
@@ -202,6 +222,18 @@
     color var(--ew-fast) var(--ew-ease),
     border-color var(--ew-fast) var(--ew-ease),
     background-color var(--ew-fast) var(--ew-ease);
+}
+
+/* Drawn 38px; the 44px tap floor is a transparent 6px strip below it, for the
+   same clipping reason as `.tab::after` — and above this row sits the sticky
+   head, which paints over anything reaching up into it, so a strip there would
+   be lost twice over. Wrapped rows are 8px apart, so 6px stops short of the
+   next row. As with `.tab::after`, -7px from inside the border is 6px past
+   the drawn edge. */
+.filter::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 -7px;
 }
 
 .filter:hover {
@@ -342,12 +374,24 @@
 }
 
 .inlineLink {
+  position: relative;
   font: inherit;
   color: var(--ew-ink-bright);
   text-decoration: underline;
   text-underline-offset: 3px;
   text-decoration-color: var(--ew-line-strong);
   transition: text-decoration-color var(--ew-base) var(--ew-ease);
+}
+
+/* One line of small text is 20px tall; the 44px tap floor is a transparent
+   4px above it and 20px below. Mostly below, because on a narrow phone the
+   link wraps under the rest of its sentence, and 12px up would lay it over
+   that line's words. Below is open: this paragraph ends the section, and the
+   footer's Back button is 48px further down. */
+.inlineLink::after {
+  content: '';
+  position: absolute;
+  inset: -4px 0 -20px;
 }
 
 .inlineLink:hover {
@@ -372,6 +416,16 @@
 @media (max-width: 640px) {
   .screen {
     padding: var(--ew-space-4) var(--ew-space-4) var(--ew-space-7);
+  }
+
+  /* The tab and filter strips scroll sideways here, which clips them on both
+     axes, and their pills sit flush with each strip's top edge — so the
+     global ring, drawn 2px OUTSIDE the pill, lost its top arc to the clip
+     (and, for a filter, to the sticky head painted over it). Drawn inside
+     the pill instead, it is whole, and nothing moves. */
+  .tab:focus-visible,
+  .filter:focus-visible {
+    outline-offset: -2px;
   }
 
   /* A sticky bar earns its keep by staying small — it now occupies screen
@@ -401,6 +455,11 @@
     flex-wrap: nowrap;
     overflow-x: auto;
     scroll-snap-type: x proximity;
+    /* Snap to the gutter, not the screen edge. Without it the first chip's
+       `scroll-snap-align: start` lands on the scrollport's own edge, so the
+       strip opened scrolled 16px in: flush with the left of the screen, with
+       the padding below spent on the wrong side. */
+    scroll-padding-inline: var(--ew-space-4);
     scrollbar-width: none;
     padding-bottom: var(--ew-space-4);
     margin: 0 calc(-1 * var(--ew-space-4));

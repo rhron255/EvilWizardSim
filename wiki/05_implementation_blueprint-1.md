@@ -7,7 +7,12 @@ description: Phased build order, validation criteria per phase, and known risks.
 
 ## Current Status
 
-Nothing built. Phase 1 has not started.
+**All five phases are delivered** and the game is in polish and content
+breadth. This page is the original build order, kept for the reasoning behind
+the sequence — in particular why the vertical slice came first and why the
+validation script preceded the catalogue. The validation commands it left
+unspecified now exist (`npm run typecheck | test | lint | validate:content |
+sim`); `CLAUDE.md` § Commands is the current reference.
 
 ## Build Order
 
@@ -66,8 +71,7 @@ Android Chrome.
 
 ## Validation
 
-Commands are unspecified until the stack is chosen. Whatever it is,
-these should exist:
+Commands were unspecified until the stack was chosen. They now exist:
 
 - Content validation (faction refs, option counts, disclosed effects).
 - A headless simulation harness that plays N runs and reports the
@@ -97,8 +101,10 @@ is there. Read it before relaxing any of them.
 
 ## Open Tasks
 
-- [ ] Stack decision (blocks everything).
-- [ ] Phase 1 vertical slice.
-- [ ] Simulation harness before balance tuning.
-- [ ] Content writing budget and owner.
-- [ ] Target language decision.
+- [x] Stack decision.
+- [x] Phase 1 vertical slice.
+- [x] Simulation harness before balance tuning.
+- [x] Content writing budget and owner.
+- [x] Target language decision.
+- [ ] Phase 5 acceptance: a share image rendering correctly on mobile Safari
+      and Android Chrome (not yet verified on either).

@@ -173,9 +173,28 @@ for (let step = 0; step < 140 && !sawEnding; step++) {
   }
 
   // No options: a resolution overlay or the prophecy set piece is gating.
-  const body = (await page.textContent('body').catch(() => '')) ?? '';
-  if (!sawProphecy && /prophec/i.test(body)) {
+  //
+  // The set piece is recognised by its own root (src/screens/
+  // ProphecyInterstitial.tsx renders a `<main aria-label="A prophecy">` in
+  // place of the run screen), never by its words. This used to fire on any
+  // body text matching /prophec/, and a resolution overlay that so much as
+  // mentions a prophecy matched first: both `prophecy` shots in one review
+  // were resolution overlays, and "prophecy: seen" was reported off them.
+  const prophecy = page.getByRole('main', { name: 'A prophecy', exact: true });
+  if (!sawProphecy && (await prophecy.isVisible().catch(() => false))) {
     sawProphecy = true;
+    // It is staged over ~3s, and the hand-off line and the button arrive
+    // last; shoot it once they have, not mid-reveal. Read off the button's
+    // own container, which is what fades in.
+    await page
+      .waitForFunction(
+        () => {
+          const button = document.querySelector('main[aria-label="A prophecy"] button');
+          return !!button && Number(getComputedStyle(button.parentElement).opacity) > 0.99;
+        },
+        { timeout: 6000 },
+      )
+      .catch(() => problems.push('prophecy: the reveal never reached its button'));
     await shot('prophecy');
   }
 
@@ -234,7 +253,7 @@ if (sawEnding) {
 
   await shot('ending');
   // Peek at the collection from the ending card.
-  if (await clickByName(/collection/i, { optional: true })) {
+  if (await clickByName(/necrolexicon/i, { optional: true })) {
     await page.waitForTimeout(500);
     await shot('collection');
   }

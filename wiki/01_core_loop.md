@@ -9,10 +9,10 @@ description: Run lifecycle from creation to ending — era structure, phase tran
 
 | Area | Status | Notes |
 |------|--------|-------|
-| Run lifecycle | Planned | Structure below is proposed, unvalidated. |
-| Era count / pacing | Planned | 16–20 eras targeting 2–4 min; needs playtest tuning. |
-| Phase transition | Planned | Prophecy trigger point is a guess. |
-| Endings | Planned | Seven proposed; none implemented. |
+| Run lifecycle | Built | Creation → ascent → prophecy → decline → ending → collection. |
+| Era count / pacing | Built | 12 / 16 / 20 eras (default 16, 5 in-world years each), chosen at creation. A run is ~15 decisions. |
+| Phase transition | Built | The prophecy fires at `PROPHECY_FRACTION` (0.57) of the run, as a full-screen interstitial. |
+| Endings | Built | **Nineteen**, not seven — see § 7. All reachable; the sim fails the build's balance report if one is not. |
 
 ## Design Intent
 
@@ -33,13 +33,16 @@ Identity capture happens **before any mechanic is explained**. Everything
 afterward happens to something the player named.
 
 Fields:
-- **Wizard name** (text input, required) — rendered large on a sigil.
-- **Epithet** — chosen from 3–4 options, or auto-assigned later by deeds.
-- **Origin** — 3 options, each a light starting modifier and a tone-setter
-  (e.g. *expelled from the Pale Academy*, *self-taught in a bog*,
-  *inherited a tower and its debts*).
-- **Run length** — 2–4 options mirroring the reference game's season
-  selector. Controls era count, not difficulty.
+- **Wizard name** (text input, required) — rendered large on a sigil, and
+  remembered between careers.
+- **Epithet** — chosen from four options; the run later earns its own from
+  the deeds it contained.
+- **Origin** — four options, each a starting modifier, a tone-setter and (since
+  issue #80) a starting relic with a power of its own (*expelled from the Pale
+  Academy*, *self-taught in a bog*, *inherited a tower and its debts*, *sold
+  your master's estate*).
+- **Run length** — Brief 12 / Standard 16 / Long 20 eras, mirroring the
+  reference game's season selector. Controls era count, not difficulty.
 
 No stat allocation. No sliders. Setup is the only text-input moment in
 the entire run.
@@ -55,9 +58,9 @@ An **era** is the unit of progression. Each era:
 3. **Appends a row to the ledger** (see below).
 4. Advances age and re-evaluates phase state.
 
-Proposed: **5 in-world years per era**, starting age 20, 16–20 eras per
-run. Wizard lifespans are long enough that this stays plausible while
-keeping the row count visually satisfying.
+**5 in-world years per era**, starting age 20 (`YEARS_PER_ERA`, `START_AGE`).
+Wizard lifespans are long enough that this stays plausible while keeping
+the career long enough to read as a life.
 
 ### 3. The Ledger
 
@@ -69,7 +72,7 @@ Columns: `Age | Lair | Notoriety | Followers | Artifacts | Deeds`
 Rules:
 - **Append only.** Rows are never removed or rewritten.
 - Notoriety renders as a colored badge per tier (see
-  `02_data_models_and_content.md`).
+  `02_data_models_and_content-1.md`).
 - The current era's row is highlighted; prior rows dim slightly with age.
 - A shared masthead — not the ledger's own header — shows lifetime totals
   and, critically, an **empty trophy slot** for the run's unattainable
@@ -90,16 +93,16 @@ as a table.
 
 ### 4. Ascent Phase
 
-Roughly the first 55–60% of eras. Offers skew toward upside: new lairs,
+The first 57% of eras. Offers skew toward upside: new lairs,
 pacts, apprentices, artifact opportunities, faction alliances. Notoriety
 generally climbs. The player is building.
 
 ### 5. Prophecy Trigger
 
-A single scripted event around era 9–11 (proposed) that flips the run's
-motivational mode. A chosen one is born. From this point:
+A single scripted event, pinned to `PROPHECY_FRACTION` of the run (era 10
+of a Standard career) that flips the run's motivational mode. A chosen one is born. From this point:
 
-- Notoriety decay begins (see `04_operational_behaviors.md`).
+- Notoriety decay begins (see `04_operational_behaviors-1.md`).
 - Hero-threat offers begin appearing and escalate.
 - Offer text shifts from acquisition to protection.
 
@@ -119,8 +122,12 @@ the urge to add a doom meter.
 
 ### 7. Endings
 
-Reached by age limit, by hero, or by a branch the player chose. Proposed
-set:
+Reached by age limit, by hero, or by a branch the player chose. The
+original set of seven (the table below), later extended to nineteen — the
+five faction reprisals and five faction leaderships of issue #14, the Good
+Wizard (#23) and the Arch-Lich (#25). The full list lives in
+`src/content/endings.ts`; the amendments below say how each addition came
+about.
 
 | Ending | Trigger | Notes |
 |--------|---------|-------|
@@ -221,14 +228,18 @@ The terminal screen must be screenshot-worthy without prompting:
 - Buttons: share image, view collection, play again.
 
 The **collection** persists across runs and is specified in
-`02_data_models_and_content.md`. It is the primary long-term retention
+`02_data_models_and_content-1.md`. It is the primary long-term retention
 mechanism.
 
 ## Open Tasks
 
-- [ ] Prototype the ledger with placeholder rows and confirm it is
-      compelling before any content is written.
-- [ ] Playtest era count against the 2–4 minute target; tune.
-- [ ] Determine prophecy trigger era by playtest, not by theory.
-- [ ] Write the prophecy interstitial as a set piece.
-- [ ] Verify every ending reads as a story, including the swamp.
+- [x] Prototype the ledger and confirm it is compelling before content.
+- [x] Playtest era count against the 2–4 minute target. *(A Standard run is
+      ~15 decisions.)*
+- [x] Determine prophecy trigger era by playtest. *(0.57 of the run.)*
+- [x] Write the prophecy interstitial as a set piece.
+- [x] Verify every ending reads as a story, including the swamp.
+- [ ] Re-measure the ending distribution against real players. The sim's
+      policies are bots; 42% of simulated careers end `slain_by_chosen_one`,
+      and no human has been measured on whether that reads as variety or as
+      the same death four runs in ten.

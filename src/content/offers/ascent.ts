@@ -1436,9 +1436,9 @@ export const ascentOffers: Offer[] = [
           { t: 'notoriety', v: 6 },
         ],
         onFailure: [
-          { t: 'loseArtifact' },
           { t: 'followers', v: -8 },
           { t: 'standing', factionId: 'gilded_hand', v: 5 },
+          { t: 'loseArtifact' }, // last: the loss must follow every effect a relic can rescale
         ],
         successText: 'You trade up. This is the reason the appraisals are free.',
         failureText: 'You trade down, and pay the difference. This is also the reason they are free.',
@@ -1695,8 +1695,8 @@ export const ascentOffers: Offer[] = [
           { t: 'followers', v: -12 },
           { t: 'heroThreat', v: 8 },
         ],
-        failureText: 'The speech was longer than expected and the armour, it turns out, was borrowed from someone competent.',
-        successText: 'The speech is read at the funeral. It is long.',
+        failureText: 'The knight had a good night\'s rest. You didn\'t have a good rest of the night.',
+        successText: 'A speech is read at the funeral. It is long.',
       },
       {
         kind: 'certain',

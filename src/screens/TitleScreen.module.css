@@ -1,6 +1,11 @@
 .screen {
   composes: screen from '../components/meta/craft.module.css';
   display: grid;
+  /* One column that may shrink to the screen. A bare grid track sizes itself
+     to its content's min-content width, and at 320 that was wider than the
+     screen (331px under the default face, 355px under New Management's sans),
+     so every door ran past the right edge and was clipped there. */
+  grid-template-columns: minmax(0, 1fr);
   place-items: center;
   padding: var(--ew-space-7) var(--ew-space-5);
   min-height: 100dvh;

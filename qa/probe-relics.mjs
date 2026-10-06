@@ -67,7 +67,7 @@ if (!(await mantleCard.isVisible().catch(() => false))) {
 }
 // The power line, not just the name — the acceptance item this probe exists
 // for: "the relic page shows each held relic's power line."
-const powerLine = await page.getByText(/era's end/i).isVisible().catch(() => false);
+const powerLine = await page.getByText(/era's end/i).first().isVisible().catch(() => false);
 if (!powerLine) {
   problems.push('relic page: no power line found for the held relic');
 }

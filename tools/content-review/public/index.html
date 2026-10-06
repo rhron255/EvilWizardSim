@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Evil Wizard Sim — Content Review</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header id="topbar">
+      <h1>Content Review</h1>
+      <input id="search" type="search" placeholder="Search text, id, faction…" autocomplete="off" />
+      <button id="validate-btn">Validate content</button>
+      <span id="counts"></span>
+    </header>
+
+    <div id="layout">
+      <nav id="sidebar"></nav>
+      <main id="main"></main>
+    </div>
+
+    <div id="validate-panel" hidden>
+      <div id="validate-panel-inner">
+        <button id="validate-close">Close</button>
+        <pre id="validate-output"></pre>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

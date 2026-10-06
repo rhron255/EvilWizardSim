@@ -13,6 +13,7 @@
  */
 
 import type { Tier, TierId } from '../types';
+import { shapeRef, tileSize } from './ornaments';
 
 // ---------------------------------------------------------------------------
 // Surfaces & ink — deliberately desaturated. Warm black, not blue black.
@@ -31,6 +32,16 @@ export const surface = {
   line: '#282219',
   /** Stronger border on focus/active. */
   lineStrong: '#3C3427',
+  /**
+   * What the room deepens into, away from its light: the shade pooled at the
+   * foot of every set piece, and what the Prophecy's darker room is mixed
+   * toward. Black in every dark room, where it only ever deepens the backdrop
+   * behind pale ink. A light room overrides it (`themes.ts`), because there
+   * black is the one colour that moves the room toward its ink. Never a
+   * surface text sits on by itself; the bare-room model in `themes.test.ts`
+   * counts it in both stacks it is painted in.
+   */
+  shade: '#000000',
 } as const;
 
 export const ink = {
@@ -213,6 +224,62 @@ export const motion = {
   setpiece: '900ms',
   ease: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
   easeIn: 'cubic-bezier(0.4, 0, 1, 1)',
+} as const;
+
+// ---------------------------------------------------------------------------
+// Ornament — what a room is decorated with, as distinct from what colour it is
+// ---------------------------------------------------------------------------
+
+/**
+ * The default room's ornament. Every theme overrides all six (`themes.ts`).
+ *
+ * None of these can introduce a colour but one faint tint. The two shape
+ * tokens name a colourless mask from `ornaments.ts` and are painted in
+ * `--ew-line-strong`; `light` and `trim` are gradient layers coloured only
+ * from the room's own surface and ink tokens via `var()`, or from plain white
+ * or black — except that the key light alone may carry a faint tint (alpha
+ * 0.07 at most) within the room's hue family, the same 90° quadrant as its
+ * surfaces (`themes.ts` constraint 7). `themes.test.ts` holds both strings to
+ * that vocabulary.
+ */
+export const ornament = {
+  /**
+   * The key light: background-image layer(s) laid over `--ew-void` on every
+   * screen. `none` is a flat wash. Counts against the same floor as
+   * `motifOpacity`, at its brightest point on screen.
+   */
+  light: 'radial-gradient(90% 55% at 50% -10%, rgba(255, 246, 224, 0.045), transparent 68%)',
+  /**
+   * Wallpaper tiled behind every screen: a `pattern` shape. Never `none` —
+   * as a `mask-image` that means "no mask", which would paint
+   * `--ew-line-strong` over the whole screen. Every room has a wallpaper.
+   */
+  motif: shapeRef('masonry'),
+  /** One tile of the wallpaper, as a `background-size`. */
+  motifSize: tileSize('masonry'),
+  /**
+   * How strongly the wallpaper is drawn, 0–1, over `--ew-void`.
+   *
+   * Capped by contrast, not by taste: `themes.test.ts` lays
+   * `--ew-line-strong` at this opacity over the void, the key light and the
+   * tier vignette at their brightest, allows for the browser painting the
+   * result a little lighter than the arithmetic says, and requires the ink to
+   * read on it at least as well as it does in this, the default, room.
+   * `qa/probe-room-contrast.mjs` checks the same in Chromium's pixels.
+   */
+  motifOpacity: 0.15,
+  /** The corner glyph on cards and the centre of section rules: a `glyph` shape. */
+  pip: shapeRef('star'),
+  /**
+   * Extra background layers drawn over a card's own surface — a hairline, a
+   * perforation, a double rule — whether that surface is the panel, the
+   * raised step or the hover. `none` for a plain card. Each layer is a MARK
+   * (held to the card's edge band, or to a corner within 8px of the side or
+   * 4px of the edge) or a WASH (held below the ornament probe's drawn
+   * threshold on every surface, with the ink over it reading as well as the
+   * default's on that surface); see `CORNER_CLEAR` in `themes.ts`.
+   */
+  trim: 'none',
 } as const;
 
 // ---------------------------------------------------------------------------

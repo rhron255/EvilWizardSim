@@ -21,6 +21,48 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-10-04T11:59:44Z': {
+    summary: 'Every theme now decorates its room, and no two themes look alike any more.',
+    details: [
+      'Each theme now decorates its room with a wallpaper and its own emblem on cards and dividers, and most edge their cards in their own way.',
+      'Themes that were nearly the same colour have been pulled apart.',
+      'The theme picker previews each room’s wallpaper and emblem, not just its colours.',
+      'Fixed the ending card not showing your Notoriety glow.',
+      'The prophecy screen and the foot of the title and ending screens now read properly in Ordinary Weather.',
+      'Text on a card under your finger is easier to read in several themes.',
+      'Several buttons, labels and frames now look the way they were designed, including the prophecy’s button and the ending card on phones.',
+      'High-contrast mode now shows the faction bars and no longer clips the Notoriety label.',
+      'Opening the Necrolexicon from an ending now takes you to that ending, marked as just reached.',
+      'Shortened choice lines no longer trail off on words like “the”.',
+      'On the smallest phones the title screen’s buttons fit, long theme names stay whole, and the Necrolexicon tabs start inside the margin.',
+      'The Relics button, the epithet choices for a new wizard, and the Necrolexicon’s tabs, filters and theme link are easier to tap.',
+    ],
+  },
+  '2026-09-29T13:06:47Z': {
+    summary: 'Closing the update popup now returns keyboard focus to Begin a Career.',
+    details: [
+      'Fixed a bug where dismissing this popup with the keyboard dropped focus to the top of the page instead of back onto Begin a Career.',
+    ],
+  },
+  '2026-09-29T12:41:25Z': {
+    summary: 'Cards that cost you a relic now print the Followers and Standing you actually get.',
+    details: [
+      'Fixed a bug where a card that made you sell or lose a relic could show a better Followers or Standing figure than you got, if the relic you lost was the one changing it.',
+      'Eight choices were affected, including Settle in relics, Sell one piece and Sell her a relic for what you need.',
+    ],
+  },
+  '2026-09-29T09:56:29Z': {
+    summary: 'Each era now opens at the top of the screen, with small-phone fixes and a little haptic feedback.',
+    details: [
+      'Fixed a bug where the next era could open scrolled partway down the page after you tapped a card near the bottom.',
+      'Long lair names like Citadel of Nine Winters now show in full instead of trailing off, and the run screen no longer sways sideways.',
+      'The Patron line only appears once you have a patron, and your age sits beside your name, so more of the first card shows on small phones.',
+      'Fixed the run-length options, a few ending-card labels and the Never seen before badge running off the edge of small phones.',
+      'The Continue and Back buttons are taller and easier to tap, and Begin a Career is easier to read on a fresh profile.',
+      'Phones that support it now buzz gently when a gamble lands, when you cross into a new tier, and when the prophecy arrives.',
+      'Added a tab icon, a home-screen icon, and a proper preview image when a link to the game is shared.',
+    ],
+  },
   '2026-09-28T19:05:46Z': {
     summary: 'The Relics page now says when each relic takes effect, and long result cards display properly on phones.',
     details: [

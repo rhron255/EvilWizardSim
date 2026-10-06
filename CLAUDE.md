@@ -42,14 +42,15 @@ constraints below exist, and is the thing to read before relaxing any of them.
 |---|---|
 | `src/types.ts` | **The frozen contract.** Every module is written against it. |
 | `src/version.ts` | `BUILD_VERSION` — bump it and add a `src/content/changelog.ts` entry on every player-visible change (issue #67). |
-| `src/theme/` | Design tokens (`tokens.ts` for JS, `tokens.css` for `--ew-*`). |
+| `src/theme/` | Design tokens (`tokens.ts` for JS, `tokens.css` for `--ew-*`), the theme catalog (`themes.ts`), and the ornament shapes (`ornaments.ts`, generated into `ornaments.css` by `npm run ornaments`). |
 | `src/engine/` | Run state, offer sampling, resolution, endings, persistence. |
-| `src/content/` | Factions, artifacts, lairs, origins, endings, epithets, ~130 offers, the changelog. |
-| `src/components/run/` | The run loop: ledger, offer panel, notoriety badge. |
+| `src/content/` | Factions, artifacts, lairs, origins, endings, epithets, 155 offers, the changelog. |
+| `src/components/run/` | The run loop: masthead, faction standings, decision and offer panels, resolution overlay, relic page, notoriety badge. |
 | `src/components/meta/` | Set-piece parts: lair grid, artifact grid, sigil. |
 | `src/screens/` | Screen composition. |
-| `scripts/` | `validate-content.ts`, `simulate.ts` (balance harness), `balance-report.ts` (renders the PR comment). |
-| `qa/` | Playwright probes. Screenshots are gitignored. |
+| `scripts/` | `validate-content.ts`, `simulate.ts` (balance harness), `balance-report.ts` (renders the PR comment), `build-static-assets.ts` (`npm run assets`), `build-ornaments.ts` (`npm run ornaments`), `composesLoader.ts` (keeps `craft.module.css` to one copy in the bundle; styling rule 6), `check-css-order.ts` (`npx tsx scripts/check-css-order.ts` after `npm run build`: craft before every screen in the built CSS). |
+| `public/` | Favicon, touch/install icons, manifest and the link-preview image — generated from the game's own sigil by `npm run assets` and committed. |
+| `qa/` | Playwright probes. `sweep-layout.mjs` plays many careers and audits every state, from the creation screen's choices to every tab of the Necrolexicon opened from the ending card — it measures each control's hit area as a finger meets it (including a transparent `::after` extension, and a label wrapping a radio as the control) against 44px, and `--career-seed N` replays the same careers so a before/after fold comparison is exact; `probe-late-game.mjs` and `probe-era-scroll.mjs` cover the worst-case header and the scroll reset; `probe-keyboard.mjs` plays a whole career with no mouse; `probe-themes.mjs` measures the themes, `probe-ornament-spacing.mjs` measures how close every theme's ornament sits to content (on a seeded career, played forward until a gamble's odds rail is on screen, and it fails if no rail was measured), `probe-room-contrast.mjs` paints every theme's bare room (run screen, set pieces, Prophecy) and scores its text against the default's, and `shoot-themes.mjs` photographs all twenty side by side. Every probe that lists themes reads them from `THEMES` through `qa/theme-ids.mjs`. Screenshots are gitignored. |
 | `wiki/` | Design intent and rationale. |
 
 ## Commands
@@ -66,8 +67,15 @@ npm run sim              # 2000-run balance report, always against real content
 
 CI posts the balance numbers on every PR as one comment that updates in place
 (`.github/workflows/ci.yml` → `balance`). It runs `simulate.ts --report-json`
-over five seeds on the branch and on its merge base, and
-`scripts/balance-report.ts` renders the diff. Two things it deliberately does
+over five seeds on the branch (side by side, one process per seed, via
+`scripts/measure-seeds.sh` — the numbers are identical to a sequential run) and
+compares against the base commit's numbers,
+and `scripts/balance-report.ts` renders the diff. The base's numbers are not
+re-measured every time: the sim is deterministic per seed, so they are cached
+by commit (`scripts/balance-cache-key.ts` builds the key), seeded by the
+`balance-baseline` job on every push to main, and measured for real only on a
+miss (a PR opened before its base finished seeding, or a stacked PR whose base
+is another PR branch). The step summary says which happened. Two things it deliberately does
 NOT do: gate the merge (the sim has disclosed standing FAILs, so blocking on it
 would invite someone to relax a band to get green), and report a movement
 smaller than the spread the seeds themselves show (a two-career swing on a
@@ -145,13 +153,34 @@ These come from a game that worked at scale. They look arbitrary in isolation.
    structure, near-monochrome within itself, and it clears the default
    palette's ink-on-panel contrast. The distinction to keep: **the game
    colours what you did; the player colours the room.**
+   *Ornament follows the same rule.* A theme also decorates its room — a key
+   light, a wallpaper, a corner glyph, a card trim — and all four are tokens
+   in its `tokens.css` block, never a `[data-theme]` selector in a component
+   stylesheet. The shapes are colourless masks (`src/theme/ornaments.ts`)
+   painted in the theme's own `--ew-line-strong`; the key light and card trim
+   are coloured only from the room's own surface and ink tokens or plain
+   white or black, except that the key light alone may carry a faint tint
+   (alpha 0.07 at most) within the room's hue family — the same 90° quadrant
+   as its surfaces and ink, which is looser than near-monochrome. So
+   ornament brings no hue from outside the room's quadrant, and only the key
+   light brings one the palette does not already have. The wallpaper and key light are capped
+   so text on the bare room reads at least as well as in the default room;
+   and every pair of themes must sit at least 1.5 just-noticeable differences
+   apart (all measured in `themes.test.ts`). The room floor holds in the
+   browser's own pixels too: after touching a theme's key light, wallpaper
+   opacity, void, shade or ink, run `node qa/probe-room-contrast.mjs`, which
+   paints every room in Chromium — the run screen, the set pieces with their
+   foot shade, and the Prophecy — and fails if any reads worse than the default
+   (`--themes a,b` checks one retune; the full set takes about five minutes).
 4. **Comedy in the text, never in the numbers.**
 5. **No fail state, and no doom meter.** Every ending is a biography. The decline
    works because a number quietly goes the wrong way. Note this bans *announcing
    a losing phase* — it does not ban explaining what a mechanic does.
 6. **Every ending must be reachable.** The collection shows a slot for each of
-   the twelve — the original seven plus the five faction reprisals of issue
-   #14 — and the header shows an empty Ascension trophy from era one.
+   the nineteen — the original seven, the five faction reprisals of issue #14,
+   the five faction leaderships of its second slice, the Good Wizard (#23) and
+   the Arch-Lich (#25) — and the header shows an empty Ascension trophy from
+   era one.
    `npm run sim` checks this; three endings were once unreachable and the run
    felt hollow, and three of the reprisals arrived unreachable for exactly the
    same reason (the catalog let you court a faction on purpose and only offend
@@ -171,8 +200,11 @@ that followed it.
 1. **Adjacent sections get a border, not just a gap.** A flex `gap` alone reads
    as one undifferentiated block once a screen has more than one section
    stacked on it. Close a section the way `Masthead`'s `.header` does —
-   `padding-bottom: var(--ew-space-4); border-bottom: 1px solid var(--ew-line);`
-   — so the eye can tell where one section ends and the next begins.
+   `padding-bottom: var(--ew-space-4)` and `composes: sectionRule` from
+   `craft.module.css` (a 1px bottom border as far as layout goes, with the
+   rule painted into it and the theme's glyph set in its middle; the element
+   must be `position: relative`) — so the eye can tell where one section ends
+   and the next begins.
    `FactionStandings.module.css`'s `.section` follows the same rule for
    exactly this reason: it sits between the masthead and the decision content
    and needs to read as its own thing, not a continuation of either.
@@ -193,6 +225,62 @@ that followed it.
    for whichever faction is actually closest; the note comes back once
    expanded, where reading all six is the point and nothing above is deputizing
    for it any more.)
+
+4. **Feel is a garnish, never a channel.** The game has haptics and no audio, on
+   purpose: its voice is text and its one earned colour is the tier badge, so a
+   sound would be a second, louder voice. A haptic beat rides a visual event that
+   is already on screen (the verdict word's own `animationstart`, never a
+   `setTimeout` that could drift from the stylesheet), carries nothing the card
+   does not already print, is silent for a certain choice, and is inert under
+   reduced motion and on platforms without `navigator.vibrate`. It needs no
+   setting and no disclosure *because* it carries no information — the moment a
+   beat means something a player could miss, it is a disclosure and rule 1
+   applies. See `src/components/meta/haptics.ts`.
+5. **A card wears the room's ornament through two tokens, not a theme
+   selector.** `composes: pips` from `craft.module.css` puts the theme's glyph
+   at its corners (it spends the card's `::after`), and `var(--ew-trim, none)`
+   goes first in its `background` list — in the hover and active states too,
+   or the trim vanishes under a finger. The `none` fallback matters: an
+   undefined custom property invalidates the whole `background` declaration
+   and the card renders transparent. See `OptionCard.module.css`.
+   **Ornament keeps `--ew-space-1` (4px) from content.** Corner glyphs sit in
+   the card's corner itself. Every offset is measured inside the card's
+   border — from the padding box, where background layers are positioned —
+   and the numbers come from the tightest card in the game, OptionCard at
+   phone width, 8px × 12px of padding, whose height the fold budget will not
+   let grow: content starts 12px across and 8px down from each corner. A trim
+   is laid over more than the panel — OptionCard is raised-to-panel at rest
+   and `--ew-hover` under a finger — and each layer is one of two kinds, split
+   by the probe's `DRAWN` (some channel moved 24 levels) on the strongest of
+   those surfaces. A *mark* — a rule, a hem, a facet — is drawn that hard on
+   at least one, so it is held by geometry: an edge band in the outer 4px
+   running only between the corner glyphs, 12px in (`edgeBand` in
+   `themes.ts`), or a corner mark (`cornerMark`) every point of which lies
+   within 8px of the side or 4px of the edge — a square of at most 8px, or a
+   triangle across the corner with legs of at most 12px, every stop in px. A
+   *wash* — a soft tint — stays under `DRAWN` on every surface, alone and
+   stacked with the room's other washes, and may sit behind text, so
+   over each surface the ink must read at least as well as the default ink on
+   the default's version of it (the panel floor on the panel, and the
+   default's own floors on its raised step and hover — every palette's bare
+   ink clears all three, by constraint 5), and no wash may move a
+   card toward its ink. `themes.test.ts` sorts every layer over every surface the stylesheets lay a
+   trim on and asserts both.
+   `node qa/probe-ornament-spacing.mjs` measures every theme's glyphs and
+   marks against every keycap, rail and line of text, at 393, 320 and 1280
+   wide; run it after touching a trim, a glyph, or a card's padding.
+6. **`craft.module.css` is loaded once, and first.** `src/main.tsx` imports
+   it after `tokens.css` and before `App`, and `composes: x from
+   '…/craft.module.css'` resolves the class names without pasting a copy of
+   craft into the composing module (`scripts/composesLoader.ts`, wired in
+   `vite.config.ts`). That is what lets a screen override a property it
+   composes from craft — `.continue`'s 52px over `.btn`'s 44px — by plain
+   cascade order, the same in dev and in the build. With a pasted copy in
+   every composing module, the production minifier kept the last one, after
+   nearly every screen, and about eighty-six such overrides lost in production
+   while winning in dev. Compose from no other file unless it is loaded the
+   same way: `cascade.test.ts` fails if you do, and `cssOrder.test.ts` builds
+   the app and reads the order off the emitted CSS.
 
 ## Failure modes this repo has actually produced
 
@@ -221,6 +309,9 @@ then open the file for the story and the exact check.
 | 15 | Verified at one width, with no hand on the keyboard | Shoot the 393px reference AND 320px; tab to and activate every new focusable control. |
 | 16 | An engine's own name for itself leaks onto the card | `rg` the shipped string for any internal identifier (a mechanic's own name, a constant, a field) before calling player-facing text done. |
 | 17 | A fallback strings a name together while the real one sits unused | `rg` a "display fallback only" helper's call sites; confirm each one actually lacks the real content, or has simply never been given it. |
+| 18 | State that outlives the screen that set it | Anything shared across screens (scroll, focus, storage) needs an owner that resets it on the transition. Drive the game the way a thumb does — scroll to the last card, tap, continue, read `scrollY` (`qa/probe-era-scroll.mjs`). |
+| 19 | Probes that rotted while the game was fine | Every probe enters through `openApp` (`qa/first-run.mjs`); assert structure not counts; when something every player meets first changes, run every probe once. |
+| 20 | The card is exact until a random draw lands mid-list | A `loseArtifact` before an effect a relic can rescale lets the roll strip the passive after the card printed it. `disclosure.property.test.ts` fuzzes 2,500 careers; `validate:content` refuses the ordering. Re-run the property test whenever a mechanic starts rescaling printed numbers. |
 
 ## Working on this
 
@@ -233,6 +324,12 @@ then open the file for the story and the exact check.
    PNGs back**, then repeat at `--width 320 --height 568` for anything with a
    row of controls (failure mode 15). 393px is the target device, not an
    afterthought; 320px is where a row that fit there runs out of room.
+   A layout change also gets `node qa/sweep-layout.mjs` at both widths — a
+   random playthrough almost never reaches the longest lair name or the
+   tallest card, and the sweep does. To show a change did not move the fold,
+   sweep the base and the change with the same `--career-seed` and compare
+   the per-decision folds; unseeded sweeps differ by tens of pixels with
+   nothing changed.
    **Opening or updating a PR for a visual change always attaches the
    screenshot(s) that prove it** — the same PNGs this step already produces,
    not a fresh round taken just for the PR. A reviewer approving a UI change
@@ -242,7 +339,8 @@ then open the file for the story and the exact check.
    gets the screenshot that shows the new copy in place.
 4. New focusable control (button, link, anything a player can Tab to)? Tab to
    it and press Enter/Space before calling it done — a screenshot cannot show
-   a keypress (failure mode 15).
+   a keypress (failure mode 15). `node qa/probe-keyboard.mjs` plays a whole career
+   with no mouse and reports where focus lands at every transition.
 5. New test? Break the behaviour it pins and watch it go red — and check that
    the assertion is anchored to something the code under test does not also
    supply (failure mode 11).
@@ -252,6 +350,13 @@ then open the file for the story and the exact check.
 7. New `Effect` variant that is deterministic? Add it to `PROJECTABLE` in
    `src/engine/effects.ts`, or the offer card goes back to printing the
    authored number instead of the real one.
+   Changed how a relic, passive or clamp rescales a number a card prints, or
+   added an `Effect` that can land after a random one? `npm run test` includes
+   `src/engine/disclosure.property.test.ts` (2,500 seeded careers: nothing changes
+   that the resolution did not report, and the card equals the outcome) — read a
+   failure as a rule-1 defect, not a flaky test. `resume.property.test.ts` and
+   `gameReducer.property.test.ts` do the same for a saved career and the state
+   machine.
 8. New content field the UI reads? Make it **required** on the type and let the
    compiler name every fixture. `Ending.hint` found all fourteen call sites
    that way; an optional field would have rendered blank in two of them.

@@ -7,6 +7,7 @@
  * does not come back on the second career.
  */
 import { chromium } from 'playwright';
+import { dismissChangelogPopup, openApp } from './first-run.mjs';
 
 const arg = (f, d) => {
   const i = process.argv.indexOf(f);
@@ -35,9 +36,11 @@ async function startCareer(name) {
 
 const guide = () => page.getByRole('dialog').filter({ hasText: 'One era at a time' });
 
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle' });
+await openApp(page, 'http://localhost:5173/');
 await page.evaluate(() => localStorage.clear());
 await page.reload({ waitUntil: 'networkidle' });
+// Clearing storage forgets the changelog ack too, so the popup is back.
+await dismissChangelogPopup(page);
 
 await startCareer('Malachar the Unpaid');
 

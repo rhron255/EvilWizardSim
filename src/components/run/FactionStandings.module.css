@@ -1,12 +1,14 @@
 .section {
+  /* Same rhythm the masthead's own `.header` closes on — this section sits
+     between the masthead and the decision content below, and a bare flex gap
+     read as one undifferentiated block rather than three. The rule carries
+     the theme's glyph, like the masthead's; see `sectionRule` in craft. */
+  composes: sectionRule from '../meta/craft.module.css';
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--ew-space-3);
-  /* Same rhythm the masthead's own `.header` closes on — this section sits
-     between the masthead and the decision content below, and a bare flex gap
-     read as one undifferentiated block rather than three. */
   padding-bottom: var(--ew-space-4);
-  border-bottom: 1px solid var(--ew-line);
 }
 
 /* --------------------------------------------------------------------------
@@ -125,6 +127,40 @@
 .allegiance[data-tone='lethal'] .allegianceValue { color: var(--ew-danger); }
 .allegiance[data-tone='lethal'] .allegianceFill { background: var(--ew-danger); }
 
+/* Forced colours (a Windows contrast theme, or any user palette). The meter
+   is drawn entirely in background colours, and a forced palette repaints
+   every one of them as the page's own Canvas: the track, the fill, the
+   centre-zero tick and the seal mark all vanished, leaving six numbers with
+   nothing under them. So the track is outlined in the system's text colour
+   (an outline, so the 3px rail takes no more room than it does now), and
+   the three marks inside it opt out of forcing to be painted in system
+   colours that follow the user's palette: the fill and the tick in its text
+   colour, the seal in its highlight, so a threshold still reads apart from
+   the standing that is heading for it. The tone colours are lost here —
+   the forced palette repaints the numbers too — so this draws only what
+   the meter measures. Nothing changes outside forced colours. */
+@media (forced-colors: active) {
+  .allegianceTrack {
+    outline: 1px solid CanvasText;
+  }
+
+  .allegianceTrack::before,
+  .allegianceFill,
+  .allegianceMark {
+    forced-color-adjust: none;
+  }
+
+  .allegianceTrack::before,
+  .allegiance .allegianceFill[data-sign] {
+    background: CanvasText;
+  }
+
+  .allegianceMark {
+    background: Highlight;
+    opacity: 1;
+  }
+}
+
 /* --------------------------------------------------------------------------
    The collapse toggle. Text-first (the arrow alone would fail a phone, which
    has no hover to fall back on for an icon-only control) — the label says
@@ -154,11 +190,13 @@
   transition: border-color var(--ew-fast) var(--ew-ease), background-color var(--ew-fast) var(--ew-ease);
 }
 
-/* The pill's own box is ~25px tall — legible, but well under the ~44px
-   touch target a phone needs (DecisionPanel's `.statButton::after` hits the
-   same problem for the same reason). An invisible pseudo-element extends the
-   hit area without inflating the pill visually — the "compact visual
-   treatment, full-size tap target" split. */
+/* The pill's own box is 27px tall — legible, but well under the 44px touch
+   target a phone needs (DecisionPanel's `.statButton::after` hits the same
+   problem for the same reason). An invisible pseudo-element extends the hit
+   area to 47px without inflating the pill visually — the "compact visual
+   treatment, full-size tap target" split. Nothing interactive sits within
+   10px of it, above (the standings) or below (the section's own padding),
+   which `qa/sweep-layout.mjs` checks with the hit areas it measures. */
 .toggle::after {
   content: '';
   position: absolute;

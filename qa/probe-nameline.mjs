@@ -14,6 +14,7 @@
  * in play, then rewrites the two text nodes to sweep name/epithet lengths.
  */
 import { chromium } from 'playwright';
+import { openApp } from './first-run.mjs';
 
 const URL = process.env.EWS_URL ?? 'http://localhost:5173';
 const WIDTH = Number(process.env.EWS_WIDTH ?? 393);
@@ -40,7 +41,7 @@ const page = await browser.newPage({
   deviceScaleFactor: 2,
 });
 
-await page.goto(URL, { waitUntil: 'networkidle' });
+await openApp(page, URL);
 await page.getByRole('button', { name: /begin a career/i }).first().click();
 const field = page.getByRole('textbox').first();
 await field.waitFor({ state: 'visible', timeout: 5000 });

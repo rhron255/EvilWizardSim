@@ -161,7 +161,35 @@ for (const a of artifacts) {
   else artifactsByFaction.set(a.factionId, [a]);
 }
 
+/**
+ * Effects a held relic's passive can rescale: the Gilded Thumb and Second
+ * Stomach reshape `followers`, the Footnote That Bites and the Old-Growth
+ * Charter reshape the spill that a `standing` gain or loss leaves on a faction's
+ * rivals, the Tenure Ring clamps a faction's band.
+ */
+const RELIC_MODIFIABLE_EFFECTS: ReadonlySet<Effect['t']> = new Set(['followers', 'standing']);
+
 function checkEffects(where: string, effects: readonly Effect[]) {
+  // A `loseArtifact` lands in list order, and WHICH relic it takes is random
+  // once two or more are held — so the offer card cannot say. Any effect a
+  // relic passive can rescale, listed AFTER it, is therefore applied against a
+  // relic set the card could not know: if the roll takes the very relic that
+  // was modifying it, the outcome is worse than the number printed. (Found by
+  // fuzzing 35,000 resolutions against the real catalogue: Choir standing
+  // printed -4 and landed -8; Gilded Thumb followers printed +30 and landed
+  // +20.) Listing the loss LAST makes the card exactly the outcome — the passive
+  // applies to the choice, and the relic goes afterwards.
+  const lossAt = effects.findIndex((e) => e.t === 'loseArtifact');
+  if (lossAt >= 0) {
+    const after = effects.slice(lossAt + 1).filter((e) => RELIC_MODIFIABLE_EFFECTS.has(e.t));
+    if (after.length > 0) {
+      fail(
+        where,
+        `${[...new Set(after.map((e) => e.t))].join(' and ')} listed after a loseArtifact: the roll can take a relic that rescales it, so the card would understate the cost — put the loseArtifact last`,
+      );
+    }
+  }
+
   for (const e of effects) {
     switch (e.t) {
       case 'artifact':
@@ -261,7 +289,10 @@ function checkOption(where: string, option: OfferOption) {
     ['failureText', option.failureText],
   ] as const) {
     if (text.trim().length > DEED_CLIP_WARN) {
-      warn(where, `${field} is ${text.trim().length} chars — the Deeds column will clip it`);
+      warn(
+        where,
+        `${field} is ${text.trim().length} chars — long for a resolution line (over ${DEED_CLIP_WARN}); nothing clips it, this only flags the author`,
+      );
     }
   }
 

@@ -118,6 +118,33 @@ export function RunScreen({
   }, [view]);
 
   /**
+   * Every era starts at the top of the page.
+   *
+   * This is one continuous column that scrolls as a whole, and on a phone the
+   * choice cards run past the fold (all of them fit in under half of the eras
+   * measured at 393px). A player who scrolls down to reach option 3 and taps it
+   * would otherwise arrive at the NEXT era still scrolled the same distance —
+   * the wizard's name, the standings and sometimes the new offer's own heading
+   * already off the top of the screen (275-372px down at 320px, every era).
+   * The tab split that used to reset this went away with issue #36.
+   *
+   * Runs when the resolution is dismissed (`resolution` goes from set to
+   * null). It does NOT run while a resolution is opening over the page, nor on
+   * the relic page's open/close — those are the player's own reading position.
+   * Entering the screen from elsewhere (the prophecy, a resumed run) is
+   * `App`'s job: it resets on every screen change.
+   */
+  const hadResolution = useRef(false);
+  useEffect(() => {
+    if (resolution) {
+      hadResolution.current = true;
+    } else if (hadResolution.current) {
+      hadResolution.current = false;
+      window.scrollTo(0, 0);
+    }
+  }, [resolution]);
+
+  /**
    * Undeath outranks the wardrobe.
    *
    * Cold Room is a theme now, but a lich wears it whether or not they chose

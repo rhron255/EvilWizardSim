@@ -9,6 +9,7 @@
  *   node qa/shoot-share.mjs [endingId]
  */
 import { chromium } from 'playwright';
+import { openApp } from './first-run.mjs';
 import { writeFile, mkdir } from 'node:fs/promises';
 
 const wanted = process.argv[2] ?? 'consumed_by_pact';
@@ -17,7 +18,7 @@ await mkdir('qa/screenshots', { recursive: true });
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
 page.on('pageerror', (e) => console.log('page error:', e.message));
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle' });
+await openApp(page, 'http://localhost:5173/');
 await page.evaluate(() => document.fonts.ready);
 
 const dataUrl = await page.evaluate(async (endingId) => {

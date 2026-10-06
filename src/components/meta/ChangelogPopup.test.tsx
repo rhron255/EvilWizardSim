@@ -26,6 +26,41 @@ const open = (entries = ENTRIES, themeId: ThemeId = DEFAULT_THEME_ID) => {
   return { onDismiss, onViewChangelog, user: userEvent.setup() };
 };
 
+describe('ChangelogPopup · focus', () => {
+  // A modal takes focus when it opens, so it has to give it back when it closes:
+  // a keyboard player who dismisses it otherwise lands on <body> and must Tab in
+  // from the top of the page. Measured in a real browser: on the title screen,
+  // "Begin a career" is autofocused, the popup steals focus, and nothing restores
+  // it — focus was on <body> after Escape.
+  it('returns focus to what had it before the popup opened', () => {
+    const trigger = document.createElement('button');
+    document.body.appendChild(trigger);
+    trigger.focus();
+
+    const onDismiss = vi.fn();
+    const { unmount } = render(
+      <ChangelogPopup entries={ENTRIES} themeId={DEFAULT_THEME_ID} onDismiss={onDismiss} onViewChangelog={vi.fn()} />,
+    );
+    expect(trigger).not.toHaveFocus(); // the popup owns it while open
+
+    unmount();
+    expect(trigger).toHaveFocus();
+    trigger.remove();
+  });
+
+  it('does not try to focus something that has left the page (the changelog screen replaced it)', () => {
+    const trigger = document.createElement('button');
+    document.body.appendChild(trigger);
+    trigger.focus();
+
+    const { unmount } = render(
+      <ChangelogPopup entries={ENTRIES} themeId={DEFAULT_THEME_ID} onDismiss={vi.fn()} onViewChangelog={vi.fn()} />,
+    );
+    trigger.remove(); // "View changelog" navigates away, taking the old screen with it
+    expect(() => unmount()).not.toThrow();
+  });
+});
+
 describe('ChangelogPopup', () => {
   it('lists every pending entry, newest first, by its one-line summary', () => {
     open();

@@ -47,9 +47,13 @@ export function Masthead({ run, lairs, hasAscensionTrophy }: MastheadProps) {
           <span className="ew-num">
             Era {Math.min(run.eraIndex + 1, run.eraCount)} of {run.eraCount}
           </span>
-          <span className={styles.dot} aria-hidden="true">
-            ·
-          </span>
+          {/* No separator glyph between the era and the lair. The lair wraps onto
+              its own line when it will not fit beside the era (always, at 320px,
+              and for the crown lairs at 393), and a "·" between them then hangs
+              at the end of the first line — the same stranded separator the
+              ending card had. A wider gap and the era's fainter ink do the
+              separating without a glyph that can end up on the wrong side of a
+              line break. */}
           <span className={styles.lair} title="A better lair wards off the hero">
             {lair?.name ?? run.lairId}
           </span>
@@ -84,11 +88,21 @@ export function Masthead({ run, lairs, hasAscensionTrophy }: MastheadProps) {
               <span className={styles.undying}>Undying</span>
             </>
           )}
-        </div>
 
-        <p className={styles.ageLine}>
-          <span className={`${styles.age} ew-num`}>Age {run.age}</span>
-        </p>
+          {/* The age used to be a paragraph of its own under the name — 25px of
+              the one screen with none to spare, on every era, for a number that
+              moves once per era. It rides the tail of the epithet line instead,
+              which is usually half empty (the name takes the first line and the
+              epithet wraps under it). Dot and age are one nowrap unit so they wrap
+              TOGETHER: a separator stranded at the end of a line is the flaw the
+              ending card had, and the one this avoids. */}{' '}
+          <span className={styles.ageTag}>
+            <span className={styles.dot} aria-hidden="true">
+              ·
+            </span>{' '}
+            <span className={`${styles.age} ew-num`}>Age {run.age}</span>
+          </span>
+        </div>
       </div>
 
       <div className={styles.right}>

@@ -1,0 +1,2 @@
+# Shell scripts run on Linux runners; a CRLF shebang line fails there.
+*.sh text eol=lf

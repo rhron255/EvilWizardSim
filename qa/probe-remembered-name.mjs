@@ -6,7 +6,7 @@
  * wants a different wizard types over it instead of clearing it by hand.
  */
 import { chromium } from 'playwright';
-import { dismissFirstRunGuide } from './first-run.mjs';
+import { dismissChangelogPopup, dismissFirstRunGuide, openApp } from './first-run.mjs';
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 2 });
@@ -14,9 +14,11 @@ const problems = [];
 page.on('pageerror', (e) => problems.push(`page error: ${e.message}`));
 page.on('console', (m) => m.type() === 'error' && problems.push(`console: ${m.text()}`));
 
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle' });
+await openApp(page, 'http://localhost:5173/');
 await page.evaluate(() => localStorage.clear());
 await page.reload({ waitUntil: 'networkidle' });
+// Clearing storage forgets the changelog ack too, so the popup is back.
+await dismissChangelogPopup(page);
 
 // ---- first career, named by hand -----------------------------------------
 await page.getByRole('button', { name: /begin a career/i }).click();

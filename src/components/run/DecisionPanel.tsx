@@ -86,6 +86,7 @@ export function DecisionPanel({
 
   return (
     <div className={styles.panel}>
+      {(threat || patron) && (
       <div className={styles.status}>
         {/* Unconditional — the ambient line the header's own reprisal warning
             never was. A player planning a career benefits from knowing who is
@@ -96,11 +97,19 @@ export function DecisionPanel({
             {reprisalSentence(threat)}
           </p>
         )}
-        <p className={styles.patron}>
-          <span className={styles.patronLabel}>Patron</span>
-          <span className={styles.patronValue}>{patron ? patron.name : 'None yet'}</span>
-        </p>
+        {/* Only once there is a patron to name. It used to print "Patron: None
+            yet" on every era of every career that never earned one — ~30px of
+            the one screen with none to spare, saying nothing a player could act
+            on. (This reverses the issue that first asked for the no-patron state
+            to render; see `patronFor` in allegiances.ts.) */}
+        {patron && (
+          <p className={styles.patron}>
+            <span className={styles.patronLabel}>Patron</span>
+            <span className={styles.patronValue}>{patron.name}</span>
+          </p>
+        )}
       </div>
+      )}
 
       <dl className={styles.stats}>
         {stakes.map((stake) => {

@@ -135,9 +135,9 @@ export const declineOffers: Offer[] = [
         kind: 'certain',
         label: 'Settle in relics',
         effects: [
-          { t: 'loseArtifact' },
           { t: 'standing', factionId: 'gilded_hand', v: 15 },
           { t: 'notoriety', v: -2 },
+          { t: 'loseArtifact' }, // last: the loss must follow every effect a relic can rescale
         ],
         resultText: "One relic changes hands quietly. Quill notes it as 'exposure managed'.",
       },
@@ -150,9 +150,9 @@ export const declineOffers: Offer[] = [
           { t: 'followers', v: -8 },
         ],
         onFailure: [
-          { t: 'loseArtifact' },
           { t: 'standing', factionId: 'gilded_hand', v: -25 },
           { t: 'followers', v: -15 },
+          { t: 'loseArtifact' }, // last: the loss must follow every effect a relic can rescale
         ],
         successText: 'Quill concedes four entries, in writing.',
         failureText: 'The valuation is upheld and revised upward. Quill collects the difference in kind.',
@@ -973,10 +973,10 @@ export const declineOffers: Offer[] = [
         kind: 'certain',
         label: 'Sell one piece',
         effects: [
-          { t: 'loseArtifact' },
           { t: 'followers', v: 30 },
           { t: 'standing', factionId: 'gilded_hand', v: 12 },
           { t: 'notoriety', v: -4 },
+          { t: 'loseArtifact' }, // last: the loss must follow every effect a relic can rescale
         ],
       },
       {
@@ -997,10 +997,10 @@ export const declineOffers: Offer[] = [
           { t: 'standing', factionId: 'gilded_hand', v: 5 },
         ],
         onFailure: [
-          { t: 'loseArtifact' },
           { t: 'standing', factionId: 'gilded_hand', v: -30 },
           { t: 'followers', v: -15 },
           { t: 'heroThreat', v: 4 },
+          { t: 'loseArtifact' }, // last: the loss must follow every effect a relic can rescale
         ],
         successText: 'It is authenticated twice and resold once before the month is out.',
         failureText: 'Late-career acquisitions are their most profitable line because they check them.',
@@ -1833,9 +1833,9 @@ export const declineOffers: Offer[] = [
         kind: 'certain',
         label: 'Sell her a relic for what you need',
         effects: [
-          { t: 'loseArtifact' },
           { t: 'followers', v: 20 },
           { t: 'notoriety', v: -2 },
+          { t: 'loseArtifact' }, // last: the loss must follow every effect a relic can rescale
         ],
         resultText: 'The relic goes into the bag. The bag does not look any fuller, which bothers you later.',
       },

@@ -7,7 +7,7 @@
  * (wiki/03_systems_architecture-1.md § Ownership rules).
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ContentBundle } from './engine';
 import {
   defenseReadout,
@@ -136,6 +136,21 @@ export default function App() {
     };
   }, [game.offer, run]);
 
+  /**
+   * Every screen starts at the top of the page.
+   *
+   * The document is the scroll container for every screen, so its position
+   * outlives the screen that set it: leaving the last era of a long career, the
+   * prophecy or the ending card opened wherever the run screen had been
+   * scrolled to. (Measured at 320px: the prophecy set piece opened 189px down.)
+   * The ending card is the object the whole game exists to produce — it must not
+   * open mid-way through itself. `RunScreen` handles the era-to-era case,
+   * where `screen` does not change.
+   */
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [screen]);
+
   switch (screen) {
     case 'creation':
       return (
@@ -221,6 +236,12 @@ export default function App() {
           factions={factions}
           endings={endings}
           mechanics={mechanics}
+          // The ending card's "View Necrolexicon" is the only door here that
+          // still has a run behind it: the reducer keeps the finished run on
+          // the way in and drops it on the way back to the title, so a
+          // finished run here IS the career whose ending was just reached.
+          // From the title `run` is null and nothing is marked.
+          justReached={run?.ending ?? null}
           onBack={game.backToTitle}
           onViewThemes={game.viewThemes}
         />

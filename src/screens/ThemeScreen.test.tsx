@@ -133,10 +133,32 @@ describe('ThemeScreen · the swatch preview', () => {
     // defect the ending slots already learned from.
     const { container } = show();
     const locked = screen.getAllByRole('button', { name: /have not unlocked/i })[0];
-    const bands = locked.querySelectorAll('span[style*="background"]');
+    const bands = locked.querySelectorAll('[data-part="band"]');
     expect(bands.length).toBe(4);
-    expect(container.querySelectorAll('span[style*="background"]').length).toBe(
-      THEMES.length * 4,
-    );
+    for (const band of bands) expect(band.getAttribute('style')).toMatch(/background/);
+    expect(container.querySelectorAll('[data-part="band"]').length).toBe(THEMES.length * 4);
+  });
+
+  it('shows every theme’s own wallpaper, locked or not', () => {
+    // The wallpaper is what a room is recognised by; four bands of near-black
+    // told the dark themes apart badly. Each swatch masks with ITS OWN shape,
+    // not the worn theme's — a swatch that showed the current room's
+    // wallpaper twenty times would be the same defect again. Every theme has a
+    // wallpaper, so every swatch shows one.
+    const { container } = show();
+    const motifs = [...container.querySelectorAll<HTMLElement>('[data-part="motif"]')];
+    expect(motifs).toHaveLength(THEMES.length);
+    const masks = motifs.map((m) => m.style.maskImage || m.style.getPropertyValue('-webkit-mask-image'));
+    for (const theme of THEMES) expect(masks).toContain(theme.ornament.motif);
+  });
+
+  it('withholds a locked theme’s glyph along with its name', () => {
+    // The glyph is identity (a crown, an acorn) as much as the name is.
+    show();
+    const locked = screen.getAllByRole('button', { name: /have not unlocked/i });
+    expect(locked.length).toBeGreaterThan(0);
+    for (const swatch of locked) expect(swatch.querySelector('[data-part="glyph"]')).toBeNull();
+    const worn = screen.getByRole('button', { name: /currently worn/i });
+    expect(worn.querySelector('[data-part="glyph"]')).not.toBeNull();
   });
 });

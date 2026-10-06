@@ -13,7 +13,7 @@ CREATION → ASCENT → [the prophecy] → DECLINE → ENDING → COLLECTION
 ```
 
 You name a wizard, pick an origin, and then make roughly fifteen decisions.
-Each one appends a row to a ledger that never resets. Partway through, a
+Each one adds to a career record that never resets. Partway through, a
 prophecy fires: a chosen one is born, and the run flips from chasing upside to
 defending what you built.
 
@@ -38,15 +38,22 @@ they come from analysis of a game that worked at scale, recorded in
   prints its threshold and its distance. Pact debt has no such tick: it moves
   only on cards you accepted, and the pressure comes from the Covenant's
   offers surfacing more often the more you owe.
-- **The ledger appends, never resets.** By the late run you are looking at a
-  table with fifteen eras in it, and that is what makes quitting expensive.
+- **The record appends, never resets.** Every era writes a permanent line to
+  the career, and by the late run there are fifteen of them behind you — that
+  is what makes quitting expensive. (The table itself no longer sits on the run
+  screen, to leave the choice cards room on a phone; the ending card is where
+  the record is read. See `CLAUDE.md` rule 2.)
 - **One scarce color.** The palette is a near-monochrome warm dark. The only
   chromatic *reward a run pays out* is the Notoriety tier badge. Two semantic
   accents exist and are spent nowhere else: the red/green pair an offer card
   already uses for `+8` and `-12`, which the faction standing bars now inherit
   rather than inventing a vocabulary of their own. Endings additionally unlock
   cosmetic **themes** — chosen by the player between runs, never handed out
-  mid-career, and forbidden from touching the tier colour.
+  mid-career, and forbidden from touching the tier colour. Each is a palette
+  and a decorated room (key light, wallpaper, corner glyphs, card trim): the
+  shapes painted in the theme's own line colour, the light and trim coloured
+  only from the room's own tokens or plain white or black, and the key light
+  alone allowed a faint tint within the room's hue family.
 - **Comedy in the text, never in the numbers.** Flavor text is funny; stat
   changes are straight-faced.
 - **No doom meter.** The decline works because a number is quietly going the
@@ -66,11 +73,14 @@ npm run test             # vitest, single pass
 npm run lint             # eslint, zero warnings tolerated
 npm run validate:content # faction refs, option counts, disclosed effects
 npm run sim              # headless balance harness over N runs
+npm run assets           # regenerate favicon, install icons and the link preview
 ```
 
-The correctness gate for a change is **`npm run typecheck`, `npm run test` and
-`npm run lint`**, all three. Content changes additionally need
-`npm run validate:content`. Balance changes need `npm run sim`.
+The correctness gate for a change is **`npm run typecheck`, `npm run test`,
+`npm run lint` and `npm run validate:content`**, all four. Balance changes
+need `npm run sim`. Visual changes need a real browser: `node
+qa/playthrough.mjs` at 393×852 and 320×568, and `node qa/sweep-layout.mjs`
+(see `CLAUDE.md` § Before calling a change done).
 
 ### Deployment
 
@@ -91,12 +101,14 @@ workflow cannot turn that on for itself.
 | Path | Owns |
 |---|---|
 | `src/types.ts` | The frozen contract every other module is written against. |
-| `src/theme/` | Design tokens. Never hardcode a hex in a component. |
+| `src/theme/` | Design tokens, the themes, and the ornament shapes they draw with. Never hardcode a hex in a component. |
 | `src/engine/` | Run state, offer generation, resolution, persistence. |
 | `src/content/` | Factions, artifacts, lairs, origins, endings, offers. |
 | `src/components/` | Presentational only. No game state. |
 | `src/screens/` | Screen-level composition. |
-| `scripts/` | Content validation and the balance simulator. |
+| `scripts/` | Content validation, the balance simulator and the static-asset generator. |
+| `public/` | Favicon, install icons, manifest and the link-preview image. |
+| `qa/` | Playwright probes — the browser half of the gate. |
 | `wiki/` | The design wiki. Intent and rationale, not API docs. |
 
 ## Attribution

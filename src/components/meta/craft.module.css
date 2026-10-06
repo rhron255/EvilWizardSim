@@ -91,20 +91,34 @@
 
 /* --------------------------------------------------------------------------
    Surfaces
+
+   A surface is a frame and a fill, kept as separate classes. A card that wants
+   a fill of its own composes a FRAME and paints its own background; one that
+   wears the room's trimmed panel composes `trimmedPlate`.
+
+   A module that composes a class from here and sets one of the same
+   properties wins: this file is loaded once, first, from `src/main.tsx`, and
+   `composes` does not paste a copy of it into the module that composes from
+   it (`scripts/composesLoader.ts`), so every screen's rules come after these
+   at the same specificity. `src/components/cascade.test.ts` holds the import
+   order; `src/components/cssOrder.test.ts` reads it off a real build.
    -------------------------------------------------------------------------- */
 
-.plate {
+.plateFrame {
   position: relative;
-  background: var(--ew-panel);
   border: 1px solid var(--ew-line);
   border-radius: var(--ew-radius-md);
   box-shadow: var(--ew-lip), var(--ew-shadow-card);
 }
 
+/* (`trimmedPlate`, a plate that wears the room's ornament, sits under "Card
+   ornament" below: a class can only compose one declared above it.) */
+
 /* The printed-certificate frame: an outer hairline, a channel of void, and an
-   inner hairline. One declaration, and the whole card stops reading like a div. */
-.plateDouble {
-  composes: plate;
+   inner hairline. One declaration, and the whole card stops reading like a div.
+   A frame only — the one card that wears it, the ending card, paints its own fill. */
+.plateDoubleFrame {
+  composes: plateFrame;
   border-color: var(--ew-line-strong);
   box-shadow:
     inset 0 0 0 5px var(--ew-void),
@@ -175,7 +189,12 @@
   composes: btn;
   min-height: 52px;
   padding: 0 var(--ew-space-6);
-  color: var(--ew-tier);
+  /* The tier hue, lifted toward the ink. Plain `--ew-tier` on the Unknown tier
+     (#7A7365, which is what a first-time player has) is ~3.8:1 against the
+     button's own panel — under the 4.5:1 a 16px label needs, and on the very
+     first button anyone sees it read as disabled. The border, tint and glow
+     still carry the pure tier colour; only the letters are lifted. */
+  color: color-mix(in srgb, var(--ew-tier) 55%, var(--ew-ink-bright));
   border-color: color-mix(in srgb, var(--ew-tier) 55%, transparent);
   background: color-mix(in srgb, var(--ew-tier) 7%, var(--ew-panel));
   box-shadow: var(--ew-lip);
@@ -217,19 +236,162 @@
 }
 
 /* --------------------------------------------------------------------------
-   Screen shell — every set piece sits on the same warm void with a vignette
-   whose center carries a breath of the tier color.
+   Screen shell — every set piece sits on the theme's void, under the theme's
+   key light, with a vignette whose center carries a breath of the tier color,
+   and the room's shade pooled at its foot. The shade is a token: black in a
+   dark room, and the light room's own (`--ew-shade`, tokens.ts), because
+   black there is the one layer that moves the room toward its dark ink.
+   Every layer, the foot included, is counted by the bare-room floor
+   (themes.test.ts, qa/probe-room-contrast.mjs).
    -------------------------------------------------------------------------- */
 
 .screen {
   position: relative;
   min-height: 100%;
   background:
+    var(--ew-light, none),
     radial-gradient(120% 80% at 50% -10%, color-mix(in srgb, var(--ew-tier) 5%, transparent), transparent 60%),
-    radial-gradient(100% 60% at 50% 110%, rgba(0, 0, 0, 0.6), transparent 70%),
+    radial-gradient(100% 60% at 50% 110%, color-mix(in srgb, var(--ew-shade) 60%, transparent), transparent 70%),
     var(--ew-void);
   color: var(--ew-ink);
   overflow-x: hidden;
+  /* A stacking context of its own, so the wallpaper below can sit at
+     z-index -1: above this element's background, beneath every child. */
+  isolation: isolate;
+}
+
+/* The wallpaper — the theme's pattern, painted in its own strong line colour
+   through a colourless mask (src/theme/ornaments.ts). Text sits straight on
+   the room on several screens, with no panel behind it, so each theme's
+   opacity is capped: its whole room — void, key light, foot and wallpaper —
+   must read at least as well as the default room does (themes.test.ts).
+   Scrolls with the page: `background-attachment: fixed` repaints on every
+   frame on a phone. */
+.screen::before,
+.wallpaper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--ew-line-strong);
+  opacity: var(--ew-motif-opacity, 0);
+  /* The fallback is a fully transparent mask: if a theme ever named a shape
+     that does not exist, the wallpaper vanishes rather than the whole layer
+     painting solid. */
+  -webkit-mask-image: var(--ew-motif, linear-gradient(transparent, transparent));
+  mask-image: var(--ew-motif, linear-gradient(transparent, transparent));
+  -webkit-mask-size: var(--ew-motif-size, auto);
+  mask-size: var(--ew-motif-size, auto);
+  -webkit-mask-repeat: repeat;
+  mask-repeat: repeat;
+  -webkit-mask-position: 0 0;
+  mask-position: 0 0;
+}
+
+/* --------------------------------------------------------------------------
+   Card ornament — the theme's glyph at the four corners of a card.
+
+   Composed onto a card by name (`composes: pips from …`). Uses ::after, so a
+   card that already spends its ::after on something else must not compose it.
+   Same transparent-mask fallback as the wallpaper, for the same reason.
+   -------------------------------------------------------------------------- */
+
+.pips::after {
+  content: '';
+  position: absolute;
+  /* Fitted into the corner itself, against the border, rather than floating
+     in the padding. Measured (qa/probe-ornament-spacing.mjs): the tightest
+     card this is used with is OptionCard at phone width, 8px × 12px of
+     padding, and from 3px in an 8px glyph came within 1px of a gamble's odds
+     rail and 3px of a keycap. From the corner it keeps the 4px
+     (`--ew-space-1`) every ornament keeps from content. No border-radius:
+     inheriting the card's rounding clipped the glyph's own outer corner. */
+  inset: 0;
+  pointer-events: none;
+  background: var(--ew-line-strong);
+  opacity: 0.9;
+  -webkit-mask-image:
+    var(--ew-pip, linear-gradient(transparent, transparent)), var(--ew-pip, linear-gradient(transparent, transparent)),
+    var(--ew-pip, linear-gradient(transparent, transparent)), var(--ew-pip, linear-gradient(transparent, transparent));
+  mask-image:
+    var(--ew-pip, linear-gradient(transparent, transparent)), var(--ew-pip, linear-gradient(transparent, transparent)),
+    var(--ew-pip, linear-gradient(transparent, transparent)), var(--ew-pip, linear-gradient(transparent, transparent));
+  -webkit-mask-position: left top, right top, left bottom, right bottom;
+  mask-position: left top, right top, left bottom, right bottom;
+  -webkit-mask-size: 8px 8px;
+  mask-size: 8px 8px;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+/* A plate that wears the room: the theme's glyph at each corner, and its card
+   trim over the panel (CLAUDE.md styling rule 5). The plate's frame and this
+   fill, in one class, so no consumer has to set `background` over a composed
+   one (see "Surfaces" above). */
+.trimmedPlate {
+  composes: plateFrame pips;
+  background: var(--ew-trim, none), var(--ew-panel);
+}
+
+/* A section's closing rule with the theme's glyph set into its middle.
+
+   The rule is painted, not bordered: the element keeps a transparent 1px
+   bottom border — so the layout is exactly what a plain border gave it — and a
+   background layer draws the line in that border's place, broken where the
+   glyph sits. The composing element must be `position: relative` and must not
+   spend its ::after elsewhere. */
+.sectionRule {
+  border-bottom: 1px solid transparent;
+  background:
+    linear-gradient(
+        90deg,
+        var(--ew-line) calc(50% - 14px),
+        transparent calc(50% - 14px),
+        transparent calc(50% + 14px),
+        var(--ew-line) calc(50% + 14px)
+      )
+      left bottom / 100% 1px no-repeat border-box;
+}
+
+.sectionRule::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  /* 10px, centred on the 1px rule: it hangs 5.5px below the section, which
+     keeps it 4px clear of the next section's first line under every theme
+     (qa/probe-ornament-spacing.mjs; Ordinary Weather's sun, which fills its
+     square, came to 3.8px at 12px). */
+  bottom: -5.5px;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  pointer-events: none;
+  background: var(--ew-line-strong);
+  -webkit-mask: var(--ew-pip, linear-gradient(transparent, transparent)) center / contain no-repeat;
+  mask: var(--ew-pip, linear-gradient(transparent, transparent)) center / contain no-repeat;
+}
+
+/* Forced colours (a Windows contrast theme, or any user palette). The browser
+   drops gradient backgrounds and repaints every background colour in the
+   system's own, so the painted section rule is gone, and whether the
+   transparent border under it gets repainted is up to the engine — Chromium
+   does, nothing promises the rest will. The rule is named in the system's text
+   colour instead. The ornament steps aside: each piece is a mask filled with a
+   background colour, which a forced palette turns into a hole in whatever it
+   overlaps — the section glyph cut a notch out of the very rule it sits on. */
+@media (forced-colors: active) {
+  .sectionRule {
+    border-bottom-color: CanvasText;
+    background: none;
+  }
+
+  .sectionRule::after,
+  .pips::after,
+  .screen::before,
+  .wallpaper::before {
+    display: none;
+  }
 }
 
 .srOnly {

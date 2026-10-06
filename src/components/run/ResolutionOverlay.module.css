@@ -746,8 +746,12 @@
     gap: var(--ew-space-3);
   }
 
+  /* The most-pressed control in the game — once per era, fifteen-odd times a
+     career — was 38px tall. It is full width here, so the extra height costs
+     nothing but the room the card already has. */
   .continue {
     justify-content: center;
+    min-height: 48px;
   }
 }
 
