@@ -49,7 +49,11 @@ they come from analysis of a game that worked at scale, recorded in
   already uses for `+8` and `-12`, which the faction standing bars now inherit
   rather than inventing a vocabulary of their own. Endings additionally unlock
   cosmetic **themes** — chosen by the player between runs, never handed out
-  mid-career, and forbidden from touching the tier colour.
+  mid-career, and forbidden from touching the tier colour. Each is a palette
+  and a decorated room (key light, wallpaper, corner glyphs, card trim): the
+  shapes painted in the theme's own line colour, the light and trim coloured
+  only from the room's own tokens or plain white or black, and the key light
+  alone allowed a faint tint within the room's hue family.
 - **Comedy in the text, never in the numbers.** Flavor text is funny; stat
   changes are straight-faced.
 - **No doom meter.** The decline works because a number is quietly going the
@@ -97,7 +101,7 @@ workflow cannot turn that on for itself.
 | Path | Owns |
 |---|---|
 | `src/types.ts` | The frozen contract every other module is written against. |
-| `src/theme/` | Design tokens. Never hardcode a hex in a component. |
+| `src/theme/` | Design tokens, the themes, and the ornament shapes they draw with. Never hardcode a hex in a component. |
 | `src/engine/` | Run state, offer generation, resolution, persistence. |
 | `src/content/` | Factions, artifacts, lairs, origins, endings, offers. |
 | `src/components/` | Presentational only. No game state. |

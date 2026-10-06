@@ -51,7 +51,9 @@
    -------------------------------------------------------------------------- */
 
 .card {
-  composes: plateDouble from '../components/meta/craft.module.css';
+  /* The double FRAME, not a filled plate: the background below is this card's
+     own (see "Surfaces" in craft.module.css). */
+  composes: plateDoubleFrame from '../components/meta/craft.module.css';
   composes: grain from '../components/meta/craft.module.css';
   position: relative;
   width: 100%;
@@ -452,7 +454,8 @@
 .unlockApply {
   composes: btn from '../components/meta/craft.module.css';
   flex: 0 0 auto;
-  min-height: 40px;
+  /* No min-height of its own: `.btn`'s 44px is the tap target, and what this
+     button shipped at while a pasted copy of craft overrode the 40px here. */
   padding: 0 var(--ew-space-4);
   font-size: var(--ew-size-xs);
   letter-spacing: 0.13em;

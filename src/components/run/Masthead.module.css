@@ -4,12 +4,15 @@
    split this comment once described). */
 
 .header {
+  /* The closing rule, with the theme's glyph set into it. Still a 1px bottom
+     border as far as layout is concerned — see `sectionRule` in craft. */
+  composes: sectionRule from '../meta/craft.module.css';
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
   gap: var(--ew-space-4) var(--ew-space-5);
   padding-bottom: var(--ew-space-4);
-  border-bottom: 1px solid var(--ew-line);
 }
 
 .identity {

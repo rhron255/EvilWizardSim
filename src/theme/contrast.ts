@@ -39,10 +39,21 @@ function linearise(channel: number): number {
   return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
 }
 
+/**
+ * A colour as three sRGB channels on the 0-255 scale. Unlike a hex, a channel
+ * may fall between two levels: the bare-room model composites in exact
+ * arithmetic and decides for itself how to treat the browser's rounding.
+ */
+export type Rgb = readonly [number, number, number];
+
+/** WCAG relative luminance of 0-255 channels, 0 (black) to 1 (white). */
+export function luminanceOfRgb([r, g, b]: Rgb): number {
+  return 0.2126 * linearise(r) + 0.7152 * linearise(g) + 0.0722 * linearise(b);
+}
+
 /** WCAG relative luminance, 0 (black) to 1 (white). */
 export function relativeLuminance(hex: string): number {
-  const [r, g, b] = parseHex(hex);
-  return 0.2126 * linearise(r) + 0.7152 * linearise(g) + 0.0722 * linearise(b);
+  return luminanceOfRgb(parseHex(hex));
 }
 
 /**
@@ -54,8 +65,13 @@ export function relativeLuminance(hex: string): number {
  * about the wrong pair.
  */
 export function contrastRatio(a: string, b: string): number {
-  const la = relativeLuminance(a);
-  const lb = relativeLuminance(b);
+  return contrastRatioRgb(parseHex(a), parseHex(b));
+}
+
+/** `contrastRatio` for 0-255 channels, which may sit between two levels. */
+export function contrastRatioRgb(a: Rgb, b: Rgb): number {
+  const la = luminanceOfRgb(a);
+  const lb = luminanceOfRgb(b);
   const lighter = Math.max(la, lb);
   const darker = Math.min(la, lb);
   return (lighter + 0.05) / (darker + 0.05);

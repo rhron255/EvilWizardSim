@@ -23,7 +23,7 @@ import { endings } from '../content/endings';
 import { mechanics } from '../content/mechanics';
 import { emptyCollection } from '../engine';
 import { relicPowerText } from '../components/meta';
-import type { Collection } from '../types';
+import type { Collection, EndingId } from '../types';
 import { NecrolexiconScreen } from './NecrolexiconScreen';
 
 /** A veteran's collection: some relics found, three endings seen. */
@@ -45,7 +45,7 @@ const demoCollection: Collection = {
 /** Run one: nothing found yet. The gap is the point. */
 const demoEmptyCollection: Collection = emptyCollection();
 
-const show = (collection: Collection) => {
+const show = (collection: Collection, justReached: EndingId | null = null) => {
   const onBack = vi.fn();
   const view = render(
     <NecrolexiconScreen
@@ -54,6 +54,7 @@ const show = (collection: Collection) => {
       factions={factions}
       endings={endings}
       mechanics={mechanics}
+      justReached={justReached}
       onBack={onBack}
       onViewThemes={vi.fn()}
     />,
@@ -231,6 +232,45 @@ describe('NecrolexiconScreen · the seven endings', () => {
     expect(screen.getAllByLabelText(/^An ending you have not reached/)).toHaveLength(
       endings.length - 1,
     );
+  });
+});
+
+describe('NecrolexiconScreen · the ending just reached', () => {
+  // `retired_to_swamp` is one of the three this collection has seen; its name
+  // comes from the catalog, which the screen does not supply.
+  const swamp = endings.find((e) => e.id === 'retired_to_swamp')!;
+
+  it('opens on the Endings tab with that slot marked, in words', () => {
+    show(demoCollection, swamp.id);
+    expect(within(tabs()).getByRole('tab', { name: /^endings$/i })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    const slot = screen.getByRole('article', { name: new RegExp(`^Just reached: ${swamp.name} — `) });
+    expect(within(slot).getByText(/^just reached$/i)).toBeInTheDocument();
+    // One card says it, and only the one.
+    expect(screen.getAllByText(/^just reached$/i)).toHaveLength(1);
+    expect(screen.getAllByRole('article', { name: /^just reached/i })).toHaveLength(1);
+  });
+
+  it('marks nothing when opened from the title', async () => {
+    show(demoCollection, null);
+    expect(within(tabs()).getByRole('tab', { name: /factions/i })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await goTo(/^endings$/i);
+    expect(screen.getByRole('article', { name: new RegExp(`^${swamp.name} — `) })).toBeInTheDocument();
+    expect(screen.queryByText(/^just reached$/i)).not.toBeInTheDocument();
+  });
+
+  it('never lets a locked door claim to be the one just reached', () => {
+    // Cannot happen through the reducer — a career's ending is recorded before
+    // this screen opens — but a slot that said "just reached" over a redacted
+    // name would announce an ending it is withholding.
+    show(demoEmptyCollection, swamp.id);
+    expect(screen.queryByText(/^just reached$/i)).not.toBeInTheDocument();
+    expect(screen.getAllByLabelText(/^An ending you have not reached/)).toHaveLength(endings.length);
   });
 });
 

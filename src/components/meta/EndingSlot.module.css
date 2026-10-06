@@ -1,11 +1,13 @@
 .slot {
+  /* The theme's glyph at each corner, and its card trim over the panel. */
+  composes: pips from './craft.module.css';
   position: relative;
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: var(--ew-space-4);
   padding: var(--ew-space-4);
-  background: var(--ew-panel);
+  background: var(--ew-trim, none), var(--ew-panel);
   border: 1px solid var(--ew-line);
   border-radius: var(--ew-radius-md);
   box-shadow: var(--ew-lip);
@@ -62,15 +64,19 @@
 
 /* --- unseen --------------------------------------------------------------- */
 
+/* Every state that repaints the slot leads with the trim, as `.slot` does, or
+   the door you have not opened keeps its corner glyphs and loses its trim. The
+   panel and void are the room's own, thinned: a fixed rgba here was the
+   default room's panel, worn into every other room. */
 .unseen {
-  background: rgba(19, 17, 14, 0.35);
+  background: var(--ew-trim, none), color-mix(in srgb, var(--ew-panel) 35%, transparent);
   border-style: dashed;
   box-shadow: none;
 }
 
 .unseen .well {
   border-style: dashed;
-  background: rgba(11, 10, 9, 0.6);
+  background: color-mix(in srgb, var(--ew-void) 60%, transparent);
 }
 
 .unseen .glyph {
@@ -105,7 +111,7 @@
 
 .current {
   border-color: color-mix(in srgb, var(--ew-tier) 45%, var(--ew-line));
-  background: color-mix(in srgb, var(--ew-tier) 4%, var(--ew-panel));
+  background: var(--ew-trim, none), color-mix(in srgb, var(--ew-tier) 4%, var(--ew-panel));
 }
 
 .current .well {
@@ -114,6 +120,16 @@
 
 .current .glyph {
   color: var(--ew-tier);
+}
+
+/* The same news in words. Untinted on purpose: the tier border and glyph are
+   the one colour the slot spends, and this is the cue that does not depend on
+   telling it from the line colour. Brighter than the rarity caption beside it,
+   because it is the first thing on the card the player is looking for. */
+.currentLabel {
+  composes: label from './craft.module.css';
+  margin: 0 0 var(--ew-space-2);
+  color: var(--ew-ink-dim);
 }
 
 @media (max-width: 520px) {

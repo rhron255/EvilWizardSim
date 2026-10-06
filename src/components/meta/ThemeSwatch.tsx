@@ -11,12 +11,38 @@
  * applying `data-theme` to itself, because a `[data-theme]` element inside a
  * themed page would override the tokens for its whole subtree — the preview
  * would work and the card around it would change colour with it.
+ *
+ * It previews the theme's ornament the same way: its wallpaper is laid over
+ * the bands and its glyph sits beside the name, each painted in the theme's
+ * own strong line colour through the theme's own mask. Four bands of
+ * near-black told two dark rooms apart badly; the wallpaper is what a player
+ * actually recognises a room by. The glyph alone is printed on the CURRENT
+ * room's card rather than on its own palette, so the stylesheet mixes its
+ * colour toward the current ink until it reads there (`.glyph`). A name whose
+ * longest word cannot fit beside the glyph drops to the line below it (`.name`).
  */
 
+import type { CSSProperties } from 'react';
 import type { ThemeId } from '../../types';
 import type { ThemeDef } from '../../theme/themes';
 import { swatchBands } from '../../theme/themes';
 import styles from './ThemeSwatch.module.css';
+
+/**
+ * The wallpaper's tile at half the size the room draws it. A room tile is
+ * sized for a 393px-wide screen; at full size a 46px strip shows a fragment of
+ * one sword or one fleur, which is not enough to recognise a room by.
+ */
+function previewTile(size: string): string {
+  return size.replace(/([\d.]+)px/g, (_, px: string) => `${Number(px) / 2}px`);
+}
+
+/**
+ * The glyph's inline style. Its colour goes in as `--swatch-strong` rather than
+ * as `backgroundColor`: an inline background would beat the stylesheet's mix
+ * toward the current room's ink, and that mix is what keeps it readable.
+ */
+type GlyphStyle = CSSProperties & { '--swatch-strong': string };
 
 export type ThemeSwatchProps = {
   theme: ThemeDef;
@@ -34,6 +60,7 @@ export type ThemeSwatchProps = {
 
 export function ThemeSwatch({ theme, unlocked, selected, hint, onSelect }: ThemeSwatchProps) {
   const bands = swatchBands(theme);
+  const { ornament } = theme;
 
   const classes = [
     styles.swatch,
@@ -42,6 +69,12 @@ export function ThemeSwatch({ theme, unlocked, selected, hint, onSelect }: Theme
   ]
     .filter(Boolean)
     .join(' ');
+
+  const glyphStyle: GlyphStyle = {
+    '--swatch-strong': bands.lineStrong,
+    WebkitMaskImage: ornament.pip,
+    maskImage: ornament.pip,
+  };
 
   return (
     <button
@@ -63,15 +96,39 @@ export function ThemeSwatch({ theme, unlocked, selected, hint, onSelect }: Theme
           these are DATA — eight themes' worth of colours cannot live in a
           stylesheet without restating every palette a second time. */}
       <span className={styles.bands} aria-hidden>
-        <span className={styles.band} style={{ background: bands.void }} />
-        <span className={styles.band} style={{ background: bands.panel }} />
-        <span className={styles.band} style={{ background: bands.line }} />
-        <span className={styles.band} style={{ background: bands.ink }} />
+        <span className={styles.band} data-part="band" style={{ background: bands.void }} />
+        <span className={styles.band} data-part="band" style={{ background: bands.panel }} />
+        <span className={styles.band} data-part="band" style={{ background: bands.line }} />
+        <span className={styles.band} data-part="band" style={{ background: bands.ink }} />
+        <span
+          className={styles.motif}
+          data-part="motif"
+          style={{
+            backgroundColor: bands.lineStrong,
+            WebkitMaskImage: ornament.motif,
+            maskImage: ornament.motif,
+            WebkitMaskSize: previewTile(ornament.motifSize),
+            maskSize: previewTile(ornament.motifSize),
+          }}
+        />
       </span>
 
       <span className={styles.body}>
         {unlocked ? (
-          <span className={styles.name}>{theme.name}</span>
+          <span className={styles.name}>
+            {/* The glyph is part of the room's identity, so a locked swatch
+                withholds it along with the name. */}
+            <span
+              className={styles.glyph}
+              data-part="glyph"
+              aria-hidden
+              style={glyphStyle}
+            />
+            {/* A box of its own, not bare text: beside the glyph, bare text
+                could not wrap narrower than its longest word and ran out of
+                the card at phone width (`.nameText`). */}
+            <span className={styles.nameText}>{theme.name}</span>
+          </span>
         ) : (
           <span className={styles.redaction} aria-hidden />
         )}

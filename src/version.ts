@@ -17,7 +17,7 @@
  * not there to be read precisely by a player, which is why the UI shows only
  * the date part (`formatChangelogVersion` in `src/engine/changelog.ts`).
  */
-export const BUILD_VERSION = '2026-09-29T13:06:47Z';
+export const BUILD_VERSION = '2026-10-04T11:59:44Z';
 
 /**
  * The relic-collection reset marker (issue #80, slice 3 of #77).

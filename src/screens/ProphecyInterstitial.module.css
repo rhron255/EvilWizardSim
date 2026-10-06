@@ -4,7 +4,12 @@
   place-items: center;
   min-height: 100dvh;
   padding: var(--ew-space-7) var(--ew-space-5);
-  background: #060505;
+  /* Darker than the room it interrupts: the void mixed toward the room's
+     shade, which is black in a dark room (the Tower's comes out #060505) and
+     a warm cream in Ordinary Weather, where black would put its dark ink on
+     near-black. Counted by the bare-room floor, with the
+     shaft below (themes.test.ts, qa/probe-room-contrast.mjs). */
+  background: color-mix(in srgb, var(--ew-void) 54%, var(--ew-shade));
   color: var(--ew-ink);
   overflow: hidden;
   cursor: default;
@@ -51,7 +56,9 @@
   pointer-events: none;
 }
 
-/* A shaft of cold light down the centre of the frame. */
+/* A shaft of light down the centre of the frame, in the room's own bright
+   ink: pale in a dark room, and in the light one a shade, which the
+   bare-room floor counts. */
 .shaft {
   position: absolute;
   top: -10%;
@@ -61,8 +68,8 @@
   transform: translateX(-50%);
   background: radial-gradient(
     46% 40% at 50% 34%,
-    rgba(242, 236, 221, 0.09),
-    rgba(242, 236, 221, 0.02) 45%,
+    color-mix(in srgb, var(--ew-ink-bright) 9%, transparent),
+    color-mix(in srgb, var(--ew-ink-bright) 2%, transparent) 45%,
     transparent 72%
   );
 }
@@ -85,7 +92,7 @@
   left: 50%;
   width: 12px;
   height: 12px;
-  border: 1px solid rgba(242, 236, 221, 0.5);
+  border: 1px solid color-mix(in srgb, var(--ew-ink-bright) 50%, transparent);
   border-radius: 50%;
   transform: translate(-50%, -50%) scale(1);
   opacity: 0;
@@ -128,9 +135,9 @@
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(242, 236, 221, 0.55) 35%,
-    rgba(242, 236, 221, 0.9) 50%,
-    rgba(242, 236, 221, 0.55) 65%,
+    color-mix(in srgb, var(--ew-ink-bright) 55%, transparent) 35%,
+    color-mix(in srgb, var(--ew-ink-bright) 90%, transparent) 50%,
+    color-mix(in srgb, var(--ew-ink-bright) 55%, transparent) 65%,
     transparent
   );
   transform: scaleX(0.04);
@@ -181,7 +188,7 @@
   line-height: 0.92;
   letter-spacing: 0.005em;
   color: var(--ew-ink-bright);
-  text-shadow: 0 0 60px rgba(242, 236, 221, 0.16);
+  text-shadow: 0 0 60px color-mix(in srgb, var(--ew-ink-bright) 16%, transparent);
   text-wrap: balance;
 }
 
@@ -259,7 +266,7 @@
   padding: 0 var(--ew-space-6);
   color: var(--ew-ink-dim);
   border-color: var(--ew-line-strong);
-  background: rgba(19, 17, 14, 0.7);
+  background: color-mix(in srgb, var(--ew-panel) 70%, transparent);
 }
 
 .continue:hover {

@@ -9,12 +9,14 @@
 }
 
 .card {
+  /* The theme's glyph at each corner, and its card trim over the surface. */
+  composes: pips from './craft.module.css';
   position: relative;
   display: grid;
   grid-template-columns: auto 1fr;
   gap: var(--ew-space-3);
   padding: var(--ew-space-4);
-  background: linear-gradient(180deg, var(--ew-raised), var(--ew-panel));
+  background: var(--ew-trim, none), linear-gradient(180deg, var(--ew-raised), var(--ew-panel));
   border: 1px solid var(--ew-line);
   border-radius: var(--ew-radius-md);
   box-shadow: var(--ew-lip), var(--ew-shadow-card);

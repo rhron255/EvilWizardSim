@@ -21,6 +21,23 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-10-04T11:59:44Z': {
+    summary: 'Every theme now decorates its room, and no two themes look alike any more.',
+    details: [
+      'Each theme now decorates its room with a wallpaper and its own emblem on cards and dividers, and most edge their cards in their own way.',
+      'Themes that were nearly the same colour have been pulled apart.',
+      'The theme picker previews each room’s wallpaper and emblem, not just its colours.',
+      'Fixed the ending card not showing your Notoriety glow.',
+      'The prophecy screen and the foot of the title and ending screens now read properly in Ordinary Weather.',
+      'Text on a card under your finger is easier to read in several themes.',
+      'Several buttons, labels and frames now look the way they were designed, including the prophecy’s button and the ending card on phones.',
+      'High-contrast mode now shows the faction bars and no longer clips the Notoriety label.',
+      'Opening the Necrolexicon from an ending now takes you to that ending, marked as just reached.',
+      'Shortened choice lines no longer trail off on words like “the”.',
+      'On the smallest phones the title screen’s buttons fit, long theme names stay whole, and the Necrolexicon tabs start inside the margin.',
+      'The Relics button, the epithet choices for a new wizard, and the Necrolexicon’s tabs, filters and theme link are easier to tap.',
+    ],
+  },
   '2026-09-29T13:06:47Z': {
     summary: 'Closing the update popup now returns keyboard focus to Begin a Career.',
     details: [

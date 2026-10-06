@@ -217,24 +217,36 @@
   transition: border-color var(--ew-fast) var(--ew-ease), background-color var(--ew-fast) var(--ew-ease);
 }
 
-/* The 3-column phone grid gives this cell the least room of the five stats —
-   the same squeeze `.statLabel` handles at this breakpoint by tightening
-   its own letter-spacing. `nowrap` above stops "Relics · 3" breaking onto a
-   second line inside the pill; this shrinks the type and padding so the
-   pill itself still fits the column instead of overflowing it. */
-@media (max-width: 719px) {
-  .relicsButton {
-    padding: var(--ew-space-1) var(--ew-space-2);
-    font-size: var(--ew-size-xs);
-  }
-}
-
-/* Extends the tap target toward the ~44px phone floor without inflating the
-   pill visually — the same split `FactionStandings`'s `.toggle::after` uses. */
+/* Extends the tap target past the 44px floor without inflating the pill
+   visually — the same split `FactionStandings`'s `.toggle::after` uses. */
 .relicsButton::after {
   content: '';
   position: absolute;
   inset: -8px;
+}
+
+/* The 3-column phone grid gives this cell the least room of the five stats —
+   the same squeeze `.statLabel` handles at this breakpoint by tightening
+   its own letter-spacing. `nowrap` above stops "Relics · 3" breaking onto a
+   second line inside the pill; this shrinks the type and padding so the
+   pill itself still fits the column instead of overflowing it.
+
+   The shrunken pill is 27px tall, and its own -8px reached only 43. So on a
+   phone it stops being the box its `::after` is placed against, and that
+   lands on the `.stat` cell instead, with the stat buttons' own insets: the
+   Relics hit area is the same tile as its four neighbours' (the cell, 6px
+   further up and down, 8px either side), meeting theirs at the middle of each
+   gap instead of crossing into it. Nothing here moves the layout. */
+@media (max-width: 719px) {
+  .relicsButton {
+    position: static;
+    padding: var(--ew-space-1) var(--ew-space-2);
+    font-size: var(--ew-size-xs);
+  }
+
+  .relicsButton::after {
+    inset: -6px -8px;
+  }
 }
 
 .relicsButton:hover,
@@ -329,6 +341,22 @@
 
 .siege[data-tone='danger'] .siegeFill {
   background: var(--ew-danger);
+}
+
+/* Forced colours: the rail and its fill are background colours, which a
+   forced palette repaints as Canvas, so the hero's distance vanished and left
+   only the two numbers. Outlined and filled in the system's text colour
+   instead, the way `FactionStandings` draws its meters there. */
+@media (forced-colors: active) {
+  .siegeRail {
+    outline: 1px solid CanvasText;
+  }
+
+  .siegeFill,
+  .siege[data-tone] .siegeFill {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
 }
 
 .siegeSentence {
