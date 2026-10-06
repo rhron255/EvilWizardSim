@@ -152,7 +152,7 @@ export const CHANGELOG: Changelog = {
     ],
   },
   '2026-09-22T18:40:00Z': {
-    summary: 'Added the Necrolexicon — the one stop shop for all manner of evil explanations.',
+    summary: 'Added the Necrolexicon — the one-stop shop for all manner of evil explanations.',
     details: [
       'Replaced the main screen\'s Collection with the Necrolexicon: relics, endings and mechanics are explained there (what notoriety, standing, followers, apprentices, pact debt, hero threat, lairs, relics, offers, and endings actually mean).',
     ],

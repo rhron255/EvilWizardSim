@@ -61,7 +61,7 @@ describe('FactionStandings · collapsed by default', () => {
   it('starts showing only the two most extreme factions', () => {
     // run: Ashen Covenant +46 (highest), Crownlands -61 (lowest).
     show(run);
-    const strip = screen.getByRole('list', { name: 'Faction standing' });
+    const strip = screen.getByRole('list', { name: 'Faction standings' });
     const rows = within(strip).getAllByRole('listitem');
     expect(rows).toHaveLength(2);
     expect(within(strip).getByText('Covenant')).toBeInTheDocument();
@@ -79,7 +79,7 @@ describe('FactionStandings · collapsed by default', () => {
     const toggle = screen.getByRole('button', { name: /show all six factions/i });
 
     await userEvent.click(toggle);
-    const strip = screen.getByRole('list', { name: 'Faction standing' });
+    const strip = screen.getByRole('list', { name: 'Faction standings' });
     expect(within(strip).getAllByRole('listitem')).toHaveLength(6);
     expect(screen.getByRole('button', { name: /show fewer factions/i })).toHaveAttribute(
       'aria-expanded',
@@ -94,7 +94,7 @@ describe('FactionStandings · collapsed by default', () => {
 describe('FactionStandings · the per-row note', () => {
   it('is hidden while collapsed — DecisionPanel\'s ambient line already says it', () => {
     show(run);
-    const strip = screen.getByRole('list', { name: 'Faction standing' });
+    const strip = screen.getByRole('list', { name: 'Faction standings' });
     expect(
       within(strip).queryByText(/offers surface more often|escorted over the border/),
     ).toBeNull();
@@ -103,7 +103,7 @@ describe('FactionStandings · the per-row note', () => {
   it('comes back once expanded, where reading all six is the point', async () => {
     show(run);
     await userEvent.click(screen.getByRole('button', { name: /show all six factions/i }));
-    const strip = screen.getByRole('list', { name: 'Faction standing' });
+    const strip = screen.getByRole('list', { name: 'Faction standings' });
     expect(within(strip).getByText(/offers surface more often/)).toBeInTheDocument();
   });
 });

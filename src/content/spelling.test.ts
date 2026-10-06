@@ -37,7 +37,7 @@ const AMERICAN: readonly [RegExp, string][] = [
   [/\barmor(s|ed)?\b/i, 'armour'],
   [/\blabor(s|ed|ing)?\b/i, 'labour'],
   [/\bharbor(s|ed)?\b/i, 'harbour'],
-  [/\b(recogni|reali|organi|apologi|criticiz|memori|summari|specializ|authori)z(e|es|ed|ing|ation)\b/i, 'the -ise spelling'],
+  [/\b(recogni|reali|organi|apologi|critici|memori|summari|speciali|authori|alphabeti|itemi)z(e|es|ed|ing|ation)\b/i, 'the -ise spelling'],
 ];
 
 function* strings(value: unknown, path: string): Generator<[string, string]> {
@@ -79,7 +79,7 @@ describe('content · spelling', () => {
   it('actually catches a slip (the pattern list is not silently matching nothing)', () => {
     // A validator rule that matched nothing once reported a dirty catalogue clean
     // (HANDOFF, "two traps"). Prove each pattern fires on its own word.
-    const samples = ['favoring', 'honored', 'colors', 'defense', 'center', 'rumor', 'neighbors', 'behavior', 'flavor', 'gray', 'armor', 'labor', 'harbor', 'recognized', 'organizes'];
+    const samples = ['favoring', 'honored', 'colors', 'defense', 'center', 'rumor', 'neighbors', 'behavior', 'flavor', 'gray', 'armor', 'labor', 'harbor', 'recognized', 'organizes', 'criticized', 'specialized', 'alphabetizes', 'itemizes'];
     for (const word of samples) {
       expect(AMERICAN.some(([pattern]) => pattern.test(word)), word).toBe(true);
     }
