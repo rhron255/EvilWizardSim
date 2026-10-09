@@ -53,7 +53,7 @@ export const mechanics: Mechanic[] = [
     id: 'hero_threat',
     name: 'Hero threat',
     blurb:
-      "Represents the hero's strength. They will kill you if they can, once the hero's destiny is prophesied. Try to be smarter than them, you are an evil wizard after all.",
+      "Represents the hero's strength. She will kill you if she can, once the hero's destiny is prophesied. Try to be smarter than her, you are an evil wizard after all.",
   },
   {
     id: 'lair',
