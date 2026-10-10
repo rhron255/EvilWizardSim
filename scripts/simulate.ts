@@ -1101,6 +1101,8 @@ type RunResult = {
   becameLich: boolean;
   /** Deed lines that repeat verbatim in consecutive eras. Defect 1's tell. */
   repeatedDeedLines: number;
+  /** The epithet the ending card prints. */
+  finalEpithet: string;
   distinctDeedLines: number;
   deedLines: string[];
 };
@@ -1400,6 +1402,7 @@ function playRun(
     peakLairTier,
     becameLich,
     repeatedDeedLines,
+    finalEpithet: run.epithet,
     distinctDeedLines: new Set(deedLines).size,
     deedLines,
   };
@@ -2496,6 +2499,13 @@ function main(): void {
   row('distinct deed lines / run', mean(results.map((r) => r.distinctDeedLines / Math.max(1, r.eras))).toFixed(3));
   row('consecutive repeat deed lines', pct(repeatedDeeds, allDeeds.length));
   row('distinct deed lines, all runs', String(new Set(allDeeds).size));
+  // Largest single share of final epithets. No band (failure mode 6): it is
+  // here so a predicate that fires for most careers is visible next time.
+  const epithetCounts = new Map<string, number>();
+  for (const r of results) epithetCounts.set(r.finalEpithet, (epithetCounts.get(r.finalEpithet) ?? 0) + 1);
+  const topEpithets = [...epithetCounts.entries()].sort((a, b) => b[1] - a[1]);
+  row('distinct final epithets', String(epithetCounts.size));
+  for (const [text, n] of topEpithets.slice(0, 3)) row(`  final epithet: ${text}`, pct(n, total));
 
   // --- per-policy ---------------------------------------------------------
   console.log('');
