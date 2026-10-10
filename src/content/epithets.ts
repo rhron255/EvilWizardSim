@@ -19,6 +19,16 @@ const legendaries = (r: RunState): number =>
 
 const tier = (r: RunState): number => TIER_BY_LAIR.get(r.lairId) ?? 0;
 
+/** The career has run its full length: the same test `checkEndings` uses for the age limit. */
+const atAgeLimit = (r: RunState): boolean => r.eraIndex >= r.eraCount;
+
+/** Highest notoriety the career ever held, not just where it ended. */
+const peak = (r: RunState): number =>
+  r.eras.reduce((hi, e) => Math.max(hi, e.notoriety), r.notoriety);
+
+/** Below this the header calls the wizard Unknown (the first tier boundary). */
+const UNKNOWN_BELOW = 40;
+
 const standing = (r: RunState, f: FactionId): number => r.factionStanding[f];
 
 const ALL_FACTIONS: FactionId[] = [
@@ -87,7 +97,7 @@ export const epithets: Epithet[] = [
   {
     id: 'the_tenant',
     text: 'the Tenant',
-    when: (r) => r.age >= 140 && tier(r) <= 1,
+    when: (r) => atAgeLimit(r) && tier(r) <= 1,
   },
   {
     id: 'poorly_advised',
@@ -172,7 +182,7 @@ export const epithets: Epithet[] = [
   {
     id: 'quietly_persistent',
     text: 'the Quietly Persistent',
-    when: (r) => r.age >= 150,
+    when: (r) => atAgeLimit(r) && peak(r) < UNKNOWN_BELOW,
   },
   {
     id: 'locally_disliked',
