@@ -299,3 +299,13 @@ describe('the Good Wizard counters never surface in the header', () => {
     }
   });
 });
+
+describe('the Followers caption tells the truth about defence (issue #106)', () => {
+  const caption = (r: RunState) => stakesFor(r).find((s) => s.label === 'Followers')!.caption;
+
+  it('says a big household earns a lair, and never that followers do not help', () => {
+    const c = caption(run({ followers: 90 }));
+    expect(c).toMatch(/lair/);
+    expect(c).not.toMatch(/do not fight/);
+  });
+});

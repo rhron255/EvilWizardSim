@@ -35,7 +35,7 @@ export const mechanics: Mechanic[] = [
     id: 'followers',
     name: 'Followers',
     blurb:
-      "The household you have gathered — hired hands, cultists, undead servants or unlucky townsfolk. They're a work force to be used and bartered.",
+      "The household you have gathered — hired hands, cultists, undead servants or unlucky townsfolk. They're a work force to be used and bartered, and a big household helps you earn a grander lair.",
   },
   {
     id: 'apprentices',
@@ -59,7 +59,7 @@ export const mechanics: Mechanic[] = [
     id: 'lair',
     name: 'Lair',
     blurb:
-      'A wizard is only as powerful as their lair is cool. Your seat of power, from hovel to stronghold. A grander lair contributes more to your defence against the hero. Sometimes you have to move because of annoying ghosts or insistent vines.',
+      'A wizard is only as powerful as their lair is cool. Your seat of power, from hovel to stronghold. A grander lair contributes more to your defence against the hero, and fame and a big household are what earn one. Sometimes you have to move because of annoying ghosts or insistent vines.',
   },
   {
     id: 'relics',
