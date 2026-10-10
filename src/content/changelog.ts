@@ -21,6 +21,13 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-10-09T15:54:07Z': {
+    summary: 'The Chosen One is now written as a she, and the same nineteen, everywhere.',
+    details: [
+      'The run header, the prophecy screen, the Hero threat blurb and the slain ending now all call the Chosen One “she”.',
+      'Her age now agrees between the gate scene and the ending: nineteen.',
+    ],
+  },
   '2026-10-04T11:59:44Z': {
     summary: 'Every theme now decorates its room, and no two themes look alike any more.',
     details: [
