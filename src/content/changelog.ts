@@ -21,6 +21,13 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-10-10T09:30:00Z': {
+    summary: 'Two names that no career could earn, the Tenant and the Quietly Persistent, can now be earned.',
+    details: [
+      'Finish a career still living in the cellar or the cottage and you can be remembered as the Tenant.',
+      'Finish a whole career without ever becoming more than Unknown and you can be remembered as the Quietly Persistent.',
+    ],
+  },
   '2026-10-10T08:34:04Z': {
     summary: 'A wizard the Chosen One slays is no longer titled “Whom the Sword Missed”.',
     details: [
