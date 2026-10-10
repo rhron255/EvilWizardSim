@@ -162,7 +162,9 @@ export const epithets: Epithet[] = [
   {
     id: 'whom_the_sword_missed',
     text: 'Whom the Sword Missed',
-    when: (r) => r.heroThreat >= 40,
+    // A slain career always has heroThreat above its defence floor, so without
+    // this guard the name below would stamp every wizard the hero just killed.
+    when: (r) => r.heroThreat >= 40 && r.ending !== 'slain_by_chosen_one',
   },
   {
     id: 'the_kingdoms_concern',

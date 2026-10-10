@@ -28,6 +28,14 @@ describe('epithet priority', () => {
     };
     expect(projectedEpithet(run, real)).toBe('the Well-Served');
   });
+
+  it('never names a slain career "Whom the Sword Missed" (issue #104)', () => {
+    const base = createRun({ wizardName: 'Test', originId: real.origins[0].id, eraCount: 16, seed: 1 }, real);
+    const alive = { ...base, heroThreat: 60 };
+    expect(projectedEpithet(alive, real)).toBe('Whom the Sword Missed');
+    const slain = { ...alive, ending: 'slain_by_chosen_one' as const };
+    expect(projectedEpithet(slain, real)).not.toBe('Whom the Sword Missed');
+  });
 });
 
 /**

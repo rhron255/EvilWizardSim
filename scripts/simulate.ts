@@ -975,8 +975,6 @@ function chooseOption(policy: Policy, run: RunState, offer: Offer, roll: number)
 type RunResult = {
   policy: Policy;
   ending: EndingId;
-  /** The name the career finished under (`run.epithet`), for the epithet reachability check. */
-  epithet: string;
   finalNotoriety: number;
   peakNotoriety: number;
   notorietyAtProphecy: number;
@@ -1103,6 +1101,8 @@ type RunResult = {
   becameLich: boolean;
   /** Deed lines that repeat verbatim in consecutive eras. Defect 1's tell. */
   repeatedDeedLines: number;
+  /** The epithet the ending card prints. */
+  finalEpithet: string;
   distinctDeedLines: number;
   deedLines: string[];
 };
@@ -1341,7 +1341,6 @@ function playRun(
   return {
     policy,
     ending: run.ending ?? 'retired_to_swamp',
-    epithet: run.epithet,
     finalNotoriety: run.notoriety,
     peakNotoriety: peak,
     notorietyAtProphecy,
@@ -1403,6 +1402,7 @@ function playRun(
     peakLairTier,
     becameLich,
     repeatedDeedLines,
+    finalEpithet: run.epithet,
     distinctDeedLines: new Set(deedLines).size,
     deedLines,
   };
@@ -2066,16 +2066,16 @@ function main(): void {
     ...redeemed,
     ...relicHoarder,
   ];
-  const epithetCounts = new Map<string, number>();
-  for (const r of epithetCareers) epithetCounts.set(r.epithet, (epithetCounts.get(r.epithet) ?? 0) + 1);
-  const neverFired = epithets.filter((e) => (epithetCounts.get(e.text) ?? 0) === 0);
-  const topEpithet = [...epithetCounts.entries()].sort((a, b) => b[1] - a[1])[0];
+  const finalEpithetCounts = new Map<string, number>();
+  for (const r of epithetCareers) finalEpithetCounts.set(r.finalEpithet, (finalEpithetCounts.get(r.finalEpithet) ?? 0) + 1);
+  const neverFired = epithets.filter((e) => (finalEpithetCounts.get(e.text) ?? 0) === 0);
+  const topFinalEpithet = [...finalEpithetCounts.entries()].sort((a, b) => b[1] - a[1])[0];
   // The two names issue #105 repaired. The rest are PRINTED, not gated: the
   // issue says to report the other unseen epithets, not to retune them here.
   const repairedEpithets = ['the_tenant', 'quietly_persistent'];
   const repairedFired = repairedEpithets.every((id) => {
     const e = epithets.find((x) => x.id === id);
-    return e !== undefined && (epithetCounts.get(e.text) ?? 0) > 0;
+    return e !== undefined && (finalEpithetCounts.get(e.text) ?? 0) > 0;
   });
 
   console.log('');
@@ -2525,6 +2525,13 @@ function main(): void {
   row('distinct deed lines / run', mean(results.map((r) => r.distinctDeedLines / Math.max(1, r.eras))).toFixed(3));
   row('consecutive repeat deed lines', pct(repeatedDeeds, allDeeds.length));
   row('distinct deed lines, all runs', String(new Set(allDeeds).size));
+  // Largest single share of final epithets. No band (failure mode 6): it is
+  // here so a predicate that fires for most careers is visible next time.
+  const epithetCounts = new Map<string, number>();
+  for (const r of results) epithetCounts.set(r.finalEpithet, (epithetCounts.get(r.finalEpithet) ?? 0) + 1);
+  const topEpithets = [...epithetCounts.entries()].sort((a, b) => b[1] - a[1]);
+  row('distinct final epithets', String(epithetCounts.size));
+  for (const [text, n] of topEpithets.slice(0, 3)) row(`  final epithet: ${text}`, pct(n, total));
 
   // --- per-policy ---------------------------------------------------------
   console.log('');
@@ -2611,7 +2618,7 @@ function main(): void {
    * condition (a specific ending nearly firing, a faction's own gated
    * grant) rare enough that the 2000-run population alone would flicker.
    */
-  const careersPlayed: RunResult[] = [
+  const allCareers: RunResult[] = [
     ...results,
     ...[...probe.values()].flat(),
     ...[...leadership.values()].flat(),
@@ -2621,7 +2628,7 @@ function main(): void {
     ...relicHoarder,
   ];
   const relicFiresAnywhere = new Map<string, number>();
-  for (const r of careersPlayed) {
+  for (const r of allCareers) {
     for (const [id, n] of Object.entries(r.relicFires)) {
       relicFiresAnywhere.set(id, (relicFiresAnywhere.get(id) ?? 0) + n);
     }
@@ -2834,7 +2841,7 @@ function main(): void {
       repairedFired,
       `${repairedEpithets.filter((id) => {
         const e = epithets.find((x) => x.id === id);
-        return e !== undefined && (epithetCounts.get(e.text) ?? 0) > 0;
+        return e !== undefined && (finalEpithetCounts.get(e.text) ?? 0) > 0;
       }).length}/${repairedEpithets.length}`,
     ],
     [
@@ -3041,7 +3048,7 @@ function main(): void {
       // seeds. `passive` powers are excluded, same as the printed
       // instrument above: they have no discrete firing to count, only a
       // rule they bend for as long as they are held.
-      `Every relic power fires at least once (${poweredArtifacts.length} powered relics, ${careersPlayed.length} careers)`,
+      `Every relic power fires at least once (${poweredArtifacts.length} powered relics, ${allCareers.length} careers)`,
       poweredArtifacts.every((a) => (relicFiresAnywhere.get(a.id) ?? 0) > 0),
       `${poweredArtifacts.filter((a) => (relicFiresAnywhere.get(a.id) ?? 0) > 0).length}/${poweredArtifacts.length}`,
     ],
@@ -3089,7 +3096,7 @@ function main(): void {
   console.log('');
   console.log(
     `Epithets: ${epithets.length - neverFired.length}/${epithets.length} occur as a final name across ${epithetCareers.length} careers; ` +
-      `largest single share ${topEpithet ? `${topEpithet[0]} ${pct(topEpithet[1], epithetCareers.length)}` : 'n/a'}.`,
+      `largest single share ${topFinalEpithet ? `${topFinalEpithet[0]} ${pct(topFinalEpithet[1], epithetCareers.length)}` : 'n/a'}.`,
   );
   if (neverFired.length > 0) console.log(`  never fired: ${neverFired.map((e) => e.id).join(', ')}`);
   for (const [label, ok, value] of checks) {

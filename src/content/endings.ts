@@ -30,7 +30,7 @@ export const endings: Ending[] = [
     summary: 'A sword, a teenager, and a bounty paid in three instalments.',
     hint: 'for a name the hero can find',
     narration:
-      'The Chosen One was nineteen, carried a sword his grandmother had kept oiled for precisely this, and said nothing clever before or after. It was quick, and competent, and there is no version of the account where you get a line. The Crownlands paid the bounty in three instalments and lost the paperwork on the third. Somebody has already set it to music, in a key that makes you taller. You had a long life; the one who ended it gets introduced, for the rest of theirs, as the one who did.',
+      'The Chosen One was nineteen, carried a sword her grandmother had kept oiled for precisely this, and said nothing clever before or after. It was quick, and competent, and there is no version of the account where you get a line. The Crownlands paid the bounty in three instalments and lost the paperwork on the third. Somebody has already set it to music, in a key that makes you taller. You had a long life; the one who ended it gets introduced, for the rest of theirs, as the one who did.',
     codaMode: 'tiered',
     coda: {
       unknown: 'The hero had to explain who you were twice before anyone would fund the trip.',
