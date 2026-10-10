@@ -49,16 +49,16 @@ export type Stake = {
 };
 
 /**
- * Followers deliberately contribute nothing to defense — wiki/02 gives each
- * currency a distinct job and calls followers "ledger filler". The caption has
- * to say so, or a player will reasonably assume a bigger household is safer
- * and be wrong at the worst possible moment.
+ * Followers add no defence directly, but a big household does help earn a
+ * grander lair (`entitledLairRung`), and a grander lair adds defence. The
+ * caption says so in player words: leaving it out would be an undisclosed
+ * consequence (rule 1), and the old "they do not fight for you" was untrue.
  */
 function followersStake(run: RunState): Stake {
   return {
     label: 'Followers',
     value: run.followers.toLocaleString('en-US'),
-    caption: 'spent as coin · they do not fight for you',
+    caption: 'spent as coin · a big household earns a grander lair',
   };
 }
 

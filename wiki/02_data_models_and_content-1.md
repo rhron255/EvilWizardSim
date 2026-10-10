@@ -23,7 +23,7 @@ into one, the run flattens:
 | Currency | Job | Scope |
 |----------|-----|-------|
 | **Artifacts** | Collection engine and near-miss driver | Persists **across** runs |
-| **Followers** | Ledger filler — the quietly accumulating number | Single run |
+| **Followers** | Coin, plus a small push toward a grander lair (and so defence) — the quietly accumulating number | Single run |
 | **Notoriety** | The headline stat and color signal | Single run |
 
 Lichdom is deliberately absent from this table: it is an ending, not a
