@@ -21,6 +21,12 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-10-10T08:34:04Z': {
+    summary: 'A wizard the Chosen One slays is no longer titled “Whom the Sword Missed”.',
+    details: [
+      'Slain careers now earn a title from the rest of their deeds instead of one that says the sword missed.',
+    ],
+  },
   '2026-10-09T15:54:07Z': {
     summary: 'The Chosen One is now written as a she, and the same nineteen, everywhere.',
     details: [
