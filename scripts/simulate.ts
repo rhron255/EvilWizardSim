@@ -2064,6 +2064,7 @@ function main(): void {
     ...saint,
     ...lich,
     ...redeemed,
+    ...relicHoarder,
   ];
   const epithetCounts = new Map<string, number>();
   for (const r of epithetCareers) epithetCounts.set(r.epithet, (epithetCounts.get(r.epithet) ?? 0) + 1);
