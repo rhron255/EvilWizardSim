@@ -137,3 +137,22 @@ describe('CreationScreen · an unfinished career (issue #107)', () => {
     expect(onCreate).not.toHaveBeenCalled();
   });
 });
+
+describe('CreationScreen · Enter cannot skip the unfinished-career notice (issue #107)', () => {
+  it('moves focus to the commit button instead of submitting', async () => {
+    const { onCreate, field } = show('Mal', 'Vashter');
+    await userEvent.click(field);
+    await userEvent.keyboard('{Enter}');
+    expect(onCreate).not.toHaveBeenCalled();
+    expect(commit()).toHaveFocus();
+    await userEvent.keyboard('{Enter}');
+    expect(onCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it('still submits on Enter when nothing would be discarded', async () => {
+    const { onCreate, field } = show('Mal');
+    await userEvent.click(field);
+    await userEvent.keyboard('{Enter}');
+    expect(onCreate).toHaveBeenCalledTimes(1);
+  });
+});
