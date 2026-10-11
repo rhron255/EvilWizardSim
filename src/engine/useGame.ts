@@ -67,6 +67,8 @@ export type Game = {
   unlockedTheme: ThemeId | null;
   selectTheme(id: ThemeId): void;
   hasResumableRun: boolean;
+  /** The saved career's wizard, so a screen can name what starting over would discard. */
+  resumableName: string | null;
   resume(): void;
   /**
    * The three-card guide is owed: a first-ever career, still on its first
@@ -446,6 +448,7 @@ export function useGame(content: ContentBundle, relicsResetAtBuild = ''): Game {
           : null,
       selectTheme,
       hasResumableRun: state.resumable !== null,
+      resumableName: state.resumable?.wizardName ?? null,
       resume,
       showFirstRunGuide:
         !state.collection.tutorialSeen &&

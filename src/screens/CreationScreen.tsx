@@ -29,6 +29,13 @@ export type CreationScreenProps = {
   factions: Faction[];
   onCreate(name: string, epithet: string, originId: string, eraCount: number): void;
   onBack(): void;
+  /**
+   * The wizard of a saved, unfinished career, or null. Committing here
+   * overwrites that save, so the screen says so before the button (issue #107).
+   */
+  unfinishedName?: string | null;
+  /** The way back: picks the saved career up instead. */
+  onResume?(): void;
   /** The cosmetic theme the player is wearing. */
   themeId: ThemeId;
 };
@@ -69,6 +76,8 @@ export function CreationScreen({
   defaultName = '',
   onCreate,
   onBack,
+  unfinishedName = null,
+  onResume,
   themeId,
 }: CreationScreenProps) {
   const [name, setName] = useState(defaultName);
@@ -281,6 +290,21 @@ export function CreationScreen({
         </fieldset>
 
         <footer className={styles.bottom}>
+          {/* Rule 2: the career about to be overwritten is named at the one
+              place every new-career entry point (title door, play again)
+              passes through, directly above the button that discards it. */}
+          {unfinishedName && (
+            <div className={styles.unfinished} role="note">
+              <p className={styles.unfinishedText}>
+                {unfinishedName}&rsquo;s unfinished career will not be kept.
+              </p>
+              {onResume && (
+                <button type="button" className={styles.resume} onClick={onResume}>
+                  Resume {unfinishedName}&rsquo;s career instead
+                </button>
+              )}
+            </div>
+          )}
           <button type="submit" className={styles.commit} disabled={!ready}>
             Begin the career
           </button>
