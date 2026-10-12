@@ -217,7 +217,7 @@ describe('OptionCard · unaffordable (reason prop)', () => {
     expect(within(card).getByText(certainOption.label)).toBeInTheDocument();
   });
 
-  it('states the reason in the aria-label, mirroring ThemeSwatch’s locked pattern', () => {
+  it('describes the card with its reason instead of replacing its name', () => {
     render(
       <OptionCard
         option={certainOption}
@@ -230,7 +230,9 @@ describe('OptionCard · unaffordable (reason prop)', () => {
         onChoose={() => {}}
       />,
     );
-    expect(screen.getByRole('button', { name: /unaffordable/i })).toBeInTheDocument();
+    const card = screen.getByRole('button', { name: new RegExp(certainOption.label.slice(0, 12)) });
+    expect(card).not.toHaveAttribute('aria-label');
+    expect(card).toHaveAccessibleDescription(REASON);
   });
 
   it('does not fire onChoose on a click', async () => {
@@ -385,5 +387,23 @@ describe('OptionCard · disabled for a reason OTHER than affordability', () => {
     expect(within(card).getByText(/Followers/)).toBeInTheDocument();
     expect(card).not.toHaveAttribute('aria-label');
     expect(card).not.toHaveAttribute('data-unaffordable');
+  });
+});
+
+describe('OptionCard · gamble branches for a screen reader', () => {
+  it('names which branch is the success and which the failure', () => {
+    render(
+      <OptionCard
+        option={gambleOption}
+        index={0}
+        artifacts={artifacts}
+        factions={factions}
+        endings={endings}
+        onChoose={() => {}}
+      />,
+    );
+    const card = screen.getByRole('button');
+    expect(card).toHaveTextContent(/if it works, \d+%/);
+    expect(card).toHaveTextContent(/if it fails, \d+%/);
   });
 });

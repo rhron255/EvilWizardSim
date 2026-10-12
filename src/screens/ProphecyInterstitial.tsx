@@ -163,6 +163,7 @@ export function ProphecyInterstitial({
             ref={continueRef}
             type="button"
             className={styles.continue}
+            aria-describedby="prophecy-handoff"
             onClick={(e) => {
               e.stopPropagation();
               onContinue();
@@ -178,7 +179,9 @@ export function ProphecyInterstitial({
               readout the player has never seen is about to appear in their
               header. This says that and nothing more; it names no phase and
               draws no meter. */}
-          <p className={styles.handoff}>She becomes a number in your header. It climbs every era.</p>
+          <p id="prophecy-handoff" className={styles.handoff}>
+            She becomes a number in your header. It climbs every era.
+          </p>
         </div>
       </div>
 

@@ -8,6 +8,7 @@
  * the split as a quantity you can see rather than read.
  */
 
+import { useId } from 'react';
 import type { RelicEvent, RelicReactionPreview } from '../../engine';
 import type { Artifact, Effect, Ending, Faction, OfferOption } from '../../types';
 import { EffectList } from './EffectList';
@@ -197,6 +198,8 @@ export function OptionCard({
           : option
       : option;
 
+  const reasonId = useId();
+
   return (
     <button
       type="button"
@@ -204,7 +207,7 @@ export function OptionCard({
       data-kind={option.kind}
       data-unaffordable={reason ? 'true' : undefined}
       disabled={disabled}
-      aria-label={reason ? `${option.label} — unaffordable: ${reason}` : undefined}
+      aria-describedby={reason ? reasonId : undefined}
       onClick={() => onChoose(index)}
       data-option-index={index}
     >
@@ -237,6 +240,7 @@ export function OptionCard({
         ) : (
           <span className={styles.branches}>
             <span className={styles.branch} data-branch="success">
+              <span className={styles.srOnly}>if it works, </span>
               <span className={`${styles.pct} ew-num`}>{formatOdds(printedOdds)}</span>
               <span className={styles.arrow} aria-hidden="true">
                 →
@@ -256,6 +260,7 @@ export function OptionCard({
             </span>
 
             <span className={styles.branch} data-branch="failure">
+              <span className={styles.srOnly}>if it fails, </span>
               <span className={`${styles.pct} ew-num`}>{formatOdds(1 - printedOdds)}</span>
               <span className={styles.arrow} aria-hidden="true">
                 →
@@ -281,7 +286,11 @@ export function OptionCard({
           </span>
         )}
 
-        {reason && <span className={styles.reason}>{reason}</span>}
+        {reason && (
+          <span id={reasonId} className={styles.reason}>
+            {reason}
+          </span>
+        )}
       </span>
     </button>
   );
