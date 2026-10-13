@@ -198,7 +198,7 @@ export function stakesFor(run: RunState, content?: ContentBundle): Stake[] {
 export type Siege = {
   wards: number;
   threat: number;
-  /** How far the hero still has to climb. Negative once he is through. */
+  /** How far the hero still has to climb. Negative once she is through. */
   margin: number;
   /** Threat the hero gains at the end of THIS era. The clock on the ceiling. */
   rate: number;
@@ -239,9 +239,9 @@ export type Siege = {
  *
  * Three facts, in the order a player can act on them:
  *
- *   1. `he kills you above {wards}` — "above", not "at": `endings.ts` compares
+ *   1. `she kills you above {wards}` — "above", not "at": `endings.ts` compares
  *      with `>`, so "at" would be wrong by one.
- *   2. `his threat +{rate} an era` — the clock. A ceiling without one is the
+ *   2. `her threat +{rate} an era` — the clock. A ceiling without one is the
  *      exact defect CLAUDE.md's failure mode 1 describes, and the pact caption
  *      already says `+1 an era on its own` in this same header.
  *
@@ -278,7 +278,7 @@ function siegeSentence(
     tone === 'calm' && carrying
       ? `${carrying.label.toLowerCase()} adds ${carrying.value}`
       : `the next lair adds ${DEF_LAIR}`;
-  return `he kills you above ${wards} · his threat +${rate} an era · ${clause}`;
+  return `she kills you above ${wards} · her threat +${rate} an era · ${clause}`;
 }
 
 /**

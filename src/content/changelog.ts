@@ -21,6 +21,26 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-10-10T09:30:00Z': {
+    summary: 'Two previously unreachable names — the Tenant and the Quietly Persistent — can now be earned.',
+    details: [
+      'Finish a career still living in the cellar or the cottage and you can be remembered as the Tenant.',
+      'Finish a whole career without ever becoming more than Unknown and you can be remembered as the Quietly Persistent.',
+    ],
+  },
+  '2026-10-10T08:34:04Z': {
+    summary: 'A wizard the Chosen One slays is no longer titled “Whom the Sword Missed”.',
+    details: [
+      'Slain careers now earn a title from the rest of their deeds instead of one that says the sword missed.',
+    ],
+  },
+  '2026-10-09T15:54:07Z': {
+    summary: 'The Chosen One is now consistently referred to as “she” and described as nineteen years old.',
+    details: [
+      'The run header, the prophecy screen, the Hero threat blurb and the slain ending now all call the Chosen One “she”.',
+      'Her age now agrees between the gate scene and the ending: nineteen.',
+    ],
+  },
   '2026-10-04T11:59:44Z': {
     summary: 'Every theme now decorates its room, and no two themes look alike any more.',
     details: [

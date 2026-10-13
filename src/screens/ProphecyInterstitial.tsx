@@ -178,7 +178,7 @@ export function ProphecyInterstitial({
               readout the player has never seen is about to appear in their
               header. This says that and nothing more; it names no phase and
               draws no meter. */}
-          <p className={styles.handoff}>He becomes a number in your header. It climbs every era.</p>
+          <p className={styles.handoff}>She becomes a number in your header. It climbs every era.</p>
         </div>
       </div>
 

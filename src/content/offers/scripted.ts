@@ -225,7 +225,7 @@ export const scriptedOffers: Offer[] = [
   {
     id: 'scripted_the_chosen_one',
     title: 'The Chosen One',
-    body: 'She is at the gate. She is twenty-two, she has the sword, and she has been preparing for this conversation since she was nine years old.',
+    body: 'She is at the gate. She is nineteen, she has the sword, and she has been preparing for this conversation since she was nine years old.',
     phase: 'decline',
     factionId: 'crownlands',
     scripted: true,

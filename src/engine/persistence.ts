@@ -78,6 +78,20 @@ function removeRaw(key: string): void {
   }
 }
 
+/**
+ * Read-only guard (issue #102). True when the key currently holds a save whose
+ * `version` is NEWER than this build understands. Such a key is never written
+ * or removed by this build: an older cached build (or a stale second tab) plays
+ * in memory and leaves the newer build's bytes alone. Anything unreadable, or
+ * with no numeric version, is not "newer" and stays writable.
+ */
+function holdsNewerSave(key: string, current: number): boolean {
+  const raw = parse(readRaw(key));
+  if (!raw || typeof raw !== 'object') return false;
+  const version = (raw as { version?: unknown }).version;
+  return typeof version === 'number' && Number.isFinite(version) && version > current;
+}
+
 function parse(raw: string | null): unknown {
   if (raw === null) return null;
   try {
@@ -205,6 +219,7 @@ export function loadCollection(relicsResetAtBuild = ''): Collection {
 }
 
 export function saveCollection(c: Collection): void {
+  if (holdsNewerSave(COLLECTION_KEY, COLLECTION_VERSION)) return;
   writeRaw(COLLECTION_KEY, JSON.stringify({ ...c, version: COLLECTION_VERSION }));
 }
 
@@ -269,6 +284,7 @@ export function saveInProgressRun(run: RunState): void {
     clearInProgressRun();
     return;
   }
+  if (holdsNewerSave(RUN_KEY, RUN_SAVE_VERSION)) return;
   writeRaw(RUN_KEY, JSON.stringify({ version: RUN_SAVE_VERSION, run }));
 }
 
@@ -317,6 +333,8 @@ export function loadInProgressRun(): RunState | null {
   const raw = parse(readRaw(RUN_KEY));
   if (!raw || typeof raw !== 'object') return null;
   const wrapper = raw as { version?: unknown; run?: unknown };
+  // From the future: leave the newer build's career where it is (issue #102).
+  if (finiteNumber(wrapper.version, -1) > RUN_SAVE_VERSION) return null;
   if (finiteNumber(wrapper.version, -1) !== RUN_SAVE_VERSION) {
     clearInProgressRun();
     return null;
@@ -360,6 +378,7 @@ export function loadInProgressRun(): RunState | null {
 }
 
 export function clearInProgressRun(): void {
+  if (holdsNewerSave(RUN_KEY, RUN_SAVE_VERSION)) return;
   removeRaw(RUN_KEY);
 }
 
