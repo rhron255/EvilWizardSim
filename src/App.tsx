@@ -83,9 +83,20 @@ export default function App() {
    * during a session, and both places that do so also clear this state
    * directly rather than waiting for a re-read.
    */
-  const [pendingChangelog, setPendingChangelog] = useState(() =>
-    pendingChangelogEntries(CHANGELOG, BUILD_VERSION, loadChangelogAck()),
-  );
+  const [pendingChangelog, setPendingChangelog] = useState(() => {
+    const acknowledged = loadChangelogAck();
+    // A brand-new profile has nothing to catch up on: "everything since your
+    // last visit" is wrong for someone with no last visit (issue #109). Stamp
+    // it as current and open on the title. `pendingChangelogEntries` stays
+    // pure; the fresh-profile call is made here, at the composition root.
+    const fresh =
+      acknowledged === null && game.collection.runsCompleted === 0 && !game.collection.tutorialSeen;
+    if (fresh) {
+      saveChangelogAck(BUILD_VERSION);
+      return [];
+    }
+    return pendingChangelogEntries(CHANGELOG, BUILD_VERSION, acknowledged);
+  });
 
   const acknowledgeChangelog = () => {
     saveChangelogAck(BUILD_VERSION);
