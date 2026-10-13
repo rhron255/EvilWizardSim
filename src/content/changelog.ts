@@ -22,7 +22,7 @@ import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
   '2026-10-10T09:30:00Z': {
-    summary: 'Two names that no career could earn, the Tenant and the Quietly Persistent, can now be earned.',
+    summary: 'Two previously unreachable names — the Tenant and the Quietly Persistent — can now be earned.',
     details: [
       'Finish a career still living in the cellar or the cottage and you can be remembered as the Tenant.',
       'Finish a whole career without ever becoming more than Unknown and you can be remembered as the Quietly Persistent.',
@@ -35,7 +35,7 @@ export const CHANGELOG: Changelog = {
     ],
   },
   '2026-10-09T15:54:07Z': {
-    summary: 'The Chosen One is now written as a she, and the same nineteen, everywhere.',
+    summary: 'The Chosen One is now consistently referred to as “she” and described as nineteen years old.',
     details: [
       'The run header, the prophecy screen, the Hero threat blurb and the slain ending now all call the Chosen One “she”.',
       'Her age now agrees between the gate scene and the ending: nineteen.',
@@ -172,7 +172,7 @@ export const CHANGELOG: Changelog = {
     ],
   },
   '2026-09-22T18:40:00Z': {
-    summary: 'Added the Necrolexicon — the one stop shop for all manner of evil explanations.',
+    summary: 'Added the Necrolexicon — the one-stop shop for all manner of evil explanations.',
     details: [
       'Replaced the main screen\'s Collection with the Necrolexicon: relics, endings and mechanics are explained there (what notoriety, standing, followers, apprentices, pact debt, hero threat, lairs, relics, offers, and endings actually mean).',
     ],
