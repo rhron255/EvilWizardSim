@@ -90,7 +90,10 @@ export default function App() {
     // it as current and open on the title. `pendingChangelogEntries` stays
     // pure; the fresh-profile call is made here, at the composition root.
     const fresh =
-      acknowledged === null && game.collection.runsCompleted === 0 && !game.collection.tutorialSeen;
+      acknowledged === null &&
+      game.collection.runsCompleted === 0 &&
+      !game.collection.tutorialSeen &&
+      !game.resumable;
     if (fresh) {
       saveChangelogAck(BUILD_VERSION);
       return [];
