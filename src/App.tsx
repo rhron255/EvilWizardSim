@@ -93,7 +93,7 @@ export default function App() {
       acknowledged === null &&
       game.collection.runsCompleted === 0 &&
       !game.collection.tutorialSeen &&
-      !game.resumable;
+      !game.hasResumableRun;
     if (fresh) {
       saveChangelogAck(BUILD_VERSION);
       return [];
