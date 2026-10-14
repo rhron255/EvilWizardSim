@@ -58,8 +58,8 @@ export function prophecyTextFor(heroName: string, wizardName: string): string {
  *
  * These fire off `heroBand` in the engine, once per band per run, so the prose
  * and the rail are the same fact told twice. Each band has a small pool picked
- * by a stable hash, the same way `deeds.ts` picks its tails: a given moment in
- * a given run always narrates the same way.
+ * by a stable hash of the crossing's own numbers (threat and wards): the same
+ * moment in a run always narrates the same way.
  *
  * Note the register. This is not a doom meter — wiki/04's ban is on announcing
  * the DECLINE, and the notoriety erosion stays unnarrated. This says only what
@@ -86,8 +86,9 @@ const APPROACH: Record<'warn' | 'danger' | 'through', readonly string[]> = {
 };
 
 /**
- * A line for a crossing. `key` is any stable per-run number — the engine passes
- * the run seed — so the same run always tells it the same way.
+ * A line for a crossing. `key` is any stable number for the crossing — the only
+ * caller passes `threat * 1000 + wards` (`effectText.ts`) — so the same
+ * crossing always tells it the same way.
  */
 export function heroApproachLine(band: 'warn' | 'danger' | 'through', key: number): string {
   const pool = APPROACH[band];

@@ -33,7 +33,7 @@ either one. The pages below carry a status table that says what is real.
 | Content catalogs | Built | 6 factions · 32 relics · 155 offers · 10 lairs · 4 origins · 19 endings · 20 themes. |
 | Technical architecture | Built | React + TypeScript + Vite, backendless, `localStorage`. See `03_systems_architecture-1.md`. |
 | Balance | Measured | `npm run sim` plays 2000 runs against explicit targets; the ones it carries are cited in `scripts/simulate.ts`. |
-| Art & audio | Text-first | Flavor text is the art budget; the only art is procedural (the sigil, the glyphs, the share card). **No audio or haptics.** |
+| Art & audio | Text-first | Flavor text is the art budget; the only art is procedural (the sigil, the glyphs, the share card). **No audio**; haptics are a garnish only (see CLAUDE.md, styling rule 4). |
 
 ## Page Map
 
