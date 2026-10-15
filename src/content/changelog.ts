@@ -21,6 +21,12 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-10-10T12:35:00Z': {
+    summary: 'The Followers stat now says that a big household helps you earn a grander lair.',
+    details: [
+      'It used to claim followers do not help you; they do, by way of a grander lair.',
+    ],
+  },
   '2026-10-10T09:30:00Z': {
     summary: 'Two names that no career could earn, the Tenant and the Quietly Persistent, can now be earned.',
     details: [
