@@ -27,11 +27,11 @@ export async function dismissFirstRunGuide(page, { timeout = 1200 } = {}) {
 }
 
 /**
- * A fresh profile has also never acknowledged ANY changelog version — every
- * entry in `CHANGELOG` is "since your last visit" the moment `BUILD_VERSION`
- * moves at all, which is every commit that bumps it (issue #67's own rule).
- * The popup is modal, so it blocks the title screen's own controls the same
- * way the first-run guide does; dismiss it the same way.
+ * A brand-new profile does NOT see the changelog popup (issue #109): the app
+ * stamps the current build as acknowledged on first launch. A returning
+ * profile with a stale acknowledgement does see it, and it is modal, so it
+ * blocks the title screen's own controls the same way the first-run guide
+ * does; dismiss it the same way. On a fresh profile this is a no-op.
  */
 export async function dismissChangelogPopup(page, { timeout = 1200 } = {}) {
   const dismiss = page.getByRole('button', { name: /^dismiss$/i });

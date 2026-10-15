@@ -103,6 +103,21 @@ function returningPlayer(run?: RunState): void {
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+describe('App · the changelog popup', () => {
+  it('does not greet a brand-new profile with a pile of updates', () => {
+    render(<App />);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByRole('button', { name: /begin a career/i })).toBeVisible();
+  });
+
+  it('still shows a returning player the updates they missed', () => {
+    saveCollection({ ...emptyCollection(''), tutorialSeen: true, runsCompleted: 3 });
+    saveChangelogAck('2000-01-01T00:00:00Z');
+    render(<App />);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+});
+
 describe('App · the Necrolexicon marks the ending just reached', () => {
   it('opens on the ending card\'s own ending, marked in words and brought into view', async () => {
     returningPlayer(careerWithOneEraLeft());
