@@ -1758,7 +1758,7 @@ function collectionCurve(baseSeed: number, players: number, cap: number): Collec
   const slots = content.artifacts.length;
   const endingsTotal = ALL_ENDING_IDS.length;
   const half = Math.ceil(slots / 2);
-  const marks = [1, 3, 5, 10, 20, 40];
+  const marks = [1, 3, 5, 10, 20, 40].filter((m) => m <= cap);
   const totals = new Map<number, number>(marks.map((m) => [m, 0]));
   const toHalf: number[] = [];
   const toFull: number[] = [];
@@ -2247,9 +2247,6 @@ function main(): void {
   }
 
   const total = results.length;
-  // Sequential careers, folded into one persistent grid. Smaller populations
-  // than the run sample because each "player" is up to `cap` whole runs.
-  const curve = collectionCurve(baseSeed ^ 0x51ede5, 120, COLLECTION_CAP);
   const byEnding = new Map<EndingId, number>();
   for (const r of results) byEnding.set(r.ending, (byEnding.get(r.ending) ?? 0) + 1);
 
@@ -2270,6 +2267,12 @@ function main(): void {
     );
     return;
   }
+
+  // Sequential careers, folded into one persistent grid. Built AFTER the `--json`
+  // early return above: that path is the cheap distribution diff and reports none
+  // of this, so it must not pay for up to 120,000 careers. Smaller populations
+  // than the run sample because each "player" is up to `cap` whole runs.
+  const curve = collectionCurve(baseSeed ^ 0x51ede5, 120, COLLECTION_CAP);
 
   // Reachability, measured apart from the population it must not distort.
   // AFTER the `--json` early return: that path is used to diff distributions
