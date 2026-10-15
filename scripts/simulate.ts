@@ -176,6 +176,7 @@ type Policy =
   | 'reckless'
   | 'saint'
   | 'redeemed'
+  | 'mutineer'
   | PariahPolicy
   | CourtierPolicy;
 
@@ -256,7 +257,15 @@ const POPULATION: Array<[Policy, number]> = [
   ['reckless', 0.1],
 ];
 
-type Mode = 'notoriety' | 'defense' | 'standing' | 'ascendant' | 'reckless' | 'saint' | 'redeemed';
+type Mode =
+  | 'notoriety'
+  | 'defense'
+  | 'standing'
+  | 'ascendant'
+  | 'reckless'
+  | 'saint'
+  | 'redeemed'
+  | 'mutineer';
 
 type Weights = {
   notoriety: number;
@@ -438,6 +447,28 @@ const WEIGHTS: Record<Mode, Weights> = {
     lairTier: 3,
     goodAct: 20,
     illAct: -25,
+  },
+  /**
+   * `betrayed_by_apprentice`'s seeker: a full tower (`BETRAYAL_MIN_APPRENTICES`)
+   * and an empty well of loyalty (`BETRAYAL_MAX_LOYALTY`). Apprentices are
+   * priced high, loyalty NEGATIVE (a card that lowers it is a good card), and
+   * the hero threat is watched a little harder than `notoriety` does because
+   * the betrayal is checked after the slaying in `checkEndings`.
+   */
+  mutineer: {
+    notoriety: 0.4,
+    followers: 0.1,
+    standing: 0.04,
+    artifact: 1.5,
+    loseArtifact: -2,
+    apprentices: 3,
+    loyalty: -0.5,
+    pactDebt: -1.6,
+    pactCeilingAware: true,
+    heroThreat: -0.3,
+    lairTier: 1,
+    goodAct: 0,
+    illAct: 0,
   },
 };
 
@@ -711,6 +742,8 @@ function modeFor(policy: Policy, run: RunState, threatRatio: number): Mode {
       // `virtue_resolution_the_quiet_ledger` both live.
       if (run.phase === 'ascent') return 'redeemed';
       return threatRatio > 0.55 ? 'defense' : 'saint';
+    case 'mutineer':
+      return threatRatio > 0.7 ? 'defense' : 'mutineer';
     case 'random':
       return 'notoriety';
   }
@@ -881,7 +914,24 @@ function devotionAffinity(run: RunState, option: OfferOption, target: FactionId,
  */
 const COURTIER_DEVOTION = Number(process.env.COURTIER_DEVOTION ?? 5);
 
-function chooseOption(policy: Policy, run: RunState, offer: Offer, roll: number): number {
+/**
+ * A gamble whose success branch grants a named relic the player is missing
+ * (the Weather Leash's deep-grove card). The route-aware completion probe takes
+ * it every time it is offered — a collector who knows where the relic lives
+ * does — so it must be recognisable from the option alone.
+ */
+function grantsWanted(option: OfferOption, wanted: ReadonlySet<string>): boolean {
+  if (wanted.size === 0 || option.kind !== 'gamble') return false;
+  return option.onSuccess.some((e) => e.t === 'artifact' && wanted.has(e.artifactId));
+}
+
+function chooseOption(
+  policy: Policy,
+  run: RunState,
+  offer: Offer,
+  roll: number,
+  wantedGrants: ReadonlySet<string> = new Set(),
+): number {
   if (policy === 'random') {
     // Uniform among PICKABLE options only (issue #41 follow-up):
     // `resolveChoice` now refuses an unpickable index inertly rather than
@@ -914,6 +964,11 @@ function chooseOption(policy: Policy, run: RunState, offer: Offer, roll: number)
     // pickable certain option per offer, so this can never empty the field
     // for a policy that (unlike `safe`) also considers gambles.
     if (!isOptionPickable(run, option, content)) return;
+    if (grantsWanted(option, wantedGrants) && !(policy === 'safe')) {
+      best = Infinity;
+      bestIndex = i;
+      return;
+    }
     let score = optionScore(run, option, w, takesLichdom, run.pactDebt, takesGoodWizard, offer.factionId);
     // A lich-seeker courts ONE faction, hard, because only the Worm Below
     // offers the rite and its gate is `minStanding worm_below 20`. Generic
@@ -1225,6 +1280,8 @@ function playRun(
    * the job it exists for.
    */
   knownArtifactIds: readonly string[] = [],
+  /** Named relics this player is hunting; see `grantsWanted`. Empty everywhere but the route-aware probe. */
+  wantedGrants: ReadonlySet<string> = new Set(),
 ): RunResult {
   const rng = mulberry32(seed ^ 0x5f3759df);
   const originId = content.origins[Math.floor(rng() * content.origins.length)].id;
@@ -1265,7 +1322,7 @@ function playRun(
     if (run.relicState.offerRedrawSalt !== saltBefore) {
       offer = nextOffer(run, content, offer.id);
     }
-    const index = chooseOption(policy, run, offer, rng());
+    const index = chooseOption(policy, run, offer, rng(), wantedGrants);
     const { next, resolution } = resolveChoice(run, offer, index, content);
     if (next.eras[next.eras.length - 1].phase === 'decline') {
       declineDeltas.push(resolution.eraRecord.notorietyDelta);
@@ -1434,8 +1491,22 @@ type CollectionCurve = {
   /** Median runs to reach half the grid, and all of it. `cap + 1` means "not within cap". */
   medianRunsToHalf: number;
   medianRunsToFull: number;
-  /** Share of runs that add nothing the player did not already have. */
+  endingsTotal: number;
+  /** Median runs until every ending has been seen, and until the grid AND every ending are done. */
+  medianRunsToAllEndings: number;
+  medianRunsToBoth: number;
+  /**
+   * Share of runs that add no RELIC (counted only while the grid is still
+   * filling). The original figure, kept under its original name.
+   */
   barrenRunRate: number;
+  /** Share of runs that add no relic AND no new ending (counted until both are complete). */
+  barrenAnyRate: number;
+  /** p50/p90 across players of each player's longest run of consecutive barren careers. */
+  longestRelicBarrenP50: number;
+  longestRelicBarrenP90: number;
+  longestAnyBarrenP50: number;
+  longestAnyBarrenP90: number;
 };
 
 /**
@@ -1662,6 +1733,18 @@ function relicHoarderProbe(baseSeed: number): RunResult[] {
   return runs;
 }
 
+/**
+ * `ENDING_CHASE_ORDER` with the one seeker the baseline bot has never had: the
+ * betrayal seeker (`mutineer`). Kept as a SEPARATE list so the baseline figure
+ * (median 548 at seed 1, 150 players) stays reproducible run for run — mapping
+ * `betrayed_by_apprentice` in the original would have quietly turned the
+ * baseline into a better bot and the comparison into a comparison of two
+ * different instruments (failure modes 5 and 11).
+ */
+const ROUTE_AWARE_CHASE_ORDER: typeof ENDING_CHASE_ORDER = ENDING_CHASE_ORDER.map(([id, policy]) =>
+  id === 'betrayed_by_apprentice' ? ([id, 'mutineer'] as const) : ([id, policy] as const),
+);
+
 function pickPolicy(roll: number): Policy {
   let acc = 0;
   for (const [name, share] of POPULATION) {
@@ -1673,19 +1756,33 @@ function pickPolicy(roll: number): Policy {
 
 function collectionCurve(baseSeed: number, players: number, cap: number): CollectionCurve {
   const slots = content.artifacts.length;
+  const endingsTotal = ALL_ENDING_IDS.length;
   const half = Math.ceil(slots / 2);
   const marks = [1, 3, 5, 10, 20, 40];
   const totals = new Map<number, number>(marks.map((m) => [m, 0]));
   const toHalf: number[] = [];
   const toFull: number[] = [];
-  let runsPlayed = 0;
-  let barren = 0;
+  const toAllEndings: number[] = [];
+  const toBoth: number[] = [];
+  const longestRelicBarren: number[] = [];
+  const longestAnyBarren: number[] = [];
+  let relicRuns = 0;
+  let relicBarren = 0;
+  let anyRuns = 0;
+  let anyBarren = 0;
 
   for (let p = 0; p < players; p++) {
     const rng = mulberry32((baseSeed + p * 104729) ^ 0xbeef);
     const owned = new Set<string>();
+    const seen = new Set<EndingId>();
     let halfAt = cap + 1;
     let fullAt = cap + 1;
+    let endingsAt = cap + 1;
+    let bothAt = cap + 1;
+    let relicStreak = 0;
+    let anyStreak = 0;
+    let relicLongest = 0;
+    let anyLongest = 0;
 
     for (let n = 1; n <= cap; n++) {
       const eraCount = pickEraCount(rng());
@@ -1695,17 +1792,41 @@ function collectionCurve(baseSeed: number, players: number, cap: number): Collec
         pickPolicy(rng()),
         Array.from(owned),
       );
-      runsPlayed++;
 
+      const wasRelicDone = owned.size >= slots;
+      const wasBothDone = wasRelicDone && seen.size >= endingsTotal;
       const before = owned.size;
       for (const id of result.discoveredIds) owned.add(id);
-      if (owned.size === before) barren++;
+      const addedRelic = owned.size > before;
+      const endingBefore = seen.size;
+      seen.add(result.ending);
+      const addedEnding = seen.size > endingBefore;
+
+      // Once a grid is full, further runs are barren by construction; counting
+      // them would measure the cap, not the game.
+      if (!wasRelicDone) {
+        relicRuns++;
+        if (!addedRelic) {
+          relicBarren++;
+          relicStreak++;
+          relicLongest = Math.max(relicLongest, relicStreak);
+        } else relicStreak = 0;
+      }
+      if (!wasBothDone) {
+        anyRuns++;
+        if (!addedRelic && !addedEnding) {
+          anyBarren++;
+          anyStreak++;
+          anyLongest = Math.max(anyLongest, anyStreak);
+        } else anyStreak = 0;
+      }
 
       if (halfAt > cap && owned.size >= half) halfAt = n;
       if (fullAt > cap && owned.size >= slots) fullAt = n;
+      if (endingsAt > cap && seen.size >= endingsTotal) endingsAt = n;
       if (totals.has(n)) totals.set(n, (totals.get(n) ?? 0) + owned.size);
-      // Nothing left to discover; the remaining runs would only cost time.
-      if (owned.size >= slots) {
+      if (owned.size >= slots && seen.size >= endingsTotal) {
+        bothAt = n;
         for (const m of marks) if (m > n) totals.set(m, (totals.get(m) ?? 0) + owned.size);
         break;
       }
@@ -1713,16 +1834,28 @@ function collectionCurve(baseSeed: number, players: number, cap: number): Collec
 
     toHalf.push(halfAt);
     toFull.push(fullAt);
+    toAllEndings.push(endingsAt);
+    toBoth.push(bothAt);
+    longestRelicBarren.push(relicLongest);
+    longestAnyBarren.push(anyLongest);
   }
 
   return {
     players,
     cap,
     slots,
+    endingsTotal,
     after: new Map(marks.map((m) => [m, (totals.get(m) ?? 0) / players])),
     medianRunsToHalf: median(toHalf),
     medianRunsToFull: median(toFull),
-    barrenRunRate: barren / Math.max(1, runsPlayed),
+    medianRunsToAllEndings: median(toAllEndings),
+    medianRunsToBoth: median(toBoth),
+    barrenRunRate: relicBarren / Math.max(1, relicRuns),
+    barrenAnyRate: anyBarren / Math.max(1, anyRuns),
+    longestRelicBarrenP50: percentile(longestRelicBarren, 0.5),
+    longestRelicBarrenP90: percentile(longestRelicBarren, 0.9),
+    longestAnyBarrenP50: percentile(longestAnyBarren, 0.5),
+    longestAnyBarrenP90: percentile(longestAnyBarren, 0.9),
   };
 }
 
@@ -1733,6 +1866,13 @@ function collectionCurve(baseSeed: number, players: number, cap: number): Collec
  * `collectionCurve` itself makes (120 players, not 2000). Override via env
  * for local tuning, the same convention as `LICH_DEVOTION` etc.
  */
+/**
+ * Cap for `collectionCurve`. It was 60, which left "median runs to the full
+ * grid" printing `>60` every time; 1,000 prints a number (about five minutes per
+ * 150 players in scratch — CI runs the seeds side by side, see
+ * `scripts/measure-seeds.sh`). Override via env for quick local runs.
+ */
+const COLLECTION_CAP = Number(process.env.COLLECTION_CAP ?? 1000);
 const COMPLETION_PLAYERS = Number(process.env.COMPLETION_PLAYERS ?? 150);
 /**
  * Twice the target band's ceiling, so a miss still reports a real number
@@ -1765,7 +1905,55 @@ type CompletionCurve = {
   p90RunsToComplete: number;
   /** How many of `runsToComplete` are the `cap + 1` sentinel, not a real completion time. */
   censoredCount: number;
+  /** Bootstrap 95% CI on the median (players resampled with replacement). */
+  medianCI: [number, number];
+  /**
+   * Per checklist item (ending id or relic id): the run number a player first
+   * had it, for the players who got it within the cap, plus how many never did.
+   */
+  firstAcquired: Map<string, { runs: number[]; missing: number }>;
+  /** Total runs spent chasing each target policy/phase, across all players (label -> runs). */
+  chaseRuns: Map<string, number>;
+  /** Which single item finished each player's checklist last (label -> players), or was still missing when the cap hit. */
+  lastItem: Map<string, number>;
 };
+
+type CompletionOptions = {
+  /** Chase order for endings; defaults to `ENDING_CHASE_ORDER`, the baseline. */
+  chaseOrder?: typeof ENDING_CHASE_ORDER;
+  /**
+   * The route-aware relic phase: take the Leash gamble whenever it is offered,
+   * and once every ending is seen, rotate over the factions of the missing
+   * relics playing each one's courtier. Reported as its own figure, never in
+   * place of the baseline's (failure modes 5 and 11).
+   */
+  routeAware?: boolean;
+};
+
+/** Seeded percentile bootstrap of the median; the harness's own rng, so it is deterministic per seed. */
+function bootstrapMedianCI(xs: number[], seed: number, resamples = 1000): [number, number] {
+  if (xs.length === 0) return [0, 0];
+  const rng = mulberry32(seed);
+  const meds: number[] = [];
+  for (let b = 0; b < resamples; b++) {
+    const sample: number[] = [];
+    for (let i = 0; i < xs.length; i++) sample.push(xs[Math.floor(rng() * xs.length)]);
+    meds.push(median(sample));
+  }
+  meds.sort((a, b) => a - b);
+  return [meds[Math.floor(resamples * 0.025)], meds[Math.floor(resamples * 0.975)]];
+}
+
+/**
+ * The faction whose courtier hunts a missing relic: a courtier cohort exists
+ * for five factions; the Worm Below's relics go to the `lich` policy, which
+ * courts it the same way.
+ */
+function relicHuntPolicy(factionId: FactionId): Policy {
+  return (COURTIER_TARGETS as readonly string[]).includes(factionId)
+    ? (`courtier_${factionId}` as CourtierPolicy)
+    : 'lich';
+}
 
 /**
  * One continuous meta-progression per simulated player (issue #33): the
@@ -1779,44 +1967,104 @@ type CompletionCurve = {
  * is currently running for the other reason, so summing each item's isolated
  * expected-wait overstates the true total-to-100%.
  */
-function completionProbe(baseSeed: number, players: number, cap: number): CompletionCurve {
+function completionProbe(
+  baseSeed: number,
+  players: number,
+  cap: number,
+  options: CompletionOptions = {},
+): CompletionCurve {
+  const chaseOrder = options.chaseOrder ?? ENDING_CHASE_ORDER;
+  const routeAware = options.routeAware ?? false;
   const allEndingIds = new Set(ALL_ENDING_IDS);
   const slots = content.artifacts.length;
   const runsToComplete: number[] = [];
+  const firstAcquired = new Map<string, { runs: number[]; missing: number }>();
+  const itemIds = [...ALL_ENDING_IDS, ...content.artifacts.map((a) => a.id)];
+  for (const id of itemIds) firstAcquired.set(id, { runs: [], missing: 0 });
+  const chaseRuns = new Map<string, number>();
+  const lastItem = new Map<string, number>();
+  const bump = (m: Map<string, number>, k: string) => m.set(k, (m.get(k) ?? 0) + 1);
 
   for (let p = 0; p < players; p++) {
     const rng = mulberry32((baseSeed + p * 104729) ^ 0xc0de5eed);
     const ownedArtifacts = new Set<string>();
     const seenEndings = new Set<EndingId>();
+    const firstAt = new Map<string, number>();
     let doneAt = cap + 1;
+    let lastNew = '';
+    let rotation = 0;
 
     for (let n = 1; n <= cap; n++) {
-      const target = ENDING_CHASE_ORDER.find(
-        ([id]) => allEndingIds.has(id) && !seenEndings.has(id),
-      );
-      const policy: Policy = target ? (target[1] ?? pickPolicy(rng())) : pickPolicy(rng());
+      const target = chaseOrder.find(([id]) => allEndingIds.has(id) && !seenEndings.has(id));
+      let policy: Policy;
+      let label: string;
+      if (target) {
+        policy = target[1] ?? pickPolicy(rng());
+        label = `ending:${target[0]}`;
+      } else if (routeAware && ownedArtifacts.size < slots) {
+        // Every ending is in: hunt relics, one missing relic's faction at a
+        // time, rotating so no faction's courtier is replayed while another
+        // faction's relic waits.
+        const missing = content.artifacts.filter((a) => !ownedArtifacts.has(a.id));
+        const factions = Array.from(new Set(missing.map((a) => a.factionId))).sort();
+        const faction = factions[rotation++ % factions.length];
+        policy = relicHuntPolicy(faction);
+        label = `relic:${faction}`;
+      } else {
+        policy = pickPolicy(rng());
+        label = 'population';
+      }
+      bump(chaseRuns, label);
       // `redeemed`'s own probe forces Long for the same reason (arch_lich
       // needs two decline-only scripted cards on the same career, and era
       // length costs a real seeker nothing to maximise) — see
       // `redeemedProbe`'s doc comment.
       const eraCount =
         policy === 'redeemed' ? RUN_LENGTHS[RUN_LENGTHS.length - 1] : pickEraCount(rng());
+      const wanted =
+        routeAware && !ownedArtifacts.has('weather_leash')
+          ? new Set(['weather_leash'])
+          : new Set<string>();
       const result = playRun(
         baseSeed + p * 104729 + n * 7919,
         eraCount,
         policy,
         Array.from(ownedArtifacts),
+        wanted,
       );
 
+      if (!seenEndings.has(result.ending)) {
+        firstAt.set(result.ending, n);
+        lastNew = result.ending;
+      }
       seenEndings.add(result.ending);
-      for (const id of result.discoveredIds) ownedArtifacts.add(id);
+      for (const id of result.discoveredIds) {
+        if (!ownedArtifacts.has(id)) {
+          firstAt.set(id, n);
+          lastNew = id;
+        }
+        ownedArtifacts.add(id);
+      }
 
       if (seenEndings.size >= allEndingIds.size && ownedArtifacts.size >= slots) {
         doneAt = n;
+        bump(lastItem, lastNew);
         break;
       }
     }
 
+    if (doneAt > cap) {
+      // Censored: what was still missing is the finding.
+      const missingNow = itemIds.filter((id) => !firstAt.has(id));
+      bump(lastItem, missingNow.length ? `unfinished (${missingNow.join(', ')})` : 'unfinished');
+    }
+    for (const id of itemIds) {
+      const entry = firstAcquired.get(id);
+      if (!entry) continue;
+      const at = firstAt.get(id);
+      if (at === undefined) entry.missing++;
+      else entry.runs.push(at);
+    }
     runsToComplete.push(doneAt);
   }
 
@@ -1830,6 +2078,10 @@ function completionProbe(baseSeed: number, players: number, cap: number): Comple
     meanRunsToComplete: mean(runsToComplete),
     p90RunsToComplete: percentile(runsToComplete, 0.9),
     censoredCount: runsToComplete.filter((v) => v > cap).length,
+    medianCI: bootstrapMedianCI(runsToComplete, baseSeed ^ 0xb007),
+    firstAcquired,
+    chaseRuns,
+    lastItem,
   };
 }
 
@@ -1997,7 +2249,7 @@ function main(): void {
   const total = results.length;
   // Sequential careers, folded into one persistent grid. Smaller populations
   // than the run sample because each "player" is up to `cap` whole runs.
-  const curve = collectionCurve(baseSeed ^ 0x51ede5, 120, 60);
+  const curve = collectionCurve(baseSeed ^ 0x51ede5, 120, COLLECTION_CAP);
   const byEnding = new Map<EndingId, number>();
   for (const r of results) byEnding.set(r.ending, (byEnding.get(r.ending) ?? 0) + 1);
 
@@ -2027,6 +2279,11 @@ function main(): void {
   const saint = saintProbe(baseSeed);
   const lich = lichProbe(baseSeed);
   const completion = completionProbe(baseSeed ^ 0xc0111ec7, COMPLETION_PLAYERS, COMPLETION_CAP);
+  // The route-aware seeker, same players and seeds, reported beside the baseline.
+  const routeAware = completionProbe(baseSeed ^ 0xc0111ec7, COMPLETION_PLAYERS, COMPLETION_CAP, {
+    chaseOrder: ROUTE_AWARE_CHASE_ORDER,
+    routeAware: true,
+  });
   const redeemed = redeemedProbe(baseSeed);
   const relicHoarder = relicHoarderProbe(baseSeed);
 
@@ -3068,7 +3325,18 @@ function main(): void {
   const capped = (v: number) => (v > curve.cap ? `>${curve.cap}` : String(v));
   row('median runs to half the grid', capped(curve.medianRunsToHalf));
   row('median runs to the full grid', capped(curve.medianRunsToFull));
-  row('runs that add nothing new', `${(curve.barrenRunRate * 100).toFixed(1)}%`);
+  row('median runs to every ending', capped(curve.medianRunsToAllEndings));
+  row('median runs to grid AND every ending', capped(curve.medianRunsToBoth));
+  row('runs that add no relic', `${(curve.barrenRunRate * 100).toFixed(1)}%`);
+  row('runs that add no relic and no ending', `${(curve.barrenAnyRate * 100).toFixed(1)}%`);
+  row(
+    'longest barren streak, relic only (p50 / p90)',
+    `${curve.longestRelicBarrenP50} / ${curve.longestRelicBarrenP90}`,
+  );
+  row(
+    'longest barren streak, relic or ending (p50 / p90)',
+    `${curve.longestAnyBarrenP50} / ${curve.longestAnyBarrenP90}`,
+  );
 
   // --- full completion, one continuous meta-progression -------------------
   console.log('');
@@ -3088,6 +3356,45 @@ function main(): void {
     `${completion.censoredCount > 0 ? '>' : ''}${completion.meanRunsToComplete.toFixed(1)}`,
   );
   row('p90 runs to full completion', completionCapped(completion.p90RunsToComplete));
+  row(
+    'median 95% CI (bootstrap)',
+    `${completionCapped(completion.medianCI[0])} to ${completionCapped(completion.medianCI[1])}`,
+  );
+  row('first 12 players (reproducibility)', `[${completion.runsToComplete.slice(0, 12).join(', ')}]`);
+  console.log('');
+  console.log(
+    `ROUTE-AWARE SEEKER  (betrayal seeker + Leash gamble + relic-faction rotation; NOT the baseline bot above)`,
+  );
+  console.log(rule());
+  row('median runs to full completion', completionCapped(routeAware.medianRunsToComplete));
+  row('p90 runs to full completion', completionCapped(routeAware.p90RunsToComplete));
+  row(
+    'median 95% CI (bootstrap)',
+    `${completionCapped(routeAware.medianCI[0])} to ${completionCapped(routeAware.medianCI[1])}`,
+  );
+  row('players not finished within cap', String(routeAware.censoredCount));
+  for (const [title, c] of [
+    ['baseline', completion],
+    ['route-aware', routeAware],
+  ] as const) {
+    console.log('');
+    console.log(`Per-item median first-acquisition run, ${title} (slowest 8; n = players who got it)`);
+    const items = [...c.firstAcquired.entries()]
+      .map(([id, v]) => ({ id, med: v.runs.length ? median(v.runs) : Infinity, n: v.runs.length, missing: v.missing }))
+      .sort((a, b) => b.med - a.med)
+      .slice(0, 8);
+    for (const it of items) {
+      row(`  ${it.id}`, `${Number.isFinite(it.med) ? it.med : 'never'}  (n=${it.n}, never ${it.missing})`);
+    }
+    console.log(`Runs spent per chase target, ${title} (mean per player)`);
+    for (const [label, n] of [...c.chaseRuns.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8)) {
+      row(`  ${label}`, (n / c.players).toFixed(1));
+    }
+    console.log(`Last item missing, ${title} (players)`);
+    for (const [label, n] of [...c.lastItem.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8)) {
+      row(`  ${label}`, String(n));
+    }
+  }
 
   console.log('');
   console.log('TARGET CHECKS');
