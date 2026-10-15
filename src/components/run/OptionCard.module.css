@@ -282,3 +282,9 @@
     font-size: var(--ew-size-base);
   }
 }
+
+/* Read aloud, not drawn: names which branch of a gamble a percentage belongs to
+   (the colour and position that say so on screen do not reach a screen reader). */
+.srOnly {
+  composes: srOnly from '../meta/craft.module.css';
+}

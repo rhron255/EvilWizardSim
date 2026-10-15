@@ -229,3 +229,11 @@ describe('ProphecyInterstitial · haptics', () => {
     expect(vibrate).not.toHaveBeenCalled();
   });
 });
+
+describe('ProphecyInterstitial · the hand-off is heard with the button', () => {
+  it('describes "Return to your work" with the line about the header number', () => {
+    show();
+    const button = screen.getByRole('button', { name: /return to your work/i });
+    expect(button).toHaveAccessibleDescription(/becomes a number in your header/i);
+  });
+});

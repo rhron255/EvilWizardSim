@@ -282,7 +282,7 @@ describe('OfferPanel · keyboard', () => {
 describe('OfferPanel · affordability', () => {
   it('disables an option that spends stock the wizard does not have, and says why', () => {
     show(demoOfferGated, false, demoEarlyRun);
-    const gated = screen.getByRole('button', { name: /unaffordable/i });
+    const gated = screen.getAllByRole('button').find((b) => b.dataset.unaffordable === 'true')!;
     expect(gated).toBeDisabled();
     expect(
       within(gated).getByText(`Requires ${price} Followers · you have ${demoEarlyRun.followers}`),
@@ -291,7 +291,7 @@ describe('OfferPanel · affordability', () => {
 
   it('does not fire onChoose on a click for an unaffordable option', async () => {
     const { onChoose, user } = show(demoOfferGated, false, demoEarlyRun);
-    await user.click(screen.getByRole('button', { name: /unaffordable/i }));
+    await user.click(screen.getAllByRole('button').find((b) => b.dataset.unaffordable === 'true')!);
     expect(onChoose).not.toHaveBeenCalled();
   });
 
@@ -322,7 +322,7 @@ describe('OfferPanel · affordability', () => {
     // `offer` is the projected copy; `rawOffer` is the authored one gating
     // must actually use.
     show(shown, false, demoEarlyRun, content, demoOfferGated);
-    const gated = screen.getByRole('button', { name: /unaffordable/i });
+    const gated = screen.getAllByRole('button').find((b) => b.dataset.unaffordable === 'true')!;
     expect(gated).toBeDisabled();
     expect(
       within(gated).getByText(`Requires ${price} Followers · you have ${demoEarlyRun.followers}`),
