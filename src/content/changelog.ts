@@ -21,6 +21,12 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-10-15T06:19:04Z': {
+    summary: 'The game no longer asks Google for its fonts, so visiting it sends nobody’s address to a third party.',
+    details: [
+      'The two typefaces now ship with the game itself, and the shared result card draws in them even offline.',
+    ],
+  },
   '2026-10-11T06:03:10Z': {
     summary: 'Starting a new career now tells you when it would discard one you have not finished.',
     details: [
