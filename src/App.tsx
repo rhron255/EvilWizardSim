@@ -176,6 +176,8 @@ export default function App() {
           defaultName={game.collection.lastWizardName}
           onCreate={game.create}
           onBack={game.backToTitle}
+          unfinishedName={game.resumableName}
+          onResume={game.resume}
           themeId={themeId}
         />
       );

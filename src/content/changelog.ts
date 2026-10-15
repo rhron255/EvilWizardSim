@@ -21,6 +21,13 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-10-11T06:03:10Z': {
+    summary: 'Starting a new career now tells you when it would discard one you have not finished.',
+    details: [
+      'The creation screen names the unfinished career that will not be kept, with a button to resume it instead.',
+      'With a career waiting, the title screen now puts Resume first.',
+    ],
+  },
   '2026-10-10T12:35:00Z': {
     summary: 'The Followers stat now says that a big household helps you earn a grander lair.',
     details: [

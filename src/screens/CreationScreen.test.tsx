@@ -20,9 +20,10 @@ import { CREATION_EPITHETS } from '../content';
 import { MAX_NAME_LENGTH } from '../engine';
 import { CreationScreen } from './CreationScreen';
 
-const show = (defaultName = '') => {
+const show = (defaultName = '', unfinishedName: string | null = null) => {
   const onCreate = vi.fn();
   const onBack = vi.fn();
+  const onResume = vi.fn();
   render(
     <CreationScreen
       origins={origins}
@@ -32,10 +33,12 @@ const show = (defaultName = '') => {
       defaultName={defaultName}
       onCreate={onCreate}
       onBack={onBack}
+      unfinishedName={unfinishedName}
+      onResume={onResume}
       themeId="default"
     />,
   );
-  return { onCreate, onBack, field: screen.getByRole('textbox') };
+  return { onCreate, onBack, onResume, field: screen.getByRole('textbox') };
 };
 
 const commit = () => screen.getByRole('button', { name: /begin the career/i });
@@ -116,5 +119,40 @@ describe('CreationScreen · disclosure', () => {
       expect(screen.getByText(name)).toBeInTheDocument();
       expect(screen.getByText(`${eras * 5} years`)).toBeInTheDocument();
     }
+  });
+});
+
+describe('CreationScreen · an unfinished career (issue #107)', () => {
+  it('says nothing when there is no saved career', () => {
+    show('Mal');
+    expect(screen.queryByText(/will not be kept/i)).toBeNull();
+    expect(screen.queryByRole('button', { name: /resume/i })).toBeNull();
+  });
+
+  it('names the career that starting over discards, and offers the way back', async () => {
+    const { onResume, onCreate } = show('Mal', 'Vashter');
+    expect(screen.getByText(/Vashter.s unfinished career will not be kept/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /resume vashter/i }));
+    expect(onResume).toHaveBeenCalledTimes(1);
+    expect(onCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe('CreationScreen · Enter cannot skip the unfinished-career notice (issue #107)', () => {
+  it('moves focus to the commit button instead of submitting', async () => {
+    const { onCreate, field } = show('Mal', 'Vashter');
+    await userEvent.click(field);
+    await userEvent.keyboard('{Enter}');
+    expect(onCreate).not.toHaveBeenCalled();
+    expect(commit()).toHaveFocus();
+    await userEvent.keyboard('{Enter}');
+    expect(onCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it('still submits on Enter when nothing would be discarded', async () => {
+    const { onCreate, field } = show('Mal');
+    await userEvent.click(field);
+    await userEvent.keyboard('{Enter}');
+    expect(onCreate).toHaveBeenCalledTimes(1);
   });
 });
