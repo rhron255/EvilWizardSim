@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './theme/ornaments.css';
 import './theme/tokens.css';
+import './theme/fonts.css';
 // The shared primitives every screen composes, loaded before any screen can
 // be. A screen class that composes `.btn` or `.plateDoubleFrame` and then
 // overrides one of its properties wins only by coming later in the cascade at
