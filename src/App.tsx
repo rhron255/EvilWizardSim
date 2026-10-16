@@ -272,7 +272,9 @@ export default function App() {
           // the way in and drops it on the way back to the title, so a
           // finished run here IS the career whose ending was just reached.
           // From the title `run` is null and nothing is marked.
-          justReached={run?.ending ?? null}
+          // A slot picked from the ending card's unreached list opens unmarked:
+          // the "Just reached" mark belongs to the arrival from the card's own button.
+          justReached={necroTarget ? null : (run?.ending ?? null)}
           focusEnding={necroTarget}
           onBack={game.backToTitle}
           onViewThemes={game.viewThemes}
