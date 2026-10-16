@@ -216,6 +216,9 @@ function show(
       themeId="default"
       unlockedTheme={null}
       onApplyTheme={() => {}}
+      endings={endings}
+      endingsSeen={[endingId]}
+      onViewEnding={() => {}}
       {...extra}
       onPlayAgain={() => {}}
       onViewNecrolexicon={() => {}}
@@ -405,6 +408,9 @@ describe('EndingScreen · what the career added', () => {
         themeId="default"
         unlockedTheme={null}
         onApplyTheme={() => {}}
+        endings={endings}
+        endingsSeen={['slain_by_chosen_one']}
+        onViewEnding={() => {}}
         onPlayAgain={() => {}}
         onViewNecrolexicon={() => {}}
         onShare={() => {}}
