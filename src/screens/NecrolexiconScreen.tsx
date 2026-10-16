@@ -74,6 +74,12 @@ export type NecrolexiconScreenProps = {
    * forgotten by every caller.
    */
   justReached: EndingId | null;
+  /**
+   * An ending the player chose from the ending card's unreached list (issue
+   * #113): open on the Endings tab and bring that slot into view. Unlike
+   * `justReached` it marks nothing. Required, so no caller can forget it.
+   */
+  focusEnding: EndingId | null;
   onBack(): void;
   onViewThemes(): void;
 };
@@ -95,10 +101,11 @@ export function NecrolexiconScreen({
   endings,
   mechanics,
   justReached,
+  focusEnding,
   onBack,
   onViewThemes,
 }: NecrolexiconScreenProps) {
-  const [category, setCategory] = useState<Category>(justReached ? 'endings' : 'factions');
+  const [category, setCategory] = useState<Category>(justReached || focusEnding ? 'endings' : 'factions');
   const [filter, setFilter] = useState<Filter>('all');
 
   /**
@@ -114,16 +121,18 @@ export function NecrolexiconScreen({
    */
   const endingsRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
-    if (!justReached) return;
+    if (!justReached && !focusEnding) return;
     const frame = window.requestAnimationFrame(() => {
-      const slot = endingsRef.current?.querySelector('[data-current-label]')?.closest('article');
+      const slot = focusEnding
+        ? endingsRef.current?.querySelector(`[data-ending-id="${focusEnding}"]`)
+        : endingsRef.current?.querySelector('[data-current-label]')?.closest('article');
       slot?.scrollIntoView?.({ block: 'center' });
     });
     return () => window.cancelAnimationFrame(frame);
     // Arrival only. `justReached` is fixed for as long as this screen is up,
     // and switching tabs and back does not re-run this, so the page is never
     // yanked a second time.
-  }, [justReached]);
+  }, [justReached, focusEnding]);
 
   /**
    * Roving tabindex for the category strip (WAI-ARIA APG's tablist pattern).

@@ -9,6 +9,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { ContentBundle } from './engine';
+import type { EndingId } from './types';
 import {
   defenseReadout,
   loadChangelogAck,
@@ -60,6 +61,17 @@ const CONTENT: ContentBundle = {
 export default function App() {
   const game = useGame(CONTENT, RELICS_RESET_AT_BUILD);
   const { run, screen } = game;
+
+  /**
+   * The ending slot the Necrolexicon should open on, set by a tap on the
+   * ending card's "still unwritten" list (issue #113) and cleared by every
+   * other door in. View state only — nothing here is run or collection state.
+   */
+  const [necroTarget, setNecroTarget] = useState<EndingId | null>(null);
+  const openNecrolexicon = (target: EndingId | null) => {
+    setNecroTarget(target);
+    game.viewNecrolexicon();
+  };
 
   /**
    * The cosmetic worn on every screen.
@@ -235,7 +247,10 @@ export default function App() {
           artifacts={artifacts}
           factions={factions}
           onPlayAgain={game.playAgain}
-          onViewNecrolexicon={game.viewNecrolexicon}
+          onViewNecrolexicon={() => openNecrolexicon(null)}
+          endings={endings}
+          endingsSeen={game.collection.endingsSeen}
+          onViewEnding={openNecrolexicon}
           onShare={() => {}}
           themeId={themeId}
           unlockedTheme={game.unlockedTheme}
@@ -258,6 +273,7 @@ export default function App() {
           // finished run here IS the career whose ending was just reached.
           // From the title `run` is null and nothing is marked.
           justReached={run?.ending ?? null}
+          focusEnding={necroTarget}
           onBack={game.backToTitle}
           onViewThemes={game.viewThemes}
         />
@@ -295,7 +311,7 @@ export default function App() {
         hasResumableRun={game.hasResumableRun}
         onBegin={game.begin}
         onResume={game.resume}
-        onViewNecrolexicon={game.viewNecrolexicon}
+        onViewNecrolexicon={() => openNecrolexicon(null)}
         onViewThemes={game.viewThemes}
         onViewChangelog={game.viewChangelog}
         onViewTutorial={game.viewTutorial}
