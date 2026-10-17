@@ -219,6 +219,7 @@ describe('fireTriggers · relics never respond to each other', () => {
           factionId: content.artifacts[0].factionId,
           rarity: 'common',
           flavorText: 'x',
+          hint: 'x',
           power: { kind: 'trigger', when: 'eraEnd', effects: [{ t: 'followers', v: -5 }] },
         },
         {
@@ -227,6 +228,7 @@ describe('fireTriggers · relics never respond to each other', () => {
           factionId: content.artifacts[0].factionId,
           rarity: 'common',
           flavorText: 'x',
+          hint: 'x',
           power: {
             kind: 'trigger',
             when: 'eraEnd',

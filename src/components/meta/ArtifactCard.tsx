@@ -181,7 +181,8 @@ export function ArtifactCard({
         {!compact && (
           <p className={styles.effect}>
             {locked ? (
-              <span className={styles.redactionLine} aria-hidden />
+              // The name stays redacted; the route does not (issue #114).
+              <span className={styles.hint}>{artifact.hint}</span>
             ) : (
               `Wards +${RELIC_WARDS[artifact.rarity]}.`
             )}

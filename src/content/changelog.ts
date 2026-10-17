@@ -21,6 +21,12 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-10-17T06:19:50Z': {
+    summary: 'Locked relics now say how to come by them, so the collection screen points somewhere.',
+    details: [
+      'Every undiscovered relic prints a short hint about its route; the name stays hidden.',
+    ],
+  },
   '2026-10-15T06:19:04Z': {
     summary: 'The game no longer asks Google for its fonts, so visiting it sends nobody’s address to a third party.',
     details: [
