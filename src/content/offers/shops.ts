@@ -24,17 +24,13 @@ import type { Offer } from '../../types';
  *     of hero threat about 6-11, and a held relic sells for about 20 — the
  *     same rates as the existing one-off sale cards.
  *
- * Every stall waits until era index 3: several goods buy hero-threat relief and
- * threat starts at zero, so an earlier stall would take the price and deliver
- * nothing (the card would print the truth, but it would be a bad deal to print).
- *
- * The Academy's stall BUYS relics, so it opens only to a player holding three:
- * a sale takes a random one, Ascension needs a legendary, and with a sale on
- * offer at one or two relics the sim's Ascension rate fell from 1.10% to 0.70%,
- * under its 1-4% band. The Worm's stall was first written to buy relics too and
- * is paid in followers instead: the lich rite needs a relic count, and the
- * lich-seeker cohort fell from 6.15% to 0.77% once its Worm stall was eating
- * the relics.
+ * Every stall is a decline-phase offer from era index 10: several goods buy
+ * hero-threat relief, and threat only starts to grow once the decline begins
+ * (`threatGainFor` is 0 in the ascent), so an earlier stall would take the price
+ * and deliver nothing (the card would print the truth, but it would be a bad
+ * deal to print). Known gaps shared with older cards (`any_contractors`, the
+ * favors): a lair rung bought at the top of the ladder, or a relic drawn when
+ * the faction's commons are all held, delivers nothing.
  *
  * Rule 1 notes. Every price is a plain `certain` effect list, so the card
  * prints exactly what the engine does. A follower or relic price is gated on
@@ -51,9 +47,9 @@ export const shopOffers: Offer[] = [
     id: 'shop_gilded_stall',
     title: 'The Travelling Stall',
     body: 'Hesper Quill has pitched a folding stall in your courtyard, under a banner reading ALL SALES FINAL, FINAL BEING A TERM OF ART. The price list is laminated. The lamination is itself on the price list.',
-    phase: 'any',
+    phase: 'decline',
     factionId: 'gilded_hand',
-    requires: [{ c: 'minEraIndex', v: 3 }, { c: 'minFollowers', v: 6 }],
+    requires: [{ c: 'minEraIndex', v: 10 }, { c: 'minFollowers', v: 6 }],
     weight: 3,
     options: [
       {
@@ -95,9 +91,9 @@ export const shopOffers: Offer[] = [
     id: 'shop_academy_appraiser',
     title: 'The Appraiser’s Table',
     body: 'A junior archivist from the Pale Academy has set up a trestle table and a very small brass scale, and is appraising things in the corridor. She has a form for appraising you. She has not decided yet whether to hand you the form.',
-    phase: 'any',
+    phase: 'decline',
     factionId: 'pale_academy',
-    requires: [{ c: 'minEraIndex', v: 3 }, { c: 'minArtifacts', v: 3 }],
+    requires: [{ c: 'minEraIndex', v: 10 }, { c: 'minArtifacts', v: 3 }],
     weight: 1,
     options: [
       {
@@ -131,9 +127,9 @@ export const shopOffers: Offer[] = [
     id: 'shop_choir_seed_market',
     title: 'The Seed Market',
     body: 'Brambleward Oona has laid a market out on the lawn, in rows, though the rows are growing. Nothing has a price tag. Everything has a debt of gratitude, and the Choir is very precise about the exchange rate.',
-    phase: 'any',
+    phase: 'decline',
     factionId: 'verdant_choir',
-    requires: [{ c: 'minEraIndex', v: 3 }, { c: 'minStanding', factionId: 'verdant_choir', v: 20 }],
+    requires: [{ c: 'minEraIndex', v: 10 }, { c: 'minStanding', factionId: 'verdant_choir', v: 20 }],
     weight: 2,
     options: [
       {
@@ -175,9 +171,9 @@ export const shopOffers: Offer[] = [
     id: 'shop_crown_auction',
     title: 'The Seizure Auction',
     body: 'The Crown is auctioning the contents of a warehouse it seized from someone who was, it assures you, a wizard in the old sense and not at all like you. The auctioneer’s gavel is also evidence.',
-    phase: 'any',
+    phase: 'decline',
     factionId: 'crownlands',
-    requires: [{ c: 'minEraIndex', v: 3 }, { c: 'minFollowers', v: 8 }],
+    requires: [{ c: 'minEraIndex', v: 10 }, { c: 'minFollowers', v: 8 }],
     weight: 2,
     options: [
       {
@@ -219,9 +215,9 @@ export const shopOffers: Offer[] = [
     id: 'shop_worm_cellar_market',
     title: 'The Cellar Market',
     body: 'Something below the third cellar has opened a stall in the dark. It sells things. It takes payment in people, politely, and does not say what it does with them, and the sound of the till is wet.',
-    phase: 'any',
+    phase: 'decline',
     factionId: 'worm_below',
-    requires: [{ c: 'minEraIndex', v: 3 }, { c: 'minFollowers', v: 8 }],
+    requires: [{ c: 'minEraIndex', v: 10 }, { c: 'minFollowers', v: 8 }],
     weight: 1,
     options: [
       {
