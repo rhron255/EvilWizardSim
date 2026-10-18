@@ -13,7 +13,7 @@ description: Schemas for run state, eras, factions, artifacts and offers, plus b
 | Notoriety tiers | Measured | Thresholds held against 2000 real runs; see the tuning task below. |
 | Faction catalog | Built | Six factions, each with blurb, demand, `hostileTo` and a relic theme (`reliquary`). |
 | Artifact catalog | Built | **32 relics** (16 common / 10 rare / 6 legendary). Every one carries a power: 14 triggers, 11 passives, 5 actives, 2 lifelines (issue #77). |
-| Offer/event catalog | Built | **155 offers** — 49 ascent, 60 decline, 46 either. Target was 80–120. |
+| Offer/event catalog | Built | **160 offers** — 49 ascent, 60 decline, 51 either (five of them the faction stalls of issue #115). Target was 80–120. |
 
 ## Design Intent
 

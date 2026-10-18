@@ -44,7 +44,7 @@ constraints below exist, and is the thing to read before relaxing any of them.
 | `src/version.ts` | `BUILD_VERSION` — bump it and add a `src/content/changelog.ts` entry on every player-visible change (issue #67). |
 | `src/theme/` | Design tokens (`tokens.ts` for JS, `tokens.css` for `--ew-*`), the theme catalog (`themes.ts`), and the ornament shapes (`ornaments.ts`, generated into `ornaments.css` by `npm run ornaments`). |
 | `src/engine/` | Run state, offer sampling, resolution, endings, persistence. |
-| `src/content/` | Factions, artifacts, lairs, origins, endings, epithets, 155 offers, the changelog. |
+| `src/content/` | Factions, artifacts, lairs, origins, endings, epithets, 160 offers, the changelog. |
 | `src/components/run/` | The run loop: masthead, faction standings, decision and offer panels, resolution overlay, relic page, notoriety badge. |
 | `src/components/meta/` | Set-piece parts: lair grid, artifact grid, sigil. |
 | `src/screens/` | Screen composition. |
