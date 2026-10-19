@@ -69,6 +69,11 @@ export function ResolutionOverlay({
   const systemicId = `${baseId}-systemic`;
   const lifelineId = `${baseId}-lifeline`;
   const endingId = `${baseId}-ending`;
+  const relicEventsId = `${baseId}-relic-events`;
+  const gainedId = `${baseId}-gained`;
+  const lostId = `${baseId}-lost`;
+  const lairId = `${baseId}-lair`;
+  const tierId = `${baseId}-tier`;
   const continueRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -105,7 +110,12 @@ export function ResolutionOverlay({
       textId,
       effectsId,
       resolution.systemic.length > 0 && systemicId,
+      resolution.relicEvents.length > 0 && relicEventsId,
+      resolution.artifactsGained.length > 0 && gainedId,
+      resolution.artifactsLost.length > 0 && lostId,
+      resolution.lairMoved && lairId,
       resolution.lifeline && lifelineId,
+      tierCrossed && tierId,
       resolution.ending && endingId,
     ]
       .filter(Boolean)
@@ -251,7 +261,7 @@ export function ResolutionOverlay({
             line, shown wherever the relic itself is, already explains WHY;
             this only says what it did. */}
         {resolution.relicEvents.length > 0 && (
-          <div className={styles.relicEvents}>
+          <div id={relicEventsId} className={styles.relicEvents}>
             <p className={styles.relicEventsLabel}>Your relics</p>
             <ul className={styles.relicEventsList}>
               {resolution.relicEvents.map((event) => (
@@ -271,7 +281,7 @@ export function ResolutionOverlay({
         )}
 
         {resolution.artifactsGained.length > 0 && (
-          <div className={styles.relics}>
+          <div id={gainedId} className={styles.relics}>
             {/* `data-rarity` below is the same hook `ArtifactCard` reads. This
                 row is hand-rolled rather than an ArtifactCard — different
                 layout, and it carries `data-new` — but it must not speak a
@@ -317,7 +327,7 @@ export function ResolutionOverlay({
             just points it at what a single era took, right where the
             equivalent GAIN is shown above. */}
         {resolution.artifactsLost.length > 0 && (
-          <div className={styles.relicsLost}>
+          <div id={lostId} className={styles.relicsLost}>
             <p className={styles.relicsLostLabel}>Lost this era</p>
             <ul className={styles.relicsLostList}>
               {resolution.artifactsLost.map((a) => (
@@ -330,7 +340,7 @@ export function ResolutionOverlay({
         )}
 
         {resolution.lairMoved && (
-          <p className={styles.lairMove} data-up={resolution.lairMoved.up ? 'true' : undefined}>
+          <p id={lairId} className={styles.lairMove} data-up={resolution.lairMoved.up ? 'true' : undefined}>
             <span className={styles.lairMoveLabel}>
               {resolution.lairMoved.up ? 'You have moved up' : 'You have lost ground'}
             </span>
@@ -367,7 +377,7 @@ export function ResolutionOverlay({
         )}
 
         {tierCrossed && (
-          <p className={styles.tier} data-celebrate={tierCrossed.celebrate ? 'true' : undefined}>
+          <p id={tierId} className={styles.tier} data-celebrate={tierCrossed.celebrate ? 'true' : undefined}>
             <span className={styles.tierName}>{tierCrossed.name}</span>
             <span className={styles.tierLine}>{tierCrossed.line}</span>
           </p>
