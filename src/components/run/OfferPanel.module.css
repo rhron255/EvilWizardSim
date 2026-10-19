@@ -90,3 +90,8 @@
     line-height: 1.45;
   }
 }
+
+/* Focus lands here after a result is dismissed (issue #120); it is a landmark, not a control, so no ring. */
+.title:focus {
+  outline: none;
+}

@@ -62,6 +62,13 @@ export function ResolutionOverlay({
   onContinue,
 }: ResolutionOverlayProps) {
   const headingId = useId();
+  const baseId = useId();
+  const rollId = `${baseId}-roll`;
+  const textId = `${baseId}-text`;
+  const effectsId = `${baseId}-effects`;
+  const systemicId = `${baseId}-systemic`;
+  const lifelineId = `${baseId}-lifeline`;
+  const endingId = `${baseId}-ending`;
   const continueRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -87,6 +94,23 @@ export function ResolutionOverlay({
   const cardTier = tierCrossed ?? tierFor(notoriety);
   const crossed = Boolean(tierCrossed);
 
+  // Issue #120: the dialog is described by the nodes already on the card, so a
+  // screen reader hears the roll, the deed, the effects and the end of the run
+  // without navigating backwards from Continue. No new copy. Deliberate
+  // difference: announcing on open names the verdict before the needle settles;
+  // the staging is visual garnish, so that is acceptable.
+  const describedBy =
+    [
+      showRoll && rollId,
+      textId,
+      effectsId,
+      resolution.systemic.length > 0 && systemicId,
+      resolution.lifeline && lifelineId,
+      resolution.ending && endingId,
+    ]
+      .filter(Boolean)
+      .join(' ') || undefined;
+
   // The buzz rides the visual, never a timer of its own. A gamble's verdict word
   // begins its animation at the roll's settle, so that event is the cue and the
   // two cannot drift apart if the stylesheet's timing changes. A certain choice
@@ -111,6 +135,7 @@ export function ResolutionOverlay({
       role="dialog"
       aria-modal="true"
       aria-labelledby={headingId}
+      aria-describedby={describedBy}
     >
       <div
         className={styles.card}
@@ -173,15 +198,15 @@ export function ResolutionOverlay({
               <span className={styles.railTick} style={{ left: `${odds * 100}%` }} />
               <span className={styles.needle} style={{ '--roll': roll } as React.CSSProperties} />
             </div>
-            <p className={`${styles.rollText} ew-num`}>
+            <p id={rollId} className={`${styles.rollText} ew-num`}>
               Rolled <strong>{Math.round(roll * 100)}</strong> against {formatOdds(odds)}
             </p>
           </div>
         )}
 
-        <p className={styles.text}>{resolution.text}</p>
+        <p id={textId} className={styles.text}>{resolution.text}</p>
 
-        <div className={styles.effects}>
+        <div id={effectsId} className={styles.effects}>
           <EffectList
             effects={resolution.appliedEffects}
             artifacts={artifacts}
@@ -196,7 +221,7 @@ export function ResolutionOverlay({
             the run was real, systemic, and printed nowhere — but folding it in
             above would have blamed it on the card the player just picked. */}
         {resolution.systemic.length > 0 && (
-          <div className={styles.systemic}>
+          <div id={systemicId} className={styles.systemic}>
             <p className={styles.systemicLabel}>While you were elsewhere</p>
             <ul className={styles.systemicList}>
               {resolution.systemic.map((change, i) => {
@@ -323,7 +348,7 @@ export function ResolutionOverlay({
             `--ew-tier` stays the one chromatic reward the run pays out
             (CLAUDE.md rule 3). */}
         {resolution.lifeline && (
-          <div className={styles.lifeline}>
+          <div id={lifelineId} className={styles.lifeline}>
             <p className={styles.lifelineLabel}>Lifeline</p>
             <p className={styles.lifelineText}>
               {artifactName(resolution.lifeline.artifactId, artifacts)} spends itself:{' '}
@@ -349,7 +374,7 @@ export function ResolutionOverlay({
         )}
 
         {resolution.ending && (
-          <p className={styles.ending}>The run ends · {endingDisplayName(resolution.ending, endings)}</p>
+          <p id={endingId} className={styles.ending}>The run ends · {endingDisplayName(resolution.ending, endings)}</p>
         )}
 
         {/* The deed line the ledger is about to receive was echoed here, which

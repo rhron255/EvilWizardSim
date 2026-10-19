@@ -6,7 +6,7 @@
  * (wiki/06_reference_analysis.md, principle 3).
  */
 
-import { useCallback, useEffect, useId, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, type Ref } from 'react';
 import type { Artifact, Effect, Faction, Offer, OfferOption, RunState } from '../../types';
 import type { ContentBundle, RelicEvent, RelicReactionPreview } from '../../engine';
 import {
@@ -35,6 +35,8 @@ export type OfferPanelProps = {
    * `offer` was never projected to begin with.
    */
   rawOffer?: Offer;
+  /** Receives the title so focus can land on it once the previous era's result is dismissed (issue #120). */
+  titleRef?: Ref<HTMLHeadingElement>;
   run: RunState;
   content: ContentBundle;
   artifacts: Artifact[];
@@ -144,6 +146,7 @@ export function OfferPanel({
   factions,
   disabled = false,
   onChoose,
+  titleRef,
 }: OfferPanelProps) {
   const titleId = useId();
   const listRef = useRef<HTMLDivElement>(null);
@@ -247,7 +250,7 @@ export function OfferPanel({
     <section className={styles.panel} aria-labelledby={titleId} data-disabled={disabled}>
       <header className={styles.header}>
         {faction && <p className={styles.eyebrow}>{faction.name}</p>}
-        <h2 id={titleId} className={styles.title}>
+        <h2 id={titleId} className={styles.title} tabIndex={-1} ref={titleRef}>
           {offer.title}
         </h2>
         <p className={styles.body}>{offer.body}</p>
