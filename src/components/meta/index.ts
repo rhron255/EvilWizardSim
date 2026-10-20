@@ -20,6 +20,10 @@ export type { Stat, StatBlockProps } from './StatBlock';
 export { EndingSlot } from './EndingSlot';
 export type { EndingSlotProps } from './EndingSlot';
 
+export { UnreachedEndings } from './UnreachedEndings';
+export { unreachedEndings, UNREACHED_LIMIT } from './unreachedEndings';
+export type { UnreachedEndingsProps } from './UnreachedEndings';
+
 export { Sigil } from './Sigil';
 export type { SigilProps } from './Sigil';
 

@@ -149,6 +149,29 @@ describe('App · the Necrolexicon marks the ending just reached', () => {
     await waitFor(() => expect(intoView.mock.contexts).toContain(slot));
   });
 
+  it('opens a tapped unreached hint on its slot, with nothing marked just reached', async () => {
+    returningPlayer(careerWithOneEraLeft());
+    const intoView = vi.spyOn(Element.prototype, 'scrollIntoView');
+    const { container } = render(<App />);
+
+    await userEvent.click(screen.getByRole('button', { name: /resume run/i }));
+    await userEvent.click(
+      container.querySelector<HTMLButtonElement>('button[data-option-index]:not([disabled])')!,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /^continue/i }));
+
+    const hint = container.querySelector<HTMLButtonElement>('button[data-ending-id]');
+    expect(hint, 'the ending card lists no unreached ending').not.toBeNull();
+    const id = hint!.dataset.endingId!;
+    await userEvent.click(hint!);
+
+    expect(screen.getByRole('tab', { name: /^endings$/i })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByText(/^just reached$/i)).not.toBeInTheDocument();
+    const slot = container.querySelector(`article[data-ending-id="${id}"]`);
+    expect(slot).not.toBeNull();
+    await waitFor(() => expect(intoView.mock.contexts).toContain(slot));
+  });
+
   it('marks nothing once the player has gone back to the title', async () => {
     returningPlayer(careerWithOneEraLeft());
     const { container } = render(<App />);
