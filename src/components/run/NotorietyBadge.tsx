@@ -82,7 +82,7 @@ export function NotorietyBadge({
     >
       <span className={styles.glow} aria-hidden="true" />
       <span className={styles.label}>Notoriety</span>
-      <span className={`${styles.value} ew-num`} aria-label={`Notoriety ${display}`}>
+      <span className={`${styles.value} ew-num`} role="img" aria-label={`Notoriety ${value}`}>
         {display}
       </span>
       <span className={styles.tier} title={tier.line}>

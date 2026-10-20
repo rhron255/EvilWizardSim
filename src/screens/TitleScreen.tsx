@@ -18,6 +18,10 @@ export type TitleScreenProps = {
   collection: Collection;
   /** Size of the full relic catalog — the denominator on the collection door. */
   artifactCount: number;
+  /**
+   * A saved career exists. Resume takes first focus then: Enter on a fresh
+   * load must not be one keypress from discarding it (issue #107).
+   */
   hasResumableRun: boolean;
   onBegin(): void;
   onResume(): void;
@@ -73,12 +77,12 @@ export function TitleScreen({
         </header>
 
         <nav className={styles.doors} aria-label="Main menu">
-          <button type="button" className={styles.begin} onClick={onBegin} autoFocus>
+          <button type="button" className={styles.begin} onClick={onBegin} autoFocus={!hasResumableRun}>
             Begin a career
           </button>
 
           {hasResumableRun ? (
-            <button type="button" className={styles.door} onClick={onResume}>
+            <button type="button" className={styles.door} onClick={onResume} autoFocus>
               <span>Resume run</span>
               <span className={styles.doorNote}>in progress</span>
             </button>

@@ -55,6 +55,7 @@ export function EndingSlot({ ending, seen, current }: EndingSlotProps) {
   return (
     <article
       className={classes}
+      data-ending-id={ending.id}
       aria-label={
         seen
           ? `${current ? 'Just reached: ' : ''}${ending.name} — ${ending.summary}`

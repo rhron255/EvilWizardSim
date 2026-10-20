@@ -70,6 +70,16 @@ describe('TitleScreen · resuming', () => {
     // Resuming is not beginning. Conflating them would silently discard a run.
     expect(onBegin).not.toHaveBeenCalled();
   });
+
+  it('puts first focus on Resume, not Begin, when a career is waiting', () => {
+    show(demoCollection, true);
+    expect(within(menu()).getByRole('button', { name: /resume/i })).toHaveFocus();
+  });
+
+  it('keeps first focus on Begin when there is nothing to resume', () => {
+    show(demoCollection, false);
+    expect(within(menu()).getByRole('button', { name: /begin a career/i })).toHaveFocus();
+  });
 });
 
 describe('TitleScreen · a first-time player', () => {

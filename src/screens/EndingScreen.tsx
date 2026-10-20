@@ -12,7 +12,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { Artifact, Ending, Faction, Lair, RunState, ThemeId, TierId } from '../types';
+import type { Artifact, Ending, EndingId, Faction, Lair, RunState, ThemeId, TierId } from '../types';
 import { themeFor } from '../theme/themes';
 import {
   ArtifactGrid,
@@ -23,6 +23,7 @@ import {
   LairGrid,
   Sigil,
   StatBlock,
+  UnreachedEndings,
   attributionFor,
   canRenderShareImage,
   lairTenures,
@@ -49,6 +50,15 @@ export type EndingScreenProps = {
   factions: Faction[];
   onPlayAgain(): void;
   onViewNecrolexicon(): void;
+  /** Every ending in the catalogue; the unreached list is drawn from it (issue #113). */
+  endings: Ending[];
+  /**
+   * The persisted collection's reached endings, this run's included. Collection
+   * state only — the unreached list never reads the hidden good/ill counters.
+   */
+  endingsSeen: EndingId[];
+  /** Opens the Necrolexicon's Endings tab on the given slot. */
+  onViewEnding(id: EndingId): void;
   /**
    * Notification hook for the host app (routing, analytics). The image itself
    * is produced here, because only this screen can react to a failed export by
@@ -117,6 +127,9 @@ export function EndingScreen({
   factions,
   onPlayAgain,
   onViewNecrolexicon,
+  endings,
+  endingsSeen,
+  onViewEnding,
   onShare,
   themeId,
   unlockedTheme,
@@ -478,6 +491,8 @@ export function EndingScreen({
           View Necrolexicon
         </button>
       </nav>
+
+      <UnreachedEndings endings={endings} endingsSeen={endingsSeen} onSelect={onViewEnding} />
 
       <p className={styles.controlNote} role="status">
         {share === 'fallback'

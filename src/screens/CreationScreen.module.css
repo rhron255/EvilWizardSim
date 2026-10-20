@@ -450,6 +450,30 @@
   text-indent: 0.2em;
 }
 
+.unfinished {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ew-space-2);
+  text-align: center;
+}
+
+.unfinishedText {
+  margin: 0;
+  font-family: var(--ew-font-display);
+  font-style: italic;
+  font-size: var(--ew-size-base);
+  color: var(--ew-ink-dim);
+  text-wrap: balance;
+}
+
+.resume {
+  composes: btn from '../components/meta/craft.module.css';
+  max-width: 100%;
+  white-space: normal;
+  text-align: center;
+}
+
 .commitNote {
   margin: 0;
   font-family: var(--ew-font-display);

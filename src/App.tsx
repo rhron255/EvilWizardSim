@@ -9,6 +9,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { ContentBundle } from './engine';
+import type { EndingId } from './types';
 import {
   defenseReadout,
   loadChangelogAck,
@@ -62,6 +63,17 @@ export default function App() {
   const { run, screen } = game;
 
   /**
+   * The ending slot the Necrolexicon should open on, set by a tap on the
+   * ending card's "still unwritten" list (issue #113) and cleared by every
+   * other door in. View state only — nothing here is run or collection state.
+   */
+  const [necroTarget, setNecroTarget] = useState<EndingId | null>(null);
+  const openNecrolexicon = (target: EndingId | null) => {
+    setNecroTarget(target);
+    game.viewNecrolexicon();
+  };
+
+  /**
    * The cosmetic worn on every screen.
    *
    * Read straight off the collection rather than held anywhere here — App
@@ -83,9 +95,23 @@ export default function App() {
    * during a session, and both places that do so also clear this state
    * directly rather than waiting for a re-read.
    */
-  const [pendingChangelog, setPendingChangelog] = useState(() =>
-    pendingChangelogEntries(CHANGELOG, BUILD_VERSION, loadChangelogAck()),
-  );
+  const [pendingChangelog, setPendingChangelog] = useState(() => {
+    const acknowledged = loadChangelogAck();
+    // A brand-new profile has nothing to catch up on: "everything since your
+    // last visit" is wrong for someone with no last visit (issue #109). Stamp
+    // it as current and open on the title. `pendingChangelogEntries` stays
+    // pure; the fresh-profile call is made here, at the composition root.
+    const fresh =
+      acknowledged === null &&
+      game.collection.runsCompleted === 0 &&
+      !game.collection.tutorialSeen &&
+      !game.hasResumableRun;
+    if (fresh) {
+      saveChangelogAck(BUILD_VERSION);
+      return [];
+    }
+    return pendingChangelogEntries(CHANGELOG, BUILD_VERSION, acknowledged);
+  });
 
   const acknowledgeChangelog = () => {
     saveChangelogAck(BUILD_VERSION);
@@ -162,6 +188,8 @@ export default function App() {
           defaultName={game.collection.lastWizardName}
           onCreate={game.create}
           onBack={game.backToTitle}
+          unfinishedName={game.resumableName}
+          onResume={game.resume}
           themeId={themeId}
         />
       );
@@ -219,7 +247,10 @@ export default function App() {
           artifacts={artifacts}
           factions={factions}
           onPlayAgain={game.playAgain}
-          onViewNecrolexicon={game.viewNecrolexicon}
+          onViewNecrolexicon={() => openNecrolexicon(null)}
+          endings={endings}
+          endingsSeen={game.collection.endingsSeen}
+          onViewEnding={openNecrolexicon}
           onShare={() => {}}
           themeId={themeId}
           unlockedTheme={game.unlockedTheme}
@@ -241,7 +272,10 @@ export default function App() {
           // the way in and drops it on the way back to the title, so a
           // finished run here IS the career whose ending was just reached.
           // From the title `run` is null and nothing is marked.
-          justReached={run?.ending ?? null}
+          // A slot picked from the ending card's unreached list opens unmarked:
+          // the "Just reached" mark belongs to the arrival from the card's own button.
+          justReached={necroTarget ? null : (run?.ending ?? null)}
+          focusEnding={necroTarget}
           onBack={game.backToTitle}
           onViewThemes={game.viewThemes}
         />
@@ -279,7 +313,7 @@ export default function App() {
         hasResumableRun={game.hasResumableRun}
         onBegin={game.begin}
         onResume={game.resume}
-        onViewNecrolexicon={game.viewNecrolexicon}
+        onViewNecrolexicon={() => openNecrolexicon(null)}
         onViewThemes={game.viewThemes}
         onViewChangelog={game.viewChangelog}
         onViewTutorial={game.viewTutorial}

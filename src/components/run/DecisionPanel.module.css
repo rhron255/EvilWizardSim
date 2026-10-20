@@ -64,6 +64,8 @@
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: var(--ew-space-4);
   margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 @media (max-width: 720px) {
@@ -97,6 +99,7 @@
 }
 
 .stat {
+  list-style: none;
   position: relative;
   display: flex;
   flex-direction: column;

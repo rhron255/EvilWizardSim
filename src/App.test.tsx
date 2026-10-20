@@ -103,6 +103,21 @@ function returningPlayer(run?: RunState): void {
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+describe('App · the changelog popup', () => {
+  it('does not greet a brand-new profile with a pile of updates', () => {
+    render(<App />);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByRole('button', { name: /begin a career/i })).toBeVisible();
+  });
+
+  it('still shows a returning player the updates they missed', () => {
+    saveCollection({ ...emptyCollection(''), tutorialSeen: true, runsCompleted: 3 });
+    saveChangelogAck('2000-01-01T00:00:00Z');
+    render(<App />);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+});
+
 describe('App · the Necrolexicon marks the ending just reached', () => {
   it('opens on the ending card\'s own ending, marked in words and brought into view', async () => {
     returningPlayer(careerWithOneEraLeft());
@@ -131,6 +146,29 @@ describe('App · the Necrolexicon marks the ending just reached', () => {
     // In words on the card, not only in the tier colour — and on one card.
     expect(within(slot).getByText(/^just reached$/i)).toBeVisible();
     expect(screen.getAllByText(/^just reached$/i)).toHaveLength(1);
+    await waitFor(() => expect(intoView.mock.contexts).toContain(slot));
+  });
+
+  it('opens a tapped unreached hint on its slot, with nothing marked just reached', async () => {
+    returningPlayer(careerWithOneEraLeft());
+    const intoView = vi.spyOn(Element.prototype, 'scrollIntoView');
+    const { container } = render(<App />);
+
+    await userEvent.click(screen.getByRole('button', { name: /resume run/i }));
+    await userEvent.click(
+      container.querySelector<HTMLButtonElement>('button[data-option-index]:not([disabled])')!,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /^continue/i }));
+
+    const hint = container.querySelector<HTMLButtonElement>('button[data-ending-id]');
+    expect(hint, 'the ending card lists no unreached ending').not.toBeNull();
+    const id = hint!.dataset.endingId!;
+    await userEvent.click(hint!);
+
+    expect(screen.getByRole('tab', { name: /^endings$/i })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByText(/^just reached$/i)).not.toBeInTheDocument();
+    const slot = container.querySelector(`article[data-ending-id="${id}"]`);
+    expect(slot).not.toBeNull();
     await waitFor(() => expect(intoView.mock.contexts).toContain(slot));
   });
 

@@ -335,6 +335,13 @@ export type Artifact = {
   rarity: Rarity;
   flavorText: string;
   /**
+   * How to come by this relic, in player vocabulary — printed on its locked
+   * card (issue #114) while the name stays redacted. Required, as
+   * `Ending.hint` is, so the compiler names every fixture. Never an engine
+   * term (failure mode 16): a stat, a faction, a standing the UI already shows.
+   */
+  hint: string;
+  /**
    * What this relic does, once held — issue #77's power framework,
    * completed by slice 5 (issue #82). Non-null: every one of the 32 relics
    * now has a power, and the compiler names any future relic that ships

@@ -154,9 +154,9 @@ const show = (
 // not unique text on this panel — the offer's own effect chips print the
 // same words (`+22 Followers`). Every query here is scoped to the stats
 // `<dl>` itself rather than the whole document.
-const statsList = (container: HTMLElement) => container.querySelector('dl')!;
+const statsList = (container: HTMLElement) => container.querySelector('ul')!;
 const stat = (container: HTMLElement, label: string) =>
-  within(statsList(container)).getByText(label).closest('div')!;
+  within(statsList(container)).getByText(label).closest('li')!;
 
 describe('DecisionPanel · disclosure', () => {
   it('prints every stat that can end a run', () => {

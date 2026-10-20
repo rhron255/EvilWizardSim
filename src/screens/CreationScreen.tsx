@@ -29,6 +29,13 @@ export type CreationScreenProps = {
   factions: Faction[];
   onCreate(name: string, epithet: string, originId: string, eraCount: number): void;
   onBack(): void;
+  /**
+   * The wizard of a saved, unfinished career, or null. Committing here
+   * overwrites that save, so the screen says so before the button (issue #107).
+   */
+  unfinishedName?: string | null;
+  /** The way back: picks the saved career up instead. */
+  onResume?(): void;
   /** The cosmetic theme the player is wearing. */
   themeId: ThemeId;
 };
@@ -69,6 +76,8 @@ export function CreationScreen({
   defaultName = '',
   onCreate,
   onBack,
+  unfinishedName = null,
+  onResume,
   themeId,
 }: CreationScreenProps) {
   const [name, setName] = useState(defaultName);
@@ -79,6 +88,7 @@ export function CreationScreen({
   const nameId = useId();
   const groupId = useId();
   const nameRef = useRef<HTMLInputElement>(null);
+  const commitRef = useRef<HTMLButtonElement>(null);
 
   // Prefilled AND selected: the remembered name is a default, not a decision.
   // Typing replaces it whole, which is what a player wanting a new wizard
@@ -143,7 +153,17 @@ export function CreationScreen({
                 autoComplete="off"
                 autoCapitalize="words"
                 spellCheck={false}
-                enterKeyHint="done"
+                enterKeyHint={unfinishedName ? 'next' : 'done'}
+                // Enter in this field is implicit submission, and the remembered
+                // name is already valid: with a saved career it would overwrite
+                // it before the player scrolled to the notice above the button.
+                // So Enter walks to that button instead; clicking it commits.
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && unfinishedName) {
+                    e.preventDefault();
+                    commitRef.current?.focus();
+                  }
+                }}
                 autoFocus
               />
               <span className={styles.nameRule} aria-hidden />
@@ -281,7 +301,22 @@ export function CreationScreen({
         </fieldset>
 
         <footer className={styles.bottom}>
-          <button type="submit" className={styles.commit} disabled={!ready}>
+          {/* Rule 2: the career about to be overwritten is named at the one
+              place every new-career entry point (title door, play again)
+              passes through, directly above the button that discards it. */}
+          {unfinishedName && (
+            <div className={styles.unfinished} role="note">
+              <p className={styles.unfinishedText}>
+                {unfinishedName}&rsquo;s unfinished career will not be kept.
+              </p>
+              {onResume && (
+                <button type="button" className={styles.resume} onClick={onResume}>
+                  Resume {unfinishedName}&rsquo;s career instead
+                </button>
+              )}
+            </div>
+          )}
+          <button ref={commitRef} type="submit" className={styles.commit} disabled={!ready}>
             Begin the career
           </button>
           {/* Only the blocking reason. The `ready` branch used to carry a

@@ -48,6 +48,7 @@ export const artifacts: Artifact[] = [
     name: 'The Bone Crown',
     factionId: 'ashen_covenant',
     rarity: 'common',
+    hint: 'A minor Covenant keepsake, given while you are still short of devotion.',
     flavorText:
       'It fits everyone, which should tell you something about how it was measured.',
     // Issue #82, slice 5 of #77: "when a choice costs you an Apprentice,
@@ -66,6 +67,7 @@ export const artifacts: Artifact[] = [
     name: 'The Ashen Signature',
     factionId: 'ashen_covenant',
     rarity: 'common',
+    hint: 'Yours from the start if you inherited a tower and its debts.',
     flavorText:
       'A quill that will not write anything its holder would later deny having said. Popular with the Covenant’s notaries and with nobody else alive.',
     // The Inherited-a-Tower origin's relic (issue #80): a debt still gets
@@ -89,6 +91,7 @@ export const artifacts: Artifact[] = [
     name: 'Censer of Small Regrets',
     factionId: 'ashen_covenant',
     rarity: 'common',
+    hint: 'A minor Covenant keepsake, given while you are still short of devotion.',
     flavorText:
       'Burns whatever you are least proud of. An ordinary life fuels it for a week. Yours gets it through a long evening.',
     // Issue #82: "when you lose a gamble, +3 Notoriety" — the one power that
@@ -106,6 +109,7 @@ export const artifacts: Artifact[] = [
     name: 'Brazier of the Ninth Clause',
     factionId: 'ashen_covenant',
     rarity: 'rare',
+    hint: 'A rarer Covenant prize, won on bold bargains with them.',
     flavorText:
       'The first eight clauses concern delivery, scheduling, and the condition of the room. The ninth is why the brazier exists, and is not read aloud in company.',
     // Issue #82: the catalog's third active — a straight trade, not a
@@ -129,6 +133,7 @@ export const artifacts: Artifact[] = [
     name: 'The Cinder Testament',
     factionId: 'ashen_covenant',
     rarity: 'legendary',
+    hint: 'The Covenant hands it to a wizard whose standing opens their reliquary.',
     flavorText:
       'Every pact the Covenant has ever signed, bound in one volume, in the order they were made. Your name is in it. It was in it before you signed.',
     // Issue #81, slice 4 of #77: every choice that adds Pact Debt gets the
@@ -154,6 +159,7 @@ export const artifacts: Artifact[] = [
     name: 'The Appraiser’s Monocle',
     factionId: 'gilded_hand',
     rarity: 'common',
+    hint: 'A minor Gilded Hand keepsake, given while you are still short of devotion.',
     flavorText:
       'Reveals the true worth of any object, expressed as the figure its owner would accept on a sufficiently bad day.',
     // Issue #82: "when a choice costs you a relic, +15 Followers" —
@@ -171,6 +177,7 @@ export const artifacts: Artifact[] = [
     name: 'The Counterfeit Soul',
     factionId: 'gilded_hand',
     rarity: 'common',
+    hint: 'A minor Gilded Hand keepsake, given while you are still short of devotion.',
     flavorText:
       'Not a soul. Indistinguishable from one under examination, which the Hand maintains is the same thing at the point of sale.',
     // Issue #82: "the first relic a choice would take is this one" — every
@@ -183,6 +190,7 @@ export const artifacts: Artifact[] = [
     name: 'The Unpaid Purse',
     factionId: 'gilded_hand',
     rarity: 'common',
+    hint: 'Yours from the start if you sold your master’s estate.',
     flavorText:
       'Contains precisely what you are owed. It is usually empty, and the Hand regards this as an accurate instrument rather than a broken one.',
     // The Sold-Your-Master's-Estate origin's relic (issue #80): the Purse
@@ -200,6 +208,7 @@ export const artifacts: Artifact[] = [
     name: 'The Key to No Particular Door',
     factionId: 'gilded_hand',
     rarity: 'rare',
+    hint: 'A rarer Gilded Hand prize, won on bold bargains with them.',
     flavorText:
       'Opens one door, once, somewhere. Sold honestly, at a fair price, with the limitation stated in advance, and there has never been a complaint the Hand was obliged to hear.',
     // Issue #82: the catalog's fourth active — "redraw this era's offer."
@@ -213,6 +222,7 @@ export const artifacts: Artifact[] = [
     name: 'The Gilded Thumb',
     factionId: 'gilded_hand',
     rarity: 'rare',
+    hint: 'A rarer Gilded Hand prize, won on bold bargains with them.',
     flavorText:
       'For weighing. It adds exactly as much as is customary, and what is customary has never been written down.',
     // Issue #82: "Followers you gain are increased by half" — multiplies a
@@ -225,6 +235,7 @@ export const artifacts: Artifact[] = [
     name: 'The Final Ledger',
     factionId: 'gilded_hand',
     rarity: 'legendary',
+    hint: 'The Hand hands it to a wizard whose standing opens their reliquary.',
     flavorText:
       'Records every transaction the Hand has ever completed, including several you have not made yet. The Hand insists this is not a threat. It is, however, an invoice.',
     // Issue #81, slice 4 of #77: the catalog's first active. `grants` names
@@ -244,6 +255,7 @@ export const artifacts: Artifact[] = [
     name: 'Chalk of the Last Lecture',
     factionId: 'pale_academy',
     rarity: 'common',
+    hint: 'A minor Academy keepsake, given while you are still short of devotion.',
     flavorText:
       'Writes on any surface and cannot be wiped away by the hand that wrote it. Three lecture halls have been abandoned rather than repainted.',
     // Issue #82: "Notoriety decay −1 an era" — a flat, additive reduction,
@@ -256,6 +268,7 @@ export const artifacts: Artifact[] = [
     name: 'The Tenure Ring',
     factionId: 'pale_academy',
     rarity: 'common',
+    hint: 'Borrowed from the Academy’s library, within the rules.',
     flavorText:
       'Cannot be removed by any force, including the wearer’s employer. That is the entire enchantment.',
     // Issue #82, double-edged: "Academy standing held between −50 and +45 —
@@ -276,6 +289,7 @@ export const artifacts: Artifact[] = [
     name: 'The Footnote That Bites',
     factionId: 'pale_academy',
     rarity: 'common',
+    hint: 'Yours from the start if you were expelled from the Academy.',
     flavorText:
       'Small, at the bottom of the page, and load-bearing. Two scholars have died disagreeing with it, and neither death is in dispute.',
     // The Expelled-from-the-Pale-Academy origin's relic (issue #80): the
@@ -289,6 +303,7 @@ export const artifacts: Artifact[] = [
     name: 'Spectacles of the Third Reading',
     factionId: 'pale_academy',
     rarity: 'rare',
+    hint: 'A rarer Academy prize, won on bold bargains with them.',
     flavorText:
       'Show what a document will mean once it has been argued over for eleven years. Wearing them is exhausting, and the Academy issues them accordingly.',
     // Issue #82: "+10% odds on every gamble" — added directly in
@@ -301,6 +316,7 @@ export const artifacts: Artifact[] = [
     name: 'The Pale Orrery',
     factionId: 'pale_academy',
     rarity: 'legendary',
+    hint: 'The Academy hands it to a wizard whose standing opens their reliquary.',
     flavorText:
       'Models the heavens accurately, including the parts that have not happened yet. It is kept in a room with no door, on the reasoning that a locked door implies somebody, somewhere, has a key.',
     // Issue #81, slice 4 of #77: the catalog's second active. `armsForesight`
@@ -320,6 +336,7 @@ export const artifacts: Artifact[] = [
     name: 'The Antler Baton',
     factionId: 'verdant_choir',
     rarity: 'common',
+    hint: 'A minor Choir keepsake, given while you are still short of devotion.',
     flavorText:
       'Held by whoever is speaking. The Choir’s entire constitutional order is this stick and an agreement about this stick.',
     // Issue #82: "when you answer a Choir offer, +5 Apprentice Loyalty" —
@@ -337,6 +354,7 @@ export const artifacts: Artifact[] = [
     name: 'The Seed That Remembers',
     factionId: 'verdant_choir',
     rarity: 'common',
+    hint: 'A minor Choir keepsake, given while you are still short of devotion.',
     flavorText:
       'Grows into whatever was standing on that spot before. Do not plant it near anything you built.',
     // Issue #82: "when a choice costs you a relic, a random common Choir
@@ -362,6 +380,7 @@ export const artifacts: Artifact[] = [
     name: 'Mantle of Slow Moss',
     factionId: 'verdant_choir',
     rarity: 'common',
+    hint: 'Yours from the start if you taught yourself in a bog.',
     flavorText:
       'Warm, waterproof, and growing. Around the fourth year it stops being clothing and becomes a position the Choir holds about you.',
     // The Self-Taught-in-a-Bog origin's relic (issue #80): the moss keeps
@@ -379,6 +398,7 @@ export const artifacts: Artifact[] = [
     name: 'The Weather Leash',
     factionId: 'verdant_choir',
     rarity: 'rare',
+    hint: 'Ask the Choir for the deep grove, late in a career, while it likes you.',
     flavorText:
       'One storm, kept. It is fed weekly, and it does know the difference between you and everyone else in the room.',
     // Issue #82, double-edged: "Decline era end → −4 Followers, −3 Hero
@@ -403,6 +423,7 @@ export const artifacts: Artifact[] = [
     name: 'The Root of the Standing Vote',
     factionId: 'verdant_choir',
     rarity: 'rare',
+    hint: 'A rarer Choir prize, won on bold bargains with them.',
     flavorText:
       'An oak stump entitled to speak in Choir assembly. It has never abstained, and its record on questions of masonry is unbroken.',
     // Issue #82: the catalog's first lifeline — "cancels the first faction
@@ -429,6 +450,7 @@ export const artifacts: Artifact[] = [
     name: 'The Old-Growth Charter',
     factionId: 'verdant_choir',
     rarity: 'legendary',
+    hint: 'The Choir hands it to a wizard whose standing opens their reliquary.',
     flavorText:
       'A tree old enough to have voted against the Choir’s founding charter, and lost. It has not forgiven this. Neither, structurally, has the charter.',
     // Issue #81, slice 4 of #77: "gaining Choir standing costs its enemies
@@ -447,6 +469,7 @@ export const artifacts: Artifact[] = [
     name: 'Writ of Tolerated Existence',
     factionId: 'crownlands',
     rarity: 'common',
+    hint: 'A minor Crownlands keepsake, given while you are still short of devotion.',
     flavorText:
       'Certifies that the Crownlands are aware of you and have elected, for the present, to file rather than to act. Renewable annually. Never renewed on time.',
     // Issue #82: "the Crownlands' reprisal needs −75, not −55" — read
@@ -464,6 +487,7 @@ export const artifacts: Artifact[] = [
     name: 'The Confiscated Banner',
     factionId: 'crownlands',
     rarity: 'common',
+    hint: 'A minor Crownlands keepsake, given while you are still short of devotion.',
     flavorText:
       'Taken from a rebellion the Crown does not concede occurred. It still smells of the field, which the archivists have stopped raising.',
     // Issue #82: "when a choice lowers Crownlands standing, +2 Notoriety" —
@@ -483,6 +507,7 @@ export const artifacts: Artifact[] = [
     name: 'The Portcullis Tooth',
     factionId: 'crownlands',
     rarity: 'rare',
+    hint: 'A rarer Crownlands prize, won on bold bargains with them.',
     flavorText:
       'A single iron spike from the gate at Hollow March, which held for nine days against something that does not appear anywhere in the report.',
     // Issue #82: the catalog's second lifeline — "stops the hero's killing
@@ -500,6 +525,7 @@ export const artifacts: Artifact[] = [
     name: 'The Sword That Was Returned',
     factionId: 'crownlands',
     rarity: 'rare',
+    hint: 'A rarer Crownlands prize, won on bold bargains with them.',
     flavorText:
       'A hero’s blade, handed back by the hero, in person, with a short statement the Crown has sealed for two hundred years.',
     // Issue #82: the catalog's fifth active — a plain, uncosted relief.
@@ -511,6 +537,7 @@ export const artifacts: Artifact[] = [
     name: 'The Unbroken Line',
     factionId: 'crownlands',
     rarity: 'legendary',
+    hint: 'The Crownlands hand it to a wizard whose standing opens their reliquary.',
     flavorText:
       'The complete genealogy of the hero-bloodline, sealed in one roll. Whoever holds it holds the name of the Chosen One’s grandmother, and every party to the matter understands what that means.',
     // Issue #81, slice 4 of #77: "your fame feeds the hero's threat at half
@@ -529,6 +556,7 @@ export const artifacts: Artifact[] = [
     name: 'A Pocketful of Dark',
     factionId: 'worm_below',
     rarity: 'common',
+    hint: 'A minor Worm keepsake, given while you are still short of devotion.',
     flavorText:
       'Genuine subterranean darkness, portable, still cold from the journey. It keeps for about a century. This one is not fresh.',
     // Issue #82: "Once: the first time the hero draws close (warn band),
@@ -549,6 +577,7 @@ export const artifacts: Artifact[] = [
     name: 'The Shallow Worm’s Tooth',
     factionId: 'worm_below',
     rarity: 'common',
+    hint: 'A minor Worm keepsake, given while you are still short of devotion.',
     flavorText:
       'From one of the small ones. The Worm Below regards the small ones the way a country regards its coastline: an outer edge, and not the country.',
     // Issue #82: "when a choice costs you Followers, +2 Worm standing" —
@@ -567,6 +596,7 @@ export const artifacts: Artifact[] = [
     name: 'The Patient Lantern',
     factionId: 'worm_below',
     rarity: 'rare',
+    hint: 'A rarer Worm prize, won on bold bargains with them.',
     flavorText:
       'It casts no light. It shows you the way regardless, and it does not hurry, and it will go on showing you the way for some time after you have stopped walking.',
     // Issue #82: "survives the lich rite, so you keep it and its wards" —
@@ -579,6 +609,7 @@ export const artifacts: Artifact[] = [
     name: 'The Second Stomach',
     factionId: 'worm_below',
     rarity: 'rare',
+    hint: 'A rarer Worm prize, won on bold bargains with them.',
     flavorText:
       'Yours now. It digests what the first one declined, and it has firm views about the schedule.',
     // Issue #82: "choices cost a quarter fewer Followers" — multiplies a
@@ -591,6 +622,7 @@ export const artifacts: Artifact[] = [
     name: 'The Long Appetite',
     factionId: 'worm_below',
     rarity: 'legendary',
+    hint: 'The Worm hands it to a wizard whose standing opens their reliquary.',
     flavorText:
       'The Worm’s hunger, decanted and worn at the hip. It is not a weapon. It is a share, and shares can be called in.',
     // Issue #81, slice 4 of #77: "+1 Notoriety per 10 Followers spent" —

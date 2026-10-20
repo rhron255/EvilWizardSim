@@ -21,6 +21,52 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-10-19T06:16:00Z': {
+    summary: 'A screen reader now reads each result aloud and keeps its place when you continue.',
+    details: [
+      'The result card is read out in full when it opens.',
+      'After Continue, focus moves to the new decision instead of being lost.',
+      'The resource row is now a proper list, and the siege line reads “against” aloud.',
+    ],
+  },
+  '2026-10-18T06:20:00Z': {
+    summary: 'Five faction stalls now turn up in the later years of a career, each with a price list: choose what to buy with your followers, standing or relics.',
+    details: [
+      'The Gilded Hand, the Pale Academy, the Verdant Choir, the Crownlands and the Worm Below each run a stall with three or four priced goods.',
+      'Every price is printed on the card, and a good you cannot afford is greyed out.',
+    ],
+  },
+  '2026-10-17T06:19:50Z': {
+    summary: 'Locked relics now say how to come by them, so the collection screen points somewhere.',
+    details: [
+      'Every undiscovered relic prints a short hint about its route; the name stays hidden.',
+    ],
+  },
+  '2026-10-16T06:40:00Z': {
+    summary: 'After a career, the ending card now hints at up to three endings you have not reached yet.',
+    details: [
+      'Tap a hint to open the Necrolexicon on that ending’s slot.',
+    ],
+  },
+  '2026-10-15T06:19:04Z': {
+    summary: 'The game no longer asks Google for its fonts, so visiting it sends nobody’s address to a third party.',
+    details: [
+      'The two typefaces now ship with the game itself, and the shared result card draws in them even offline.',
+    ],
+  },
+  '2026-10-11T06:03:10Z': {
+    summary: 'Starting a new career now tells you when it would discard one you have not finished.',
+    details: [
+      'The creation screen names the unfinished career that will not be kept, with a button to resume it instead.',
+      'With a career waiting, the title screen now puts Resume first.',
+    ],
+  },
+  '2026-10-10T12:35:00Z': {
+    summary: 'The Followers stat now says that a big household helps you earn a grander lair.',
+    details: [
+      'It used to claim followers do not help you; they do, by way of a grander lair.',
+    ],
+  },
   '2026-10-10T09:30:00Z': {
     summary: 'Two previously unreachable names — the Tenant and the Quietly Persistent — can now be earned.',
     details: [

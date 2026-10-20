@@ -32,10 +32,11 @@ export function changelogHasVersion(changelog: Changelog, version: string): bool
  * content this build does not ship; it degrades to "nothing pending" for any
  * version this build cannot place in order, rather than guessing.
  *
- * `acknowledged === null` means "first-ever launch" (or storage that failed
- * to read at all, which persistence.ts already folds into the same value):
- * everything up to the build version is pending, same as a returning player
- * who missed every update since day one.
+ * `acknowledged === null` means "no acknowledgement on record": everything up
+ * to the build version is pending, same as a returning player who missed every
+ * update since day one. This function stays pure and does not tell a brand-new
+ * profile from a returning one — `App.tsx` does that (issue #109) and never
+ * asks for the pending list on a fresh profile.
  */
 export function pendingChangelogEntries(
   changelog: Changelog,

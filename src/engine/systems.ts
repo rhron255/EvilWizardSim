@@ -154,9 +154,10 @@ export function threatGainFor(
  * What stands between the wizard and the chosen one.
  *
  * wiki/04: "derived from Notoriety, artifacts held, and lair tier". Followers
- * deliberately contribute nothing — they are ledger filler by design
- * (wiki/02 § three currencies), and giving them defense would collapse two
- * currencies into one.
+ * add nothing directly, but they feed the lair rung a wizard is entitled to
+ * (`entitledLairRung`), so a big household raises defence through the lair.
+ * That path is disclosed on the Followers stake and in the Mechanics lair
+ * entry (issue #106).
  */
 export function defenseOf(run: RunState, content: ContentBundle): number {
   const index = indexOf(content);
