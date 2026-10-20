@@ -47,3 +47,23 @@ describe('ArtifactCard · onUseActive / activeSpent', () => {
     expect(screen.queryByText('Used')).toBeNull();
   });
 });
+
+describe('ArtifactCard · route hint (issue #114)', () => {
+  it('prints the hint but not the name on a locked card', () => {
+    render(<ArtifactCard artifact={finalLedger} locked />);
+    expect(screen.getByText(finalLedger.hint)).toBeInTheDocument();
+    expect(screen.queryByText(finalLedger.name)).toBeNull();
+  });
+
+  it('does not print the hint once the relic is held', () => {
+    render(<ArtifactCard artifact={finalLedger} />);
+    expect(screen.queryByText(finalLedger.hint)).toBeNull();
+  });
+
+  it('gives every relic a hint that does not spell its own name', () => {
+    for (const a of artifacts) {
+      expect(a.hint.trim().length).toBeGreaterThan(0);
+      expect(a.hint.toLowerCase()).not.toContain(a.name.toLowerCase().replace(/^the /, ''));
+    }
+  });
+});
