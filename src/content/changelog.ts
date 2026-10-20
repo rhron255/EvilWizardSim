@@ -27,6 +27,12 @@ export const CHANGELOG: Changelog = {
       'Every undiscovered relic prints a short hint about its route; the name stays hidden.',
     ],
   },
+  '2026-10-16T06:40:00Z': {
+    summary: 'After a career, the ending card now hints at up to three endings you have not reached yet.',
+    details: [
+      'Tap a hint to open the Necrolexicon on that ending’s slot.',
+    ],
+  },
   '2026-10-15T06:19:04Z': {
     summary: 'The game no longer asks Google for its fonts, so visiting it sends nobody’s address to a third party.',
     details: [
