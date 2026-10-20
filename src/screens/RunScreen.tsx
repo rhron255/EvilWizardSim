@@ -94,6 +94,7 @@ export function RunScreen({
   // needed to keep it out of `RunState` or storage.
   const [view, setView] = useState<'decision' | 'relics'>('decision');
   const relicsButtonRef = useRef<HTMLButtonElement>(null);
+  const offerTitleRef = useRef<HTMLHeadingElement>(null);
   const returningToDecision = useRef(false);
 
   function openRelics() {
@@ -141,6 +142,10 @@ export function RunScreen({
     } else if (hadResolution.current) {
       hadResolution.current = false;
       window.scrollTo(0, 0);
+      // Continue unmounts with the overlay, so focus would fall to <body>.
+      // The new era's title takes it; `preventScroll` keeps the scroll reset
+      // above the only thing that moves the page (failure mode 18).
+      offerTitleRef.current?.focus({ preventScroll: true });
     }
   }, [resolution]);
 
@@ -196,6 +201,7 @@ export function RunScreen({
             defense={defense}
             onOpenRelics={openRelics}
             relicsButtonRef={relicsButtonRef}
+            offerTitleRef={offerTitleRef}
           />
         )}
       </main>

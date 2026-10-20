@@ -62,6 +62,18 @@ export function ResolutionOverlay({
   onContinue,
 }: ResolutionOverlayProps) {
   const headingId = useId();
+  const baseId = useId();
+  const rollId = `${baseId}-roll`;
+  const textId = `${baseId}-text`;
+  const effectsId = `${baseId}-effects`;
+  const systemicId = `${baseId}-systemic`;
+  const lifelineId = `${baseId}-lifeline`;
+  const endingId = `${baseId}-ending`;
+  const relicEventsId = `${baseId}-relic-events`;
+  const gainedId = `${baseId}-gained`;
+  const lostId = `${baseId}-lost`;
+  const lairId = `${baseId}-lair`;
+  const tierId = `${baseId}-tier`;
   const continueRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -87,6 +99,28 @@ export function ResolutionOverlay({
   const cardTier = tierCrossed ?? tierFor(notoriety);
   const crossed = Boolean(tierCrossed);
 
+  // Issue #120: the dialog is described by the nodes already on the card, so a
+  // screen reader hears the roll, the deed, the effects and the end of the run
+  // without navigating backwards from Continue. No new copy. Deliberate
+  // difference: announcing on open names the verdict before the needle settles;
+  // the staging is visual garnish, so that is acceptable.
+  const describedBy =
+    [
+      showRoll && rollId,
+      textId,
+      effectsId,
+      resolution.systemic.length > 0 && systemicId,
+      resolution.relicEvents.length > 0 && relicEventsId,
+      resolution.artifactsGained.length > 0 && gainedId,
+      resolution.artifactsLost.length > 0 && lostId,
+      resolution.lairMoved && lairId,
+      resolution.lifeline && lifelineId,
+      tierCrossed && tierId,
+      resolution.ending && endingId,
+    ]
+      .filter(Boolean)
+      .join(' ') || undefined;
+
   // The buzz rides the visual, never a timer of its own. A gamble's verdict word
   // begins its animation at the roll's settle, so that event is the cue and the
   // two cannot drift apart if the stylesheet's timing changes. A certain choice
@@ -111,6 +145,7 @@ export function ResolutionOverlay({
       role="dialog"
       aria-modal="true"
       aria-labelledby={headingId}
+      aria-describedby={describedBy}
     >
       <div
         className={styles.card}
@@ -173,15 +208,15 @@ export function ResolutionOverlay({
               <span className={styles.railTick} style={{ left: `${odds * 100}%` }} />
               <span className={styles.needle} style={{ '--roll': roll } as React.CSSProperties} />
             </div>
-            <p className={`${styles.rollText} ew-num`}>
+            <p id={rollId} className={`${styles.rollText} ew-num`}>
               Rolled <strong>{Math.round(roll * 100)}</strong> against {formatOdds(odds)}
             </p>
           </div>
         )}
 
-        <p className={styles.text}>{resolution.text}</p>
+        <p id={textId} className={styles.text}>{resolution.text}</p>
 
-        <div className={styles.effects}>
+        <div id={effectsId} className={styles.effects}>
           <EffectList
             effects={resolution.appliedEffects}
             artifacts={artifacts}
@@ -196,7 +231,7 @@ export function ResolutionOverlay({
             the run was real, systemic, and printed nowhere — but folding it in
             above would have blamed it on the card the player just picked. */}
         {resolution.systemic.length > 0 && (
-          <div className={styles.systemic}>
+          <div id={systemicId} className={styles.systemic}>
             <p className={styles.systemicLabel}>While you were elsewhere</p>
             <ul className={styles.systemicList}>
               {resolution.systemic.map((change, i) => {
@@ -226,7 +261,7 @@ export function ResolutionOverlay({
             line, shown wherever the relic itself is, already explains WHY;
             this only says what it did. */}
         {resolution.relicEvents.length > 0 && (
-          <div className={styles.relicEvents}>
+          <div id={relicEventsId} className={styles.relicEvents}>
             <p className={styles.relicEventsLabel}>Your relics</p>
             <ul className={styles.relicEventsList}>
               {resolution.relicEvents.map((event) => (
@@ -246,7 +281,7 @@ export function ResolutionOverlay({
         )}
 
         {resolution.artifactsGained.length > 0 && (
-          <div className={styles.relics}>
+          <div id={gainedId} className={styles.relics}>
             {/* `data-rarity` below is the same hook `ArtifactCard` reads. This
                 row is hand-rolled rather than an ArtifactCard — different
                 layout, and it carries `data-new` — but it must not speak a
@@ -292,7 +327,7 @@ export function ResolutionOverlay({
             just points it at what a single era took, right where the
             equivalent GAIN is shown above. */}
         {resolution.artifactsLost.length > 0 && (
-          <div className={styles.relicsLost}>
+          <div id={lostId} className={styles.relicsLost}>
             <p className={styles.relicsLostLabel}>Lost this era</p>
             <ul className={styles.relicsLostList}>
               {resolution.artifactsLost.map((a) => (
@@ -305,7 +340,7 @@ export function ResolutionOverlay({
         )}
 
         {resolution.lairMoved && (
-          <p className={styles.lairMove} data-up={resolution.lairMoved.up ? 'true' : undefined}>
+          <p id={lairId} className={styles.lairMove} data-up={resolution.lairMoved.up ? 'true' : undefined}>
             <span className={styles.lairMoveLabel}>
               {resolution.lairMoved.up ? 'You have moved up' : 'You have lost ground'}
             </span>
@@ -323,7 +358,7 @@ export function ResolutionOverlay({
             `--ew-tier` stays the one chromatic reward the run pays out
             (CLAUDE.md rule 3). */}
         {resolution.lifeline && (
-          <div className={styles.lifeline}>
+          <div id={lifelineId} className={styles.lifeline}>
             <p className={styles.lifelineLabel}>Lifeline</p>
             <p className={styles.lifelineText}>
               {artifactName(resolution.lifeline.artifactId, artifacts)} spends itself:{' '}
@@ -342,14 +377,14 @@ export function ResolutionOverlay({
         )}
 
         {tierCrossed && (
-          <p className={styles.tier} data-celebrate={tierCrossed.celebrate ? 'true' : undefined}>
+          <p id={tierId} className={styles.tier} data-celebrate={tierCrossed.celebrate ? 'true' : undefined}>
             <span className={styles.tierName}>{tierCrossed.name}</span>
             <span className={styles.tierLine}>{tierCrossed.line}</span>
           </p>
         )}
 
         {resolution.ending && (
-          <p className={styles.ending}>The run ends · {endingDisplayName(resolution.ending, endings)}</p>
+          <p id={endingId} className={styles.ending}>The run ends · {endingDisplayName(resolution.ending, endings)}</p>
         )}
 
         {/* The deed line the ledger is about to receive was echoed here, which

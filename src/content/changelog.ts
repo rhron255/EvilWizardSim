@@ -21,6 +21,14 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-10-19T06:16:00Z': {
+    summary: 'A screen reader now reads each result aloud and keeps its place when you continue.',
+    details: [
+      'The result card is read out in full when it opens.',
+      'After Continue, focus moves to the new decision instead of being lost.',
+      'The resource row is now a proper list, and the siege line reads “against” aloud.',
+    ],
+  },
   '2026-10-18T06:20:00Z': {
     summary: 'Five faction stalls now turn up in the later years of a career, each with a price list: choose what to buy with your followers, standing or relics.',
     details: [
