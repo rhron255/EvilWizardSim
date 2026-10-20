@@ -33,11 +33,11 @@ export const CHANGELOG: Changelog = {
     summary: 'Five faction stalls now turn up in the later years of a career, each with a price list: choose what to buy with your followers, standing or relics.',
     details: [
       'The Gilded Hand, the Pale Academy, the Verdant Choir, the Crownlands and the Worm Below each run a stall with three or four priced goods.',
-      'Every price is printed on the card, and a good you cannot afford is greyed out.',
+      'Every price is printed on the card, and any item you cannot afford is greyed out.',
     ],
   },
   '2026-10-17T06:19:50Z': {
-    summary: 'Locked relics now say how to come by them, so the collection screen points somewhere.',
+    summary: 'Locked relics now say how to come by them, so the Necrolexicon points somewhere.',
     details: [
       'Every undiscovered relic prints a short hint about its route; the name stays hidden.',
     ],
@@ -49,13 +49,13 @@ export const CHANGELOG: Changelog = {
     ],
   },
   '2026-10-15T06:19:04Z': {
-    summary: 'The game no longer asks Google for its fonts, so visiting it sends nobody’s address to a third party.',
+    summary: 'The game no longer asks Google for its fonts, so visiting it no longer sends your IP address to a third party.',
     details: [
       'The two typefaces now ship with the game itself, and the shared result card draws in them even offline.',
     ],
   },
   '2026-10-11T06:03:10Z': {
-    summary: 'Starting a new career now tells you when it would discard one you have not finished.',
+    summary: 'The game now warns you before starting a new career would discard an unfinished one.',
     details: [
       'The creation screen names the unfinished career that will not be kept, with a button to resume it instead.',
       'With a career waiting, the title screen now puts Resume first.',

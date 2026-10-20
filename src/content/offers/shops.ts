@@ -77,7 +77,7 @@ export const shopOffers: Offer[] = [
           { t: 'followers', v: -6 },
           { t: 'heroThreat', v: -8 },
         ],
-        resultText: 'Quill mislays a few of your rumours, at a handling fee, and does not say where she mislaid them.',
+        resultText: 'Quill mislays a few of your rumours for a handling fee and does not say where she mislaid them.',
       },
       {
         kind: 'certain',
