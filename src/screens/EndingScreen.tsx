@@ -27,6 +27,7 @@ import {
   attributionFor,
   canRenderShareImage,
   lairTenures,
+  narrationFor,
   peakNotoriety,
   preloadShareFonts,
   shareEndingImage,
@@ -157,6 +158,11 @@ export function EndingScreen({
   const attribution = useMemo(
     () => attributionFor(ending.id, { heroName: heroNameFor(run.seed), factions }),
     [ending.id, run.seed, factions],
+  );
+
+  const narration = useMemo(
+    () => narrationFor(ending, run, { artifacts }),
+    [ending, run, artifacts],
   );
 
   const relics: ArtifactGridEntry[] = useMemo(() => {
@@ -315,7 +321,7 @@ export function EndingScreen({
               <span className={styles.attributionName}>{attribution}</span>
             </p>
           ) : null}
-          <p className={styles.narration}>{ending.narration}</p>
+          <p className={styles.narration}>{narration}</p>
 
           {/* How much the world noticed. The one prose element on this card
               that carries the tier colour — a Local Menace lich and a

@@ -21,6 +21,15 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-10-20T06:18:58Z': {
+    summary: 'The card for being slain now names the hero, the place you fell, and who paid for the sword.',
+    details: [
+      'The hero who ends you is named in the first line, and the shared image keeps her name.',
+      'Each of the ten lairs has its own line, and the card lists the best relic you still held.',
+      'It says whether you lost the duel at the gate or she came through your wards.',
+      'The faction you most offended is named as the one that paid the bounty.',
+    ],
+  },
   '2026-10-19T06:16:00Z': {
     summary: 'A screen reader now reads each result aloud and keeps its place when you continue.',
     details: [

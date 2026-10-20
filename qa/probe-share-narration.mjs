@@ -64,7 +64,37 @@ const rows = await page.evaluate(async () => {
     return lines;
   };
 
-  return endings.map((e) => {
+  // Issue #121: the slain card is composed, so measure the composed variants
+  // — every hero against the longest lair line, the longest relic name and
+  // both routes — and require the hero's name to survive the share cut.
+  const { composeSlain } = await import('/src/components/meta/narration.ts');
+  const { ALL_HERO_NAMES } = await import('/src/content/heroes.ts');
+  const { artifacts, lairs } = await import('/src/content/index.ts');
+  const { SLAIN_LAIR_LINE } = await import('/src/content/slainNarration.ts');
+  const longestLair = lairs.map((l) => l.id).sort((a, b) => SLAIN_LAIR_LINE[b].length - SLAIN_LAIR_LINE[a].length)[0];
+  const longestRelic = artifacts.map((a) => a.name).sort((a, b) => b.length - a.length)[0];
+  const variants = [];
+  for (const heroName of ALL_HERO_NAMES) {
+    for (const route of ['duel', 'breach']) {
+      for (const relicName of [undefined, longestRelic]) {
+        const text = composeSlain({ heroName, route, lairId: longestLair, relicName });
+        const kept = fitSentences(text);
+        variants.push({
+          heroName,
+          route,
+          relic: relicName ?? 'none',
+          chars: text.length,
+          lines: wrap(text).length,
+          keptLines: kept.length,
+          keepsHero: kept.join(' ').includes(heroName),
+          droppedSentences: Math.max(0, (text.match(/[.!?]["”’]?(\s|$)/g) ?? []).length - (kept.join(' ').match(/[.!?]["”’]?(\s|$)/g) ?? []).length),
+        });
+      }
+    }
+  }
+  const longest = variants.reduce((a, b) => (b.chars > a.chars ? b : a));
+
+  const endingRows = endings.map((e) => {
     const lines = wrap(e.narration);
     const kept = fitSentences(e.narration);
     const lastKept = kept[kept.length - 1] ?? '';
@@ -80,14 +110,26 @@ const rows = await page.evaluate(async () => {
       summaryLines: wrap(e.summary).length,
     };
   });
+  return { endingRows, variants, longest };
 });
+const { endingRows, variants, longest } = rows;
 
-for (const r of rows) {
+for (const r of endingRows) {
   console.log(
     `${r.id.padEnd(24)} ${String(r.chars).padStart(4)}ch full=${String(r.lines).padStart(2)} ` +
       `kept=${r.keptLines} (${r.keptShare.padStart(4)}) ` +
       `${r.endsMidSentence ? 'MID-SENTENCE' : 'ends clean  '} …${r.lastKeptTail}`,
   );
 }
-console.log(`\nsummaries all fit on one line: ${rows.every((r) => r.summaryLines === 1)}`);
+console.log(`\nsummaries all fit on one line: ${endingRows.every((r) => r.summaryLines === 1)}`);
+
+const lost = variants.filter((v) => !v.keepsHero);
+const cut = variants.filter((v) => v.droppedSentences > 0);
+console.log(
+  `\nslain card, ${variants.length} composed variants (every hero x both routes x longest lair x longest relic or none)`,
+);
+console.log(`  longest: ${longest.chars}ch, ${longest.lines} lines full, ${longest.keptLines} kept (${longest.heroName}, ${longest.route}, ${longest.relic})`);
+console.log(`  hero's name survives the share cut in all of them: ${lost.length === 0}`);
+console.log(`  variants where the share cut drops a whole sentence: ${cut.length} of ${variants.length}`);
+if (lost.length) process.exitCode = 1;
 await browser.close();

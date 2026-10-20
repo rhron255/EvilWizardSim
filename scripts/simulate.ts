@@ -81,6 +81,8 @@ import {
   origins,
 } from '../src/content';
 import { mulberry32 } from '../src/engine/rng';
+import { narrationFor, slainRoute } from '../src/components/meta/narration';
+import { standingPassageFor } from '../src/components/meta/standing';
 
 /** The bundle every function below plays against. Always the real catalog. */
 const content: ContentBundle = {
@@ -1158,6 +1160,12 @@ type RunResult = {
   repeatedDeedLines: number;
   /** The epithet the ending card prints. */
   finalEpithet: string;
+  /**
+   * What a slain career's card says about itself (issue #121), `undefined` for
+   * every other ending: who paid (the nemesis faction, or `none`), which route
+   * killed it, and the composed narration so distinct cards can be counted.
+   */
+  slainCard?: { payer: FactionId | 'none'; route: 'duel' | 'breach'; narration: string };
   distinctDeedLines: number;
   deedLines: string[];
 };
@@ -1398,6 +1406,14 @@ function playRun(
   return {
     policy,
     ending: run.ending ?? 'retired_to_swamp',
+    slainCard:
+      run.ending === 'slain_by_chosen_one'
+        ? {
+            payer: standingPassageFor(run, factions).nemesis?.factionId ?? 'none',
+            route: slainRoute(run),
+            narration: narrationFor(endings.find((e) => e.id === 'slain_by_chosen_one')!, run, { artifacts }),
+          }
+        : undefined,
     finalNotoriety: run.notoriety,
     peakNotoriety: peak,
     notorietyAtProphecy,
@@ -2426,6 +2442,21 @@ function main(): void {
   row('ASCENSION rate  (target 1-4%)', pct(ascension, total));
   row('age-limit survival (uncommon)', pct(ageLimit, total));
   row('slain by chosen one', pct(slain, total));
+  {
+    // Issue #121: how many different slain cards players actually meet, and
+    // who the card names as having paid, before anyone authors more lines.
+    const cards = results.flatMap((r) => (r.slainCard ? [r.slainCard] : []));
+    const tally = (key: (c: NonNullable<RunResult['slainCard']>) => string) => {
+      const m = new Map<string, number>();
+      for (const c of cards) m.set(key(c), (m.get(key(c)) ?? 0) + 1);
+      return [...m.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${pct(n, cards.length)}`).join(' · ');
+    };
+    if (cards.length > 0) {
+      row('  slain cards: distinct narrations', `${new Set(cards.map((c) => c.narration)).size} in ${cards.length}`);
+      row('  slain by route', tally((c) => c.route));
+      row('  slain by payer', tally((c) => c.payer));
+    }
+  }
   row(`near-miss (peak ${KINGDOM_MIN}+, no ascend)`, pct(nearMiss, total));
   row('ending screen shows the grey badge', `${(unknownBadgeRate * 100).toFixed(2)}%`);
   console.log(rule());
