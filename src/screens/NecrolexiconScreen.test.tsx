@@ -45,7 +45,11 @@ const demoCollection: Collection = {
 /** Run one: nothing found yet. The gap is the point. */
 const demoEmptyCollection: Collection = emptyCollection();
 
-const show = (collection: Collection, justReached: EndingId | null = null) => {
+const show = (
+  collection: Collection,
+  justReached: EndingId | null = null,
+  focusEnding: EndingId | null = null,
+) => {
   const onBack = vi.fn();
   const view = render(
     <NecrolexiconScreen
@@ -55,6 +59,7 @@ const show = (collection: Collection, justReached: EndingId | null = null) => {
       endings={endings}
       mechanics={mechanics}
       justReached={justReached}
+      focusEnding={focusEnding}
       onBack={onBack}
       onViewThemes={vi.fn()}
     />,
@@ -301,5 +306,17 @@ describe('NecrolexiconScreen · the relic filter', () => {
       }),
     );
     expect(all).toHaveAttribute('aria-pressed', 'false');
+  });
+});
+
+describe('NecrolexiconScreen · focusEnding (issue #113)', () => {
+  it('opens on the Endings tab without marking any slot as just reached', () => {
+    const { container } = show(demoEmptyCollection, null, 'good_wizard');
+    expect(within(tabs()).getByRole('tab', { name: /endings/i })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(container.querySelector('[data-ending-id="good_wizard"]')).not.toBeNull();
+    expect(container.querySelector('[data-current-label]')).toBeNull();
   });
 });

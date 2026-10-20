@@ -434,6 +434,16 @@
   background: none;
 }
 
+/* The route to a locked relic (issue #114). Ink only, one step below the
+   effect line: it is guidance, not a reward. */
+.hint {
+  display: block;
+  font-style: italic;
+  font-size: var(--ew-size-sm);
+  line-height: 1.4;
+  color: var(--ew-ink-faint);
+}
+
 /* A withheld name reads as a redaction, not as an empty box. */
 .redaction {
   display: block;
@@ -447,19 +457,6 @@
     transparent 1px 5px
   );
   opacity: 0.65;
-}
-
-.redactionLine {
-  display: block;
-  width: 100%;
-  height: 0.62em;
-  border-radius: 1px;
-  background: repeating-linear-gradient(
-    -45deg,
-    var(--ew-ink-ghost) 0 1px,
-    transparent 1px 5px
-  );
-  opacity: 0.4;
 }
 
 /* --- lost this run -------------------------------------------------------- */
