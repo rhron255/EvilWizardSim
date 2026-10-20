@@ -286,7 +286,7 @@ const VIRTUE_REPUTATION: Offer[] = [
   {
     id: 'virtue_reputation_rumor',
     title: 'A Kinder Rumour',
-    body: 'The story going around the market square has, somehow, gotten gentler than the facts. Nobody seems in a hurry to correct it.',
+    body: 'The story going around the market square has, somehow, grown gentler than the facts. Nobody seems in a hurry to correct it.',
     phase: 'any',
     scripted: true,
     requires: [
