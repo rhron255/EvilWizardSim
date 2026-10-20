@@ -32,6 +32,8 @@ export type NarrationContext = {
 
 /** The offer whose losing gamble ends in `slain_by_chosen_one`. */
 const DUEL_OFFER_ID = 'scripted_the_chosen_one';
+/** The option of that offer whose failure ends the run directly. Pinned to the real offer in `narration.test.ts`. */
+export const DUEL_OPTION_LABEL = 'Fight her';
 
 /**
  * How the hero reached the wizard: by losing the gate duel (the last era is
@@ -39,7 +41,11 @@ const DUEL_OFFER_ID = 'scripted_the_chosen_one';
  */
 export function slainRoute(run: RunState): SlainRoute {
   const last = run.eras[run.eras.length - 1];
-  return last?.offerId === DUEL_OFFER_ID && last.outcome === 'failure' ? 'duel' : 'breach';
+  // The offer's OTHER gamble ("Tell her about her father") also fails on this
+  // offer id, but only adds threat; the era's chosen option tells them apart.
+  return last?.offerId === DUEL_OFFER_ID && last.outcome === 'failure' && last.optionLabel === DUEL_OPTION_LABEL
+    ? 'duel'
+    : 'breach';
 }
 
 /**

@@ -13,14 +13,14 @@ import { ALL_HERO_NAMES, heroNameFor } from '../../content/heroes';
 import { lairs } from '../../content/lairs';
 import { SLAIN_LAIR_LINE } from '../../content/slainNarration';
 import type { EraRecord, RunState } from '../../types';
-import { composeSlain, narrationFor, slainRoute, strongestHeldRelic } from './narration';
+import { composeSlain, DUEL_OPTION_LABEL, narrationFor, slainRoute, strongestHeldRelic } from './narration';
 import { shareNarration } from './shareImage';
 
 const slain = endings.find((e) => e.id === 'slain_by_chosen_one')!;
 const reprisal = endings.find((e) => e.id === 'sealed_in_gem')!;
 
-const era = (offerId: string, outcome: EraRecord['outcome']): EraRecord =>
-  ({ offerId, outcome }) as EraRecord;
+const era = (offerId: string, outcome: EraRecord['outcome'], optionLabel = DUEL_OPTION_LABEL): EraRecord =>
+  ({ offerId, outcome, optionLabel }) as EraRecord;
 
 const run = (over: Partial<RunState> = {}): RunState =>
   ({
@@ -36,6 +36,19 @@ const legendary = artifacts.find((a) => a.rarity === 'legendary')!;
 const common = artifacts.find((a) => a.rarity === 'common')!;
 
 describe('slainRoute', () => {
+  it('the duel label is the real option whose failure ends in slain_by_chosen_one', async () => {
+    const { offers } = await import('../../content');
+    const offer = offers.find((o) => o.id === 'scripted_the_chosen_one')!;
+    const enders = offer.options.filter(
+      (o) => o.kind === 'gamble' && o.onFailure.some((e) => e.t === 'ending' && e.endingId === 'slain_by_chosen_one'),
+    );
+    expect(enders.map((o) => o.label)).toEqual([DUEL_OPTION_LABEL]);
+  });
+
+  it('is a breach when the failed gamble was the other one', () => {
+    expect(slainRoute(run({ eras: [era('scripted_the_chosen_one', 'failure', 'Tell her about her father')] }))).toBe('breach');
+  });
+
   it('is the duel only when the last era was the failed gate gamble', () => {
     expect(slainRoute(run({ eras: [era('scripted_the_chosen_one', 'failure')] }))).toBe('duel');
     expect(slainRoute(run({ eras: [era('scripted_the_chosen_one', 'success')] }))).toBe('breach');
