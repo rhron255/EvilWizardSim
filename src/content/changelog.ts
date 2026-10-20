@@ -21,6 +21,12 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-10-17T06:19:50Z': {
+    summary: 'Locked relics now say how to come by them, so the collection screen points somewhere.',
+    details: [
+      'Every undiscovered relic prints a short hint about its route; the name stays hidden.',
+    ],
+  },
   '2026-10-16T06:40:00Z': {
     summary: 'After a career, the ending card now hints at up to three endings you have not reached yet.',
     details: [

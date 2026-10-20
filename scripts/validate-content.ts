@@ -92,6 +92,14 @@ for (const artifact of artifacts) {
   if (!factionIds.has(artifact.factionId)) fail(where, `unknown factionId "${artifact.factionId}"`);
   if (!artifact.name.trim()) fail(where, 'empty name');
   if (!artifact.flavorText.trim()) fail(where, 'no flavor text — flavor is the art budget');
+  if (!artifact.hint.trim()) fail(where, 'no route hint — a locked card must say how to come by it (issue #114)');
+  // The hint is printed beside a redacted name; it must not give the name away.
+  if (artifact.hint.toLowerCase().includes(artifact.name.toLowerCase().replace(/^the /, ''))) {
+    fail(where, 'hint spells out the relic’s own name');
+  }
+  if (/concordat|artifactFrom|DEVOTION_STANDING|gate|contagion|hostileTo/i.test(artifact.hint)) {
+    fail(where, 'hint uses an engine term (failure mode 16)');
+  }
   // Wards is derived from rarity alone (RELIC_WARDS, issue #79) — the only
   // thing left to validate here is that the rarity is one the table covers.
   if (!KNOWN_RARITIES.has(artifact.rarity)) {
