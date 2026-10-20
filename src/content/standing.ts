@@ -110,6 +110,18 @@ const PATRON_BY_ENDING: Partial<Record<EndingId, Partial<Record<FactionId, strin
 };
 
 const NEMESIS_BY_ENDING: Partial<Record<EndingId, Partial<Record<FactionId, string>>>> = {
+  // Issue #121: on a slain card the nemesis is whoever PAID for the sword. It
+  // can only be a faction the run already drove to the lockout line, so the
+  // card never invents a patron of the hero; with no nemesis it names no payer.
+  // This replaces the generic nemesis line on purpose (styling rule 3).
+  slain_by_chosen_one: {
+    ashen_covenant: 'The Ashen Covenant paid the bounty in full, in a currency it will want back.',
+    gilded_hand: 'The Gilded Hand underwrote the bounty and has booked you as a recovered cost.',
+    pale_academy: 'The Pale Academy paid the bounty and asked to be credited as a reviewer.',
+    verdant_choir: 'The Verdant Choir paid the bounty in seed, to be collected in spring.',
+    crownlands: 'The Crownlands paid the bounty in three instalments and lost the paperwork on the third.',
+    worm_below: 'The Worm Below paid the bounty in advance. It has always preferred to be early.',
+  },
   consumed_by_pact: {
     ashen_covenant: 'The Ashen Covenant collected without warmth. The account is closed regardless.',
   },

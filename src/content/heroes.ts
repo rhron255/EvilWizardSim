@@ -23,6 +23,9 @@ const BLOODLINES = [
   { given: 'Halloran', house: 'Greyleigh' },
 ] as const;
 
+/** Every name `heroNameFor` can return — for checks that must cover them all. */
+export const ALL_HERO_NAMES: readonly string[] = BLOODLINES.map((b) => `${b.given} ${b.house}`);
+
 /** Deterministic: the same seed always produces the same chosen one. */
 export function heroNameFor(seed: number): string {
   const b = BLOODLINES[Math.abs(seed | 0) % BLOODLINES.length];

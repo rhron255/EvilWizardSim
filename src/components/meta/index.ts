@@ -41,6 +41,9 @@ export type { RelicPowerContext } from './relicPower';
 export { attributionFor, attributionLabelFor, ATTRIBUTION_LABEL } from './attribution';
 export type { AttributionContext } from './attribution';
 
+export { narrationFor, composeSlain, slainRoute, strongestHeldRelic } from './narration';
+export type { NarrationContext, SlainSlots } from './narration';
+
 export { tierVars, tierOf, peakNotoriety } from './tierVars';
 export type { TierVars } from './tierVars';
 

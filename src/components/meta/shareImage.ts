@@ -19,6 +19,7 @@
 import type { Artifact, Ending, Lair, RunState } from '../../types';
 import { ink, surface, tierColor, tierFor } from '../../theme/tokens';
 import { makeRng } from './hash';
+import { narrationFor } from './narration';
 import { buildSigilGeometry, sigilPoint, SIGIL_FIELD } from './sigilGeometry';
 import { lairTenures, roman } from './tenure';
 
@@ -32,6 +33,15 @@ export type ShareEndingInput = {
   lairs: Lair[];
   artifacts: Artifact[];
 };
+
+/**
+ * The narration the share image draws: the same `narrationFor` the ending card
+ * calls, with the same arguments, so card and image cannot tell different
+ * deaths. Exported so a test can hold the two equal without a canvas.
+ */
+export function shareNarration(input: ShareEndingInput): string {
+  return narrationFor(input.ending, input.run, { artifacts: input.artifacts });
+}
 
 const W = 1080;
 const H = 1350;
@@ -581,7 +591,7 @@ function paintCard(ctx: CanvasRenderingContext2D, input: ShareEndingInput) {
   y += 40;
 
   const narrationFont = `italic 400 25px ${DISPLAY}`;
-  const narrationLines = fitSentences(ctx, ending.narration, inner - 120, narrationFont, 5);
+  const narrationLines = fitSentences(ctx, shareNarration({ run, ending, lairs, artifacts }), inner - 120, narrationFont, 5);
   for (const line of narrationLines) {
     drawText(ctx, line, cx, y, { font: narrationFont, color: ink.dim, align: 'center' });
     y += 34;

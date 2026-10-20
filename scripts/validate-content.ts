@@ -25,6 +25,9 @@ import { CHANGELOG } from '../src/content/changelog';
 import { MECHANIC_FOR_POWER_KIND } from '../src/content/mechanics';
 import { changelogHasVersion } from '../src/engine/changelog';
 import { BUILD_VERSION } from '../src/version';
+import { composeSlain } from '../src/components/meta/narration';
+import { SLAIN_LAIR_LINE } from '../src/content/slainNarration';
+import { ALL_HERO_NAMES } from '../src/content/heroes';
 import { relicPowerText, RELIC_POWER_TEXT_MAX } from '../src/components/meta/relicPower';
 import {
   DEVOTION_STANDING,
@@ -893,6 +896,37 @@ for (const e of endings) {
       `ending "${e.id}" narration is ${e.narration.length} chars, over the ${NARRATION_MAX} budget`,
     );
   }
+}
+
+/**
+ * The composed slain card (issue #121) fits the same budget in EVERY
+ * combination a player can reach: each hero × each lair × each strongest
+ * relic (or none) × both routes. The lair table must also name every lair, or
+ * the card silently drops its place line.
+ */
+{
+  const ids = new Set(content.lairs.map((l) => l.id));
+  const relicNames: (string | undefined)[] = [undefined, ...content.artifacts.map((a) => a.name)];
+  let worst = { len: 0, text: '' };
+  let count = 0;
+  for (const heroName of ALL_HERO_NAMES) {
+    for (const lair of content.lairs) {
+      for (const relicName of relicNames) {
+        for (const route of ['duel', 'breach'] as const) {
+          const text = composeSlain({ heroName, route, lairId: lair.id, relicName });
+          count++;
+          if (text.length > worst.len) worst = { len: text.length, text };
+          if (text.length > NARRATION_MAX) {
+            fail('endings', `slain card (${heroName}, ${lair.id}, ${relicName ?? 'no relic'}, ${route}) is ${text.length} chars, over the ${NARRATION_MAX} budget`);
+          }
+        }
+      }
+    }
+  }
+  for (const id of ids) {
+    if (!SLAIN_LAIR_LINE[id]) fail('endings', `slain card has no lair line for "${id}"`);
+  }
+  console.log(`slain card: ${count} combinations checked, longest ${worst.len} chars`);
 }
 
 for (const e of endings) {
