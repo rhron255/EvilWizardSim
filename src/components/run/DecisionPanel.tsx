@@ -57,6 +57,8 @@ export type DecisionPanelProps = {
    * survives that round trip.
    */
   relicsButtonRef?: Ref<HTMLButtonElement>;
+  /** Forwarded to the offer's title so `RunScreen` can move focus there when a resolution is dismissed (issue #120). */
+  offerTitleRef?: Ref<HTMLHeadingElement>;
 };
 
 export function DecisionPanel({
@@ -71,6 +73,7 @@ export function DecisionPanel({
   defense,
   onOpenRelics,
   relicsButtonRef,
+  offerTitleRef,
 }: DecisionPanelProps) {
   // Captions are tap-to-reveal on a phone (they cost ~200px) and always shown
   // from 720px up — same trade the header made, carried over unchanged.
@@ -111,7 +114,7 @@ export function DecisionPanel({
       </div>
       )}
 
-      <dl className={styles.stats}>
+      <ul className={styles.stats}>
         {stakes.map((stake) => {
           // The Relics stat is a navigation control (issue #78: a relic page
           // to read what you carry), not one more tap-to-reveal caption — it
@@ -120,9 +123,8 @@ export function DecisionPanel({
           // its own"), the same pattern `FactionStandings`'s toggle uses.
           if (stake.label === 'Relics' && onOpenRelics) {
             return (
-              <div className={styles.stat} key={stake.label}>
-                <dt className={styles.srOnly}>{stake.label}</dt>
-                <dd className={styles.statCaption}>{stake.caption}</dd>
+              <li className={styles.stat} key={stake.label}>
+                <p className={styles.statCaption}>{stake.caption}</p>
                 <button
                   type="button"
                   className={styles.relicsButton}
@@ -134,13 +136,13 @@ export function DecisionPanel({
                     ›
                   </span>
                 </button>
-              </div>
+              </li>
             );
           }
 
           const open = openStat === stake.label;
           return (
-            <div
+            <li
               className={styles.stat}
               key={stake.label}
               data-tone={stake.tone}
@@ -153,18 +155,18 @@ export function DecisionPanel({
                 aria-controls={`${captionId}-${stake.label}`}
                 onClick={() => setOpenStat(open ? null : stake.label)}
               >
-                <dt className={styles.statLabel}>{stake.label}</dt>
-                <dd className={`${styles.statValue} ew-num`}>{stake.value}</dd>
+                <span className={styles.statLabel}>{stake.label}</span>
+                <span className={`${styles.statValue} ew-num`}>{stake.value}</span>
               </button>
               {/* A number nobody can act on is decoration, and one that counts
                   toward an ending is an undisclosed consequence. */}
-              <dd className={styles.statCaption} id={`${captionId}-${stake.label}`}>
+              <p className={styles.statCaption} id={`${captionId}-${stake.label}`}>
                 {stake.caption}
-              </dd>
-            </div>
+              </p>
+            </li>
           );
         })}
-      </dl>
+      </ul>
 
       {/* Stated for as long as it is true, not just on the card that did it. */}
       {lich && <p className={styles.lich}>{lich}</p>}
@@ -174,9 +176,7 @@ export function DecisionPanel({
           <p className={styles.siegeRow}>
             <span className={styles.siegeLabel}>Wards</span>
             <span className={`${styles.siegeValue} ew-num`}>{siege.wards}</span>
-            <span className={styles.siegeVs} aria-hidden="true">
-              against
-            </span>
+            <span className={styles.siegeVs}>against</span>
             <span className={styles.siegeLabel}>The hero</span>
             <span className={`${styles.siegeValue} ew-num`}>{siege.threat}</span>
           </p>
@@ -203,6 +203,7 @@ export function DecisionPanel({
             factions={factions}
             disabled={disabled}
             onChoose={onChoose}
+            titleRef={offerTitleRef}
           />
         ) : (
           <p className={styles.quiet}>The era turns.</p>
