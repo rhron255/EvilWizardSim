@@ -30,7 +30,7 @@ either one. The pages below carry a status table that says what is real.
 |------|--------|-------|
 | Core loop | Built | Creation → ascent → prophecy → decline → ending → collection. See `01_core_loop.md`. |
 | Data models | Built | The frozen contract is `src/types.ts`; the schemas in `02_data_models_and_content-1.md` are the original drafts. |
-| Content catalogs | Built | 6 factions · 32 relics · 155 offers · 10 lairs · 4 origins · 19 endings · 20 themes. |
+| Content catalogs | Built | 6 factions · 32 relics · 160 offers · 10 lairs · 4 origins · 19 endings · 20 themes. |
 | Technical architecture | Built | React + TypeScript + Vite, backendless, `localStorage`. See `03_systems_architecture-1.md`. |
 | Balance | Measured | `npm run sim` plays 2000 runs against explicit targets; the ones it carries are cited in `scripts/simulate.ts`. |
 | Art & audio | Text-first | Flavor text is the art budget; the only art is procedural (the sigil, the glyphs, the share card). **No audio**; haptics are a garnish only (see CLAUDE.md, styling rule 4). |
