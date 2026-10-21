@@ -84,6 +84,7 @@ const baseRun: RunState = {
   goodWizardVowed: false,
   relicState: { firedOnce: [], spent: [], foresight: false, offerRedrawSalt: 0 },
   eras,
+  challenge: { kind: 'none' },
   seenOfferIds: eras.map((e) => e.offerId),
 };
 

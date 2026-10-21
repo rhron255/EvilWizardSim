@@ -12,6 +12,7 @@
  */
 
 import type {
+  Challenge,
   Effect,
   EndingId,
   EraRecord,
@@ -71,6 +72,8 @@ export type CreateRunOptions = {
   originId: string;
   eraCount: number;
   seed?: number;
+  /** How the opening was fixed (issue #123); omitted means an ordinary career. */
+  challenge?: Challenge;
   /**
    * The epithet picked at creation. wiki/01_core_loop.md: "chosen from 3-4
    * options, or auto-assigned later by deeds" — so this is the starting title,
@@ -105,6 +108,22 @@ function sanitizeName(raw: string): string {
 function sanitizeEraCount(raw: number): number {
   if (!Number.isFinite(raw)) return DEFAULT_ERA_COUNT;
   return clamp(Math.round(raw), 4, 40);
+}
+
+/**
+ * The eight-hex-digit code for a seed. Padded, so a seed below 0x10000000 is
+ * not printed short; the ending card and `parseRunCode` both go through here
+ * (failure mode 3: one definition, not two that agree today).
+ */
+export function formatRunCode(seed: number): string {
+  return (seed >>> 0).toString(16).padStart(8, '0');
+}
+
+/** The inverse of `formatRunCode`; null for anything that is not exactly eight hex digits. */
+export function parseRunCode(code: string): number | null {
+  const t = code.trim().toLowerCase();
+  if (!/^[0-9a-f]{8}$/.test(t)) return null;
+  return parseInt(t, 16) >>> 0;
 }
 
 export function createRun(opts: CreateRunOptions, content: ContentBundle): RunState {
@@ -147,6 +166,7 @@ export function createRun(opts: CreateRunOptions, content: ContentBundle): RunSt
     illActs: 0,
     goodWizardVowed: false,
     relicState: { firedOnce: [], spent: [], foresight: false, offerRedrawSalt: 0 },
+    challenge: opts.challenge ?? { kind: 'none' },
     eras: [],
     seenOfferIds: [],
   };

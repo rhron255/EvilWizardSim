@@ -911,10 +911,34 @@ export type RunState = {
   goodWizardVowed: boolean;
   /** Which `once` relic triggers have already fired this run — see `RelicState`. */
   relicState: RelicState;
+  /**
+   * How this career's opening was fixed (issue #123). `none` is an ordinary
+   * career with a freshly drawn seed. `link` and `daily` start from a given
+   * seed + origin + length. Nothing in the engine reads it: it is a label for
+   * screens, so it cannot move any threshold or odds (rule 1). Added without a
+   * `RUN_SAVE_VERSION` bump; `loadInProgressRun` defaults it to `none`.
+   */
+  challenge: Challenge;
   /** Append-only. Never removed, never rewritten. */
   eras: EraRecord[];
   seenOfferIds: string[];
   ending?: EndingId;
+};
+
+export type Challenge =
+  | { kind: 'none' }
+  | { kind: 'link' }
+  | { kind: 'daily'; day: number };
+
+/**
+ * A fixed opening: seed + origin + length. A seed alone is not enough — origin
+ * effects move standing and eligibility, and length sets the prophecy era.
+ */
+export type SeedPreset = {
+  seed: number;
+  originId: string;
+  eraCount: number;
+  challenge: Exclude<Challenge, { kind: 'none' }>;
 };
 
 /** Persisted across runs. The long-term retention mechanism. */

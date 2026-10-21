@@ -117,6 +117,7 @@ const demoRun: RunState = {
   goodWizardVowed: false,
   relicState: { firedOnce: [], spent: [], foresight: false, offerRedrawSalt: 0 },
   eras: demoEras,
+  challenge: { kind: 'none' },
   seenOfferIds: demoEras.map((e) => e.offerId),
   ending: 'slain_by_chosen_one',
 };

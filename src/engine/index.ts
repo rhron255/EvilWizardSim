@@ -13,7 +13,7 @@ export { indexOf, pactRoleOf, FALLBACK_EPITHETS } from './content-port';
 export type { Resolution, SystemicChange } from './resolution';
 export type { CreateRunOptions } from './run';
 
-export { createRun, resolveChoice, MAX_NAME_LENGTH } from './run';
+export { createRun, resolveChoice, MAX_NAME_LENGTH, formatRunCode, parseRunCode } from './run';
 export {
   nextOffer,
   buildOfferPool,

@@ -191,6 +191,7 @@ export default function App() {
           unfinishedName={game.resumableName}
           onResume={game.resume}
           themeId={themeId}
+          preset={game.preset}
         />
       );
 

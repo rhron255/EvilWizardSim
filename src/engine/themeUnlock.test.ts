@@ -57,6 +57,8 @@ function finished(ending: RunState['ending'], collection: Collection): GameState
     collection,
     prophecyPending: false,
     resumable: null,
+    preset: null,
+    pendingPreset: null,
     unlockedTheme: null,
   };
 }

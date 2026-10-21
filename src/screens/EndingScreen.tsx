@@ -13,6 +13,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Artifact, Ending, EndingId, Faction, Lair, RunState, ThemeId, TierId } from '../types';
+import { formatRunCode } from '../engine';
 import { themeFor } from '../theme/themes';
 import {
   ArtifactGrid,
@@ -437,7 +438,7 @@ export function EndingScreen({
           <span className={styles.footRule} aria-hidden />
           <p className={styles.footLine}>{tier.line}</p>
           <p className={styles.footMark}>
-            Run <span className={styles.num}>{run.seed.toString(16).slice(0, 8)}</span>
+            Run <span className={styles.num}>{formatRunCode(run.seed)}</span>
           </p>
         </footer>
       </article>

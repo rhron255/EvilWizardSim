@@ -10,17 +10,22 @@
  * Real content throughout: a test asserting on origins against anything but
  * the real catalog would be measuring a catalog nobody plays (CLAUDE.md § 5).
  */
-import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { artifacts } from '../content/artifacts';
-import { factions } from '../content/factions';
-import { origins } from '../content/origins';
-import { CREATION_EPITHETS } from '../content';
-import { MAX_NAME_LENGTH } from '../engine';
-import { CreationScreen } from './CreationScreen';
+import { describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { artifacts } from "../content/artifacts";
+import { factions } from "../content/factions";
+import { origins } from "../content/origins";
+import { CREATION_EPITHETS } from "../content";
+import { MAX_NAME_LENGTH } from "../engine";
+import type { SeedPreset } from "../types";
+import { CreationScreen } from "./CreationScreen";
 
-const show = (defaultName = '', unfinishedName: string | null = null) => {
+const show = (
+  defaultName = "",
+  unfinishedName: string | null = null,
+  preset: SeedPreset | null = null,
+) => {
   const onCreate = vi.fn();
   const onBack = vi.fn();
   const onResume = vi.fn();
@@ -36,54 +41,67 @@ const show = (defaultName = '', unfinishedName: string | null = null) => {
       unfinishedName={unfinishedName}
       onResume={onResume}
       themeId="default"
+      preset={preset}
     />,
   );
-  return { onCreate, onBack, onResume, field: screen.getByRole('textbox') };
+  return { onCreate, onBack, onResume, field: screen.getByRole("textbox") };
 };
 
-const commit = () => screen.getByRole('button', { name: /begin the career/i });
+const commit = () => screen.getByRole("button", { name: /begin the career/i });
 
-describe('CreationScreen · the name', () => {
-  it('prefills the remembered name AND selects it', () => {
+describe("CreationScreen · the name", () => {
+  it("prefills the remembered name AND selects it", () => {
     // Selected, so typing replaces the whole thing — a second career is one tap
     // and a different wizard is still just typing. `useGame` already pins that
     // the name is REMEMBERED; this pins that the field actually shows it.
-    const { field } = show('Malvorn Ashgrave');
-    expect(field).toHaveValue('Malvorn Ashgrave');
+    const { field } = show("Malvorn Ashgrave");
+    expect(field).toHaveValue("Malvorn Ashgrave");
     expect((field as HTMLInputElement).selectionStart).toBe(0);
-    expect((field as HTMLInputElement).selectionEnd).toBe('Malvorn Ashgrave'.length);
+    expect((field as HTMLInputElement).selectionEnd).toBe(
+      "Malvorn Ashgrave".length,
+    );
   });
 
-  it('accepts exactly what the engine accepts, with no local copy of the limit', async () => {
+  it("accepts exactly what the engine accepts, with no local copy of the limit", async () => {
     // The limit used to be duplicated here as `MAX_NAME = 40` with a comment
     // promising it matched the engine. It is now imported, so this asserts the
     // field honours it rather than that two constants happen to agree.
-    const long = 'V'.repeat(MAX_NAME_LENGTH);
+    const long = "V".repeat(MAX_NAME_LENGTH);
     const { field, onCreate } = show();
     await userEvent.type(field, long);
     expect(field).toHaveValue(long);
     await userEvent.click(commit());
-    expect(onCreate).toHaveBeenCalledWith(long, expect.anything(), expect.anything(), expect.anything());
+    expect(onCreate).toHaveBeenCalledWith(
+      long,
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+    );
   });
 
-  it('commits the trimmed name, not what was typed', async () => {
+  it("commits the trimmed name, not what was typed", async () => {
     const { field, onCreate } = show();
-    await userEvent.type(field, '  Grishnak  ');
+    await userEvent.type(field, "  Grishnak  ");
     await userEvent.click(commit());
-    expect(onCreate).toHaveBeenCalledWith('Grishnak', expect.anything(), expect.anything(), expect.anything());
+    expect(onCreate).toHaveBeenCalledWith(
+      "Grishnak",
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+    );
   });
 
-  it('will not begin a career on whitespace alone', async () => {
+  it("will not begin a career on whitespace alone", async () => {
     const { field, onCreate } = show();
-    await userEvent.type(field, '   ');
+    await userEvent.type(field, "   ");
     expect(commit()).toBeDisabled();
     await userEvent.click(commit());
     expect(onCreate).not.toHaveBeenCalled();
   });
 });
 
-describe('CreationScreen · disclosure', () => {
-  it('prints every origin and every one of its starting effects', () => {
+describe("CreationScreen · disclosure", () => {
+  it("prints every origin and every one of its starting effects", () => {
     // Rule 1 applies before the first card: an origin is a choice with
     // consequences, so its DOWNSIDES have to be on screen too. The Pale
     // Academy origin opens at -30 standing and the tower at +2 Pact Debt;
@@ -96,7 +114,7 @@ describe('CreationScreen · disclosure', () => {
     expect(origins.length).toBe(4);
   });
 
-  it('shows the full blurb, not a fragment', () => {
+  it("shows the full blurb, not a fragment", () => {
     // The blurbs were clamped to two lines at 393px with a comment claiming
     // they had been shortened; they had not, so all four ended mid-clause.
     // jsdom cannot see the clamp, but it can see that the whole string is in
@@ -109,12 +127,12 @@ describe('CreationScreen · disclosure', () => {
     }
   });
 
-  it('offers the three run lengths and never abbreviates the years', () => {
+  it("offers the three run lengths and never abbreviates the years", () => {
     show();
     for (const [eras, name] of [
-      [12, 'Brief'],
-      [16, 'Standard'],
-      [20, 'Long'],
+      [12, "Brief"],
+      [16, "Standard"],
+      [20, "Long"],
     ] as const) {
       expect(screen.getByText(name)).toBeInTheDocument();
       expect(screen.getByText(`${eras * 5} years`)).toBeInTheDocument();
@@ -122,37 +140,77 @@ describe('CreationScreen · disclosure', () => {
   });
 });
 
-describe('CreationScreen · an unfinished career (issue #107)', () => {
-  it('says nothing when there is no saved career', () => {
-    show('Mal');
+describe("CreationScreen · an unfinished career (issue #107)", () => {
+  it("says nothing when there is no saved career", () => {
+    show("Mal");
     expect(screen.queryByText(/will not be kept/i)).toBeNull();
-    expect(screen.queryByRole('button', { name: /resume/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /resume/i })).toBeNull();
   });
 
-  it('names the career that starting over discards, and offers the way back', async () => {
-    const { onResume, onCreate } = show('Mal', 'Vashter');
-    expect(screen.getByText(/Vashter.s unfinished career will not be kept/i)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: /resume vashter/i }));
+  it("names the career that starting over discards, and offers the way back", async () => {
+    const { onResume, onCreate } = show("Mal", "Vashter");
+    expect(
+      screen.getByText(/Vashter.s unfinished career will not be kept/i),
+    ).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("button", { name: /resume vashter/i }),
+    );
     expect(onResume).toHaveBeenCalledTimes(1);
     expect(onCreate).not.toHaveBeenCalled();
   });
 });
 
-describe('CreationScreen · Enter cannot skip the unfinished-career notice (issue #107)', () => {
-  it('moves focus to the commit button instead of submitting', async () => {
-    const { onCreate, field } = show('Mal', 'Vashter');
+describe("CreationScreen · Enter cannot skip the unfinished-career notice (issue #107)", () => {
+  it("moves focus to the commit button instead of submitting", async () => {
+    const { onCreate, field } = show("Mal", "Vashter");
     await userEvent.click(field);
-    await userEvent.keyboard('{Enter}');
+    await userEvent.keyboard("{Enter}");
     expect(onCreate).not.toHaveBeenCalled();
     expect(commit()).toHaveFocus();
-    await userEvent.keyboard('{Enter}');
+    await userEvent.keyboard("{Enter}");
     expect(onCreate).toHaveBeenCalledTimes(1);
   });
 
-  it('still submits on Enter when nothing would be discarded', async () => {
-    const { onCreate, field } = show('Mal');
+  it("still submits on Enter when nothing would be discarded", async () => {
+    const { onCreate, field } = show("Mal");
     await userEvent.click(field);
-    await userEvent.keyboard('{Enter}');
+    await userEvent.keyboard("{Enter}");
     expect(onCreate).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("CreationScreen · a fixed opening (issue #123)", () => {
+  const preset: SeedPreset = {
+    seed: 0x00a3f09c,
+    originId: origins[1].id,
+    eraCount: 12,
+    challenge: { kind: "link" },
+  };
+
+  it("collapses origin and length to one padded, printed line", () => {
+    show("", null, preset);
+    expect(screen.getByText(/00a3f09c/)).toBeTruthy();
+    expect(screen.getByLabelText("The fixed opening").textContent).toContain(
+      origins[1].name,
+    );
+    expect(
+      screen.queryAllByRole("radio", { name: /Brief|Standard|Long/ }),
+    ).toHaveLength(0);
+  });
+
+  it("commits the preset seed, origin, length and challenge with the typed name", async () => {
+    const { onCreate, field } = show("", null, preset);
+    await userEvent.type(field, "Mord");
+    await userEvent.click(commit());
+    expect(onCreate).toHaveBeenCalledWith(
+      "Mord",
+      expect.any(String),
+      origins[1].id,
+      12,
+      {
+        seed: 0x00a3f09c,
+        challenge: { kind: "link" },
+      },
+    );
   });
 });
