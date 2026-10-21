@@ -66,6 +66,8 @@ function careerWithOneEraLeft(): RunState {
         collection: emptyCollection(''),
         prophecyPending: false,
         resumable: null,
+        preset: null,
+        pendingPreset: null,
         unlockedTheme: null,
       },
       {

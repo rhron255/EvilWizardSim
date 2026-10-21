@@ -653,3 +653,23 @@
     text-overflow: clip;
   }
 }
+
+/* A fixed opening (issue #123): origin and length collapsed to one printed line. */
+.lockedLine {
+  margin: 0;
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-size-base);
+  color: var(--ew-ink);
+  overflow-wrap: anywhere;
+}
+
+.lockedCode {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.lockedEffects {
+  margin: var(--ew-space-2) 0 0;
+  font-size: var(--ew-size-sm);
+  color: var(--ew-ink-faint);
+}

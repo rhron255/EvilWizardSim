@@ -363,6 +363,7 @@ export function loadInProgressRun(): RunState | null {
       foresight: wrapper.run.relicState.foresight ?? false,
       offerRedrawSalt: wrapper.run.relicState.offerRedrawSalt ?? 0,
     },
+    challenge: wrapper.run.challenge ?? { kind: 'none' },
     activeGrantedArtifactIds: wrapper.run.activeGrantedArtifactIds ?? [],
     triggerGrantedArtifactIds: wrapper.run.triggerGrantedArtifactIds ?? [],
   };

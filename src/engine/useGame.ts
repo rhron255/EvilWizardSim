@@ -21,7 +21,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useReducer } from 'react';
-import type { Collection, Offer, RunState, Screen, ThemeId } from '../types';
+import type { Challenge, Collection, Offer, RunState, Screen, SeedPreset, ThemeId } from '../types';
 import { isThemeUnlocked } from '../theme/themes';
 import type { ContentBundle } from './content-port';
 import type { Resolution } from './resolution';
@@ -46,7 +46,23 @@ export type Game = {
   collection: Collection;
   content: ContentBundle;
   begin(): void;
-  create(name: string, epithet: string, originId: string, eraCount: number): void;
+  create(
+    name: string,
+    epithet: string,
+    originId: string,
+    eraCount: number,
+    opts?: { seed: number; challenge: Challenge },
+  ): void;
+  /**
+   * Opens creation on a fixed opening (issue #123). With a saved or running
+   * career it waits instead of discarding it (#107): the preset is kept and
+   * offered when that career ends and the player starts another.
+   */
+  startSeeded(preset: SeedPreset): void;
+  /** The fixed opening creation is showing, or null for an ordinary career. */
+  preset: SeedPreset | null;
+  /** A seeded entry waiting for the current career to end. */
+  pendingPreset: SeedPreset | null;
   choose(optionIndex: number): void;
   /** Spends a held relic's `active` power (issue #81). A no-op if it cannot be used right now. */
   useRelic(artifactId: string): void;
@@ -95,6 +111,10 @@ type GameState = {
   prophecyPending: boolean;
   /** A saved unfinished run, from storage at mount or set aside on exit. */
   resumable: RunState | null;
+  /** The fixed opening the creation screen is showing (issue #123), or null. */
+  preset: SeedPreset | null;
+  /** A seeded entry waiting for the current career to end; never discards it. */
+  pendingPreset: SeedPreset | null;
   /**
    * A theme unlocked by the run that just finished, for the ending banner.
    *
@@ -117,8 +137,10 @@ type Action =
       originId: string;
       eraCount: number;
       seed: number;
+      challenge?: Challenge;
       content: ContentBundle;
     }
+  | { type: 'startSeeded'; preset: SeedPreset }
   | { type: 'choose'; optionIndex: number; content: ContentBundle }
   | { type: 'useRelic'; artifactId: string; content: ContentBundle }
   | { type: 'continue'; content: ContentBundle }
@@ -142,6 +164,8 @@ function initialState(relicsResetAtBuild: string): GameState {
     collection: loadCollection(relicsResetAtBuild),
     prophecyPending: false,
     resumable: loadInProgressRun(),
+    preset: null,
+    pendingPreset: null,
     unlockedTheme: null,
   };
 }
@@ -149,7 +173,15 @@ function initialState(relicsResetAtBuild: string): GameState {
 export function gameReducer(state: GameState, action: Action): GameState {
   switch (action.type) {
     case 'begin':
-      return { ...state, screen: 'creation' };
+      return { ...state, screen: 'creation', preset: null };
+
+    case 'startSeeded': {
+      // A career in the drawer or on screen is never discarded for a link.
+      if (state.resumable || (state.run && !state.run.ending)) {
+        return { ...state, pendingPreset: action.preset };
+      }
+      return { ...state, screen: 'creation', preset: action.preset, pendingPreset: null };
+    }
 
     case 'create': {
       const run = createRun(
@@ -159,6 +191,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
           originId: action.originId,
           eraCount: action.eraCount,
           seed: action.seed,
+          challenge: action.challenge,
           // What this player has already found, so a random draw can prefer a
           // relic they have never held. The engine reads no storage; the list
           // is an argument like everything else.
@@ -177,6 +210,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         resolution: null,
         prophecyPending: false,
         resumable: null,
+        preset: null,
       };
     }
 
@@ -288,6 +322,8 @@ export function gameReducer(state: GameState, action: Action): GameState {
         offer: null,
         resolution: null,
         unlockedTheme: null,
+        preset: state.pendingPreset,
+        pendingPreset: null,
       };
 
     case 'viewNecrolexicon':
@@ -381,12 +417,32 @@ export function useGame(content: ContentBundle, relicsResetAtBuild = ''): Game {
   const begin = useCallback(() => dispatch({ type: 'begin' }), []);
 
   const create = useCallback(
-    (name: string, epithet: string, originId: string, eraCount: number) => {
+    (
+      name: string,
+      epithet: string,
+      originId: string,
+      eraCount: number,
+      opts?: { seed: number; challenge: Challenge },
+    ) => {
       // The seed is drawn HERE, not in the reducer, so the reducer stays pure
-      // under StrictMode's double invocation.
-      dispatch({ type: 'create', name, epithet, originId, eraCount, seed: randomSeed(), content });
+      // under StrictMode's double invocation. A fixed opening supplies its own.
+      dispatch({
+        type: 'create',
+        name,
+        epithet,
+        originId,
+        eraCount,
+        seed: opts?.seed ?? randomSeed(),
+        challenge: opts?.challenge,
+        content,
+      });
     },
     [content],
+  );
+
+  const startSeeded = useCallback(
+    (preset: SeedPreset) => dispatch({ type: 'startSeeded', preset }),
+    [],
   );
 
   const choose = useCallback(
@@ -429,6 +485,9 @@ export function useGame(content: ContentBundle, relicsResetAtBuild = ''): Game {
       content,
       begin,
       create,
+      startSeeded,
+      preset: state.preset,
+      pendingPreset: state.pendingPreset,
       choose,
       useRelic,
       continueAfterResolution,
@@ -465,10 +524,13 @@ export function useGame(content: ContentBundle, relicsResetAtBuild = ''): Game {
       state.resolution,
       state.collection,
       state.resumable,
+      state.preset,
+      state.pendingPreset,
       state.unlockedTheme,
       content,
       begin,
       create,
+      startSeeded,
       choose,
       useRelic,
       continueAfterResolution,
