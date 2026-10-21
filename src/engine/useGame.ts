@@ -177,7 +177,10 @@ export function gameReducer(state: GameState, action: Action): GameState {
 
     case 'startSeeded': {
       // A career in the drawer or on screen is never discarded for a link.
-      if (state.resumable || (state.run && !state.run.ending)) {
+      // That includes a career whose last choice is made but not yet recorded
+      // (`ending` set, still on the run screen): `continue` records it, so
+      // creation opens only once the ending screen is showing.
+      if (state.resumable || (state.run && state.screen !== 'ending')) {
         return { ...state, pendingPreset: action.preset };
       }
       return { ...state, screen: 'creation', preset: action.preset, pendingPreset: null };
