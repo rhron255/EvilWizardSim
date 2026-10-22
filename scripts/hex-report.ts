@@ -21,7 +21,7 @@
  * cohort-shaped ending dead when it is merely unmeasured (failure mode 5).
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { hexes } from '../src/content';
 
@@ -49,6 +49,7 @@ const ids = ['', ...hexes.map((h) => h.id)];
 function play(id: string): string {
   const file = join(out, `${id || 'none'}.json`);
   if (reuse && existsSync(file)) return file;
+  rmSync(file, { force: true }); // never report a stale file from an earlier run
   const args = ['tsx', 'scripts/simulate.ts', '--seed', seed, '--report-json', file];
   if (id) args.push('--hex', id);
   const result = spawnSync('npx', args, { stdio: ['ignore', 'ignore', 'inherit'] });

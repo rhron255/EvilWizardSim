@@ -111,7 +111,7 @@ describe('createRun under a hex', () => {
   });
 });
 
-describe('failure mode 1: a starting-threat hex cannot kill in the ascent', () => {
+describe('failure mode 1: a starting-threat hex cannot kill a player who avoids threat in the ascent', () => {
   /**
    * The slain test is not phase-gated and the siege readout appears only in
    * the decline. So the hex's starting threat plus what the ascent can force

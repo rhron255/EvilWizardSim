@@ -144,6 +144,20 @@ function finiteNumber(value: unknown, fallback: number): number {
 }
 
 /**
+ * `hexesKept` from disk: an object of ending id -> non-empty string arrays.
+ * Anything else is dropped field by field, never the whole collection.
+ */
+function hexesKeptFrom(value: unknown): Collection['hexesKept'] {
+  const out: Collection['hexesKept'] = {};
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return out;
+  for (const [ending, ids] of Object.entries(value as Record<string, unknown>)) {
+    const list = stringArray(ids);
+    if (list.length > 0) out[ending as EndingId] = list;
+  }
+  return out;
+}
+
+/**
  * Coerce whatever is on disk into a valid `Collection`.
  *
  * Returns a fresh collection for anything unreadable or from the future.
@@ -181,20 +195,6 @@ function finiteNumber(value: unknown, fallback: number): number {
  * v6 -> v7 added `hexesKept` (issue #124). Absent means no career has yet
  * ended under a hex, which is `{}`.
  */
-/**
- * `hexesKept` from disk: an object of ending id -> non-empty string arrays.
- * Anything else is dropped field by field, never the whole collection.
- */
-function hexesKeptFrom(value: unknown): Collection['hexesKept'] {
-  const out: Collection['hexesKept'] = {};
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return out;
-  for (const [ending, ids] of Object.entries(value as Record<string, unknown>)) {
-    const list = stringArray(ids);
-    if (list.length > 0) out[ending as EndingId] = list;
-  }
-  return out;
-}
-
 export function migrateCollection(raw: unknown, relicsResetAtBuild = ''): Collection {
   if (!raw || typeof raw !== 'object') return emptyCollection(relicsResetAtBuild);
   const data = raw as Record<string, unknown>;

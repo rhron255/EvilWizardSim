@@ -871,7 +871,7 @@ export type RunState = {
   heldArtifactIds: string[];
   /**
    * Relics granted by `createRun` itself (an origin's `{ t: 'artifact' }`
-   * grant), set once and never touched again. `EraRecord.artifactsGained`
+   * grant), set at creation (the origin grant, plus whatever a hex grants or takes back) and never touched again. `EraRecord.artifactsGained`
    * only ever gets an entry from `resolveChoice`, so an origin relic lost
    * later — `loseArtifact`, the lich rite — would otherwise vanish from every
    * "ever held" reconstruction: `recordRun`'s discovered-artifact fold,
