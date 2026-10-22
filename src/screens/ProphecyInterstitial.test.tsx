@@ -36,6 +36,7 @@ const demoRunAtProphecy: RunState = {
   wizardName: 'Mordrach Vane',
   epithet: 'of the Long Winter',
   originId: 'expelled_pale_academy',
+  hexId: '',
   age: 70,
   eraIndex: 10,
   eraCount: 16,

@@ -345,6 +345,96 @@
   color: var(--ew-ink-faint);
 }
 
+/* --- V. hex (issue #124) --------------------------------------------------- */
+
+/* Section IV (the lengths) ends without a trailing margin of its own, so its
+   last card would sit flush against this section's rule. The margin lives HERE
+   rather than on `.lengths` so a player who is never shown a hex sees exactly
+   the screen they always did. */
+.hexSection {
+  margin-top: var(--ew-space-5);
+}
+
+/* One column of full-width rows: a hex is a sentence and a number, and three
+   side by side at phone width would each wrap to a sliver. The row is the radio
+   itself (a label wrapping it), so the whole row is the hit area. */
+.hexes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-2);
+  margin-bottom: var(--ew-space-5);
+}
+
+.hex {
+  position: relative;
+  display: block;
+  cursor: pointer;
+}
+
+.hexInner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--ew-space-1) var(--ew-space-3);
+  min-height: 44px;
+  padding: var(--ew-space-3) var(--ew-space-4);
+  background: var(--ew-panel);
+  border: 1px solid var(--ew-line);
+  border-radius: var(--ew-radius-md);
+  box-shadow: var(--ew-lip);
+  transition:
+    border-color var(--ew-fast) var(--ew-ease),
+    background-color var(--ew-fast) var(--ew-ease);
+}
+
+.hex:hover .hexInner {
+  border-color: var(--ew-line-strong);
+  background: var(--ew-raised);
+}
+
+/* Chosen is marked by the room's own line and surface, NOT by --ew-tier: the
+   tier colour is the career's earned reward and a handicap is not one. */
+.hexOn .hexInner {
+  border-color: var(--ew-ink-dim);
+  background: var(--ew-raised);
+}
+
+.radio:focus-visible + .hexInner {
+  outline: 2px solid var(--ew-ink-bright);
+  outline-offset: 2px;
+}
+
+.hexName {
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-size-md);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--ew-ink-bright);
+}
+
+.hexRule {
+  flex: 1 1 100%;
+  font-size: var(--ew-size-sm);
+  line-height: 1.5;
+  color: var(--ew-ink-dim);
+  text-wrap: pretty;
+}
+
+.hexEffects {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  gap: var(--ew-space-1) var(--ew-space-3);
+}
+
+.hexEffect {
+  font-size: var(--ew-size-sm);
+  line-height: 1.35;
+  color: var(--ew-ink);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
 /* --- IV. length ----------------------------------------------------------- */
 
 .lengths {

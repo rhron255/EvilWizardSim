@@ -29,6 +29,7 @@ const content: ContentBundle = {
   origins: C.origins,
   endings: C.endings,
   offers: C.offers,
+  hexes: C.hexes,
   epithets: C.epithets,
 };
 
@@ -50,6 +51,7 @@ const demoRun: RunState = {
   wizardName: 'Malvorn Ashgrave',
   epithet: 'the Unpaid Debt',
   originId: 'expelled_pale_academy',
+  hexId: '',
   age: 75,
   eraIndex: 11,
   eraCount: 18,

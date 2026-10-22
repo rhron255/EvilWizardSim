@@ -27,6 +27,7 @@ import { changelogHasVersion } from '../src/engine/changelog';
 import { BUILD_VERSION } from '../src/version';
 import { relicPowerText, RELIC_POWER_TEXT_MAX } from '../src/components/meta/relicPower';
 import {
+  DEF_FLOOR,
   DEVOTION_STANDING,
   GOOD_WIZARD_ILL_CAP,
   GOOD_WIZARD_REPUTATION_GOOD,
@@ -57,7 +58,7 @@ const warn = (where: string, msg: string) => warnings.push(`${where}: ${msg}`);
  */
 const DEED_CLIP_WARN = 90;
 
-const { artifacts, factions, lairs, origins, endings, offers, epithets } = content;
+const { artifacts, factions, lairs, origins, hexes, endings, offers, epithets } = content;
 
 const factionIds = new Set(factions.map((f) => f.id));
 const artifactIds = new Set(artifacts.map((a) => a.id));
@@ -78,6 +79,7 @@ assertUniqueIds('artifacts', artifacts.map((a) => a.id));
 assertUniqueIds('factions', factions.map((f) => f.id));
 assertUniqueIds('lairs', lairs.map((l) => l.id));
 assertUniqueIds('origins', origins.map((o) => o.id));
+assertUniqueIds('hexes', hexes.map((h) => h.id));
 assertUniqueIds('endings', endings.map((e) => e.id));
 assertUniqueIds('offers', offers.map((o) => o.id));
 assertUniqueIds('epithets', epithets.map((e) => e.id));
@@ -353,6 +355,47 @@ for (const origin of origins) {
     if (relic && relic.rarity !== 'common') {
       fail(where, `origin relic "${relic.id}" must be a common, is "${relic.rarity}"`);
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Hexes (issue #124)
+// ---------------------------------------------------------------------------
+
+/**
+ * `HexEffect` excludes these five at the type level; this is the second lock.
+ * An `ending` would name a locked slot on the creation screen, and the other
+ * four take a route the player has not chosen or feed the hidden Good Wizard
+ * counters (rule 1's amendment).
+ */
+const FORBIDDEN_HEX_EFFECTS: ReadonlySet<Effect['t']> = new Set([
+  'ending',
+  'becomeLich',
+  'vowGoodWizard',
+  'goodAct',
+  'illAct',
+]);
+
+for (const hex of hexes) {
+  const where = `hex "${hex.id}"`;
+  if (!hex.name.trim()) fail(where, 'empty name');
+  if (!hex.rule.trim()) fail(where, 'empty rule');
+  if (hex.effects.length === 0) fail(where, 'no effects — a hex that does nothing is not a handicap');
+  checkEffects(where, hex.effects);
+  for (const e of hex.effects) {
+    if (FORBIDDEN_HEX_EFFECTS.has(e.t)) {
+      fail(where, `touches "${e.t}" — a hex may never name an ending, take a route, or move a hidden counter`);
+    }
+  }
+  // Rule 5: a hex is something done TO you at creation, never a promise you can
+  // break mid-run, so nothing here may be a condition. (The type has no place
+  // for one; this keeps the rule sentence honest about it.)
+  if (/\b(never|must not|do not|don't)\b/i.test(hex.rule)) {
+    fail(where, 'rule reads as a vow you could break — that is an achievement, not a hex (rule 5)');
+  }
+  const startThreat = hex.effects.reduce((s, e) => s + (e.t === 'heroThreat' ? e.v : 0), 0);
+  if (startThreat >= DEF_FLOOR) {
+    fail(where, `starts at ${startThreat} hero threat; the lowest defense is ${DEF_FLOOR}, so it would end the career on the spot`);
   }
 }
 
@@ -1185,6 +1228,7 @@ const counts = [
   `${lairs.length} lairs`,
   `${endings.length} endings`,
   `${origins.length} origins`,
+  `${hexes.length} hexes`,
   `${epithets.length} epithets`,
 ].join(' · ');
 

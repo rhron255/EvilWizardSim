@@ -23,7 +23,7 @@ npm run sim        # 2000-run balance report — see Balance
 817 tests across 48 files. The catalogue is **155 offers** (49 ascent, 60
 decline, 46 either), **32 relics** (16 common / 10 rare / 6 legendary, every one
 with a power: 14 triggers, 11 passives, 5 actives, 2 lifelines), 6 factions, 10
-lairs, 4 origins, **19 endings**, 20 themes.
+lairs, 4 origins, 3 hexes, **19 endings**, 20 themes.
 
 **Mobile is the target audience.** 393×852 (iPhone 14/15) is the reference
 device. 320px is the stress width, not the only small one — see Layout.

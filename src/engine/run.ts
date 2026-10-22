@@ -72,6 +72,12 @@ export type CreateRunOptions = {
   eraCount: number;
   seed?: number;
   /**
+   * The hex to begin under (issue #124), or omitted for none. An id the
+   * content does not define is ignored rather than trusted: `RunState.hexId`
+   * only ever names a hex that was really applied.
+   */
+  hexId?: string;
+  /**
    * The epithet picked at creation. wiki/01_core_loop.md: "chosen from 3-4
    * options, or auto-assigned later by deeds" — so this is the starting title,
    * and a matching authored epithet supersedes it once the run earns one.
@@ -123,6 +129,7 @@ export function createRun(opts: CreateRunOptions, content: ContentBundle): RunSt
     wizardName,
     epithet: '',
     originId: origin?.id ?? opts.originId,
+    hexId: '',
     age: ageForEra(0),
     eraIndex: 0,
     eraCount,
@@ -161,6 +168,23 @@ export function createRun(opts: CreateRunOptions, content: ContentBundle): RunSt
     // record of a relic the origin granted — see `startingArtifactIds`'s doc
     // comment in `types.ts` for why every "ever held" reconstruction reads it.
     run.startingArtifactIds = application.artifactsGained.map((a) => a.id);
+  }
+
+  // A hex lands after the origin, through the same pipeline, so every number it
+  // moves is a number the header shows (issue #124). Its own stream, so the
+  // hex never shifts the origin's draws or the career's.
+  const hex = opts.hexId ? index.hexById.get(opts.hexId) : undefined;
+  if (hex) {
+    run.hexId = hex.id;
+    const application = applyEffects(run, hex.effects, streamFor(seed, 'hex', hex.id), content);
+    // `startingArtifactIds` is every relic the career began WITH. A relic the
+    // hex took back (Empty-Handed) was never begun with, and must not be
+    // credited to the collection; one it granted was.
+    const lost = new Set(application.artifactsLost.map((a) => a.id));
+    run.startingArtifactIds = [
+      ...run.startingArtifactIds,
+      ...application.artifactsGained.map((a) => a.id),
+    ].filter((id) => !lost.has(id));
   }
 
   // A creation-screen pick stands until deeds earn something louder; without

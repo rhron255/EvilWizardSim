@@ -16,6 +16,7 @@ const run = (heldArtifactIds: string[]): RunState =>
     wizardName: 'W',
     epithet: 'the Tested',
     originId: REAL_CONTENT.origins[0].id,
+    hexId: '',
     age: 40,
     eraIndex: 5,
     eraCount: 16,

@@ -86,6 +86,7 @@ describe('game state machine · random action sequences', () => {
                   epithet: pickOf(['the Unpleasant', '', 'of the Low Places']),
                   originId: pickOf([...content.origins.map((o) => o.id), 'no_such_origin']),
                   eraCount: pickOf([12, 16, 20, 4, 40, Number.NaN]),
+                  hexId: pickOf(['', ...content.hexes.map((h) => h.id), 'no_such_hex']),
                   seed: 1 + Math.floor(rand() * 1e6),
                   content,
                 }

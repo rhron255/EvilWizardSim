@@ -95,7 +95,13 @@ export const mechanics: Mechanic[] = [
     id: 'origins',
     name: 'Origins',
     blurb:
-      'How a career began. Every background comes with its own relic already in hand, on top of whatever else it grants or costs — nobody starts from nothing.',
+      'How a career began. Every background comes with its own relic already in hand, on top of whatever else it grants or costs — nobody starts from nothing, unless they asked for a hex.',
+  },
+  {
+    id: 'hexes',
+    name: 'Hexes',
+    blurb:
+      'An optional handicap you can take on at the start, once a few careers are behind you. Each one prints exactly what it does before you begin, and an ending reached under one is marked in the collection.',
   },
   {
     id: 'offers',

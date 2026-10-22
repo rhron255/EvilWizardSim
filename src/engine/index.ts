@@ -85,7 +85,13 @@ export {
   pendingChangelogEntries,
 } from './changelog';
 
-export { RUN_LENGTHS, DEFAULT_ERA_COUNT, YEARS_PER_ERA, START_AGE } from './constants';
+export {
+  RUN_LENGTHS,
+  DEFAULT_ERA_COUNT,
+  YEARS_PER_ERA,
+  START_AGE,
+  HEX_UNLOCK_CAREERS,
+} from './constants';
 
 /**
  * Thresholds the UI must be able to name.

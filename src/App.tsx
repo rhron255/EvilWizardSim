@@ -12,6 +12,7 @@ import type { ContentBundle } from './engine';
 import type { EndingId } from './types';
 import {
   defenseReadout,
+  HEX_UNLOCK_CAREERS,
   loadChangelogAck,
   pendingChangelogEntries,
   projectEffects,
@@ -23,6 +24,7 @@ import {
   endings,
   epithets,
   factions,
+  hexes,
   lairs,
   mechanics,
   offers,
@@ -53,6 +55,7 @@ const CONTENT: ContentBundle = {
   artifacts,
   lairs,
   origins,
+  hexes,
   endings,
   offers,
   epithets,
@@ -61,6 +64,8 @@ const CONTENT: ContentBundle = {
 export default function App() {
   const game = useGame(CONTENT, RELICS_RESET_AT_BUILD);
   const { run, screen } = game;
+  // Issue #124: the first careers never see the hex row.
+  const hexesUnlocked = game.collection.runsCompleted >= HEX_UNLOCK_CAREERS;
 
   /**
    * The ending slot the Necrolexicon should open on, set by a tap on the
@@ -182,6 +187,7 @@ export default function App() {
       return (
         <CreationScreen
           origins={origins}
+          hexes={hexesUnlocked ? hexes : []}
           epithetChoices={CREATION_EPITHETS}
           artifacts={artifacts}
           factions={factions}
@@ -266,6 +272,7 @@ export default function App() {
           artifacts={artifacts}
           factions={factions}
           endings={endings}
+          hexes={hexes}
           mechanics={mechanics}
           // The ending card's "View Necrolexicon" is the only door here that
           // still has a run behind it: the reducer keeps the finished run on

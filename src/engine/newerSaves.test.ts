@@ -19,14 +19,14 @@ import {
   emptyCollection,
 } from './persistence';
 
-const NEWER_COLLECTION = '{"version":7,"endingsSeen":["slain"],"hexes":{"future":true}}';
+const NEWER_COLLECTION = '{"version":8,"endingsSeen":["slain"],"hexes":{"future":true}}';
 const NEWER_RUN = '{"version":4,"run":{"id":"from-the-future","shape":"unknown"}}';
 
 beforeEach(() => localStorage.clear());
 
 describe('newer saves are read-only', () => {
   it('fixtures really are newer than this build', () => {
-    expect(7).toBeGreaterThan(COLLECTION_VERSION);
+    expect(8).toBeGreaterThan(COLLECTION_VERSION);
     expect(4).toBeGreaterThan(RUN_SAVE_VERSION);
   });
 

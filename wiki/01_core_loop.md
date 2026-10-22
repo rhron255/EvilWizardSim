@@ -41,6 +41,14 @@ Fields:
   issue #80) a starting relic with a power of its own (*expelled from the Pale
   Academy*, *self-taught in a bog*, *inherited a tower and its debts*, *sold
   your master's estate*).
+- **Hex** (issue #124; shown only after three finished careers) — an optional
+  handicap, single-select, defaulting to none: *Empty-Handed* (begin without
+  the origin's relic), *The File Is Open* (+12 hero threat) or *Twice
+  Inherited* (+2 pact debt). Applied once after the origin through the same
+  effect pipeline, printed before the commit, and marked on the ending slot
+  it reached. It is something done to you at creation, so it can never be
+  broken mid-run and there is no hex-failed state (rule 5); it may make an
+  ending harder, never impossible (rule 6, checked with `npm run sim:hexes`).
 - **Run length** — Brief 12 / Standard 16 / Long 20 eras, mirroring the
   reference game's season selector. Controls era count, not difficulty.
 

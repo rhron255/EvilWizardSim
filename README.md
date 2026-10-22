@@ -73,6 +73,7 @@ npm run test             # vitest, single pass
 npm run lint             # eslint, zero warnings tolerated
 npm run validate:content # faction refs, option counts, disclosed effects
 npm run sim              # headless balance harness over N runs
+npm run sim:hexes        # the harness once per hex, beside the base (about two minutes each)
 npm run assets           # regenerate favicon, install icons and the link preview
 ```
 
@@ -103,7 +104,7 @@ workflow cannot turn that on for itself.
 | `src/types.ts` | The frozen contract every other module is written against. |
 | `src/theme/` | Design tokens, the themes, and the ornament shapes they draw with. Never hardcode a hex in a component. |
 | `src/engine/` | Run state, offer generation, resolution, persistence. |
-| `src/content/` | Factions, artifacts, lairs, origins, endings, offers. |
+| `src/content/` | Factions, artifacts, lairs, origins, hexes, endings, offers. |
 | `src/components/` | Presentational only. No game state. |
 | `src/screens/` | Screen-level composition. |
 | `scripts/` | Content validation, the balance simulator and the static-asset generator. |

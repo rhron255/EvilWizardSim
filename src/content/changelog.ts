@@ -21,6 +21,13 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-10-22T06:30:00Z': {
+    summary: 'After three finished careers you can begin under a hex, a harder start that is printed before you commit.',
+    details: [
+      'Three hexes: Empty-Handed, The File Is Open and Twice Inherited.',
+      'An ending reached under a hex is marked in the collection.',
+    ],
+  },
   '2026-10-19T06:16:00Z': {
     summary: 'A screen reader now reads each result aloud and keeps its place when you continue.',
     details: [
