@@ -74,6 +74,7 @@ function careerWithOneEraLeft(): RunState {
         epithet: '',
         originId: content.origins[0].id,
         eraCount: 4,
+        hexId: '',
         seed,
         content,
       },

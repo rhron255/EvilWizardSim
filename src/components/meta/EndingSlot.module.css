@@ -62,6 +62,32 @@
   white-space: nowrap;
 }
 
+/* A hex kept (issue #124): the player's own record, drawn in the room's ink and
+   never in --ew-tier. The name travels with the mark so it is not a symbol the
+   player has to learn. */
+.hexRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ew-space-1) var(--ew-space-3);
+  margin: var(--ew-space-2) 0 0;
+}
+
+.hexKept {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ew-space-1);
+  color: var(--ew-ink-dim);
+}
+
+.hexMark {
+  flex: none;
+}
+
+.hexKeptName {
+  font-size: var(--ew-size-xs);
+  line-height: 1.2;
+}
+
 /* --- unseen --------------------------------------------------------------- */
 
 /* Every state that repaints the slot leads with the trim, as `.slot` does, or

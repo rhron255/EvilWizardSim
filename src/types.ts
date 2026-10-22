@@ -750,6 +750,33 @@ export type Origin = {
   effects: Effect[];
 };
 
+/**
+ * What a hex may do at the start of a career (issue #124).
+ *
+ * The same exclusion `RelicEffect` makes, for the same reasons: an `ending`
+ * effect would name a locked slot, `becomeLich`/`vowGoodWizard` would take a
+ * route the player has not chosen, and `goodAct`/`illAct` feed the one hidden
+ * counter pair the Good Wizard route is allowed (rule 1's amendment).
+ */
+export type HexEffect = RelicEffect;
+
+/**
+ * An opt-in handicap: something the game does to you at creation, printed
+ * before you commit, run through the same effect pipeline as an origin.
+ *
+ * A hex is applied once, after the origin, and can never be "broken" mid-run,
+ * so there is no hex-failed state (rule 5). It may make an ending harder,
+ * never impossible (rule 6). `rule` is the one plain sentence the creation
+ * screen prints above the effect lines; the lines themselves come from
+ * `effects`, so the sentence never has to carry a number.
+ */
+export type Hex = {
+  id: string;
+  name: string;
+  rule: string;
+  effects: HexEffect[];
+};
+
 export type Ending = {
   id: EndingId;
   name: string;
@@ -822,6 +849,13 @@ export type RunState = {
   wizardName: string;
   epithet: string;
   originId: string;
+  /**
+   * The hex this career began under (issue #124), or '' for none. Chosen at
+   * creation and never changed. Folded into `Collection.hexesKept` when the
+   * career ends. Additive: a save written before hexes arrive without it and
+   * `loadInProgressRun` defaults it to '' (no `RUN_SAVE_VERSION` bump).
+   */
+  hexId: string;
   age: number;
   eraIndex: number;
   /** Total eras this run — set by the run-length choice at creation. */
@@ -962,6 +996,14 @@ export type Collection = {
    * the collection untouched.
    */
   relicsResetAt: string;
+  /**
+   * For each ending, the hexes a career began under when it reached that
+   * ending (issue #124). Careers with no hex are not recorded here — that is
+   * what `endingsSeen` is for. Ids are strings the engine does not validate
+   * against content (it never imports content); a screen ignores any it does
+   * not know. Absent keys mean "never reached under a hex".
+   */
+  hexesKept: Partial<Record<EndingId, string[]>>;
 };
 
 // ---------------------------------------------------------------------------

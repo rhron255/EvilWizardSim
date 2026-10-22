@@ -6,7 +6,7 @@
  * door you have not opened, not as an absence.
  */
 
-import type { Ending } from '../../types';
+import type { Ending, Hex } from '../../types';
 import { EndingGlyph } from './glyphs';
 import styles from './EndingSlot.module.css';
 
@@ -26,7 +26,46 @@ export type EndingSlotProps = {
    * glyph alone are a cue only a player who can tell the colours apart gets.
    */
   current: boolean;
+  /**
+   * The hexes this ending has been reached under (issue #124), already
+   * resolved against the catalog by the caller; `[]` for none. Required, so
+   * no caller can forget it the way `current` was once forgotten. A locked
+   * slot never shows any: a career records its hex only by reaching an ending.
+   */
+  hexesKept: readonly Hex[];
 };
+
+/**
+ * One small monochrome mark per hex. Each hex has its own inner stroke so two
+ * marks are told apart without colour; an id this build has no stroke for (a
+ * hex retired since) gets the plain outline. Drawn in `currentColor` and
+ * never reads `--ew-tier` — a hex kept is the player's own record, not a
+ * reward the game paid out (rule 3).
+ */
+const HEX_STROKE: Record<string, string> = {
+  empty_handed: 'M4.5 8h7',
+  file_is_open: 'M8 4.5v7',
+  twice_inherited: 'M5.5 6.2l5 3.6M5.5 9.8l5-3.6',
+};
+
+function HexMark({ hex }: { hex: Hex }) {
+  return (
+    <svg
+      className={styles.hexMark}
+      viewBox="0 0 16 16"
+      width="14"
+      height="14"
+      aria-hidden="true"
+      focusable="false"
+      data-hex-id={hex.id}
+    >
+      <path d="M8 1.5l5.6 3.25v6.5L8 14.5l-5.6-3.25v-6.5z" fill="none" stroke="currentColor" strokeWidth="1.2" />
+      {HEX_STROKE[hex.id] && (
+        <path d={HEX_STROKE[hex.id]} fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      )}
+    </svg>
+  );
+}
 
 /**
  * Endings are graded, not dropped.
@@ -43,7 +82,8 @@ const RARITY_LABEL = {
   legendary: 'Fabled',
 } as const;
 
-export function EndingSlot({ ending, seen, current }: EndingSlotProps) {
+export function EndingSlot({ ending, seen, current, hexesKept }: EndingSlotProps) {
+  const kept = seen ? hexesKept : [];
   const classes = [
     styles.slot,
     seen ? styles.seen : styles.unseen,
@@ -58,7 +98,9 @@ export function EndingSlot({ ending, seen, current }: EndingSlotProps) {
       data-ending-id={ending.id}
       aria-label={
         seen
-          ? `${current ? 'Just reached: ' : ''}${ending.name} — ${ending.summary}`
+          ? `${current ? 'Just reached: ' : ''}${ending.name} — ${ending.summary}${
+              kept.length > 0 ? ` Reached under ${kept.map((h) => h.name).join(', ')}.` : ''
+            }`
           : `An ending you have not reached — ${ending.hint}`
       }
     >
@@ -88,6 +130,16 @@ export function EndingSlot({ ending, seen, current }: EndingSlotProps) {
         <p className={styles.summary} data-hint={seen ? undefined : 'true'}>
           {seen ? ending.summary : ending.hint}
         </p>
+        {kept.length > 0 && (
+          <p className={styles.hexRow} data-hexes-kept>
+            {kept.map((hex) => (
+              <span key={hex.id} className={styles.hexKept}>
+                <HexMark hex={hex} />
+                <span className={styles.hexKeptName}>{hex.name}</span>
+              </span>
+            ))}
+          </p>
+        )}
       </div>
 
       <span className={styles.rarity}>{seen ? RARITY_LABEL[ending.rarity] : 'Unopened'}</span>

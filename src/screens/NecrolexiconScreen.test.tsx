@@ -20,6 +20,7 @@ import userEvent from '@testing-library/user-event';
 import { artifacts } from '../content/artifacts';
 import { factions } from '../content/factions';
 import { endings } from '../content/endings';
+import { hexes } from '../content/hexes';
 import { mechanics } from '../content/mechanics';
 import { emptyCollection } from '../engine';
 import { relicPowerText } from '../components/meta';
@@ -57,6 +58,7 @@ const show = (
       artifacts={artifacts}
       factions={factions}
       endings={endings}
+      hexes={hexes}
       mechanics={mechanics}
       justReached={justReached}
       focusEnding={focusEnding}
@@ -318,5 +320,32 @@ describe('NecrolexiconScreen · focusEnding (issue #113)', () => {
     );
     expect(container.querySelector('[data-ending-id="good_wizard"]')).not.toBeNull();
     expect(container.querySelector('[data-current-label]')).toBeNull();
+  });
+});
+
+describe('NecrolexiconScreen · hexes kept (issue #124)', () => {
+  it('marks a seen ending with the hex it was reached under, by name', async () => {
+    show(
+      { ...demoCollection, hexesKept: { slain_by_chosen_one: ['file_is_open'] } },
+      null,
+      'slain_by_chosen_one',
+    );
+    const slot = document.querySelector('[data-ending-id="slain_by_chosen_one"]') as HTMLElement;
+    expect(within(slot).getByText('The File Is Open')).toBeInTheDocument();
+    expect(slot.getAttribute('aria-label')).toMatch(/reached under the file is open/i);
+    // Another seen ending, reached with no hex, carries no mark.
+    const other = document.querySelector('[data-ending-id="retired_to_swamp"]') as HTMLElement;
+    expect(other.querySelector('[data-hexes-kept]')).toBeNull();
+  });
+
+  it('draws nothing for an ending that is still locked, or for a hex this build dropped', () => {
+    show({
+      ...demoCollection,
+      hexesKept: { ascension: ['file_is_open'], retired_to_swamp: ['no_such_hex'] },
+    }, null, 'ascension');
+    const locked = document.querySelector('[data-ending-id="ascension"]') as HTMLElement;
+    expect(locked.querySelector('[data-hexes-kept]')).toBeNull();
+    const dropped = document.querySelector('[data-ending-id="retired_to_swamp"]') as HTMLElement;
+    expect(dropped.querySelector('[data-hexes-kept]')).toBeNull();
   });
 });

@@ -17,6 +17,7 @@ const real: ContentBundle = {
   origins: C.origins,
   endings: C.endings,
   offers: C.offers,
+  hexes: C.hexes,
   epithets: C.epithets,
 };
 

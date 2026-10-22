@@ -41,6 +41,7 @@ const baseRun: RunState = {
   wizardName: 'Malvorn Ashgrave',
   epithet: 'the Unpaid Debt',
   originId: 'expelled_pale_academy',
+  hexId: '',
   age: 75,
   eraIndex: 11,
   eraCount: 18,

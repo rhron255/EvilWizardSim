@@ -15,6 +15,7 @@ import type {
   Ending,
   Faction,
   FactionId,
+  Hex,
   Lair,
   Offer,
   OfferOption,
@@ -41,6 +42,8 @@ export type ContentBundle = {
   artifacts: Artifact[];
   lairs: Lair[];
   origins: Origin[];
+  /** Opt-in handicaps (issue #124). Required, so no fixture can forget them. */
+  hexes: Hex[];
   endings: Ending[];
   offers: Offer[];
   epithets: Epithet[];
@@ -101,6 +104,7 @@ export type ContentIndex = {
   endingById: Map<string, Ending>;
   offerById: Map<string, Offer>;
   originById: Map<string, Origin>;
+  hexById: Map<string, Hex>;
   /** Lairs sorted ascending by `tier` — this array IS the ladder. */
   lairLadder: Lair[];
   /** Position of a lair id on the ladder. */
@@ -137,6 +141,7 @@ export function indexOf(content: ContentBundle): ContentIndex {
     endingById: new Map(content.endings.map((e) => [e.id, e])),
     offerById: new Map(content.offers.map((o) => [o.id, o])),
     originById: new Map(content.origins.map((o) => [o.id, o])),
+    hexById: new Map(content.hexes.map((h) => [h.id, h])),
     lairLadder,
     lairRung,
     artifactsByFaction,

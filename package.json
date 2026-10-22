@@ -14,6 +14,7 @@
     "lint": "eslint . --max-warnings 0",
     "validate:content": "tsx scripts/validate-content.ts",
     "sim": "tsx scripts/simulate.ts",
+    "sim:hexes": "tsx scripts/hex-report.ts",
     "gate": "node scripts/gate.mjs",
     "assets": "tsx scripts/build-static-assets.ts",
     "ornaments": "tsx scripts/build-ornaments.ts",

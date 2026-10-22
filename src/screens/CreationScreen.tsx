@@ -11,13 +11,19 @@
  */
 
 import { useEffect, useId, useRef, useState } from 'react';
-import type { Artifact, Faction, Origin, ThemeId } from '../types';
+import type { Artifact, Faction, Hex, Origin, ThemeId } from '../types';
 import { MAX_NAME_LENGTH } from '../engine';
 import { formatEffect, isNegative, relicPowerText, Sigil, themeAttr, tierVars } from '../components/meta';
 import styles from './CreationScreen.module.css';
 
 export type CreationScreenProps = {
   origins: Origin[];
+  /**
+   * The hexes on offer (issue #124), or `[]` while the player has not yet
+   * finished enough careers to be shown any — the row then does not render at
+   * all, so the first runs see the screen they always saw.
+   */
+  hexes: Hex[];
   epithetChoices: string[];
   /**
    * The last name this player used, or ''. Prefilled and selected, so a second
@@ -27,7 +33,7 @@ export type CreationScreenProps = {
   /** Catalog, so an origin that grants a relic can name it. */
   artifacts: Artifact[];
   factions: Faction[];
-  onCreate(name: string, epithet: string, originId: string, eraCount: number): void;
+  onCreate(name: string, epithet: string, originId: string, eraCount: number, hexId: string): void;
   onBack(): void;
   /**
    * The wizard of a saved, unfinished career, or null. Committing here
@@ -70,6 +76,7 @@ const LENGTHS = [
 
 export function CreationScreen({
   origins,
+  hexes,
   epithetChoices,
   artifacts,
   factions,
@@ -84,6 +91,8 @@ export function CreationScreen({
   const [epithet, setEpithet] = useState(epithetChoices[0] ?? '');
   const [originId, setOriginId] = useState(origins[0]?.id ?? '');
   const [eraCount, setEraCount] = useState<number>(16);
+  // '' is "no hex" — the default, and the only value a first-career player can send.
+  const [hexId, setHexId] = useState('');
 
   const nameId = useId();
   const groupId = useId();
@@ -106,7 +115,7 @@ export function CreationScreen({
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!ready) return;
-    onCreate(trimmed, epithet, originId, eraCount);
+    onCreate(trimmed, epithet, originId, eraCount, hexes.some((h) => h.id === hexId) ? hexId : '');
   }
 
   return (
@@ -299,6 +308,53 @@ export function CreationScreen({
             ))}
           </div>
         </fieldset>
+
+        {/* ---------------------------------------------------------------- */}
+        {/* V. The hex (issue #124) — only once a few careers are behind you  */}
+        {/* ---------------------------------------------------------------- */}
+        {hexes.length > 0 && (
+          <fieldset className={`${styles.section} ${styles.hexSection}`}>
+            <legend className={styles.sectionLabel}>
+              <span className={styles.numeral}>V</span> Begin under a hex?
+            </legend>
+
+            <div className={styles.hexes}>
+              {[null, ...hexes].map((hex) => {
+                const id = hex?.id ?? '';
+                return (
+                  <label
+                    key={id || 'none'}
+                    className={id === hexId ? `${styles.hex} ${styles.hexOn}` : styles.hex}
+                  >
+                    <input
+                      type="radio"
+                      name={`${groupId}-hex`}
+                      className={styles.radio}
+                      value={id}
+                      checked={id === hexId}
+                      onChange={() => setHexId(id)}
+                    />
+                    <span className={styles.hexInner}>
+                      <span className={styles.hexName}>{hex ? hex.name : 'No hex'}</span>
+                      <span className={styles.hexRule}>
+                        {hex ? hex.rule : 'Begin as your origin leaves you.'}
+                      </span>
+                      {hex && (
+                        <span className={styles.hexEffects}>
+                          {hex.effects.map((effect, i) => (
+                            <span key={i} className={styles.hexEffect}>
+                              {formatEffect(effect, { artifacts, factions })}
+                            </span>
+                          ))}
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+        )}
 
         <footer className={styles.bottom}>
           {/* Rule 2: the career about to be overwritten is named at the one

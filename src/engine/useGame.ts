@@ -46,7 +46,8 @@ export type Game = {
   collection: Collection;
   content: ContentBundle;
   begin(): void;
-  create(name: string, epithet: string, originId: string, eraCount: number): void;
+  /** `hexId` is '' (or omitted) for no hex — issue #124. */
+  create(name: string, epithet: string, originId: string, eraCount: number, hexId?: string): void;
   choose(optionIndex: number): void;
   /** Spends a held relic's `active` power (issue #81). A no-op if it cannot be used right now. */
   useRelic(artifactId: string): void;
@@ -116,6 +117,7 @@ type Action =
       epithet: string;
       originId: string;
       eraCount: number;
+      hexId: string;
       seed: number;
       content: ContentBundle;
     }
@@ -158,6 +160,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
           epithet: action.epithet,
           originId: action.originId,
           eraCount: action.eraCount,
+          hexId: action.hexId,
           seed: action.seed,
           // What this player has already found, so a random draw can prefer a
           // relic they have never held. The engine reads no storage; the list
@@ -381,10 +384,19 @@ export function useGame(content: ContentBundle, relicsResetAtBuild = ''): Game {
   const begin = useCallback(() => dispatch({ type: 'begin' }), []);
 
   const create = useCallback(
-    (name: string, epithet: string, originId: string, eraCount: number) => {
+    (name: string, epithet: string, originId: string, eraCount: number, hexId = '') => {
       // The seed is drawn HERE, not in the reducer, so the reducer stays pure
       // under StrictMode's double invocation.
-      dispatch({ type: 'create', name, epithet, originId, eraCount, seed: randomSeed(), content });
+      dispatch({
+        type: 'create',
+        name,
+        epithet,
+        originId,
+        eraCount,
+        hexId,
+        seed: randomSeed(),
+        content,
+      });
     },
     [content],
   );

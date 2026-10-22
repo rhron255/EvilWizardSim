@@ -7,7 +7,7 @@
  *
  *   npx tsx scripts/simulate.ts [--runs 2000] [--seed 1] [--eras <RUN_LENGTHS>]
  *                               [--policy random|safe|greedy|adaptive|courtier|lich]
- *                               [--json] [--report-json <path>]
+ *                               [--json] [--report-json <path>] [--hex <hexId>]
  *
  * `--json` prints the population distribution and stops, for cheap slice-to-
  * slice diffing. `--report-json <path>` is the other one: it writes the WHOLE
@@ -76,6 +76,7 @@ import {
   endings,
   epithets,
   factions,
+  hexes,
   lairs,
   offers,
   origins,
@@ -88,6 +89,7 @@ const content: ContentBundle = {
   artifacts,
   lairs,
   origins,
+  hexes,
   endings,
   offers,
   epithets,
@@ -1286,7 +1288,10 @@ function playRun(
   const rng = mulberry32(seed ^ 0x5f3759df);
   const originId = content.origins[Math.floor(rng() * content.origins.length)].id;
 
-  let run = createRun({ wizardName: 'Sim', originId, eraCount, seed, knownArtifactIds }, content);
+  let run = createRun(
+    { wizardName: 'Sim', originId, eraCount, seed, knownArtifactIds, hexId: SIM_HEX || undefined },
+    content,
+  );
   let notorietyAtProphecy = run.notoriety;
   let peakLegendaries = 0;
   let peakPactDebt = run.pactDebt;
@@ -2205,6 +2210,25 @@ const LEGEND_MIN = tierMin('legend');
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
+
+/**
+ * `--hex <id>` (issue #124): every career this process plays, in the
+ * population AND in every dedicated cohort probe, begins under that hex. That
+ * is what "run the existing cohort probes under each hex" means — the probes
+ * already know how to find each ending, and a hex that makes one impossible
+ * shows up as an ending no cohort reaches. Unset means no hex: the numbers
+ * the PR balance comment compares are untouched. Read once, at load, so a
+ * typo fails before 2,000 careers rather than after.
+ */
+const SIM_HEX = (() => {
+  const at = process.argv.indexOf('--hex');
+  const id = at !== -1 ? (process.argv[at + 1] ?? '') : '';
+  if (id && !content.hexes.some((h) => h.id === id)) {
+    console.error(`unknown hex "${id}" (known: ${content.hexes.map((h) => h.id).join(', ')})`);
+    process.exit(2);
+  }
+  return id;
+})();
 
 function arg(name: string, fallback: string): string {
   const at = process.argv.indexOf(`--${name}`);
@@ -3507,6 +3531,8 @@ function main(): void {
       `${JSON.stringify(
         {
           seed: baseSeed,
+          // '' for the base game; the hex every career in this file began under.
+          hex: SIM_HEX,
           runs: total,
           // So a reader of the aggregated output can tell whether the
           // completion figures in `checks` were actually measured or were

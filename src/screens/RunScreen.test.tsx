@@ -16,7 +16,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ContentBundle } from '../engine';
-import { artifacts, endings, epithets, factions, lairs, offers, origins } from '../content';
+import { artifacts, endings, epithets, factions, hexes, lairs, offers, origins } from '../content';
 import type { Resolution } from '../components/run/resolution';
 import type { EraRecord, RunState, ThemeId } from '../types';
 import { RunScreen } from './RunScreen';
@@ -24,7 +24,7 @@ import { realDeed, realOfferWhere } from '../testing/realContent';
 
 // Mirrors `App.tsx`'s own `CONTENT` — the real catalog, frozen once here
 // rather than rebuilt per test.
-const content: ContentBundle = { factions, artifacts, lairs, origins, endings, offers, epithets };
+const content: ContentBundle = { factions, artifacts, lairs, origins, hexes, endings, offers, epithets };
 
 // A mid-decline run holding five real relics across two factions.
 const eras: EraRecord[] = Array.from({ length: 11 }, (_, i) => ({
@@ -45,6 +45,7 @@ const demoRun: RunState = {
   wizardName: 'Malvorn Ashgrave',
   epithet: 'the Unpaid Debt',
   originId: 'expelled_pale_academy',
+  hexId: '',
   age: 75,
   eraIndex: 11,
   eraCount: 18,

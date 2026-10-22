@@ -19,6 +19,7 @@ export const REAL_CONTENT: ContentBundle = {
   origins: C.origins,
   endings: C.endings,
   offers: C.offers,
+  hexes: C.hexes,
   epithets: C.epithets,
 };
 

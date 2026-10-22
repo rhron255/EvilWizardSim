@@ -126,6 +126,7 @@ export function emptyCollection(relicsResetAtBuild = ''): Collection {
     lastWizardName: '',
     selectedThemeId: DEFAULT_THEME_ID,
     relicsResetAt: relicsResetAtBuild,
+    hexesKept: {},
   };
 }
 
@@ -176,7 +177,24 @@ function finiteNumber(value: unknown, fallback: number): number {
  * field to the constant; a current value leaves the whole collection
  * untouched. Endings, themes, the tutorial flag and the last name are never
  * touched either way — this is a relic-only reset, not a fresh collection.
+ *
+ * v6 -> v7 added `hexesKept` (issue #124). Absent means no career has yet
+ * ended under a hex, which is `{}`.
  */
+/**
+ * `hexesKept` from disk: an object of ending id -> non-empty string arrays.
+ * Anything else is dropped field by field, never the whole collection.
+ */
+function hexesKeptFrom(value: unknown): Collection['hexesKept'] {
+  const out: Collection['hexesKept'] = {};
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return out;
+  for (const [ending, ids] of Object.entries(value as Record<string, unknown>)) {
+    const list = stringArray(ids);
+    if (list.length > 0) out[ending as EndingId] = list;
+  }
+  return out;
+}
+
 export function migrateCollection(raw: unknown, relicsResetAtBuild = ''): Collection {
   if (!raw || typeof raw !== 'object') return emptyCollection(relicsResetAtBuild);
   const data = raw as Record<string, unknown>;
@@ -210,6 +228,7 @@ export function migrateCollection(raw: unknown, relicsResetAtBuild = ''): Collec
         ? data.selectedThemeId
         : DEFAULT_THEME_ID,
     relicsResetAt: relicsStale ? relicsResetAtBuild : storedRelicsResetAt,
+    hexesKept: hexesKeptFrom(data.hexesKept),
   };
 }
 
@@ -221,6 +240,13 @@ export function loadCollection(relicsResetAtBuild = ''): Collection {
 export function saveCollection(c: Collection): void {
   if (holdsNewerSave(COLLECTION_KEY, COLLECTION_VERSION)) return;
   writeRaw(COLLECTION_KEY, JSON.stringify({ ...c, version: COLLECTION_VERSION }));
+}
+
+function keepHex(kept: Collection['hexesKept'], run: RunState): Collection['hexesKept'] {
+  if (!run.ending || !run.hexId) return kept;
+  const here = kept[run.ending] ?? [];
+  if (here.includes(run.hexId)) return kept;
+  return { ...kept, [run.ending]: [...here, run.hexId] };
 }
 
 /**
@@ -268,6 +294,9 @@ export function recordRun(c: Collection, run: RunState, content: ContentBundle):
     // build-boundary event `migrateCollection` handles on load, not something
     // an ordinary finished career triggers.
     relicsResetAt: c.relicsResetAt,
+    // A career that began under a hex marks the ending it reached with that
+    // hex (issue #124). Idempotent: an id is listed once per ending.
+    hexesKept: keepHex(c.hexesKept, run),
   };
 }
 
@@ -363,6 +392,9 @@ export function loadInProgressRun(): RunState | null {
       foresight: wrapper.run.relicState.foresight ?? false,
       offerRedrawSalt: wrapper.run.relicState.offerRedrawSalt ?? 0,
     },
+    // Issue #124 — additive, no save-version bump: a career saved before hexes
+    // existed began under none.
+    hexId: typeof wrapper.run.hexId === 'string' ? wrapper.run.hexId : '',
     activeGrantedArtifactIds: wrapper.run.activeGrantedArtifactIds ?? [],
     triggerGrantedArtifactIds: wrapper.run.triggerGrantedArtifactIds ?? [],
   };

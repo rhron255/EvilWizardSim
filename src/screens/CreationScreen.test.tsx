@@ -11,22 +11,28 @@
  * the real catalog would be measuring a catalog nobody plays (CLAUDE.md § 5).
  */
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { artifacts } from '../content/artifacts';
+import { hexes } from '../content/hexes';
 import { factions } from '../content/factions';
 import { origins } from '../content/origins';
 import { CREATION_EPITHETS } from '../content';
 import { MAX_NAME_LENGTH } from '../engine';
 import { CreationScreen } from './CreationScreen';
 
-const show = (defaultName = '', unfinishedName: string | null = null) => {
+const show = (
+  defaultName = '',
+  unfinishedName: string | null = null,
+  offered: typeof hexes = [],
+) => {
   const onCreate = vi.fn();
   const onBack = vi.fn();
   const onResume = vi.fn();
   render(
     <CreationScreen
       origins={origins}
+      hexes={offered}
       epithetChoices={CREATION_EPITHETS}
       artifacts={artifacts}
       factions={factions}
@@ -63,14 +69,14 @@ describe('CreationScreen · the name', () => {
     await userEvent.type(field, long);
     expect(field).toHaveValue(long);
     await userEvent.click(commit());
-    expect(onCreate).toHaveBeenCalledWith(long, expect.anything(), expect.anything(), expect.anything());
+    expect(onCreate).toHaveBeenCalledWith(long, expect.anything(), expect.anything(), expect.anything(), '');
   });
 
   it('commits the trimmed name, not what was typed', async () => {
     const { field, onCreate } = show();
     await userEvent.type(field, '  Grishnak  ');
     await userEvent.click(commit());
-    expect(onCreate).toHaveBeenCalledWith('Grishnak', expect.anything(), expect.anything(), expect.anything());
+    expect(onCreate).toHaveBeenCalledWith('Grishnak', expect.anything(), expect.anything(), expect.anything(), '');
   });
 
   it('will not begin a career on whitespace alone', async () => {
@@ -154,5 +160,41 @@ describe('CreationScreen · Enter cannot skip the unfinished-career notice (issu
     await userEvent.click(field);
     await userEvent.keyboard('{Enter}');
     expect(onCreate).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('CreationScreen · the hex (issue #124)', () => {
+  it('does not render the hex row until hexes are offered', () => {
+    show();
+    expect(screen.queryByText(/begin under a hex/i)).not.toBeInTheDocument();
+  });
+
+  it('defaults to no hex and sends an empty id', async () => {
+    const { field, onCreate } = show('', null, hexes);
+    await userEvent.type(field, 'Ada');
+    expect(screen.getByRole('radio', { name: /no hex/i })).toBeChecked();
+    await userEvent.click(commit());
+    expect(onCreate.mock.calls[0][4]).toBe('');
+  });
+
+  it('prints each hex with its rule and its effect lines before the commit', () => {
+    show('', null, hexes);
+    for (const hex of hexes) {
+      expect(screen.getByText(hex.name)).toBeInTheDocument();
+      expect(screen.getByText(hex.rule)).toBeInTheDocument();
+    }
+    // Scoped to the hex row: an origin prints "+2 Pact Debt" too.
+    const row = screen.getByRole('group', { name: /begin under a hex/i });
+    expect(within(row).getByText(/\+12 Hero Threat/i)).toBeInTheDocument();
+    expect(within(row).getByText(/\+2 Pact Debt/i)).toBeInTheDocument();
+    expect(within(row).getByText(/lose a held relic/i)).toBeInTheDocument();
+  });
+
+  it('sends the chosen hex id', async () => {
+    const { field, onCreate } = show('', null, hexes);
+    await userEvent.type(field, 'Ada');
+    await userEvent.click(screen.getByRole('radio', { name: /the file is open/i }));
+    await userEvent.click(commit());
+    expect(onCreate.mock.calls[0][4]).toBe('file_is_open');
   });
 });

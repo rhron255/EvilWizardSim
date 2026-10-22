@@ -78,6 +78,7 @@ const demoRun: RunState = {
   wizardName: 'Mordrach Vane',
   epithet: 'of the Long Winter',
   originId: 'expelled_pale_academy',
+  hexId: '',
   age: 95,
   eraIndex: 15,
   eraCount: 16,

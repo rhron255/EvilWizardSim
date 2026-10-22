@@ -30,6 +30,7 @@ import type {
   Ending,
   EndingId,
   Faction,
+  Hex,
   FactionId,
   Mechanic,
 } from '../types';
@@ -62,6 +63,8 @@ export type NecrolexiconScreenProps = {
   artifacts: Artifact[];
   factions: Faction[];
   endings: Ending[];
+  /** The hex catalog, so a slot can name the hexes it was reached under (issue #124). */
+  hexes: Hex[];
   mechanics: Mechanic[];
   /**
    * The ending of the career the player has just finished, when they came
@@ -99,6 +102,7 @@ export function NecrolexiconScreen({
   artifacts,
   factions,
   endings,
+  hexes,
   mechanics,
   justReached,
   focusEnding,
@@ -174,6 +178,10 @@ export function NecrolexiconScreen({
     [collection.discoveredArtifactIds],
   );
   const seenEndings = useMemo(() => new Set(collection.endingsSeen), [collection.endingsSeen]);
+  // Resolved here, against the catalog, so a hex id this build has dropped
+  // simply draws nothing (the collection stores ids; it never validates them).
+  const hexesKeptFor = (id: EndingId): Hex[] =>
+    (collection.hexesKept[id] ?? []).flatMap((hexId) => hexes.find((h) => h.id === hexId) ?? []);
 
   const groups = useMemo(
     () =>
@@ -359,6 +367,7 @@ export function NecrolexiconScreen({
                   ending={ending}
                   seen={seenEndings.has(ending.id)}
                   current={ending.id === justReached}
+                  hexesKept={hexesKeptFor(ending.id)}
                 />
               ))}
             </div>
