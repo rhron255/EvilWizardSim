@@ -356,4 +356,12 @@ describe('NecrolexiconScreen · feats', () => {
     expect(within(list).getAllByText('Hidden feat')).toHaveLength(1);
     expect(within(list).getAllByText('Earned')).toHaveLength(1);
   });
+
+  it('counts only feats this build defines, so progress never exceeds the list', async () => {
+    show({ ...demoEmptyCollection, featsEarned: ['six_addresses', 'a_feat_since_removed'] });
+    await goTo(/endings/i);
+    const list = screen.getByRole('region', { name: 'Feats' });
+    expect(within(list).getAllByText('Earned')).toHaveLength(1);
+    expect(list.querySelector('header')).toHaveTextContent(`1/${feats.length}`);
+  });
 });

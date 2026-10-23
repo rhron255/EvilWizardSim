@@ -180,7 +180,12 @@ export function NecrolexiconScreen({
     () => new Set(collection.discoveredArtifactIds),
     [collection.discoveredArtifactIds],
   );
-  const earnedFeats = useMemo(() => new Set(collection.featsEarned), [collection.featsEarned]);
+  // Only ids this build still defines: a saved id for a removed or renamed
+  // feat is kept in the collection but must not push the count past the list.
+  const earnedFeats = useMemo(() => {
+    const defined = new Set(feats.map((f) => f.id));
+    return new Set(collection.featsEarned.filter((id) => defined.has(id)));
+  }, [collection.featsEarned, feats]);
   const seenEndings = useMemo(() => new Set(collection.endingsSeen), [collection.endingsSeen]);
 
   const groups = useMemo(
