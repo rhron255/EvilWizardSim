@@ -22,6 +22,7 @@ import {
   artifacts,
   endings,
   epithets,
+  feats,
   factions,
   lairs,
   mechanics,
@@ -56,6 +57,7 @@ const CONTENT: ContentBundle = {
   endings,
   offers,
   epithets,
+  feats,
 };
 
 export default function App() {
@@ -254,6 +256,7 @@ export default function App() {
           onShare={() => {}}
           themeId={themeId}
           unlockedTheme={game.unlockedTheme}
+          careerFeats={game.careerFeats}
           onApplyTheme={game.selectTheme}
         />
       );
@@ -267,6 +270,7 @@ export default function App() {
           factions={factions}
           endings={endings}
           mechanics={mechanics}
+          feats={feats}
           // The ending card's "View Necrolexicon" is the only door here that
           // still has a run behind it: the reducer keeps the finished run on
           // the way in and drops it on the way back to the title, so a

@@ -33,6 +33,7 @@ import type {
   FactionId,
   Mechanic,
 } from '../types';
+import type { Feat } from '../engine';
 import { ArtifactGrid, EndingSlot, FactionGlyph, themeAttr, tierVars } from '../components/meta';
 import styles from './NecrolexiconScreen.module.css';
 
@@ -63,6 +64,11 @@ export type NecrolexiconScreenProps = {
   factions: Faction[];
   endings: Ending[];
   mechanics: Mechanic[];
+  /**
+   * Every feat, shown from the first run with its condition (issue #125).
+   * Required, so no caller can forget it.
+   */
+  feats: Feat[];
   /**
    * The ending of the career the player has just finished, when they came
    * here from its ending card; null from the title.
@@ -100,6 +106,7 @@ export function NecrolexiconScreen({
   factions,
   endings,
   mechanics,
+  feats,
   justReached,
   focusEnding,
   onBack,
@@ -173,6 +180,7 @@ export function NecrolexiconScreen({
     () => new Set(collection.discoveredArtifactIds),
     [collection.discoveredArtifactIds],
   );
+  const earnedFeats = useMemo(() => new Set(collection.featsEarned), [collection.featsEarned]);
   const seenEndings = useMemo(() => new Set(collection.endingsSeen), [collection.endingsSeen]);
 
   const groups = useMemo(
@@ -373,6 +381,48 @@ export function NecrolexiconScreen({
                 Choose a theme
               </button>
             </p>
+          </section>
+        )}
+
+        {/* --- feats: a group under Endings, not a fifth tab. Below 640px the
+            tab strip scrolls sideways and a fifth tab would start off-screen
+            at 393. No colour and no score: a feat is a line, not a reward. */}
+        {category === 'endings' && feats.length > 0 && (
+          <section className={styles.group} aria-label="Feats">
+            <header className={styles.groupHead}>
+              <div className={styles.groupText}>
+                <h2 className={styles.groupName}>Feats</h2>
+                <p className={styles.groupDemands}>
+                  Small things a career can be remembered for. They unlock nothing.
+                </p>
+              </div>
+              <div className={styles.groupProgress}>
+                <span className={styles.groupCount}>
+                  <span className={styles.groupFound}>{earnedFeats.size}</span>
+                  <span className={styles.groupSlash}>/</span>
+                  {feats.length}
+                </span>
+              </div>
+            </header>
+            <ul className={styles.feats}>
+              {feats.map((feat) => {
+                const earned = earnedFeats.has(feat.id);
+                const hidden =
+                  !earned && feat.hiddenUntilEnding !== undefined &&
+                  !seenEndings.has(feat.hiddenUntilEnding);
+                return (
+                  <li key={feat.id} className={styles.feat} data-earned={earned || undefined}>
+                    <p className={styles.featName}>
+                      {hidden ? 'Hidden feat' : feat.name}
+                      {earned && <span className={styles.featEarned}>Earned</span>}
+                    </p>
+                    <p className={styles.featCondition}>
+                      {hidden ? (feat.hiddenCondition ?? 'Not yet known.') : feat.condition}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
           </section>
         )}
 

@@ -14,5 +14,7 @@ export { endings } from './endings';
 export { mechanics } from './mechanics';
 export { epithets, CREATION_EPITHETS } from './epithets';
 export type { Epithet } from './epithets';
+export { feats } from './feats';
+export type { Feat } from './feats';
 
 export { offers } from './offers';

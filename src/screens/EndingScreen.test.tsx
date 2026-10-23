@@ -18,7 +18,7 @@
  * it.
  */
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { EndingId, EraRecord, Faction, RunState } from '../types';
 import { artifacts } from '../content/artifacts';
@@ -215,6 +215,7 @@ function show(
       factions={cast}
       themeId="default"
       unlockedTheme={null}
+      careerFeats={[]}
       onApplyTheme={() => {}}
       endings={endings}
       endingsSeen={[endingId]}
@@ -407,6 +408,7 @@ describe('EndingScreen · what the career added', () => {
         factions={factions}
         themeId="default"
         unlockedTheme={null}
+        careerFeats={[]}
         onApplyTheme={() => {}}
         endings={endings}
         endingsSeen={['slain_by_chosen_one']}
@@ -495,5 +497,27 @@ describe('EndingScreen · the theme this run unlocked', () => {
     const card = container.querySelector('article');
     expect(card).not.toBeNull();
     expect(card!.textContent).not.toMatch(/new visual theme/i);
+  });
+});
+
+describe('EndingScreen · feats (issue #125)', () => {
+  it('prints nothing when the career earned none', () => {
+    const { container } = show('slain_by_chosen_one');
+    expect(container.querySelector('[data-feats]')).toBeNull();
+    expect(screen.queryByText(/also remembered for/i)).not.toBeInTheDocument();
+  });
+
+  it('prints one line of names, flags new ones in words, and carries no tier colour', () => {
+    const { container } = show('slain_by_chosen_one', {}, factions, {
+      careerFeats: [
+        { id: 'six_addresses', name: 'Six Addresses', isNew: true },
+        { id: 'downsized', name: 'Downsized', isNew: false },
+      ],
+    });
+    const line = container.querySelector('[data-feats]') as HTMLElement;
+    expect(line).not.toBeNull();
+    expect(line).toHaveTextContent('Also remembered for: Six Addresses New, Downsized');
+    expect(within(line).getAllByText('New')).toHaveLength(1);
+    expect(line.getAttribute('style') ?? '').not.toMatch(/tier/);
   });
 });

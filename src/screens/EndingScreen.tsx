@@ -13,6 +13,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Artifact, Ending, EndingId, Faction, Lair, RunState, ThemeId, TierId } from '../types';
+import type { CareerFeat } from '../engine';
 import { themeFor } from '../theme/themes';
 import {
   ArtifactGrid,
@@ -76,6 +77,12 @@ export type EndingScreenProps = {
    */
   unlockedTheme: ThemeId | null;
   onApplyTheme(id: ThemeId): void;
+  /**
+   * The feats this career earned, new ones flagged (issue #125). Decided by the
+   * reducer BEFORE the run is folded into the collection, like `unlockedTheme`.
+   * Names only: a feat has no colour and no score.
+   */
+  careerFeats: CareerFeat[];
 };
 
 type ShareState = 'idle' | 'working' | 'done' | 'fallback';
@@ -133,6 +140,7 @@ export function EndingScreen({
   onShare,
   themeId,
   unlockedTheme,
+  careerFeats,
   onApplyTheme,
 }: EndingScreenProps) {
   const [stage, setStage] = useState(0);
@@ -334,6 +342,24 @@ export function EndingScreen({
             <p className={styles.bonds}>
               {bonds.patron && <span>{patronLineFor(bonds.patron.factionId, ending.id)}</span>}{' '}
               {bonds.nemesis && <span>{nemesisLineFor(bonds.nemesis.factionId, ending.id)}</span>}
+            </p>
+          )}
+
+          {careerFeats.length > 0 && (
+            <p className={styles.feats} data-feats>
+              Also remembered for:{' '}
+              {careerFeats.map((feat, i) => (
+                <span key={feat.id}>
+                  <span className={styles.featName}>{feat.name}</span>
+                  {feat.isNew && (
+                    <>
+                      {' '}
+                      <span className={styles.featNew}>New</span>
+                    </>
+                  )}
+                  {i < careerFeats.length - 1 ? ', ' : ''}
+                </span>
+              ))}
             </p>
           )}
         </section>

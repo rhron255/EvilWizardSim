@@ -144,6 +144,7 @@ describe('a seed plays the same under any theme', () => {
       lastWizardName: 'Malvorn',
       selectedThemeId: 'default',
       relicsResetAt: '',
+      featsEarned: [],
     };
 
     const reference = play(seed, base);
@@ -167,6 +168,7 @@ describe('a seed plays the same under any theme', () => {
       lastWizardName: '',
       selectedThemeId: 'default',
       relicsResetAt: '',
+      featsEarned: [],
     };
     const run = play(20_260_830, base);
     expect(run.ending).toBeTruthy();
@@ -184,6 +186,7 @@ describe('a seed plays the same under any theme', () => {
       lastWizardName: '',
       selectedThemeId: 'default',
       relicsResetAt: '',
+      featsEarned: [],
     };
 
     const under = (id: Collection['selectedThemeId']) => {

@@ -13,6 +13,7 @@
 import type {
   Artifact,
   Ending,
+  EndingId,
   Faction,
   FactionId,
   Lair,
@@ -36,6 +37,30 @@ export type Epithet = {
   when: (r: RunState) => boolean;
 };
 
+/**
+ * A feat: a small named goal a career can be remembered for (issue #125).
+ *
+ * Binary and narrated, never a score. A feat gates nothing and unlocks
+ * nothing; it is a line on the ending card and an entry in the Necrolexicon.
+ * `when` is evaluated once, on the finished run, and reads only state the
+ * engine already records. It must never read `goodActs` / `illActs`: that
+ * would void the Good Wizard exception to rule 1 (`feats.test.ts` sweeps both).
+ *
+ * Do not call these "deeds": `EraRecord.deedSummary` owns that word.
+ */
+export type Feat = {
+  id: string;
+  /** The title printed on the ending card and in the Necrolexicon. */
+  name: string;
+  /** What earns it, in plain words. Shown from the first run. */
+  condition: string;
+  /** Present when the condition would give away an ending the player has not seen. */
+  hiddenUntilEnding?: EndingId;
+  /** Shown in place of `condition` until `hiddenUntilEnding` has been seen. */
+  hiddenCondition?: string;
+  when: (r: RunState) => boolean;
+};
+
 export type ContentBundle = {
   factions: Faction[];
   artifacts: Artifact[];
@@ -44,6 +69,7 @@ export type ContentBundle = {
   endings: Ending[];
   offers: Offer[];
   epithets: Epithet[];
+  feats: Feat[];
 };
 
 // ---------------------------------------------------------------------------

@@ -7,7 +7,7 @@
  * outside world.
  */
 
-export type { ContentBundle, ContentIndex, Epithet, PactRole } from './content-port';
+export type { ContentBundle, ContentIndex, Epithet, Feat, PactRole } from './content-port';
 export { indexOf, pactRoleOf, FALLBACK_EPITHETS } from './content-port';
 
 export type { Resolution, SystemicChange } from './resolution';
@@ -36,6 +36,7 @@ export {
 } from './systems';
 export type { DefenseReadout, DefenseTerm, HeroBand } from './systems';
 export { projectedEpithet } from './epithets';
+export { featsEarnedBy } from './feats';
 export {
   checkEndings,
   ascensionReady,
@@ -118,3 +119,4 @@ export {
 
 export type { Game } from './useGame';
 export { useGame } from './useGame';
+export type { CareerFeat } from './useGame';

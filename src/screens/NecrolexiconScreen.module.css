@@ -367,6 +367,46 @@
   gap: var(--ew-space-3);
 }
 
+.feats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--ew-space-3);
+}
+
+.feat {
+  padding: var(--ew-space-2) 0;
+  border-bottom: 1px solid var(--ew-line);
+}
+
+.featName {
+  margin: 0;
+  font-size: var(--ew-size-md);
+  color: var(--ew-ink-dim);
+}
+
+[data-earned] > .featName {
+  color: var(--ew-ink-bright);
+}
+
+.featEarned {
+  margin-left: var(--ew-space-2);
+  font-size: var(--ew-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ew-ink-bright);
+}
+
+.featCondition {
+  margin: var(--ew-space-1) 0 0;
+  font-size: var(--ew-size-sm);
+  line-height: 1.45;
+  color: var(--ew-ink-faint);
+  text-wrap: pretty;
+}
+
 .endingsNote {
   margin: var(--ew-space-4) 0 0;
   font-size: var(--ew-size-sm);

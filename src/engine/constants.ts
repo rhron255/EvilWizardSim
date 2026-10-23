@@ -594,8 +594,10 @@ export const CHANGELOG_ACK_KEY = 'evil-wizard-sim:changelog-ack';
  *
  * 5 -> 6 (issue #80): added `relicsResetAt`, for the relic-collection reset
  * that ships alongside origin relics.
+ *
+ * 6 -> 7 (issue #125): added `featsEarned`.
  */
-export const COLLECTION_VERSION = 6;
+export const COLLECTION_VERSION = 7;
 /**
  * Bump when `RunState`'s shape changes; stale in-progress runs are dropped.
  *
