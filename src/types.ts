@@ -962,6 +962,12 @@ export type Collection = {
    * the collection untouched.
    */
   relicsResetAt: string;
+  /**
+   * Ids of the feats any finished career has earned (issue #125). Only grows.
+   * An id this build no longer defines is kept, not dropped: it is harmless
+   * and a later build may define it again.
+   */
+  featsEarned: string[];
 };
 
 // ---------------------------------------------------------------------------

@@ -20,6 +20,7 @@ export const REAL_CONTENT: ContentBundle = {
   endings: C.endings,
   offers: C.offers,
   epithets: C.epithets,
+  feats: C.feats,
 };
 
 /**

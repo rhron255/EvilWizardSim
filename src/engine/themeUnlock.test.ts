@@ -58,6 +58,7 @@ function finished(ending: RunState['ending'], collection: Collection): GameState
     prophecyPending: false,
     resumable: null,
     unlockedTheme: null,
+    careerFeats: [],
   };
 }
 
@@ -174,5 +175,33 @@ describe('selectTheme · never wears what was not earned', () => {
     const wearing: Collection = { ...withLich, selectedThemeId: 'lichdom' };
     const state = { ...base, collection: wearing };
     expect(gameReducer(state, { type: 'selectTheme', id: 'lichdom' })).toBe(state);
+  });
+});
+
+describe('feats earned by a career (issue #125)', () => {
+  /** `finished()` gives a run with no eras and ending set; Did Not See Sixty keys on age alone. */
+  const young = (collection: Collection): GameState => {
+    const state = finished('slain_by_chosen_one', collection);
+    return { ...state, run: { ...state.run!, age: 40 } };
+  };
+
+  it('flags a first-time feat as new, BEFORE the collection records it', () => {
+    const next = gameReducer(young(emptyCollection()), { type: 'continue', content });
+    const feat = next.careerFeats.find((f) => f.id === 'did_not_see_sixty');
+    expect(feat).toEqual({ id: 'did_not_see_sixty', name: 'Did Not See Sixty', isNew: true });
+    // The same return recorded it, which is why the flag cannot be derived later.
+    expect(next.collection.featsEarned).toContain('did_not_see_sixty');
+  });
+
+  it('does not flag a feat the collection already holds, and never forgets one', () => {
+    const held: Collection = { ...emptyCollection(), featsEarned: ['did_not_see_sixty', 'six_addresses'] };
+    const next = gameReducer(young(held), { type: 'continue', content });
+    expect(next.careerFeats.find((f) => f.id === 'did_not_see_sixty')?.isNew).toBe(false);
+    expect(next.collection.featsEarned).toEqual(expect.arrayContaining(['did_not_see_sixty', 'six_addresses']));
+  });
+
+  it('stays idempotent under a double continue', () => {
+    const once = gameReducer(young(emptyCollection()), { type: 'continue', content });
+    expect(gameReducer(once, { type: 'continue', content })).toBe(once);
   });
 });

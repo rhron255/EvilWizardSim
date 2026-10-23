@@ -29,6 +29,7 @@ import { createRun, resolveChoice } from './run';
 import { activateRelic } from './relics';
 import { nextOffer } from './offers';
 import { randomSeed } from './rng';
+import { featsEarnedBy } from './feats';
 import {
   clearInProgressRun,
   loadCollection,
@@ -65,6 +66,8 @@ export type Game = {
    * for a repeat.
    */
   unlockedTheme: ThemeId | null;
+  /** See `GameState.careerFeats`. */
+  careerFeats: CareerFeat[];
   selectTheme(id: ThemeId): void;
   hasResumableRun: boolean;
   /** The saved career's wizard, so a screen can name what starting over would discard. */
@@ -84,6 +87,9 @@ export type Game = {
    */
   viewTutorial(): void;
 };
+
+/** A feat the finished career earned, as the ending card prints it. */
+export type CareerFeat = { id: string; name: string; isNew: boolean };
 
 type GameState = {
   screen: Screen;
@@ -106,6 +112,12 @@ type GameState = {
    * where the information still exists.)
    */
   unlockedTheme: ThemeId | null;
+  /**
+   * The feats the career that just finished earned, each flagged new or not
+   * (issue #125). Decided in `continue` BEFORE `recordRun`, for the same
+   * reason as `unlockedTheme`: afterwards every feat reads as already owned.
+   */
+  careerFeats: CareerFeat[];
 };
 
 type Action =
@@ -143,6 +155,7 @@ function initialState(relicsResetAtBuild: string): GameState {
     prophecyPending: false,
     resumable: loadInProgressRun(),
     unlockedTheme: null,
+    careerFeats: [],
   };
 }
 
@@ -252,6 +265,11 @@ export function gameReducer(state: GameState, action: Action): GameState {
           collection: recordRun(state.collection, state.run, action.content),
           resumable: null,
           unlockedTheme: firstTime ? state.run.ending : null,
+          careerFeats: featsEarnedBy(state.run, action.content).map((f) => ({
+            id: f.id,
+            name: f.name,
+            isNew: !state.collection.featsEarned.includes(f.id),
+          })),
         };
       }
 
@@ -288,6 +306,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         offer: null,
         resolution: null,
         unlockedTheme: null,
+        careerFeats: [],
       };
 
     case 'viewNecrolexicon':
@@ -325,6 +344,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         prophecyPending: false,
         resumable: stashed,
         unlockedTheme: null,
+        careerFeats: [],
       };
     }
 
@@ -441,6 +461,7 @@ export function useGame(content: ContentBundle, relicsResetAtBuild = ''): Game {
       // Never offer a theme the collection has not earned. The reducer guards
       // this too; this stops the ending banner from advertising one in the
       // first place if the two ever disagree.
+      careerFeats: state.careerFeats,
       unlockedTheme:
         state.unlockedTheme &&
         isThemeUnlocked(state.unlockedTheme, state.collection.endingsSeen)
@@ -466,6 +487,7 @@ export function useGame(content: ContentBundle, relicsResetAtBuild = ''): Game {
       state.collection,
       state.resumable,
       state.unlockedTheme,
+      state.careerFeats,
       content,
       begin,
       create,

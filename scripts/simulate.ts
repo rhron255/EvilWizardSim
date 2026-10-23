@@ -48,6 +48,7 @@ import {
   canActivateRelic,
   createRun,
   defenseOf,
+  featsEarnedBy,
   effectiveOdds,
   isOptionPickable,
   nextOffer,
@@ -75,6 +76,7 @@ import {
   artifacts,
   endings,
   epithets,
+  feats,
   factions,
   lairs,
   offers,
@@ -91,6 +93,7 @@ const content: ContentBundle = {
   endings,
   offers,
   epithets,
+  feats,
 };
 const contentLabel = 'real content bundle (src/content)';
 
@@ -1079,6 +1082,8 @@ type RunResult = {
    * it, so this is held-at-end UNION everything gained along the way.
    */
   discoveredIds: string[];
+  /** Ids of the feats this career earned (issue #125); mirrors `recordRun`. */
+  featIds: string[];
   /**
    * How many times each held relic's power fired this run, by artifact id
    * (issue #80's per-relic fire-rate instrument). Only relics with a `power`
@@ -1420,6 +1425,7 @@ function playRun(
     everAscensionReady,
     declineDeltas,
     discoveredIds: Array.from(discovered),
+    featIds: featsEarnedBy(run, content).map((f) => f.id),
     relicFires,
     grievancesSeen: run.seenOfferIds.filter((id) => id.startsWith('grievance_')),
     grievancesTaken: run.eras
@@ -1502,6 +1508,11 @@ type CollectionCurve = {
   barrenRunRate: number;
   /** Share of runs that add no relic AND no new ending (counted until both are complete). */
   barrenAnyRate: number;
+  /**
+   * Like `barrenAnyRate`, but a run that earns a feat it has not earned
+   * before is not barren (issue #125). No target band (failure mode 6).
+   */
+  barrenWithFeatsRate: number;
   /** p50/p90 across players of each player's longest run of consecutive barren careers. */
   longestRelicBarrenP50: number;
   longestRelicBarrenP90: number;
@@ -1770,11 +1781,14 @@ function collectionCurve(baseSeed: number, players: number, cap: number): Collec
   let relicBarren = 0;
   let anyRuns = 0;
   let anyBarren = 0;
+  let featRuns = 0;
+  let featBarren = 0;
 
   for (let p = 0; p < players; p++) {
     const rng = mulberry32((baseSeed + p * 104729) ^ 0xbeef);
     const owned = new Set<string>();
     const seen = new Set<EndingId>();
+    const featsOwned = new Set<string>();
     let halfAt = cap + 1;
     let fullAt = cap + 1;
     let endingsAt = cap + 1;
@@ -1801,6 +1815,9 @@ function collectionCurve(baseSeed: number, players: number, cap: number): Collec
       const endingBefore = seen.size;
       seen.add(result.ending);
       const addedEnding = seen.size > endingBefore;
+      const featsBefore = featsOwned.size;
+      for (const id of result.featIds) featsOwned.add(id);
+      const addedFeat = featsOwned.size > featsBefore;
 
       // Once a grid is full, further runs are barren by construction; counting
       // them would measure the cap, not the game.
@@ -1813,6 +1830,8 @@ function collectionCurve(baseSeed: number, players: number, cap: number): Collec
         } else relicStreak = 0;
       }
       if (!wasBothDone) {
+        featRuns++;
+        if (!addedRelic && !addedEnding && !addedFeat) featBarren++;
         anyRuns++;
         if (!addedRelic && !addedEnding) {
           anyBarren++;
@@ -1852,6 +1871,7 @@ function collectionCurve(baseSeed: number, players: number, cap: number): Collec
     medianRunsToBoth: median(toBoth),
     barrenRunRate: relicBarren / Math.max(1, relicRuns),
     barrenAnyRate: anyBarren / Math.max(1, anyRuns),
+    barrenWithFeatsRate: featBarren / Math.max(1, featRuns),
     longestRelicBarrenP50: percentile(longestRelicBarren, 0.5),
     longestRelicBarrenP90: percentile(longestRelicBarren, 0.9),
     longestAnyBarrenP50: percentile(longestAnyBarren, 0.5),
@@ -2785,6 +2805,11 @@ function main(): void {
   row('distinct deed lines / run', mean(results.map((r) => r.distinctDeedLines / Math.max(1, r.eras))).toFixed(3));
   row('consecutive repeat deed lines', pct(repeatedDeeds, allDeeds.length));
   row('distinct deed lines, all runs', String(new Set(allDeeds).size));
+  // Feats (issue #125). Per-feat share of careers; no band (failure mode 6),
+  // but the check below fails if a feat is unreachable (rule 6's spirit).
+  for (const feat of feats) {
+    row(`  feat: ${feat.name}`, pct(results.filter((r) => r.featIds.includes(feat.id)).length, total));
+  }
   // Largest single share of final epithets. No band (failure mode 6): it is
   // here so a predicate that fires for most careers is visible next time.
   const epithetCounts = new Map<string, number>();
@@ -3333,6 +3358,10 @@ function main(): void {
   row('runs that add no relic', `${(curve.barrenRunRate * 100).toFixed(1)}%`);
   row('runs that add no relic and no ending', `${(curve.barrenAnyRate * 100).toFixed(1)}%`);
   row(
+    'runs that add no relic, ending or feat',
+    `${(curve.barrenWithFeatsRate * 100).toFixed(1)}%`,
+  );
+  row(
     'longest barren streak, relic only (p50 / p90)',
     `${curve.longestRelicBarrenP50} / ${curve.longestRelicBarrenP90}`,
   );
@@ -3399,6 +3428,14 @@ function main(): void {
     }
   }
 
+  {
+    const unreachedFeats = feats.filter((f) => !allCareers.some((r) => r.featIds.includes(f.id)));
+    checks.push([
+      'every feat occurs at least once',
+      unreachedFeats.length === 0,
+      unreachedFeats.length === 0 ? `${feats.length}/${feats.length}` : unreachedFeats.map((f) => f.id).join(','),
+    ]);
+  }
   console.log('');
   console.log('TARGET CHECKS');
   console.log(rule());

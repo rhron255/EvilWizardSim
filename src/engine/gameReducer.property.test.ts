@@ -40,6 +40,7 @@ const initial = (): State => ({
   prophecyPending: false,
   resumable: null,
   unlockedTheme: null,
+  careerFeats: [],
 });
 
 /** What must be true of any state a player can be looking at. */

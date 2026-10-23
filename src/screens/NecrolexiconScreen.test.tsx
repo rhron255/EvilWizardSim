@@ -21,6 +21,7 @@ import { artifacts } from '../content/artifacts';
 import { factions } from '../content/factions';
 import { endings } from '../content/endings';
 import { mechanics } from '../content/mechanics';
+import { feats } from '../content/feats';
 import { emptyCollection } from '../engine';
 import { relicPowerText } from '../components/meta';
 import type { Collection, EndingId } from '../types';
@@ -58,6 +59,7 @@ const show = (
       factions={factions}
       endings={endings}
       mechanics={mechanics}
+      feats={feats}
       justReached={justReached}
       focusEnding={focusEnding}
       onBack={onBack}
@@ -318,5 +320,48 @@ describe('NecrolexiconScreen · focusEnding (issue #113)', () => {
     );
     expect(container.querySelector('[data-ending-id="good_wizard"]')).not.toBeNull();
     expect(container.querySelector('[data-current-label]')).toBeNull();
+  });
+});
+
+describe('NecrolexiconScreen · feats', () => {
+  it('lists every feat from the first run, under Endings and not as a tab', async () => {
+    show(demoEmptyCollection);
+    expect(within(tabs()).getAllByRole('tab')).toHaveLength(4);
+    await goTo(/endings/i);
+    const list = screen.getByRole('region', { name: 'Feats' });
+    expect(within(list).getAllByRole('listitem')).toHaveLength(feats.length);
+    expect(within(list).getByText('Six Addresses')).toBeInTheDocument();
+    expect(within(list).getByText(/live in six different lairs/i)).toBeInTheDocument();
+  });
+
+  it('keeps the two ending-referencing feats hidden until that ending is seen', async () => {
+    show({ ...demoEmptyCollection, endingsSeen: [] });
+    await goTo(/endings/i);
+    const list = screen.getByRole('region', { name: 'Feats' });
+    expect(within(list).queryByText('Took It With Them')).not.toBeInTheDocument();
+    expect(within(list).queryByText(/slain while holding/i)).not.toBeInTheDocument();
+    expect(within(list).queryByText('Nobody to Carry the Luggage')).not.toBeInTheDocument();
+    expect(within(list).getAllByText('Hidden feat')).toHaveLength(2);
+  });
+
+  it('reveals a hidden feat once its ending has been seen, and marks earned ones', async () => {
+    show({
+      ...demoEmptyCollection,
+      endingsSeen: ['slain_by_chosen_one'],
+      featsEarned: ['six_addresses'],
+    });
+    await goTo(/endings/i);
+    const list = screen.getByRole('region', { name: 'Feats' });
+    expect(within(list).getByText('Took It With Them')).toBeInTheDocument();
+    expect(within(list).getAllByText('Hidden feat')).toHaveLength(1);
+    expect(within(list).getAllByText('Earned')).toHaveLength(1);
+  });
+
+  it('counts only feats this build defines, so progress never exceeds the list', async () => {
+    show({ ...demoEmptyCollection, featsEarned: ['six_addresses', 'a_feat_since_removed'] });
+    await goTo(/endings/i);
+    const list = screen.getByRole('region', { name: 'Feats' });
+    expect(within(list).getAllByText('Earned')).toHaveLength(1);
+    expect(list.querySelector('header')).toHaveTextContent(`1/${feats.length}`);
   });
 });

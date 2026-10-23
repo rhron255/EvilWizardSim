@@ -21,6 +21,14 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-10-23T06:25:00Z': {
+    summary: 'Careers can now be remembered for feats, small named goals listed in the Necrolexicon.',
+    details: [
+      'The ending card names the feats a career earned, and marks new ones.',
+      'The Necrolexicon lists every feat under Endings, with what it takes to earn it.',
+      'Feats unlock nothing; they are just something to aim at.',
+    ],
+  },
   '2026-10-19T06:16:00Z': {
     summary: 'A screen reader now reads each result aloud and keeps its place when you continue.',
     details: [

@@ -38,6 +38,9 @@ import {
   STANDING_MIN,
 } from '../src/engine/constants';
 import { pactRoleOf } from '../src/engine/content-port';
+import { HERO_BANDS } from '../src/engine/systems';
+import { tierFor } from '../src/theme/tokens';
+import { FEAT_THRESHOLDS } from '../src/content/feats';
 import { isDoubleEdged } from '../src/engine/effects';
 
 const problems: string[] = [];
@@ -57,7 +60,7 @@ const warn = (where: string, msg: string) => warnings.push(`${where}: ${msg}`);
  */
 const DEED_CLIP_WARN = 90;
 
-const { artifacts, factions, lairs, origins, endings, offers, epithets } = content;
+const { artifacts, factions, lairs, origins, endings, offers, epithets, feats } = content;
 
 const factionIds = new Set(factions.map((f) => f.id));
 const artifactIds = new Set(artifacts.map((a) => a.id));
@@ -81,6 +84,7 @@ assertUniqueIds('origins', origins.map((o) => o.id));
 assertUniqueIds('endings', endings.map((e) => e.id));
 assertUniqueIds('offers', offers.map((o) => o.id));
 assertUniqueIds('epithets', epithets.map((e) => e.id));
+assertUniqueIds('feats', feats.map((f) => f.id));
 
 // ---------------------------------------------------------------------------
 // The fixed cast
@@ -153,6 +157,38 @@ const tiers = lairs.map((l) => l.tier).sort((a, b) => a - b);
 tiers.forEach((tier, i) => {
   if (tier !== i) fail('lairs', `tier ladder is not contiguous from 0 (found ${tier} at rung ${i})`);
 });
+
+// Feats (issue #125). The thresholds are copies of engine constants (content
+// never imports the engine), so a drift fails here rather than in a player's
+// ending card.
+{
+  const endingIds = new Set(endings.map((e) => e.id));
+  for (const feat of feats) {
+    const where = `feat "${feat.id}"`;
+    if (!feat.name.trim()) fail(where, 'empty name');
+    if (!feat.condition.trim()) fail(where, 'empty condition — the Necrolexicon prints it from run one');
+    if (/\bdeeds?\b/i.test(`${feat.name} ${feat.condition}`)) {
+      fail(where, '"deed" is owned by EraRecord.deedSummary');
+    }
+    if (Boolean(feat.hiddenUntilEnding) !== Boolean(feat.hiddenCondition)) {
+      fail(where, 'hiddenUntilEnding and hiddenCondition must be set together');
+    }
+    if (feat.hiddenUntilEnding && !endingIds.has(feat.hiddenUntilEnding)) {
+      fail(where, `unknown ending "${feat.hiddenUntilEnding}"`);
+    }
+    if (feat.hiddenUntilEnding) {
+      const ending = endings.find((e) => e.id === feat.hiddenUntilEnding);
+      const spoils = ending && feat.hiddenCondition!.toLowerCase().includes(ending.name.toLowerCase());
+      if (spoils) fail(where, 'hiddenCondition names the ending it withholds');
+    }
+  }
+  if (FEAT_THRESHOLDS.pactDebtJustUnder !== PACT_LIMIT - 1) fail('feats', 'pactDebtJustUnder drifted from PACT_LIMIT - 1');
+  if (FEAT_THRESHOLDS.devotion !== DEVOTION_STANDING) fail('feats', 'devotion drifted from DEVOTION_STANDING');
+  if (FEAT_THRESHOLDS.heroDangerBand !== HERO_BANDS.indexOf('danger')) fail('feats', 'heroDangerBand drifted from HERO_BANDS');
+  if (FEAT_THRESHOLDS.localMenaceFloor !== tierFor(40).min || tierFor(39).id !== 'unknown') {
+    fail('feats', 'localMenaceFloor drifted from the first tier boundary');
+  }
+}
 
 // An epithet that matches nothing leaves a run nameless.
 if (!epithets.some((e) => e.id)) fail('epithets', 'catalog is empty');
@@ -1186,6 +1222,7 @@ const counts = [
   `${endings.length} endings`,
   `${origins.length} origins`,
   `${epithets.length} epithets`,
+  `${feats.length} feats`,
 ].join(' · ');
 
 if (warnings.length) {

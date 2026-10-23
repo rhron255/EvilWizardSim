@@ -24,6 +24,7 @@ import {
   RUN_KEY,
   RUN_SAVE_VERSION,
 } from './constants';
+import { featsEarnedBy } from './feats';
 import { peakNotoriety } from './systems';
 /**
  * The one thing the engine reads from `src/theme/`.
@@ -126,6 +127,7 @@ export function emptyCollection(relicsResetAtBuild = ''): Collection {
     lastWizardName: '',
     selectedThemeId: DEFAULT_THEME_ID,
     relicsResetAt: relicsResetAtBuild,
+    featsEarned: [],
   };
 }
 
@@ -176,6 +178,8 @@ function finiteNumber(value: unknown, fallback: number): number {
  * field to the constant; a current value leaves the whole collection
  * untouched. Endings, themes, the tutorial flag and the last name are never
  * touched either way — this is a relic-only reset, not a fresh collection.
+ *
+ * v6 -> v7 added `featsEarned` (issue #125). Absent means none earned yet.
  */
 export function migrateCollection(raw: unknown, relicsResetAtBuild = ''): Collection {
   if (!raw || typeof raw !== 'object') return emptyCollection(relicsResetAtBuild);
@@ -210,6 +214,7 @@ export function migrateCollection(raw: unknown, relicsResetAtBuild = ''): Collec
         ? data.selectedThemeId
         : DEFAULT_THEME_ID,
     relicsResetAt: relicsStale ? relicsResetAtBuild : storedRelicsResetAt,
+    featsEarned: stringArray(data.featsEarned),
   };
 }
 
@@ -268,6 +273,10 @@ export function recordRun(c: Collection, run: RunState, content: ContentBundle):
     // build-boundary event `migrateCollection` handles on load, not something
     // an ordinary finished career triggers.
     relicsResetAt: c.relicsResetAt,
+    // Union, never replaced: a feat once earned stays earned.
+    featsEarned: Array.from(
+      new Set([...c.featsEarned, ...featsEarnedBy(run, content).map((f) => f.id)]),
+    ),
   };
 }
 

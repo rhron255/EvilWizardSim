@@ -10,7 +10,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import type { ContentBundle } from './index';
-import { COLLECTION_KEY } from './constants';
+import { COLLECTION_KEY, COLLECTION_VERSION } from './constants';
 import { emptyCollection, migrateCollection, recordRun } from './persistence';
 import { useGame } from './useGame';
 import { REAL_CONTENT } from '../testing/realContent';
@@ -377,5 +377,33 @@ describe('collection v5 -> v6 · the relic-collection reset', () => {
     const written = emptyCollection(BUILD);
     localStorage.setItem(COLLECTION_KEY, JSON.stringify(written));
     expect(migrateCollection(JSON.parse(localStorage.getItem(COLLECTION_KEY)!), BUILD)).toEqual(written);
+  });
+});
+
+describe('collection v6 -> v7 · featsEarned (issue #125)', () => {
+  const v6 = {
+    version: 6,
+    discoveredArtifactIds: [content.artifacts[0].id],
+    endingsSeen: ['lichdom'],
+    runsCompleted: 12,
+    bestNotoriety: 71,
+    tutorialSeen: true,
+    lastWizardName: 'Malvorn',
+    selectedThemeId: 'lichdom',
+    relicsResetAt: '',
+  };
+
+  it('defaults to none earned and touches nothing else', () => {
+    const migrated = migrateCollection(v6);
+    expect(migrated.featsEarned).toEqual([]);
+    expect(migrated.version).toBe(COLLECTION_VERSION);
+    expect(migrated.discoveredArtifactIds).toEqual(v6.discoveredArtifactIds);
+    expect(migrated.endingsSeen).toEqual(['lichdom']);
+    expect(migrated.runsCompleted).toBe(12);
+  });
+
+  it('keeps stored feat ids, drops junk and duplicates', () => {
+    const migrated = migrateCollection({ ...v6, version: 7, featsEarned: ['a', 'a', 3, '', 'b'] });
+    expect(migrated.featsEarned).toEqual(['a', 'b']);
   });
 });

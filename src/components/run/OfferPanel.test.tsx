@@ -30,6 +30,7 @@ const content: ContentBundle = {
   endings: C.endings,
   offers: C.offers,
   epithets: C.epithets,
+  feats: C.feats,
 };
 
 const eras: EraRecord[] = Array.from({ length: 11 }, (_, i) => ({

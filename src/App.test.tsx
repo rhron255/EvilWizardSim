@@ -67,6 +67,7 @@ function careerWithOneEraLeft(): RunState {
         prophecyPending: false,
         resumable: null,
         unlockedTheme: null,
+        careerFeats: [],
       },
       {
         type: 'create',

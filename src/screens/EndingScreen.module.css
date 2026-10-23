@@ -623,6 +623,30 @@
   text-wrap: pretty;
 }
 
+/* Feats earned. Same quiet voice as the bonds line, and NO tier colour: the
+   badge is the only chromatic reward (rule 3). A new feat is marked in words,
+   not hue. */
+.feats {
+  margin: var(--ew-space-2) 0 0;
+  font-size: var(--ew-size-sm);
+  line-height: 1.55;
+  color: var(--ew-ink-faint);
+  text-wrap: pretty;
+}
+
+.featName {
+  color: var(--ew-ink);
+}
+
+.featNew {
+  font-size: var(--ew-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ew-ink-bright);
+  white-space: nowrap;
+}
+
 .countNew {
   font-size: var(--ew-size-xs);
   font-weight: 600;
