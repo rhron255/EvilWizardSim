@@ -859,11 +859,17 @@ describe('novelty weighting of named-relic offers (issue #126)', () => {
   });
 
   it('never changes the weight of an offer whose named grant is legendary', () => {
-    const legendary = real.offers.filter((o) => {
-      const g = namedGrants(o);
-      return g.length > 0 && g.every((a) => a.rarity === 'legendary');
+    // No shipped offer grants a legendary by name, so the check is made on a
+    // synthetic one — otherwise this would pass with the exclusion deleted.
+    const legendary = real.artifacts.find((a) => a.rarity === 'legendary')!;
+    const common = real.artifacts.find((a) => a.rarity === 'common')!;
+    const offerFor = (artifactId: string): Offer => ({
+      ...real.offers[0],
+      options: [{ kind: 'certain', label: 'take it', effects: [{ t: 'artifact', artifactId }] }],
     });
-    for (const o of legendary) expect(noveltyWeight(run([]), o, real)).toBe(1);
+    expect(noveltyWeight(run([]), offerFor(legendary.id), real)).toBe(1);
+    // The same shape with a non-legendary is boosted, so the 1 above is the exclusion.
+    expect(noveltyWeight(run([]), offerFor(common.id), real)).toBe(NOVELTY_BIAS);
   });
 
   it('leaves offers with no named grant alone', () => {
