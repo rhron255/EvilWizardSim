@@ -21,6 +21,13 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-10-24T06:10:00Z': {
+    summary: 'Relics you have never held now turn up more often when a card offers one by name.',
+    details: [
+      'The Weather Leash and the Tenure Ring cards are likelier until you have held them.',
+      'The Relics entry in the mechanics list now says so.',
+    ],
+  },
   '2026-10-19T06:16:00Z': {
     summary: 'A screen reader now reads each result aloud and keeps its place when you continue.',
     details: [

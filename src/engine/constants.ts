@@ -366,6 +366,9 @@ export const RARITY_DRAW_WEIGHT = { common: 12, rare: 3, legendary: 0.5 } as con
  * lever actually pulled was more granting offers (a mid-run favor beat and
  * several decline offers), which took draws to ~1.66 relics a run (from ~1.51
  * before them, ~1.16 at first measurement); NOVELTY_BIAS was left where it was.
+ *
+ * Second use (issue #126): `offerWeight` multiplies by it for an offer that
+ * grants a never-held, non-legendary relic by name (the Leash, the Tenure Ring).
  */
 export const NOVELTY_BIAS = 6;
 
