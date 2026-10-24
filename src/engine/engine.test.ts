@@ -47,6 +47,8 @@ import {
 import type { ContentBundle } from './index';
 import { emptyStanding, entitledLairRung, promoteLair } from './systems';
 import { applyStanding } from './effects';
+import { NOVELTY_BIAS } from './constants';
+import { noveltyWeight } from './offers';
 import { indexOf } from './content-port';
 import { REAL_CONTENT } from '../testing/realContent';
 import type { Collection, Effect, FactionId, Offer, OfferOption, RunState } from '../types';
@@ -830,6 +832,44 @@ describe('novelty bias', () => {
     // The degenerate case: nothing novel left. The draw must not go empty.
     const all = pool.map((a) => a.id);
     expect(draws(20, all).length).toBeGreaterThan(10);
+  });
+});
+
+describe('novelty weighting of named-relic offers (issue #126)', () => {
+  const run = (known: string[]): RunState => ({ ...start({ seed: 7 }, real), knownArtifactIds: known });
+  const namedGrants = (o: Offer) =>
+    o.options.flatMap((opt) =>
+      (opt.kind === 'certain' ? opt.effects : [...opt.onSuccess, ...opt.onFailure]).flatMap((e) =>
+        e.t === 'artifact' ? [real.artifacts.find((a) => a.id === e.artifactId)!] : [],
+      ),
+    );
+
+  it('boosts the offers that grant a never-held, non-legendary relic by name', () => {
+    const named = real.offers.filter((o) => namedGrants(o).some((a) => a.rarity !== 'legendary'));
+    expect(named.map((o) => o.id)).toEqual(
+      expect.arrayContaining(['decline_the_verdant_offer', 'ascent_pale_academy_loan']),
+    );
+    for (const o of named) expect(noveltyWeight(run([]), o, real)).toBe(NOVELTY_BIAS);
+  });
+
+  it('drops the boost once every such relic is held', () => {
+    const o = real.offers.find((x) => x.id === 'decline_the_verdant_offer')!;
+    const held = namedGrants(o).map((a) => a.id);
+    expect(noveltyWeight(run(held), o, real)).toBe(1);
+  });
+
+  it('never changes the weight of an offer whose named grant is legendary', () => {
+    const legendary = real.offers.filter((o) => {
+      const g = namedGrants(o);
+      return g.length > 0 && g.every((a) => a.rarity === 'legendary');
+    });
+    for (const o of legendary) expect(noveltyWeight(run([]), o, real)).toBe(1);
+  });
+
+  it('leaves offers with no named grant alone', () => {
+    const plain = real.offers.filter((o) => namedGrants(o).length === 0);
+    expect(plain.length).toBeGreaterThan(100);
+    for (const o of plain) expect(noveltyWeight(run([]), o, real)).toBe(1);
   });
 });
 

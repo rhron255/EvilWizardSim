@@ -25,6 +25,7 @@ import { conditionMet, conditionsMet, impliedGatesOf } from './conditions';
 import { relicRules } from './relics';
 import {
   FACTION_OFFER_GAP,
+  NOVELTY_BIAS,
   PACT_RELIEF_COEF,
   PACT_RELIEF_MAX,
   PACT_TEMPT_COEF,
@@ -356,9 +357,36 @@ export function isPinnedProphecyPending(run: RunState, content: ContentBundle): 
   return pinnedProphecyOffer(run, content) !== undefined;
 }
 
+/**
+ * Issue #126. An offer that hands over a relic BY NAME (`{ t: 'artifact' }`)
+ * is the only way into that relic, so while the player has never held it the
+ * offer turns up `NOVELTY_BIAS` times as often — the same weighting
+ * `drawArtifact` already gives an unseen relic inside a draw. Today that is
+ * the Weather Leash and the Tenure Ring.
+ *
+ * Legendaries are excluded by construction: novelty must never change how
+ * often a legendary drops (it gates Ascension). `engine.test.ts` asserts it.
+ * Applied from `run.knownArtifactIds`, so a run started with an empty
+ * collection gets the same boost for every named relic.
+ */
+export function noveltyWeight(run: RunState, offer: Offer, content: ContentBundle): number {
+  const { artifactById } = indexOf(content);
+  const wanted = offer.options.some((option) => {
+    const effects =
+      option.kind === 'certain' ? option.effects : [...option.onSuccess, ...option.onFailure];
+    return effects.some((e) => {
+      if (e.t !== 'artifact') return false;
+      const relic = artifactById.get(e.artifactId);
+      return !!relic && relic.rarity !== 'legendary' && !run.knownArtifactIds.includes(relic.id);
+    });
+  });
+  return wanted ? NOVELTY_BIAS : 1;
+}
+
 function offerWeight(run: RunState, offer: Offer, content: ContentBundle): number {
   return (
     standingWeight(run, offer) *
+    noveltyWeight(run, offer, content) *
     pactWeight(run, offer, content) *
     affordabilityWeight(run, offer, content) *
     (offer.scripted ? SCRIPTED_WEIGHT_BONUS : 1)

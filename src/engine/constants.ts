@@ -368,6 +368,8 @@ export const RARITY_DRAW_WEIGHT = { common: 12, rare: 3, legendary: 0.5 } as con
  * before them, ~1.16 at first measurement); NOVELTY_BIAS was left where it was.
  */
 export const NOVELTY_BIAS = 6;
+// Second use (issue #126): `offerWeight` multiplies by it for an offer that
+// grants a never-held, non-legendary relic by name (the Leash, the Tenure Ring).
 
 // ---------------------------------------------------------------------------
 // Ending thresholds — wiki/01 § 7

@@ -65,7 +65,7 @@ export const mechanics: Mechanic[] = [
     id: 'relics',
     name: 'Relics',
     blurb:
-      "Relics you have picked up along the way, each tied to one faction and graded common, rare, or legendary. A relic's wards come from its rarity, and once held, it is yours for the rest of the career. Tap Relics during a career to see what you carry.",
+      "Relics you have picked up along the way, each tied to one faction and graded common, rare, or legendary. A relic's wards come from its rarity, and once held, it is yours for the rest of the career. Relics you have never held turn up more often than ones you have. Tap Relics during a career to see what you carry.",
   },
   {
     id: 'relic_powers',
