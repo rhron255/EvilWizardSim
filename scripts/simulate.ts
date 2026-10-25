@@ -3425,7 +3425,9 @@ function main(): void {
   const milestone = (label: string, c: CompletionCurve, xs: number[], target: number) => {
     const m = median(xs);
     const shown = m > c.cap ? `>${c.cap}` : String(m);
-    const status = m <= target ? 'within target' : 'above target';
+    // A censored median is only a lower bound (`cap + 1`): it can show a miss
+    // but never a hit, so below the target it is unmeasured, not "within".
+    const status = m > c.cap ? (m > target ? 'above target' : 'unmeasured, cap below target') : m <= target ? 'within target' : 'above target';
     row(label, `${shown} [<=${target}; ${status}]`);
   };
   milestone('5 endings (baseline)', completion, completion.runsToFiveEndings, 25);
