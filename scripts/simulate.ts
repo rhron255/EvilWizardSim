@@ -24,6 +24,14 @@
  * project-wide); every test that used to hold content constant against it
  * now plays the real catalog too, same as this harness always has by default.
  *
+ * Completion (issue #131): the "under 1,000 runs" check for the baseline bot
+ * stays. Four tiered milestones sit beside it, each with its provenance in
+ * the source: half the relic grid in 13 runs (a check; a regression guard),
+ * and three READINGS printed under COMPLETION MILESTONES — five endings in 25,
+ * all relics in 60, route-aware full completion in 300 — which become checks
+ * only once the mechanisms that move them (#126) have landed and been
+ * re-measured. A bar the current bot cannot reach would only go red.
+ *
  * Targets (wiki/04):
  *   - Ascension 1-4% of runs
  *   - Age-limit survival uncommon
@@ -1905,6 +1913,10 @@ type CompletionCurve = {
   p90RunsToComplete: number;
   /** How many of `runsToComplete` are the `cap + 1` sentinel, not a real completion time. */
   censoredCount: number;
+  /** Per player: the run on which the FIFTH distinct ending was first seen (`cap + 1` if never). Milestone reading, issue #131. */
+  runsToFiveEndings: number[];
+  /** Per player: the run on which the LAST relic was first held (`cap + 1` if never). Milestone reading, issue #131. */
+  runsToAllRelics: number[];
   /** Bootstrap 95% CI on the median (players resampled with replacement). */
   medianCI: [number, number];
   /**
@@ -1978,6 +1990,8 @@ function completionProbe(
   const allEndingIds = new Set(ALL_ENDING_IDS);
   const slots = content.artifacts.length;
   const runsToComplete: number[] = [];
+  const runsToFiveEndings: number[] = [];
+  const runsToAllRelics: number[] = [];
   const firstAcquired = new Map<string, { runs: number[]; missing: number }>();
   const itemIds = [...ALL_ENDING_IDS, ...content.artifacts.map((a) => a.id)];
   for (const id of itemIds) firstAcquired.set(id, { runs: [], missing: 0 });
@@ -1991,6 +2005,8 @@ function completionProbe(
     const seenEndings = new Set<EndingId>();
     const firstAt = new Map<string, number>();
     let doneAt = cap + 1;
+    let fiveEndingsAt = cap + 1;
+    let allRelicsAt = cap + 1;
     let lastNew = '';
     let rotation = 0;
 
@@ -2045,6 +2061,8 @@ function completionProbe(
         }
         ownedArtifacts.add(id);
       }
+      if (fiveEndingsAt > cap && seenEndings.size >= 5) fiveEndingsAt = n;
+      if (allRelicsAt > cap && ownedArtifacts.size >= slots) allRelicsAt = n;
 
       if (seenEndings.size >= allEndingIds.size && ownedArtifacts.size >= slots) {
         doneAt = n;
@@ -2066,6 +2084,8 @@ function completionProbe(
       else entry.runs.push(at);
     }
     runsToComplete.push(doneAt);
+    runsToFiveEndings.push(fiveEndingsAt);
+    runsToAllRelics.push(allRelicsAt);
   }
 
   return {
@@ -2078,6 +2098,8 @@ function completionProbe(
     meanRunsToComplete: mean(runsToComplete),
     p90RunsToComplete: percentile(runsToComplete, 0.9),
     censoredCount: runsToComplete.filter((v) => v > cap).length,
+    runsToFiveEndings,
+    runsToAllRelics,
     medianCI: bootstrapMedianCI(runsToComplete, baseSeed ^ 0xb007),
     firstAcquired,
     chaseRuns,
@@ -3253,6 +3275,19 @@ function main(): void {
     ],
     [
       /*
+       * PROVENANCE (issue #131, tier 1 of its milestone table): Legionnaire
+       * players averaged about 13 careers (4M games / 300K users), the closest
+       * comparable with a collection-free loop; the bar is that a player who
+       * seeks nothing holds half the relic grid by then. Already met (the sim
+       * reads about 10, p90 15), so this is a regression guard, not a target
+       * to chase. `<= cap` keeps a censored cohort's sentinel from passing.
+       */
+      'Half the relic grid in 13 runs or fewer (median, no seeking)',
+      curve.medianRunsToHalf <= curve.cap && curve.medianRunsToHalf <= 13,
+      curve.medianRunsToHalf > curve.cap ? `>${curve.cap}` : String(curve.medianRunsToHalf),
+    ],
+    [
+      /*
        * PROVENANCE: not the wiki — a design conversation confirmed with the
        * user (issue #33's own text, quoted verbatim): "for each ending &
        * artifact, while changing strategy after acquiring each ending, the
@@ -3376,6 +3411,29 @@ function main(): void {
     `${completionCapped(routeAware.medianCI[0])} to ${completionCapped(routeAware.medianCI[1])}`,
   );
   row('players not finished within cap', String(routeAware.censoredCount));
+
+  // Tiered milestones (issue #131). READINGS, not checks, for the three tiers
+  // the mechanisms (#126) have not yet been measured against: a check set to
+  // a number the current bot cannot reach would only go red and invite chasing
+  // a constant (failure modes 6 and 12). The half-grid tier IS a check below.
+  // "All relics" is read here AFTER every ending (the route-aware bot hunts
+  // relics only then), so it is an upper bound on a player routing for relics
+  // from the start; measure that cohort before comparing it with 60.
+  console.log('');
+  console.log('COMPLETION MILESTONES  (readings; target in brackets; not gates)');
+  console.log(rule());
+  const milestone = (label: string, c: CompletionCurve, xs: number[], target: number) => {
+    const m = median(xs);
+    const shown = m > c.cap ? `>${c.cap}` : String(m);
+    // A censored median is only a lower bound (`cap + 1`): it can show a miss
+    // but never a hit, so below the target it is unmeasured, not "within".
+    const status = m > c.cap ? (m > target ? 'above target' : 'unmeasured, cap below target') : m <= target ? 'within target' : 'above target';
+    row(label, `${shown} [<=${target}; ${status}]`);
+  };
+  milestone('5 endings (baseline)', completion, completion.runsToFiveEndings, 25);
+  milestone('5 endings (route-aware)', routeAware, routeAware.runsToFiveEndings, 25);
+  milestone('all relics (route-aware, after endings)', routeAware, routeAware.runsToAllRelics, 60);
+  milestone('full completion (route-aware)', routeAware, routeAware.runsToComplete, 300);
   for (const [title, c] of [
     ['baseline', completion],
     ['route-aware', routeAware],
