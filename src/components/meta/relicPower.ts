@@ -92,6 +92,8 @@ function conditionClause(c: Condition, ctx: RelicPowerContext): string {
       return 'you have not acted destructively too often';
     case 'declinePhase':
       return 'it is the decline phase';
+    case 'minHeroThreat':
+      return `Hero Threat is ${c.v}+`;
     default: {
       // A sixteenth `Condition` variant a relic `if` can now express, with
       // nothing here taught to phrase it — mirrors the same guard in

@@ -21,6 +21,10 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-10-26T07:40:00Z': {
+    summary: 'Faction stalls now wait until the hero is close enough for their threat relief to be worth buying.',
+    details: ['A stall no longer sells you quiet when there is no Hero Threat left to quiet.'],
+  },
   '2026-10-19T06:16:00Z': {
     summary: 'A screen reader now reads each result aloud and keeps its place when you continue.',
     details: [
