@@ -276,7 +276,14 @@ export type Condition =
    * phase restriction lives on `Offer.phase` itself, which an era-end relic
    * trigger (evaluated against the run, not an offer) has no equivalent of.
    */
-  | { c: 'declinePhase' };
+  | { c: 'declinePhase' }
+  /**
+   * Hero Threat is at least N (issue #147). Gates the stalls: a good that buys
+   * threat relief delivers nothing at threat 0, so the stall waits until there
+   * is a full relief's worth of threat to buy down. Reads the same
+   * `RunState.heroThreat` the header prints.
+   */
+  | { c: 'minHeroThreat'; v: number };
 
 export type Offer = {
   id: string;

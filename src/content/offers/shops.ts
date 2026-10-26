@@ -24,13 +24,16 @@ import type { Offer } from '../../types';
  *     of hero threat about 6-11, and a held relic sells for about 20 — the
  *     same rates as the existing one-off sale cards.
  *
- * Every stall is a decline-phase offer from era index 10: several goods buy
- * hero-threat relief, and threat only starts to grow once the decline begins
- * (`threatGainFor` is 0 in the ascent), so an earlier stall would take the price
- * and deliver nothing (the card would print the truth, but it would be a bad
- * deal to print). Known gaps shared with older cards (`any_contractors`, the
- * favors): a lair rung bought at the top of the ladder, or a relic drawn when
- * the faction's commons are all held, delivers nothing.
+ * Every stall is a decline-phase offer from era index 10, and also waits for
+ * Hero Threat to reach the largest relief it sells (`minHeroThreat`, issue
+ * #147): several goods buy hero-threat relief, threat only starts to grow once
+ * the decline begins (`threatGainFor` is 0 in the ascent), and in a 20-era
+ * career era 10 can still sit before the prophecy — so without the gate a
+ * stall could take its price and deliver nothing (the card would print the
+ * truth, but it would be a bad deal to print). Known gaps shared with older
+ * cards (`any_contractors`, the favors): a lair rung bought at the top of the
+ * ladder, or a relic drawn when the faction's commons are all held, delivers
+ * nothing.
  *
  * Rule 1 notes. Every price is a plain `certain` effect list, so the card
  * prints exactly what the engine does. A follower or relic price is gated on
@@ -49,7 +52,7 @@ export const shopOffers: Offer[] = [
     body: 'Hesper Quill has pitched a folding stall in your courtyard, under a banner reading ALL SALES FINAL, FINAL BEING A TERM OF ART. The price list is laminated. The lamination is itself on the price list.',
     phase: 'decline',
     factionId: 'gilded_hand',
-    requires: [{ c: 'minEraIndex', v: 10 }, { c: 'minFollowers', v: 6 }],
+    requires: [{ c: 'minEraIndex', v: 10 }, { c: 'minFollowers', v: 6 }, { c: 'minHeroThreat', v: 8 }],
     weight: 3,
     options: [
       {
@@ -93,7 +96,7 @@ export const shopOffers: Offer[] = [
     body: 'A junior archivist from the Pale Academy has set up a trestle table and a very small brass scale, and is appraising things in the corridor. She has a form for appraising you. She has not decided yet whether to hand you the form.',
     phase: 'decline',
     factionId: 'pale_academy',
-    requires: [{ c: 'minEraIndex', v: 10 }, { c: 'minArtifacts', v: 3 }],
+    requires: [{ c: 'minEraIndex', v: 10 }, { c: 'minArtifacts', v: 3 }, { c: 'minHeroThreat', v: 11 }],
     weight: 1,
     options: [
       {
@@ -129,7 +132,7 @@ export const shopOffers: Offer[] = [
     body: 'Brambleward Oona has laid a market out on the lawn, in rows, though the rows are growing. Nothing has a price tag. Everything has a debt of gratitude, and the Choir is very precise about the exchange rate.',
     phase: 'decline',
     factionId: 'verdant_choir',
-    requires: [{ c: 'minEraIndex', v: 10 }, { c: 'minStanding', factionId: 'verdant_choir', v: 20 }],
+    requires: [{ c: 'minEraIndex', v: 10 }, { c: 'minStanding', factionId: 'verdant_choir', v: 20 }, { c: 'minHeroThreat', v: 9 }],
     weight: 2,
     options: [
       {
@@ -173,7 +176,7 @@ export const shopOffers: Offer[] = [
     body: 'The Crown is auctioning the contents of a warehouse it seized from someone who was, it assures you, a wizard in the old sense and not at all like you. The auctioneer’s gavel is also evidence.',
     phase: 'decline',
     factionId: 'crownlands',
-    requires: [{ c: 'minEraIndex', v: 10 }, { c: 'minFollowers', v: 8 }],
+    requires: [{ c: 'minEraIndex', v: 10 }, { c: 'minFollowers', v: 8 }, { c: 'minHeroThreat', v: 12 }],
     weight: 2,
     options: [
       {
@@ -217,7 +220,7 @@ export const shopOffers: Offer[] = [
     body: 'Something below the third cellar has opened a stall in the dark. It sells things. It takes payment in people, politely, and does not say what it does with them, and the sound of the till is wet.',
     phase: 'decline',
     factionId: 'worm_below',
-    requires: [{ c: 'minEraIndex', v: 10 }, { c: 'minFollowers', v: 8 }],
+    requires: [{ c: 'minEraIndex', v: 10 }, { c: 'minFollowers', v: 8 }, { c: 'minHeroThreat', v: 10 }],
     weight: 1,
     options: [
       {

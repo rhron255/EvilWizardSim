@@ -48,6 +48,8 @@ export function conditionMet(run: RunState, condition: Condition, content: Conte
       return run.illActs <= condition.v;
     case 'declinePhase':
       return run.phase === 'decline';
+    case 'minHeroThreat':
+      return run.heroThreat >= condition.v;
     default: {
       // Exhaustive over every CONTENT-authored `Condition` this codebase
       // knows about — if this stops compiling, a variant was added to the
