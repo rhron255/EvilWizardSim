@@ -24,6 +24,7 @@
  * game does, so it needs a network connection to look right — check it.
  */
 import { chromium } from 'playwright';
+import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { buildSigilGeometry, SIGIL_FIELD } from '../src/components/meta/sigilGeometry';
@@ -126,6 +127,21 @@ function ogHtml(): string {
 </div></body></html>`;
 }
 
+/**
+ * Every link-preview crawler fetches og.png, so its size is hosting bandwidth
+ * (issue #119). The image is flat warm-dark with a soft gradient, so a 128-colour
+ * palette looks the same and is about a fifth of the size (264 KB -> ~56 KB).
+ * Needs ImageMagick's `convert`; without it the full-size screenshot is kept
+ * and a warning says so, rather than failing the whole asset run.
+ */
+function shrinkOg(file: string) {
+  try {
+    execFileSync('convert', [file, '-colors', '128', '-define', 'png:compression-level=9', '-define', 'png:compression-strategy=1', file]);
+  } catch {
+    console.warn('og.png: ImageMagick `convert` not found; left at full size (about 260 KB).');
+  }
+}
+
 async function main() {
   await mkdir(path.join(OUT, 'icons'), { recursive: true });
 
@@ -153,6 +169,7 @@ async function main() {
   await page.waitForTimeout(600);
   await page.screenshot({ path: path.join(OUT, 'og.png') });
   await browser.close();
+  shrinkOg(path.join(OUT, 'og.png'));
 
   await writeFile(
     path.join(OUT, 'manifest.webmanifest'),
