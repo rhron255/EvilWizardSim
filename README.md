@@ -96,6 +96,23 @@ The deployment needs Pages enabled for the repository with its source set to
 **GitHub Actions** (Settings -> Pages -> Build and deployment -> Source); the
 workflow cannot turn that on for itself.
 
+#### Bandwidth
+
+GitHub Pages has no per-play bill but a documented soft limit of about
+100 GB of bandwidth a month. A cold load is about 190 KB gzipped (HTML 1 KB,
+CSS 26 KB, JS 161 KB, from `npm run build`) plus the few latin font files the
+page actually uses, each already compressed; `public/og.png` (about 56 KB) is
+fetched by every link-preview crawler, so it is kept small by `npm run assets`.
+At that size 100 GB is roughly 400,000 cold loads a month, and returning
+players load from cache.
+
+If a spike ever passes the limit, nothing in the game needs a backend, so the
+fallback is only a different host for the same `dist/`: put a CDN (Cloudflare,
+or any caching proxy) in front of the Pages address, or publish the build to a
+second static host (Netlify, Cloudflare Pages) and point the domain there. A
+change of address strands saved progress, which lives in the browser per site
+address (see #118), so decide the domain before the spike, not during it.
+
 ## Layout
 
 | Path | Owns |
