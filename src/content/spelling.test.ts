@@ -9,16 +9,18 @@
  * feels without being able to name. Comedy in this game lives in the register; a
  * stray American spelling is a wrong note.
  *
- * This walks every string VALUE in the content catalogue (never identifiers,
- * comments or CSS, which legitimately say `color` and `center`) and fails on a
- * known American spelling, naming where it is. The list is short on purpose: a
- * long one would start rejecting real words. Add to it when one slips through.
+ * This walks every player-facing string VALUE in the content catalogue and the
+ * engine's own emergency offer (never identifiers, comments or CSS, which
+ * legitimately say `color` and `center`) and fails on a known American
+ * spelling, naming where it is. The list is short on purpose: a long one would
+ * start rejecting real words. Add to it when one slips through.
  *
  * Strings a component COMPOSES (`relicPower.ts`'s "Passive: favouring a
  * faction…") are outside this walk; their own tests pin the wording, and did
  * catch the one that carried "favoring".
  */
 import { describe, expect, it } from 'vitest';
+import { QUIET_ERA_OFFER } from '../engine/offers';
 import { CHANGELOG } from './changelog';
 import * as content from './index';
 
@@ -37,7 +39,7 @@ const AMERICAN: readonly [RegExp, string][] = [
   [/\barmor(s|ed)?\b/i, 'armour'],
   [/\blabor(s|ed|ing)?\b/i, 'labour'],
   [/\bharbor(s|ed)?\b/i, 'harbour'],
-  [/\b(recogni|reali|organi|apologi|critici|memori|summari|speciali|authori|alphabeti|itemi)z(e|es|ed|ing|ation)\b/i, 'the -ise spelling'],
+  [/\b(recogni|reali|organi|reorgani|apologi|critici|memori|summari|speciali|authori|alphabeti|itemi)z(e|es|ed|ing|ation)\b/i, 'the -ise spelling'],
 ];
 
 function* strings(value: unknown, path: string): Generator<[string, string]> {
@@ -59,6 +61,7 @@ describe('content · spelling', () => {
       ['mechanics', content.mechanics],
       ['epithets', content.epithets],
       ['offers', content.offers],
+      ['quietEraOffer', QUIET_ERA_OFFER],
       ['changelog', CHANGELOG],
     ];
     let scanned = 0;
@@ -79,7 +82,7 @@ describe('content · spelling', () => {
   it('actually catches a slip (the pattern list is not silently matching nothing)', () => {
     // A validator rule that matched nothing once reported a dirty catalogue clean
     // (HANDOFF, "two traps"). Prove each pattern fires on its own word.
-    const samples = ['favoring', 'honored', 'colors', 'defense', 'center', 'rumor', 'neighbors', 'behavior', 'flavor', 'gray', 'armor', 'labor', 'harbor', 'recognized', 'organizes', 'criticized', 'specialized', 'alphabetizes', 'itemizes'];
+    const samples = ['favoring', 'honored', 'colors', 'defense', 'center', 'rumor', 'neighbors', 'behavior', 'flavor', 'gray', 'armor', 'labor', 'harbor', 'recognized', 'organizes', 'reorganizes', 'criticized', 'specialized', 'alphabetizes', 'itemizes'];
     for (const word of samples) {
       expect(AMERICAN.some(([pattern]) => pattern.test(word)), word).toBe(true);
     }
