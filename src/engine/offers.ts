@@ -49,7 +49,7 @@ export const QUIET_ERA_OFFER: Offer = {
   options: [
     {
       kind: 'certain',
-      label: 'Reorganize the tower',
+      label: 'Reorganise the tower',
       effects: [{ t: 'followers', v: 1 }],
       resultText: 'Five years of inventory. One impressed hireling.',
     },
