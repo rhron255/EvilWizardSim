@@ -13,7 +13,9 @@
  * - No colour emoji (rule 3). The tier is a word.
  * - Spoilers: the ending name is included (the PNG already prints it).
  *   Narration, coda, offer titles, option labels, deed summaries, relic names
- *   and which gamble fell which way are not.
+ *   and gamble outcomes are not. (The row does show which eras were gambles
+ *   and how they fell, by design: that is the shape of the career's appetite
+ *   for risk, with no offer named.)
  * - The attribution line is omitted for the self-determined endings exactly as
  *   the card omits it (failure mode 17): `attributionFor` returns null there.
  */
