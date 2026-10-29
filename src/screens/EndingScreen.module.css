@@ -519,6 +519,25 @@
   text-wrap: balance;
 }
 
+.controls .wide {
+  grid-column: 1 / -1;
+}
+
+.copyBox {
+  width: 100%;
+  max-width: 460px;
+  box-sizing: border-box;
+  padding: var(--ew-space-3);
+  background: var(--ew-panel);
+  color: var(--ew-ink);
+  border: 1px solid var(--ew-line);
+  border-radius: var(--ew-radius-md);
+  font: inherit;
+  font-size: var(--ew-size-sm);
+  line-height: 1.5;
+  resize: none;
+}
+
 .controlNote {
   max-width: 46ch;
   margin: 0;

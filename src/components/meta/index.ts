@@ -41,6 +41,9 @@ export type { RelicPowerContext } from './relicPower';
 export { attributionFor, attributionLabelFor, ATTRIBUTION_LABEL } from './attribution';
 export type { AttributionContext } from './attribution';
 
+export { shareTextFor, resolutionRow, SHARE_URL } from './shareText';
+export type { ShareTextInput } from './shareText';
+
 export { tierVars, tierOf, peakNotoriety } from './tierVars';
 export type { TierVars } from './tierVars';
 
