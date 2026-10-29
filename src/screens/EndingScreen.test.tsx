@@ -497,3 +497,27 @@ describe('EndingScreen · the theme this run unlocked', () => {
     expect(card!.textContent).not.toMatch(/new visual theme/i);
   });
 });
+
+describe('EndingScreen Copy result (#128)', () => {
+  it('writes the spoiler-free text to the clipboard', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    show('slain_by_chosen_one');
+    await userEvent.click(screen.getByRole('button', { name: 'Copy result' }));
+    expect(writeText).toHaveBeenCalledTimes(1);
+    const text = writeText.mock.calls[0][0] as string;
+    expect(text).toContain('Mordrach Vane of the Long Winter — ');
+    expect(text).toContain('Perrin of the Late Harvest');
+    expect(await screen.findByRole('button', { name: 'Copied' })).toBeInTheDocument();
+  });
+
+  it('falls back to a selected read-only box when the clipboard refuses', async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error('denied'));
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    show('lichdom');
+    await userEvent.click(screen.getByRole('button', { name: 'Copy result' }));
+    const box = await screen.findByLabelText('Result text to copy');
+    expect(box).toHaveAttribute('readonly');
+    expect((box as HTMLTextAreaElement).value).toContain('Mordrach Vane');
+  });
+});

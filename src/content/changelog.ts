@@ -21,6 +21,13 @@
 import type { Changelog } from '../types';
 
 export const CHANGELOG: Changelog = {
+  '2026-10-29T07:08:29Z': {
+    summary: 'The ending card can now copy a spoiler-free text summary to paste into a chat.',
+    details: [
+      'A new Copy result button works where sharing the image does not.',
+      'The text names the ending and shows how each era resolved, and nothing else.',
+    ],
+  },
   '2026-10-19T06:16:00Z': {
     summary: 'A screen reader now reads each result aloud and keeps its place when you continue.',
     details: [

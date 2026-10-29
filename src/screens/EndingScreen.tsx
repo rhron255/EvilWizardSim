@@ -11,7 +11,7 @@
  * was the thing people actually posted.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Artifact, Ending, EndingId, Faction, Lair, RunState, ThemeId, TierId } from '../types';
 import { themeFor } from '../theme/themes';
 import {
@@ -30,6 +30,7 @@ import {
   peakNotoriety,
   preloadShareFonts,
   shareEndingImage,
+  shareTextFor,
   themeAttr,
   tierOf,
   tierVars,
@@ -138,6 +139,8 @@ export function EndingScreen({
   const [stage, setStage] = useState(0);
   const [share, setShare] = useState<ShareState>('idle');
   const [applied, setApplied] = useState(false);
+  const [copy, setCopy] = useState<'idle' | 'done' | 'failed'>('idle');
+  const copyBox = useRef<HTMLTextAreaElement>(null);
 
   const peak = peakNotoriety(run.eras, run.notoriety);
   const tier = tierOf(peak);
@@ -240,6 +243,26 @@ export function EndingScreen({
     else if (result.reason === 'cancelled') setShare('idle');
     else setShare('fallback');
   }, [artifacts, ending, lairs, onShare, run]);
+
+  const resultText = useMemo(
+    () => shareTextFor({ run, ending, factions }),
+    [run, ending, factions],
+  );
+
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(resultText);
+      setCopy('done');
+    } catch {
+      // No clipboard (insecure context, in-app browser, denied): hand the text
+      // over in a pre-selected box instead of failing silently.
+      setCopy('failed');
+    }
+  }, [resultText]);
+
+  useEffect(() => {
+    if (copy === 'failed') copyBox.current?.select();
+  }, [copy]);
 
   const at = (n: number) => (stage >= n ? styles.in : styles.out);
 
@@ -487,7 +510,14 @@ export function EndingScreen({
         >
           {shareLabel}
         </button>
-        <button type="button" className={styles.secondary} onClick={onViewNecrolexicon}>
+        <button type="button" className={styles.secondary} onClick={handleCopy}>
+          {copy === 'done' ? 'Copied' : 'Copy result'}
+        </button>
+        <button
+          type="button"
+          className={`${styles.secondary} ${styles.wide}`}
+          onClick={onViewNecrolexicon}
+        >
           View Necrolexicon
         </button>
       </nav>
@@ -495,12 +525,27 @@ export function EndingScreen({
       <UnreachedEndings endings={endings} endingsSeen={endingsSeen} onSelect={onViewEnding} />
 
       <p className={styles.controlNote} role="status">
-        {share === 'fallback'
-          ? 'This browser will not hand over an image file. The card above is sized to screenshot — take one.'
-          : share === 'done'
-            ? 'Saved. The seal is drawn from the name, so it is only ever yours.'
-            : 'One life. Plenty of second runs.'}
+        {copy === 'failed'
+          ? 'This browser would not copy. The text is selected below — copy it by hand.'
+          : copy === 'done'
+            ? 'Copied. It names the ending and how each era resolved, nothing else.'
+            : share === 'fallback'
+              ? 'This browser will not hand over an image file. Screenshot the card above, or use Copy result.'
+              : share === 'done'
+                ? 'Saved. The seal is drawn from the name, so it is only ever yours.'
+                : 'One life. Plenty of second runs.'}
       </p>
+      {copy === 'failed' ? (
+        <textarea
+          ref={copyBox}
+          className={styles.copyBox}
+          readOnly
+          rows={5}
+          value={resultText}
+          aria-label="Result text to copy"
+          onFocus={(e) => e.currentTarget.select()}
+        />
+      ) : null}
     </main>
   );
 }
